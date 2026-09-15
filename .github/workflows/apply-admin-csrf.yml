@@ -1,0 +1,74 @@
+name: Apply VELIXEO Admin CSRF Guard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-admin-csrf.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Integrate admin same-origin guard
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/src/index.ts')
+          source = path.read_text()
+
+          import_anchor = "import { registerClientFoundationRoutes } from './clientFoundationRoutes.js';\n"
+          import_line = "import { registerAdminCsrfGuard } from './adminSecurity.js';\n"
+          if import_line not in source:
+              if import_anchor not in source:
+                  raise SystemExit('index import anchor not found')
+              source = source.replace(import_anchor, import_anchor + import_line, 1)
+
+          hook_anchor = """await app.register(rateLimit, {
+            max: 120,
+            timeWindow: '1 minute',
+          });
+
+          app.addContentTypeParser(
+          """
+          hook_replacement = """await app.register(rateLimit, {
+            max: 120,
+            timeWindow: '1 minute',
+          });
+
+          registerAdminCsrfGuard(app);
+
+          app.addContentTypeParser(
+          """
+          if 'registerAdminCsrfGuard(app);' not in source:
+              if hook_anchor not in source:
+                  raise SystemExit('rate-limit hook anchor not found')
+              source = source.replace(hook_anchor, hook_replacement, 1)
+
+          path.write_text(source)
+          PY
+
+      - name: Commit integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "VELIXEO Build Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add backend/src/index.ts
+          if git diff --cached --quiet; then
+            echo "Admin CSRF guard already integrated."
+            exit 0
+          fi
+          git commit -m "Protect admin form actions from cross-site requests"
+          git push origin HEAD:main
