@@ -14,6 +14,7 @@ import {
   WalletEntryType,
 } from '@prisma/client';
 import { z } from 'zod';
+import { adminHtml } from './adminPage.js';
 
 const env = z
   .object({
@@ -49,6 +50,7 @@ await app.register(rateLimit, {
 
 const registerSchema = z
   .object({
+    fullName: z.string().trim().min(2).max(120).optional(),
     email: z.string().trim().email().optional(),
     phone: z.string().trim().min(7).max(32).optional(),
     password: z.string().min(8).max(128),
@@ -86,6 +88,16 @@ const adminAdjustmentSchema = z.object({
 const rateSchema = z.object({
   code: z.enum(['USD', 'TOMAN']),
   afnPerUnit: z.string().regex(/^\d+(\.\d{1,8})?$/),
+});
+
+const adminUsersQuerySchema = z.object({
+  q: z.string().trim().max(120).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+const adminUserParamsSchema = z.object({
+  id: z.string().uuid(),
 });
 
 type JwtClaims = {
@@ -149,13 +161,18 @@ async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
   const authResult = await authenticate(request, reply);
   if (authResult) return authResult;
   const claims = request.user as JwtClaims;
-  if (claims.role !== UserRole.ADMIN) {
+  const user = await prisma.user.findUnique({
+    where: { id: claims.sub },
+    select: { role: true },
+  });
+  if (!user || user.role !== UserRole.ADMIN) {
     return reply.code(403).send({ error: 'admin_required' });
   }
 }
 
 function publicUser(user: {
   id: string;
+  fullName: string | null;
   email: string | null;
   phone: string | null;
   role: UserRole;
@@ -165,6 +182,7 @@ function publicUser(user: {
 }) {
   return {
     id: user.id,
+    fullName: user.fullName,
     email: user.email,
     phone: user.phone,
     role: user.role,
@@ -248,6 +266,10 @@ app.get('/health', async (_request, reply) => {
   }
 });
 
+app.get('/admin', async (_request, reply) => {
+  return reply.type('text/html; charset=utf-8').send(adminHtml);
+});
+
 app.post('/api/v1/auth/register', async (request, reply) => {
   const parsed = registerSchema.safeParse(request.body);
   if (!parsed.success) {
@@ -269,6 +291,7 @@ app.post('/api/v1/auth/register', async (request, reply) => {
   const passwordHash = await bcrypt.hash(parsed.data.password, 12);
   const user = await prisma.user.create({
     data: {
+      fullName: parsed.data.fullName?.trim() || null,
       email: email ?? null,
       phone: phone ?? null,
       passwordHash,
@@ -445,6 +468,120 @@ app.get('/api/v1/rates', async () => {
     })),
   };
 });
+
+app.get(
+  '/api/v1/admin/stats',
+  { preHandler: requireAdmin },
+  async () => {
+    const dayStart = new Date();
+    dayStart.setUTCHours(0, 0, 0, 0);
+
+    const [totalUsers, usersToday, totalAdmins, walletAggregate, recentUsers] =
+      await Promise.all([
+        prisma.user.count(),
+        prisma.user.count({ where: { createdAt: { gte: dayStart } } }),
+        prisma.user.count({ where: { role: UserRole.ADMIN } }),
+        prisma.wallet.aggregate({ _sum: { balanceAfn: true } }),
+        prisma.user.findMany({
+          orderBy: { createdAt: 'desc' },
+          take: 8,
+          include: { wallet: true },
+        }),
+      ]);
+
+    return {
+      totalUsers,
+      usersToday,
+      totalAdmins,
+      totalWalletBalanceAfn: (walletAggregate._sum.balanceAfn ?? 0n).toString(),
+      recentUsers: recentUsers.map((user) => ({
+        ...publicUser(user),
+        balanceAfn: (user.wallet?.balanceAfn ?? 0n).toString(),
+      })),
+    };
+  },
+);
+
+app.get(
+  '/api/v1/admin/users',
+  { preHandler: requireAdmin },
+  async (request, reply) => {
+    const parsed = adminUsersQuerySchema.safeParse(request.query);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+
+    const { q, page, limit } = parsed.data;
+    const where: Prisma.UserWhereInput = q
+      ? {
+          OR: [
+            { fullName: { contains: q, mode: 'insensitive' } },
+            { email: { contains: q, mode: 'insensitive' } },
+            { phone: { contains: q, mode: 'insensitive' } },
+          ],
+        }
+      : {};
+
+    const [total, users] = await Promise.all([
+      prisma.user.count({ where }),
+      prisma.user.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: { wallet: true },
+      }),
+    ]);
+
+    return {
+      total,
+      page,
+      limit,
+      users: users.map((user) => ({
+        ...publicUser(user),
+        balanceAfn: (user.wallet?.balanceAfn ?? 0n).toString(),
+      })),
+    };
+  },
+);
+
+app.get(
+  '/api/v1/admin/users/:id',
+  { preHandler: requireAdmin },
+  async (request, reply) => {
+    const parsed = adminUserParamsSchema.safeParse(request.params);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+
+    const user = await prisma.user.findUnique({
+      where: { id: parsed.data.id },
+      include: {
+        wallet: {
+          include: {
+            entries: {
+              orderBy: { createdAt: 'desc' },
+              take: 30,
+            },
+          },
+        },
+      },
+    });
+    if (!user) return reply.code(404).send({ error: 'user_not_found' });
+
+    return {
+      user: {
+        ...publicUser(user),
+        balanceAfn: (user.wallet?.balanceAfn ?? 0n).toString(),
+        walletEntries: (user.wallet?.entries ?? []).map((entry) => ({
+          id: entry.id,
+          type: entry.type,
+          status: entry.status,
+          amountAfn: entry.amountAfn.toString(),
+          balanceAfterAfn: entry.balanceAfterAfn.toString(),
+          description: entry.description,
+          createdAt: entry.createdAt,
+        })),
+      },
+    };
+  },
+);
 
 app.put(
   '/api/v1/admin/rates',
