@@ -1,0 +1,24 @@
+from pathlib import Path
+
+p = Path('lib/app.dart')
+s = p.read_text(encoding='utf-8')
+
+replacements = [
+("""  Future<bool> register(String identifier, String password) async {\n""", """  Future<bool> register(String fullName, String identifier, String password) async {\n"""),
+("""      final session = await api.register(\n        identifier: identifier,\n        password: password,\n        language: language,\n      );\n""", """      final session = await api.register(\n        fullName: fullName,\n        identifier: identifier,\n        password: password,\n        language: language,\n      );\n"""),
+("""  final identifier = TextEditingController();\n  final password = TextEditingController();\n""", """  final fullName = TextEditingController();\n  final identifier = TextEditingController();\n  final password = TextEditingController();\n"""),
+("""  void dispose() {\n    identifier.dispose();\n""", """  void dispose() {\n    fullName.dispose();\n    identifier.dispose();\n"""),
+("""    if (identifier.text.trim().isEmpty || password.text.length < 8) {\n""", """    if (registerMode && fullName.text.trim().length < 2) {\n      ScaffoldMessenger.of(context).showSnackBar(\n        SnackBar(content: Text(tr(widget.controller.fa, 'نام و نام خانوادگی را وارد کنید.', 'Enter your full name.'))),\n      );\n      return;\n    }\n    if (identifier.text.trim().isEmpty || password.text.length < 8) {\n"""),
+("""    final ok = registerMode\n        ? await widget.controller.register(identifier.text, password.text)\n        : await widget.controller.login(identifier.text, password.text);\n""", """    final ok = registerMode\n        ? await widget.controller.register(fullName.text, identifier.text, password.text)\n        : await widget.controller.login(identifier.text, password.text);\n"""),
+("""            const SizedBox(height: 28),\n            TextField(\n              controller: identifier,\n""", """            const SizedBox(height: 28),\n            if (registerMode) ...[\n              TextField(\n                controller: fullName,\n                textCapitalization: TextCapitalization.words,\n                decoration: InputDecoration(\n                  prefixIcon: const Icon(Icons.badge_outlined),\n                  hintText: tr(fa, 'نام و نام خانوادگی', 'Full name'),\n                ),\n              ),\n              const SizedBox(height: 14),\n            ],\n            TextField(\n              controller: identifier,\n"""),
+("""            const SizedBox(height: 18),\n            OutlinedButton(\n              onPressed: c.authBusy\n""", """            if (!registerMode) ...[\n              const SizedBox(height: 18),\n              Row(\n                children: [\n                  const Expanded(child: Divider()),\n                  Padding(\n                    padding: const EdgeInsets.symmetric(horizontal: 12),\n                    child: Text(tr(fa, 'یا', 'or')),\n                  ),\n                  const Expanded(child: Divider()),\n                ],\n              ),\n              const SizedBox(height: 14),\n              SizedBox(\n                width: double.infinity,\n                height: 52,\n                child: OutlinedButton.icon(\n                  onPressed: c.authBusy\n                      ? null\n                      : () => ScaffoldMessenger.of(context).showSnackBar(\n                            SnackBar(\n                              content: Text(\n                                tr(\n                                  fa,\n                                  'ورود با Google در مرحله اتصال OAuth است و بعد از تنظیم Client ID فعال می‌شود.',\n                                  'Google Sign-In is ready for OAuth wiring and will activate after the Client ID is configured.',\n                                ),\n                              ),\n                            ),\n                          ),\n                  icon: const Text(\n                    'G',\n                    style: TextStyle(\n                      fontWeight: FontWeight.w900,\n                      fontSize: 18,\n                      color: Color(0xFF4285F4),\n                    ),\n                  ),\n                  label: Text(tr(fa, 'ادامه با Google', 'Continue with Google')),\n                ),\n              ),\n            ],\n            const SizedBox(height: 18),\n            OutlinedButton(\n              onPressed: c.authBusy\n"""),
+("""    final identity = c.user?.email ?? c.user?.phone ?? tr(c.fa, 'کاربر VELIXEO', 'VELIXEO User');\n""", """    final identity = c.user?.fullName ?? c.user?.email ?? c.user?.phone ?? tr(c.fa, 'کاربر VELIXEO', 'VELIXEO User');\n"""),
+]
+
+for old, new in replacements:
+    if old not in s:
+        raise SystemExit('Expected source fragment not found:\n' + old[:180])
+    s = s.replace(old, new, 1)
+
+p.write_text(s, encoding='utf-8')
+print('VELIXEO v0.3 auth UI patch applied')
