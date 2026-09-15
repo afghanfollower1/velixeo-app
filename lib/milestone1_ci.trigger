@@ -1,1 +1,1 @@
-validate-dynamic-client-foundation-2026-09-15
+validate-google-oauth-release-signing-2026-09-16
