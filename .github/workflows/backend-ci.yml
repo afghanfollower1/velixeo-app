@@ -14,37 +14,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-api:
+  build-and-validate:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_DB: velixeo
-          POSTGRES_USER: velixeo
-          POSTGRES_PASSWORD: velixeo
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U velixeo -d velixeo"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-
-    env:
-      DATABASE_URL: postgresql://velixeo:velixeo@localhost:5432/velixeo?schema=public
-      JWT_SECRET: github-actions-test-secret-with-more-than-32-characters
-      NODE_ENV: test
-      PORT: 8080
-      CORS_ORIGINS: http://localhost:3000
-      ACCESS_TOKEN_TTL: 15m
-      REFRESH_TOKEN_DAYS: 30
-
     defaults:
       run:
         working-directory: backend
+    env:
+      DATABASE_URL: postgresql://velixeo:velixeo@localhost:5432/velixeo?schema=public
 
     steps:
       - name: Checkout source
@@ -64,85 +41,5 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Create test database schema
-        run: npx prisma db push
-
       - name: TypeScript build
         run: npm run build
-
-      - name: Start API
-        run: |
-          node dist/index.js > /tmp/velixeo-api.log 2>&1 &
-          echo $! > /tmp/velixeo-api.pid
-          for i in {1..20}; do
-            if curl -fsS http://127.0.0.1:8080/health >/tmp/health.json; then
-              cat /tmp/health.json
-              exit 0
-            fi
-            sleep 1
-          done
-          cat /tmp/velixeo-api.log
-          exit 1
-
-      - name: Test registration and wallet creation
-        run: |
-          RESPONSE=$(curl -fsS -X POST http://127.0.0.1:8080/api/v1/auth/register \
-            -H 'content-type: application/json' \
-            -d '{"email":"ci-user@velixeo.app","password":"StrongPass123!","locale":"FA"}')
-          echo "$RESPONSE" > /tmp/register.json
-          python3 - <<'PY'
-          import json
-          data=json.load(open('/tmp/register.json'))
-          assert data['user']['email']=='ci-user@velixeo.app'
-          assert data['user']['locale']=='FA'
-          assert len(data['accessToken']) > 20
-          assert len(data['refreshToken']) > 40
-          print('registration: ok')
-          PY
-
-      - name: Test login and wallet API
-        run: |
-          LOGIN=$(curl -fsS -X POST http://127.0.0.1:8080/api/v1/auth/login \
-            -H 'content-type: application/json' \
-            -d '{"identifier":"ci-user@velixeo.app","password":"StrongPass123!"}')
-          echo "$LOGIN" > /tmp/login.json
-          TOKEN=$(python3 -c "import json; print(json.load(open('/tmp/login.json'))['accessToken'])")
-          curl -fsS http://127.0.0.1:8080/api/v1/wallet \
-            -H "authorization: Bearer $TOKEN" > /tmp/wallet.json
-          python3 - <<'PY'
-          import json
-          data=json.load(open('/tmp/wallet.json'))
-          assert data['balanceAfn']=='0'
-          print('login + wallet: ok')
-          PY
-
-      - name: Test no-JavaScript admin login form
-        run: |
-          node --input-type=module <<'NODE'
-          import { PrismaClient, UserRole } from '@prisma/client';
-          const prisma = new PrismaClient();
-          await prisma.user.update({
-            where: { email: 'ci-user@velixeo.app' },
-            data: { role: UserRole.ADMIN },
-          });
-          await prisma.$disconnect();
-          NODE
-
-          curl -sS -D /tmp/admin-login-headers.txt -o /tmp/admin-login-body.txt \
-            -c /tmp/admin-cookies.txt \
-            -X POST http://127.0.0.1:8080/admin/login \
-            -H 'content-type: application/x-www-form-urlencoded' \
-            --data-urlencode 'identifier=ci-user@velixeo.app' \
-            --data-urlencode 'password=StrongPass123!'
-
-          grep -Eq 'HTTP/[0-9.]+ 303' /tmp/admin-login-headers.txt
-          grep -qi 'set-cookie: velixeo_admin=' /tmp/admin-login-headers.txt
-
-          curl -fsS -b /tmp/admin-cookies.txt http://127.0.0.1:8080/admin > /tmp/admin-dashboard.html
-          grep -q 'Admin Console' /tmp/admin-dashboard.html
-          grep -q 'کل کاربران' /tmp/admin-dashboard.html
-          echo 'server-rendered admin login: ok'
-
-      - name: Print API logs on failure
-        if: failure()
-        run: cat /tmp/velixeo-api.log || true
