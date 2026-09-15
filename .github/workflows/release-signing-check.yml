@@ -45,22 +45,44 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/velixeo-release.jks"
-          test -s "$RUNNER_TEMP/velixeo-release.jks"
+          if ! printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/velixeo-release.jks"; then
+            echo "ANDROID_KEYSTORE_BASE64 is not valid Base64."
+            exit 1
+          fi
+          if [ ! -s "$RUNNER_TEMP/velixeo-release.jks" ]; then
+            echo "Decoded release keystore is empty."
+            exit 1
+          fi
           echo "Release keystore decoded successfully."
 
-      - name: Verify keystore alias and SHA-1
+      - name: Verify keystore password
         shell: bash
         run: |
           set -euo pipefail
-          ACTUAL_SHA1="$(keytool -list -v \
+          if ! keytool -list \
+            -keystore "$RUNNER_TEMP/velixeo-release.jks" \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            > "$RUNNER_TEMP/keystore-list.txt" 2>/dev/null; then
+            echo "ANDROID_KEYSTORE_PASSWORD does not unlock the uploaded keystore, or the uploaded file is not the expected keystore."
+            exit 1
+          fi
+          echo "Keystore password is valid."
+
+      - name: Verify alias and certificate SHA-1
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! keytool -list -v \
             -keystore "$RUNNER_TEMP/velixeo-release.jks" \
             -alias "$ANDROID_KEY_ALIAS" \
-            -storepass "$ANDROID_KEYSTORE_PASSWORD" 2>/dev/null \
-            | sed -nE 's/^[[:space:]]*SHA1:[[:space:]]*//p' \
-            | head -n1)"
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            > "$RUNNER_TEMP/cert-info.txt" 2>/dev/null; then
+            echo "ANDROID_KEY_ALIAS was not found in the release keystore."
+            exit 1
+          fi
+          ACTUAL_SHA1="$(sed -nE 's/^[[:space:]]*SHA1:[[:space:]]*//p' "$RUNNER_TEMP/cert-info.txt" | head -n1)"
           if [ -z "$ACTUAL_SHA1" ]; then
-            echo "Could not read the release certificate. Check keystore password and alias."
+            echo "Could not read SHA-1 from the release certificate."
             exit 1
           fi
           if [ "$ACTUAL_SHA1" != "$EXPECTED_SHA1" ]; then
@@ -78,12 +100,15 @@ jobs:
           mkdir -p "$RUNNER_TEMP/signing-check"
           printf 'VELIXEO signing verification\n' > "$RUNNER_TEMP/signing-check/payload.txt"
           jar cf "$RUNNER_TEMP/signing-check.jar" -C "$RUNNER_TEMP/signing-check" payload.txt
-          jarsigner \
+          if ! jarsigner \
             -keystore "$RUNNER_TEMP/velixeo-release.jks" \
             -storepass "$ANDROID_KEYSTORE_PASSWORD" \
             -keypass "$ANDROID_KEY_PASSWORD" \
             "$RUNNER_TEMP/signing-check.jar" \
-            "$ANDROID_KEY_ALIAS" >/dev/null
+            "$ANDROID_KEY_ALIAS" >/dev/null 2>&1; then
+            echo "ANDROID_KEY_PASSWORD is incorrect for alias velixeo."
+            exit 1
+          fi
           jarsigner -verify "$RUNNER_TEMP/signing-check.jar" >/dev/null
           echo "Keystore password, key password, alias, and private key are valid."
 
@@ -91,5 +116,9 @@ jobs:
         if: always()
         shell: bash
         run: |
-          rm -f "$RUNNER_TEMP/velixeo-release.jks" "$RUNNER_TEMP/signing-check.jar"
+          rm -f \
+            "$RUNNER_TEMP/velixeo-release.jks" \
+            "$RUNNER_TEMP/signing-check.jar" \
+            "$RUNNER_TEMP/keystore-list.txt" \
+            "$RUNNER_TEMP/cert-info.txt"
           rm -rf "$RUNNER_TEMP/signing-check"
