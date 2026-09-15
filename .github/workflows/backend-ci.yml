@@ -83,7 +83,7 @@ jobs:
           echo "Backend did not become healthy in time."
           exit 1
 
-      - name: Run auth wallet and content smoke tests
+      - name: Run auth wallet and client API smoke tests
         shell: bash
         run: |
           set -euo pipefail
@@ -148,9 +148,33 @@ jobs:
             throw new Error(`Login smoke test failed: ${login.response.status}`);
           }
 
-          const content = await jsonRequest('/api/v1/content');
-          if (content.response.status !== 200) {
-            throw new Error(`Content endpoint failed: ${content.response.status}`);
+          const catalog = await jsonRequest('/api/v1/catalog/services');
+          if (catalog.response.status !== 200 || catalog.body?.baseCurrency !== 'AFN' || !Array.isArray(catalog.body?.services)) {
+            throw new Error(`Catalog endpoint failed: ${catalog.response.status}`);
+          }
+
+          const banners = await jsonRequest('/api/v1/content/banners');
+          if (banners.response.status !== 200 || !Array.isArray(banners.body?.banners)) {
+            throw new Error(`Banners endpoint failed: ${banners.response.status}`);
+          }
+
+          const notifications = await jsonRequest('/api/v1/content/notifications', {
+            headers: { authorization: `Bearer ${token}` },
+          });
+          if (notifications.response.status !== 200 || !Array.isArray(notifications.body?.notifications)) {
+            throw new Error(`Notifications endpoint failed: ${notifications.response.status}`);
+          }
+
+          const orders = await jsonRequest('/api/v1/orders', {
+            headers: { authorization: `Bearer ${token}` },
+          });
+          if (orders.response.status !== 200 || !Array.isArray(orders.body?.orders)) {
+            throw new Error(`Orders endpoint failed: ${orders.response.status}`);
+          }
+
+          const publicConfig = await jsonRequest('/api/v1/system/public-config');
+          if (publicConfig.response.status !== 200 || !Array.isArray(publicConfig.body?.settings)) {
+            throw new Error(`Public config endpoint failed: ${publicConfig.response.status}`);
           }
 
           const rates = await jsonRequest('/api/v1/rates');
