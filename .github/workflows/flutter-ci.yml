@@ -1,0 +1,38 @@
+name: Validate VELIXEO Flutter
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'lib/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/flutter-ci.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: velixeo-flutter-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Format source
+        run: dart format lib
+
+      - name: Analyze source
+        run: flutter analyze --no-fatal-infos
