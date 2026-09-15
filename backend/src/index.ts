@@ -19,6 +19,7 @@ import { z } from 'zod';
 import { adminDashboardHtml, adminLoginHtml } from './adminPage.js';
 import { registerExtendedAdminRoutes } from './adminExtended.js';
 import { registerClientFoundationRoutes } from './clientFoundationRoutes.js';
+import { registerPaymentRoutes } from './paymentRoutes.js';
 import { registerAdminCsrfGuard } from './adminSecurity.js';
 
 const env = z
@@ -1037,6 +1038,7 @@ app.post(
 
 registerExtendedAdminRoutes(app, prisma, adminWebUser);
 registerClientFoundationRoutes(app, prisma, authenticate);
+registerPaymentRoutes(app, prisma, authenticate);
 
 app.setErrorHandler((error: unknown, request, reply) => {
   request.log.error(error);
