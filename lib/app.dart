@@ -79,12 +79,13 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  Future<bool> register(String identifier, String password) async {
+  Future<bool> register(String fullName, String identifier, String password) async {
     authBusy = true;
     authError = null;
     notifyListeners();
     try {
       final session = await api.register(
+        fullName: fullName,
         identifier: identifier,
         password: password,
         language: language,
@@ -514,6 +515,7 @@ class AuthPage extends StatefulWidget {
 }
 
 class _AuthPageState extends State<AuthPage> {
+  final fullName = TextEditingController();
   final identifier = TextEditingController();
   final password = TextEditingController();
   final confirm = TextEditingController();
@@ -522,6 +524,7 @@ class _AuthPageState extends State<AuthPage> {
 
   @override
   void dispose() {
+    fullName.dispose();
     identifier.dispose();
     password.dispose();
     confirm.dispose();
@@ -548,6 +551,12 @@ class _AuthPageState extends State<AuthPage> {
 
   Future<void> submit() async {
     FocusScope.of(context).unfocus();
+    if (registerMode && fullName.text.trim().length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(widget.controller.fa, 'نام و نام خانوادگی را وارد کنید.', 'Enter your full name.'))),
+      );
+      return;
+    }
     if (identifier.text.trim().isEmpty || password.text.length < 8) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(tr(widget.controller.fa, 'ایمیل/شماره و رمز حداقل ۸ کاراکتری وارد کنید.', 'Enter your email/phone and a password of at least 8 characters.'))),
@@ -561,7 +570,7 @@ class _AuthPageState extends State<AuthPage> {
       return;
     }
     final ok = registerMode
-        ? await widget.controller.register(identifier.text, password.text)
+        ? await widget.controller.register(fullName.text, identifier.text, password.text)
         : await widget.controller.login(identifier.text, password.text);
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -592,6 +601,17 @@ class _AuthPageState extends State<AuthPage> {
               style: const TextStyle(color: Color(0xFF607487)),
             ),
             const SizedBox(height: 28),
+            if (registerMode) ...[
+              TextField(
+                controller: fullName,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.badge_outlined),
+                  hintText: tr(fa, 'نام و نام خانوادگی', 'Full name'),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
             TextField(
               controller: identifier,
               keyboardType: TextInputType.emailAddress,
@@ -634,6 +654,48 @@ class _AuthPageState extends State<AuthPage> {
                       : tr(fa, 'ورود', 'Sign in'),
               onPressed: c.authBusy ? null : submit,
             ),
+            if (!registerMode) ...[
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  const Expanded(child: Divider()),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(tr(fa, 'یا', 'or')),
+                  ),
+                  const Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: OutlinedButton.icon(
+                  onPressed: c.authBusy
+                      ? null
+                      : () => ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                tr(
+                                  fa,
+                                  'ورود با Google در مرحله اتصال OAuth است و بعد از تنظیم Client ID فعال می‌شود.',
+                                  'Google Sign-In is ready for OAuth wiring and will activate after the Client ID is configured.',
+                                ),
+                              ),
+                            ),
+                          ),
+                  icon: const Text(
+                    'G',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 18,
+                      color: Color(0xFF4285F4),
+                    ),
+                  ),
+                  label: Text(tr(fa, 'ادامه با Google', 'Continue with Google')),
+                ),
+              ),
+            ],
             const SizedBox(height: 18),
             OutlinedButton(
               onPressed: c.authBusy
@@ -717,7 +779,7 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = controller;
-    final identity = c.user?.email ?? c.user?.phone ?? tr(c.fa, 'کاربر VELIXEO', 'VELIXEO User');
+    final identity = c.user?.fullName ?? c.user?.email ?? c.user?.phone ?? tr(c.fa, 'کاربر VELIXEO', 'VELIXEO User');
     return SafeArea(
       child: RefreshIndicator(
         onRefresh: c.refreshAccount,
