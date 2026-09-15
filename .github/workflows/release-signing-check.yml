@@ -55,18 +55,32 @@ jobs:
           fi
           echo "Release keystore decoded successfully."
 
-      - name: Verify keystore password
+      - name: Diagnose password secret mapping
         shell: bash
         run: |
           set -euo pipefail
-          if ! keytool -list \
-            -keystore "$RUNNER_TEMP/velixeo-release.jks" \
-            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
-            > "$RUNNER_TEMP/keystore-list.txt" 2>/dev/null; then
-            echo "ANDROID_KEYSTORE_PASSWORD does not unlock the uploaded keystore, or the uploaded file is not the expected keystore."
+          store_ok=0
+          key_as_store_ok=0
+          if keytool -list -keystore "$RUNNER_TEMP/velixeo-release.jks" -storepass "$ANDROID_KEYSTORE_PASSWORD" >/dev/null 2>&1; then
+            store_ok=1
+            echo "ANDROID_KEYSTORE_PASSWORD unlocks the keystore."
+          else
+            echo "ANDROID_KEYSTORE_PASSWORD does NOT unlock the keystore."
+          fi
+          if keytool -list -keystore "$RUNNER_TEMP/velixeo-release.jks" -storepass "$ANDROID_KEY_PASSWORD" >/dev/null 2>&1; then
+            key_as_store_ok=1
+            echo "ANDROID_KEY_PASSWORD also unlocks the keystore."
+          else
+            echo "ANDROID_KEY_PASSWORD does NOT unlock the keystore."
+          fi
+          if [ "$store_ok" -ne 1 ]; then
+            if [ "$key_as_store_ok" -eq 1 ]; then
+              echo "The key password secret appears correct, but ANDROID_KEYSTORE_PASSWORD needs to be updated to the same value."
+            else
+              echo "Neither password secret unlocks the uploaded keystore. Re-enter both GitHub password secrets from the known-good local password."
+            fi
             exit 1
           fi
-          echo "Keystore password is valid."
 
       - name: Verify alias and certificate SHA-1
         shell: bash
@@ -119,6 +133,5 @@ jobs:
           rm -f \
             "$RUNNER_TEMP/velixeo-release.jks" \
             "$RUNNER_TEMP/signing-check.jar" \
-            "$RUNNER_TEMP/keystore-list.txt" \
             "$RUNNER_TEMP/cert-info.txt"
           rm -rf "$RUNNER_TEMP/signing-check"
