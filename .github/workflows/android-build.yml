@@ -28,19 +28,11 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Show Flutter version
-        run: flutter --version
-
-      - name: Create Android platform scaffold
+      - name: Verify stable Android project
         run: |
-          rm -rf /tmp/velixeo_scaffold
-          flutter create --platforms=android --org com.velixeo --project-name velixeo /tmp/velixeo_scaffold
-          cp -R /tmp/velixeo_scaffold/android ./android
-          cp /tmp/velixeo_scaffold/.metadata ./.metadata
-          sed -i 's/android:label="velixeo"/android:label="VELIXEO"/' android/app/src/main/AndroidManifest.xml
-          if ! grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml; then
-            sed -i '/<manifest/a\\    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
-          fi
+          test -f android/app/build.gradle.kts || test -f android/app/build.gradle
+          test -f android/app/src/main/AndroidManifest.xml
+          grep -R "com.velixeo.velixeo" android/app >/dev/null
 
       - name: Generate VELIXEO launcher icon
         run: |
@@ -80,9 +72,6 @@ jobs:
 
       - name: Get Flutter packages
         run: flutter pub get
-
-      - name: Format Dart source
-        run: dart format lib
 
       - name: Analyze Flutter source
         run: flutter analyze --no-fatal-infos
