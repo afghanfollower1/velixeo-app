@@ -1,0 +1,33 @@
+name: Apply no-JS admin console patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/patch_admin_nojs.py'
+      - '.github/workflows/apply-admin-nojs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Apply patch
+        run: python3 tools/patch_admin_nojs.py
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/src/adminPage.ts backend/src/index.ts
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Replace admin console with server-rendered no-JS flow"
+            git push
+          fi
