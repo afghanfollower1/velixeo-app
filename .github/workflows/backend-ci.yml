@@ -16,12 +16,31 @@ concurrency:
 jobs:
   build-and-validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: backend
     env:
-      DATABASE_URL: postgresql://velixeo:velixeo@localhost:5432/velixeo?schema=public
+      DATABASE_URL: postgresql://velixeo:velixeo@127.0.0.1:5432/velixeo?schema=public
+      NODE_ENV: test
+      PORT: 8080
+      JWT_SECRET: ci-only-jwt-secret-with-at-least-32-characters
+      CORS_ORIGINS: ''
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: velixeo
+          POSTGRES_PASSWORD: velixeo
+          POSTGRES_DB: velixeo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U velixeo -d velixeo"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
 
     steps:
       - name: Checkout source
@@ -38,8 +57,128 @@ jobs:
       - name: Validate Prisma schema
         run: npx prisma validate
 
+      - name: Create ephemeral CI database schema
+        run: npx prisma db push
+
       - name: Generate Prisma client
         run: npx prisma generate
 
       - name: TypeScript build
         run: npm run build
+
+      - name: Start backend for smoke tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node dist/index.js > "$RUNNER_TEMP/velixeo-backend.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/velixeo-backend.pid"
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8080/health >/dev/null; then
+              echo "VELIXEO backend is ready."
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/velixeo-backend.log"
+          echo "Backend did not become healthy in time."
+          exit 1
+
+      - name: Run auth wallet and content smoke tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          const base = 'http://127.0.0.1:8080';
+          const email = `ci-${Date.now()}@example.invalid`;
+          const password = 'VELIXEO-CI-Password-123!';
+
+          async function jsonRequest(path, options = {}) {
+            const response = await fetch(`${base}${path}`, options);
+            const text = await response.text();
+            let body = null;
+            if (text) {
+              try { body = JSON.parse(text); } catch { body = text; }
+            }
+            return { response, body };
+          }
+
+          const health = await jsonRequest('/health');
+          if (health.response.status !== 200 || health.body?.status !== 'ok') {
+            throw new Error(`Health check failed: ${health.response.status}`);
+          }
+
+          const registration = await jsonRequest('/api/v1/auth/register', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              fullName: 'VELIXEO CI User',
+              email,
+              password,
+              locale: 'FA',
+            }),
+          });
+          if (registration.response.status !== 201 || !registration.body?.accessToken) {
+            throw new Error(`Registration failed: ${registration.response.status} ${JSON.stringify(registration.body)}`);
+          }
+          const token = registration.body.accessToken;
+
+          const me = await jsonRequest('/api/v1/me', {
+            headers: { authorization: `Bearer ${token}` },
+          });
+          if (me.response.status !== 200 || me.body?.user?.email !== email) {
+            throw new Error(`Authenticated profile failed: ${me.response.status}`);
+          }
+          if (me.body?.user?.status !== 'ACTIVE') {
+            throw new Error(`New user status is not ACTIVE: ${me.body?.user?.status}`);
+          }
+
+          const wallet = await jsonRequest('/api/v1/wallet', {
+            headers: { authorization: `Bearer ${token}` },
+          });
+          if (wallet.response.status !== 200 || wallet.body?.balanceAfn !== '0') {
+            throw new Error(`Wallet smoke test failed: ${wallet.response.status} ${JSON.stringify(wallet.body)}`);
+          }
+
+          const login = await jsonRequest('/api/v1/auth/login', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ identifier: email, password }),
+          });
+          if (login.response.status !== 200 || !login.body?.refreshToken) {
+            throw new Error(`Login smoke test failed: ${login.response.status}`);
+          }
+
+          const content = await jsonRequest('/api/v1/content');
+          if (content.response.status !== 200) {
+            throw new Error(`Content endpoint failed: ${content.response.status}`);
+          }
+
+          const rates = await jsonRequest('/api/v1/rates');
+          if (rates.response.status !== 200 || rates.body?.baseCurrency !== 'AFN') {
+            throw new Error(`Rates endpoint failed: ${rates.response.status}`);
+          }
+
+          const googleWithoutConfig = await jsonRequest('/api/v1/auth/google', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ idToken: 'not-a-real-google-id-token-value', locale: 'FA' }),
+          });
+          if (googleWithoutConfig.response.status !== 503 || googleWithoutConfig.body?.error !== 'google_auth_not_configured') {
+            throw new Error(`Google safe-failure behavior changed: ${googleWithoutConfig.response.status} ${JSON.stringify(googleWithoutConfig.body)}`);
+          }
+
+          console.log('VELIXEO backend runtime smoke tests passed.');
+          NODE
+
+      - name: Show backend logs on failure
+        if: failure()
+        shell: bash
+        run: cat "$RUNNER_TEMP/velixeo-backend.log" || true
+
+      - name: Stop smoke-test backend
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/velixeo-backend.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/velixeo-backend.pid")" 2>/dev/null || true
+          fi
