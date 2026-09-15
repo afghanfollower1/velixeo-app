@@ -14,7 +14,7 @@ import {
   WalletEntryType,
 } from '@prisma/client';
 import { z } from 'zod';
-import { adminHtml } from './adminPage.js';
+import { adminDashboardHtml, adminLoginHtml } from './adminPage.js';
 
 const env = z
   .object({
@@ -47,6 +47,18 @@ await app.register(rateLimit, {
   max: 120,
   timeWindow: '1 minute',
 });
+
+app.addContentTypeParser(
+  'application/x-www-form-urlencoded',
+  { parseAs: 'string' },
+  (_request, body, done) => {
+    try {
+      done(null, Object.fromEntries(new URLSearchParams(String(body))));
+    } catch (error) {
+      done(error as Error, undefined);
+    }
+  },
+);
 
 const registerSchema = z
   .object({
@@ -266,8 +278,204 @@ app.get('/health', async (_request, reply) => {
   }
 });
 
-app.get('/admin', async (_request, reply) => {
-  return reply.type('text/html; charset=utf-8').send(adminHtml);
+const adminWebCookieName = 'velixeo_admin';
+
+type AdminWebClaims = JwtClaims & { scope?: string };
+
+function parseCookies(header?: string) {
+  const out: Record<string, string> = {};
+  for (const part of (header ?? '').split(';')) {
+    const index = part.indexOf('=');
+    if (index <= 0) continue;
+    const key = part.slice(0, index).trim();
+    const value = part.slice(index + 1).trim();
+    try {
+      out[key] = decodeURIComponent(value);
+    } catch {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
+async function adminWebUser(request: FastifyRequest) {
+  const token = parseCookies(request.headers.cookie)[adminWebCookieName];
+  if (!token) return null;
+  try {
+    const claims = app.jwt.verify<AdminWebClaims>(token);
+    if (claims.scope !== 'admin-web' || claims.role !== UserRole.ADMIN) return null;
+    return prisma.user.findFirst({
+      where: { id: claims.sub, role: UserRole.ADMIN },
+      include: { wallet: true },
+    });
+  } catch {
+    return null;
+  }
+}
+
+function adminCookie(token: string, maxAge = 8 * 60 * 60) {
+  return `${adminWebCookieName}=${encodeURIComponent(token)}; Path=/admin; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`;
+}
+
+app.get('/admin', async (request, reply) => {
+  const admin = await adminWebUser(request);
+  if (!admin) return reply.type('text/html; charset=utf-8').send(adminLoginHtml());
+
+  const query = z
+    .object({
+      view: z.enum(['dashboard', 'users', 'rates', 'providers']).default('dashboard'),
+      q: z.string().trim().max(120).optional(),
+      user: z.string().uuid().optional(),
+      msg: z.string().max(40).optional(),
+    })
+    .safeParse(request.query);
+  const view = query.success ? query.data.view : 'dashboard';
+  const q = query.success ? query.data.q : undefined;
+  const selectedUserId = query.success ? query.data.user : undefined;
+  const message = query.success ? query.data.msg : undefined;
+
+  const dayStart = new Date();
+  dayStart.setUTCHours(0, 0, 0, 0);
+  const where: Prisma.UserWhereInput = q
+    ? {
+        OR: [
+          { fullName: { contains: q, mode: 'insensitive' } },
+          { email: { contains: q, mode: 'insensitive' } },
+          { phone: { contains: q, mode: 'insensitive' } },
+        ],
+      }
+    : {};
+
+  const [totalUsers, usersToday, totalAdmins, walletAggregate, users, rates, selectedUser] =
+    await Promise.all([
+      prisma.user.count(),
+      prisma.user.count({ where: { createdAt: { gte: dayStart } } }),
+      prisma.user.count({ where: { role: UserRole.ADMIN } }),
+      prisma.wallet.aggregate({ _sum: { balanceAfn: true } }),
+      prisma.user.findMany({
+        where: view === 'users' ? where : {},
+        orderBy: { createdAt: 'desc' },
+        take: view === 'users' ? 100 : 8,
+        include: { wallet: true },
+      }),
+      prisma.exchangeRate.findMany({ orderBy: { code: 'asc' } }),
+      selectedUserId
+        ? prisma.user.findUnique({
+            where: { id: selectedUserId },
+            include: {
+              wallet: {
+                include: { entries: { orderBy: { createdAt: 'desc' }, take: 30 } },
+              },
+            },
+          })
+        : Promise.resolve(null),
+    ]);
+
+  return reply.type('text/html; charset=utf-8').send(
+    adminDashboardHtml({
+      adminIdentity: admin.fullName || admin.email || admin.phone || 'ADMIN',
+      view,
+      totalUsers,
+      usersToday,
+      totalAdmins,
+      totalWalletBalanceAfn: (walletAggregate._sum.balanceAfn ?? 0n).toString(),
+      q,
+      message,
+      users: users.map((user) => ({
+        ...publicUser(user),
+        balanceAfn: (user.wallet?.balanceAfn ?? 0n).toString(),
+      })),
+      rates: rates.map((rate) => ({
+        code: rate.code,
+        afnPerUnit: rate.afnPerUnit.toString(),
+        updatedAt: rate.updatedAt,
+      })),
+      selectedUser: selectedUser
+        ? {
+            ...publicUser(selectedUser),
+            balanceAfn: (selectedUser.wallet?.balanceAfn ?? 0n).toString(),
+            walletEntries: (selectedUser.wallet?.entries ?? []).map((entry) => ({
+              id: entry.id,
+              type: entry.type,
+              status: entry.status,
+              amountAfn: entry.amountAfn.toString(),
+              balanceAfterAfn: entry.balanceAfterAfn.toString(),
+              description: entry.description,
+              createdAt: entry.createdAt,
+            })),
+          }
+        : null,
+    }),
+  );
+});
+
+app.post('/admin/login', async (request, reply) => {
+  const parsed = loginSchema.safeParse(request.body);
+  if (!parsed.success) {
+    return reply.code(400).type('text/html; charset=utf-8').send(adminLoginHtml('ایمیل/شماره و رمز را درست وارد کنید.'));
+  }
+  const rawIdentifier = parsed.data.identifier;
+  const emailIdentifier = rawIdentifier.includes('@') ? rawIdentifier.toLowerCase() : '__not_an_email__';
+  const phoneIdentifier = normalizePhone(rawIdentifier) ?? rawIdentifier;
+  const user = await prisma.user.findFirst({
+    where: { OR: [{ email: emailIdentifier }, { phone: phoneIdentifier }] },
+  });
+  if (!user || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
+    return reply.code(401).type('text/html; charset=utf-8').send(adminLoginHtml('ایمیل/شماره یا رمز عبور نادرست است.'));
+  }
+  if (user.role !== UserRole.ADMIN) {
+    return reply.code(403).type('text/html; charset=utf-8').send(adminLoginHtml('این حساب دسترسی مدیر ندارد.'));
+  }
+  const token = app.jwt.sign(
+    { sub: user.id, role: user.role, scope: 'admin-web' },
+    { expiresIn: '8h' },
+  );
+  reply.header('Set-Cookie', adminCookie(token));
+  return reply.code(303).redirect('/admin');
+});
+
+app.post('/admin/logout', async (_request, reply) => {
+  reply.header('Set-Cookie', adminCookie('', 0));
+  return reply.code(303).redirect('/admin');
+});
+
+app.post('/admin/wallet-adjust', async (request, reply) => {
+  const admin = await adminWebUser(request);
+  if (!admin) return reply.code(303).redirect('/admin');
+  const parsed = adminAdjustmentSchema.safeParse(request.body);
+  if (!parsed.success) return reply.code(303).redirect('/admin?view=users&msg=invalid_request');
+  const amountAfn = BigInt(parsed.data.amountAfn);
+  if (amountAfn === 0n) return reply.code(303).redirect(`/admin?view=users&user=${encodeURIComponent(parsed.data.userId)}&msg=invalid_request`);
+  try {
+    await applyWalletDelta({
+      userId: parsed.data.userId,
+      amountAfn,
+      type: amountAfn > 0n ? WalletEntryType.MANUAL_CREDIT : WalletEntryType.MANUAL_DEBIT,
+      description: parsed.data.reason,
+      idempotencyKey: `admin-web-${admin.id}-${Date.now()}-${randomBytes(6).toString('hex')}`,
+      referenceType: 'ADMIN_ADJUSTMENT',
+      referenceId: admin.id,
+    });
+    return reply.code(303).redirect(`/admin?view=users&user=${encodeURIComponent(parsed.data.userId)}&msg=wallet_updated`);
+  } catch (error) {
+    if (error instanceof Error && error.message === 'INSUFFICIENT_FUNDS') {
+      return reply.code(303).redirect(`/admin?view=users&user=${encodeURIComponent(parsed.data.userId)}&msg=insufficient_funds`);
+    }
+    throw error;
+  }
+});
+
+app.post('/admin/rates', async (request, reply) => {
+  const admin = await adminWebUser(request);
+  if (!admin) return reply.code(303).redirect('/admin');
+  const parsed = rateSchema.safeParse(request.body);
+  if (!parsed.success) return reply.code(303).redirect('/admin?view=rates&msg=invalid_request');
+  await prisma.exchangeRate.upsert({
+    where: { code: parsed.data.code },
+    update: { afnPerUnit: new Prisma.Decimal(parsed.data.afnPerUnit) },
+    create: { code: parsed.data.code, afnPerUnit: new Prisma.Decimal(parsed.data.afnPerUnit) },
+  });
+  return reply.code(303).redirect('/admin?view=rates&msg=rate_updated');
 });
 
 app.post('/api/v1/auth/register', async (request, reply) => {

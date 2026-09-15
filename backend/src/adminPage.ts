@@ -1,237 +1,103 @@
-export const adminHtml = String.raw`<!doctype html>
+type AdminUserRow = {
+  id: string;
+  fullName: string | null;
+  email: string | null;
+  phone: string | null;
+  role: string;
+  balanceAfn: string;
+  createdAt: string | Date;
+};
+
+type AdminWalletEntry = {
+  id: string;
+  type: string;
+  status: string;
+  amountAfn: string;
+  balanceAfterAfn: string;
+  description: string | null;
+  createdAt: string | Date;
+};
+
+type AdminSelectedUser = AdminUserRow & { walletEntries: AdminWalletEntry[] };
+
+type AdminRate = { code: string; afnPerUnit: string; updatedAt: string | Date };
+
+type AdminDashboardModel = {
+  adminIdentity: string;
+  view: 'dashboard' | 'users' | 'rates' | 'providers';
+  totalUsers: number;
+  usersToday: number;
+  totalAdmins: number;
+  totalWalletBalanceAfn: string;
+  users: AdminUserRow[];
+  q?: string;
+  selectedUser?: AdminSelectedUser | null;
+  rates: AdminRate[];
+  message?: string;
+};
+
+const esc = (value: unknown) =>
+  String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+
+const fmt = (value: string | number | bigint) =>
+  `${Number(value || 0).toLocaleString('en-US')} AFN`;
+
+const dateFa = (value: string | Date) => {
+  try {
+    return new Date(value).toLocaleString('fa-IR');
+  } catch {
+    return '—';
+  }
+};
+
+const shell = (body: string, title = 'VELIXEO Admin') => `<!doctype html>
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>VELIXEO Admin</title>
+<title>${esc(title)}</title>
 <style>
-:root{--p:#0D78C8;--sky:#31A8FF;--bg:#F4FAFF;--card:#fff;--text:#102235;--muted:#607487;--line:#DCE8F1;--ok:#18A875;--bad:#E65454;--warn:#EFAF38}*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;background:var(--bg);color:var(--text)}button,input{font:inherit}.hidden{display:none!important}.login{min-height:100vh;display:grid;place-items:center;padding:24px}.login-card{width:min(440px,100%);background:#fff;border:1px solid var(--line);border-radius:28px;padding:28px;box-shadow:0 22px 70px rgba(13,120,200,.10)}.brand{display:flex;gap:12px;align-items:center}.logo{width:46px;height:46px;border-radius:14px;background:linear-gradient(145deg,#4DB8FF,#0D78C8);display:grid;place-items:center;color:#fff;font-weight:900;font-size:22px}.brand b{font-size:20px;letter-spacing:1px}.sub{color:var(--muted);font-size:13px}.field{margin-top:14px}.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}.field input{width:100%;height:48px;border:1px solid var(--line);border-radius:14px;padding:0 14px;outline:none;background:#fff}.field input:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(13,120,200,.08)}.primary{border:0;background:linear-gradient(135deg,var(--sky),var(--p));color:#fff;min-height:48px;border-radius:14px;padding:0 18px;font-weight:800;cursor:pointer}.primary:disabled{opacity:.65;cursor:not-allowed}.wide{width:100%;margin-top:18px}.err{color:var(--bad);font-size:13px;margin-top:12px;min-height:20px}.app{display:grid;grid-template-columns:250px 1fr;min-height:100vh}.side{background:#0D2640;color:#fff;padding:18px;position:sticky;top:0;height:100vh}.side .brand{margin-bottom:28px}.nav button{width:100%;border:0;background:transparent;color:#cfe8fa;text-align:right;padding:13px 14px;border-radius:12px;margin:4px 0;cursor:pointer}.nav button.active,.nav button:hover{background:rgba(49,168,255,.16);color:#fff}.main{padding:24px;min-width:0}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:20px}.top h1{font-size:24px;margin:0}.chip{font-size:12px;padding:7px 10px;border-radius:999px;background:#eaf6ff;color:var(--p)}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.stat,.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:18px}.stat span{color:var(--muted);font-size:12px}.stat strong{display:block;margin-top:8px;font-size:24px}.card{margin-top:16px}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.toolbar input{height:44px;border:1px solid var(--line);border-radius:12px;padding:0 12px;min-width:260px}.ghost{height:42px;border:1px solid var(--line);background:#fff;border-radius:12px;padding:0 13px;cursor:pointer}.table-wrap{overflow:auto;margin-top:14px}table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:12px 10px;border-bottom:1px solid #edf3f7;text-align:right;font-size:13px}th{color:var(--muted);font-weight:700}.money{font-weight:900;color:var(--p)}.badge{display:inline-block;padding:5px 8px;border-radius:999px;font-size:11px;background:#eef3f7}.badge.admin{background:#e8f8f1;color:#0b8a5c}.drawer{position:fixed;inset:0;background:rgba(8,25,40,.38);display:flex;justify-content:flex-start;z-index:20}.drawer-panel{width:min(520px,92vw);height:100%;background:#fff;padding:22px;overflow:auto;box-shadow:8px 0 40px rgba(0,0,0,.14)}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.info{background:#f7fbff;border:1px solid var(--line);border-radius:14px;padding:12px;margin:8px 0}.info small{display:block;color:var(--muted)}.info b{display:block;margin-top:4px}.amount-actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.amount-actions button{border:1px solid var(--line);background:#fff;padding:8px 10px;border-radius:10px;cursor:pointer}.save{margin-top:10px}.section-title{font-weight:900;margin:18px 0 8px}.tx{display:flex;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid #edf3f7}.tx small{color:var(--muted)}.pos{color:var(--ok);font-weight:800}.neg{color:var(--bad);font-weight:800}.rates{display:grid;grid-template-columns:1fr 1fr;gap:12px}.ratebox input{width:100%;height:44px;border:1px solid var(--line);border-radius:12px;padding:0 12px;margin-top:8px}.logout{margin-top:28px;color:#ffced0!important}.notice{padding:12px 14px;border-radius:14px;background:#eaf6ff;color:#0D6EFD;font-size:13px;margin-top:12px}@media(max-width:900px){.app{grid-template-columns:1fr}.side{height:auto;position:static}.nav{display:flex;overflow:auto;gap:4px}.nav button{white-space:nowrap;width:auto}.stats{grid-template-columns:1fr 1fr}.main{padding:16px}}@media(max-width:540px){.stats,.rates,.row{grid-template-columns:1fr}.toolbar input{min-width:100%;width:100%}}
+:root{--p:#0D78C8;--sky:#31A8FF;--bg:#F4FAFF;--card:#fff;--text:#102235;--muted:#607487;--line:#DCE8F1;--ok:#18A875;--bad:#E65454;--nav:#0D2640}*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;background:var(--bg);color:var(--text)}button,input{font:inherit}.login{min-height:100vh;display:grid;place-items:center;padding:24px}.login-card{width:min(440px,100%);background:#fff;border:1px solid var(--line);border-radius:28px;padding:28px;box-shadow:0 22px 70px rgba(13,120,200,.10)}.brand{display:flex;gap:12px;align-items:center}.logo{width:46px;height:46px;border-radius:14px;background:linear-gradient(145deg,#4DB8FF,#0D78C8);display:grid;place-items:center;color:#fff;font-weight:900;font-size:22px}.brand b{font-size:20px;letter-spacing:1px}.sub{color:var(--muted);font-size:13px}.field{margin-top:14px}.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}.field input{width:100%;height:48px;border:1px solid var(--line);border-radius:14px;padding:0 14px;outline:none;background:#fff}.field input:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(13,120,200,.08)}.primary{border:0;background:linear-gradient(135deg,var(--sky),var(--p));color:#fff;height:48px;border-radius:14px;padding:0 18px;font-weight:800;cursor:pointer}.wide{width:100%;margin-top:18px}.err{color:var(--bad);font-size:13px;margin-top:12px;background:#fff0f0;border:1px solid #ffdada;border-radius:12px;padding:10px}.ok{color:#0b8a5c;font-size:13px;background:#e8f8f1;border:1px solid #c7efdc;border-radius:12px;padding:10px;margin-bottom:14px}.app{display:grid;grid-template-columns:250px 1fr;min-height:100vh}.side{background:var(--nav);color:#fff;padding:18px;position:sticky;top:0;height:100vh}.side .brand{margin-bottom:28px}.nav a,.nav button{display:block;width:100%;border:0;background:transparent;color:#cfe8fa;text-align:right;padding:13px 14px;border-radius:12px;margin:4px 0;cursor:pointer;text-decoration:none}.nav a.active,.nav a:hover,.nav button:hover{background:rgba(49,168,255,.16);color:#fff}.logout{color:#ffced0!important}.main{padding:24px;min-width:0}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:20px}.top h1{font-size:24px;margin:0}.chip{font-size:12px;padding:7px 10px;border-radius:999px;background:#eaf6ff;color:var(--p)}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.stat,.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:18px}.stat span{color:var(--muted);font-size:12px}.stat strong{display:block;margin-top:8px;font-size:24px}.card{margin-top:16px}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.toolbar .field{margin-top:0;min-width:260px;flex:1}.ghost{height:44px;border:1px solid var(--line);background:#fff;border-radius:12px;padding:0 13px;cursor:pointer;text-decoration:none;color:var(--text);display:inline-grid;place-items:center}.table-wrap{overflow:auto;margin-top:14px}table{width:100%;border-collapse:collapse;min-width:760px}th,td{padding:12px 10px;border-bottom:1px solid #edf3f7;text-align:right;font-size:13px}th{color:var(--muted);font-weight:700}.money{font-weight:900;color:var(--p)}.badge{display:inline-block;padding:5px 8px;border-radius:999px;font-size:11px;background:#eef3f7}.badge.admin{background:#e8f8f1;color:#0b8a5c}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.info{background:#f7fbff;border:1px solid var(--line);border-radius:14px;padding:12px;margin:8px 0}.info small{display:block;color:var(--muted)}.info b{display:block;margin-top:4px}.section-title{font-weight:900;margin:18px 0 8px}.tx{display:flex;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid #edf3f7}.tx small{color:var(--muted)}.pos{color:var(--ok);font-weight:800}.neg{color:var(--bad);font-weight:800}.inline-form{margin:0}.ratebox input{width:100%;height:44px;border:1px solid var(--line);border-radius:12px;padding:0 12px;margin-top:8px}.ratebox .primary{margin-top:10px}.danger-note{color:#8d5614;background:#fff7e8;border:1px solid #ffe3ae;border-radius:12px;padding:10px;font-size:13px}@media(max-width:900px){.app{grid-template-columns:1fr}.side{height:auto;position:static}.nav{display:flex;overflow:auto;gap:4px}.nav a,.nav button{white-space:nowrap;width:auto}.stats{grid-template-columns:1fr 1fr}.main{padding:16px}}@media(max-width:540px){.stats,.grid2{grid-template-columns:1fr}.toolbar .field{min-width:100%}}
 </style>
 </head>
-<body>
-<section id="loginView" class="login">
-  <form id="loginForm" class="login-card" novalidate>
-    <div class="brand"><div class="logo">V</div><div><b>VELIXEO</b><div class="sub">پنل مدیریت امن</div></div></div>
-    <h2>ورود مدیر</h2>
-    <div class="sub">با حسابی که نقش ADMIN دارد وارد شوید.</div>
-    <div class="field"><label for="loginId">ایمیل یا شماره</label><input id="loginId" autocomplete="username" required></div>
-    <div class="field"><label for="loginPass">رمز عبور</label><input id="loginPass" type="password" autocomplete="current-password" required></div>
-    <button class="primary wide" id="loginBtn" type="submit">ورود به پنل</button>
-    <div id="loginError" class="err" aria-live="polite"></div>
-  </form>
-</section>
-<section id="appView" class="app hidden">
-  <aside class="side">
-    <div class="brand"><div class="logo">V</div><div><b>VELIXEO</b><div class="sub" style="color:#9fc2db">Admin Console</div></div></div>
-    <div class="nav">
-      <button data-view="dashboard" class="active">داشبورد</button>
-      <button data-view="users">کاربران</button>
-      <button data-view="rates">نرخ ارز</button>
-      <button data-view="providers">API و Providerها</button>
-      <button id="logoutBtn" class="logout">خروج</button>
-    </div>
-  </aside>
-  <main class="main">
-    <div class="top"><div><h1 id="pageTitle">داشبورد</h1><div class="sub">مدیریت واقعی کاربران، کیف پول و تنظیمات VELIXEO</div></div><span class="chip" id="adminIdentity">ADMIN</span></div>
-    <div id="dashboardView"><div class="stats"><div class="stat"><span>کل کاربران</span><strong id="sUsers">—</strong></div><div class="stat"><span>ثبت‌نام امروز</span><strong id="sToday">—</strong></div><div class="stat"><span>موجودی کل کیف پول‌ها</span><strong id="sWallet">—</strong></div><div class="stat"><span>مدیران</span><strong id="sAdmins">—</strong></div></div><div class="card"><b>آخرین کاربران</b><div id="recentUsers" class="table-wrap"></div></div></div>
-    <div id="usersView" class="hidden"><div class="card"><div class="toolbar"><input id="userSearch" placeholder="جستجو با نام، ایمیل یا شماره"><button class="ghost" id="searchBtn">جستجو</button><button class="ghost" id="refreshUsersBtn">بروزرسانی</button></div><div id="usersTable" class="table-wrap"></div></div></div>
-    <div id="ratesView" class="hidden"><div class="card"><b>نرخ‌های نمایش</b><p class="sub">واحد پایه همیشه AFN است.</p><div class="rates"><div class="ratebox"><label>AFN به ازای 1 USD</label><input id="usdRate" inputmode="decimal"><button class="primary save" data-rate="USD">ذخیره USD</button></div><div class="ratebox"><label>AFN به ازای 1 TOMAN</label><input id="tomanRate" inputmode="decimal"><button class="primary save" data-rate="TOMAN">ذخیره TOMAN</button></div></div></div></div>
-    <div id="providersView" class="hidden"><div class="card"><b>API و Providerها</b><p class="sub">مدیریت Providerهای Social، Virtual Number، Top-up، Premium و HesabPay در این بخش توسعه داده می‌شود.</p><div class="notice">API Keyها فقط روی Backend نگهداری می‌شوند و داخل APK قرار نمی‌گیرند.</div></div></div>
-  </main>
-</section>
-<div id="drawer" class="drawer hidden"><div class="drawer-panel"><div class="toolbar" style="justify-content:space-between"><b>جزئیات کاربر</b><button class="ghost" id="closeDrawer">بستن</button></div><div id="userDetail"></div></div></div>
-<script>
-(function(){
-  'use strict';
-  var accessToken = '';
-  var refreshToken = '';
-  var me = null;
-  var currentUser = null;
-  function el(id){ return document.getElementById(id); }
-  function esc(value){
-    return String(value == null ? '' : value).replace(/[&<>"']/g, function(ch){
-      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];
-    });
-  }
-  function fmt(value){ return Number(value || 0).toLocaleString('en-US') + ' AFN'; }
-  async function request(path, options){
-    options = options || {};
-    var headers = {'content-type':'application/json'};
-    if(options.auth !== false && accessToken){ headers.authorization = 'Bearer ' + accessToken; }
-    var response = await fetch(path, {
-      method: options.method || 'GET',
-      headers: headers,
-      body: options.body ? JSON.stringify(options.body) : undefined
-    });
-    if(response.status === 401 && refreshToken && path !== '/api/v1/auth/refresh'){
-      var refreshResponse = await fetch('/api/v1/auth/refresh', {
-        method: 'POST',
-        headers: {'content-type':'application/json'},
-        body: JSON.stringify({refreshToken: refreshToken})
-      });
-      if(refreshResponse.ok){
-        var refreshed = await refreshResponse.json();
-        accessToken = refreshed.accessToken;
-        refreshToken = refreshed.refreshToken;
-        sessionStorage.setItem('va', accessToken);
-        sessionStorage.setItem('vr', refreshToken);
-        return request(path, options);
-      }
-    }
-    if(!response.ok){
-      var data = {};
-      try { data = await response.json(); } catch(_error) {}
-      throw new Error(data.error || ('HTTP ' + response.status));
-    }
-    if(response.status === 204){ return null; }
-    return response.json();
-  }
-  function humanError(code){
-    var map = {
-      invalid_credentials: 'ایمیل/شماره یا رمز عبور اشتباه است.',
-      admin_required: 'این حساب دسترسی مدیر ندارد.',
-      unauthorized: 'نشست شما معتبر نیست. دوباره وارد شوید.',
-      internal_server_error: 'خطای سرور رخ داد. دوباره تلاش کنید.'
-    };
-    return map[code] || code || 'خطای ناشناخته';
-  }
-  async function login(event){
-    if(event){ event.preventDefault(); }
-    var errorBox = el('loginError');
-    var button = el('loginBtn');
-    errorBox.textContent = '';
-    var identifier = el('loginId').value.trim();
-    var password = el('loginPass').value;
-    if(!identifier || !password){ errorBox.textContent = 'ایمیل/شماره و رمز عبور را وارد کنید.'; return; }
-    button.disabled = true;
-    button.textContent = 'در حال ورود...';
-    try {
-      var result = await request('/api/v1/auth/login', {method:'POST', auth:false, body:{identifier:identifier,password:password}});
-      if(!result.user || result.user.role !== 'ADMIN'){ throw new Error('admin_required'); }
-      accessToken = result.accessToken;
-      refreshToken = result.refreshToken;
-      me = result.user;
-      sessionStorage.setItem('va', accessToken);
-      sessionStorage.setItem('vr', refreshToken);
-      showApp();
-      await loadDashboard();
-    } catch(error) {
-      errorBox.textContent = humanError(error && error.message ? error.message : 'login_failed');
-    } finally {
-      button.disabled = false;
-      button.textContent = 'ورود به پنل';
-    }
-  }
-  function showApp(){
-    el('loginView').classList.add('hidden');
-    el('appView').classList.remove('hidden');
-    el('adminIdentity').textContent = (me && (me.fullName || me.email || me.phone)) || 'ADMIN';
-  }
-  function logout(){
-    accessToken=''; refreshToken=''; me=null; currentUser=null;
-    sessionStorage.removeItem('va'); sessionStorage.removeItem('vr');
-    el('appView').classList.add('hidden'); el('loginView').classList.remove('hidden');
-  }
-  async function restore(){
-    accessToken = sessionStorage.getItem('va') || '';
-    refreshToken = sessionStorage.getItem('vr') || '';
-    if(!accessToken){ return; }
-    try {
-      var result = await request('/api/v1/me');
-      if(!result.user || result.user.role !== 'ADMIN'){ throw new Error('admin_required'); }
-      me = result.user;
-      showApp();
-      await loadDashboard();
-    } catch(_error) { logout(); }
-  }
-  function userTable(users){
-    var rows = users.map(function(user){
-      var id = esc(user.id);
-      var identity = esc(user.email || user.phone || '—');
-      var name = esc(user.fullName || '—');
-      var roleClass = user.role === 'ADMIN' ? 'badge admin' : 'badge';
-      var date = new Date(user.createdAt).toLocaleDateString('fa-IR');
-      return '<tr><td>'+name+'</td><td>'+identity+'</td><td class="money">'+fmt(user.balanceAfn)+'</td><td><span class="'+roleClass+'">'+esc(user.role)+'</span></td><td>'+date+'</td><td><button class="ghost view-user" data-user-id="'+id+'">مشاهده</button></td></tr>';
-    }).join('');
-    return '<table><thead><tr><th>نام</th><th>ایمیل/شماره</th><th>موجودی</th><th>نقش</th><th>تاریخ عضویت</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
-  }
-  function bindUserButtons(container){
-    container.querySelectorAll('.view-user').forEach(function(button){
-      button.addEventListener('click', function(){ openUser(button.getAttribute('data-user-id')); });
-    });
-  }
-  async function loadDashboard(){
-    var data = await request('/api/v1/admin/stats');
-    el('sUsers').textContent = data.totalUsers;
-    el('sToday').textContent = data.usersToday;
-    el('sWallet').textContent = fmt(data.totalWalletBalanceAfn);
-    el('sAdmins').textContent = data.totalAdmins;
-    el('recentUsers').innerHTML = userTable(data.recentUsers || []);
-    bindUserButtons(el('recentUsers'));
-  }
-  async function loadUsers(){
-    var q = el('userSearch').value.trim();
-    var url = '/api/v1/admin/users?limit=100' + (q ? '&q=' + encodeURIComponent(q) : '');
-    var data = await request(url);
-    el('usersTable').innerHTML = userTable(data.users || []);
-    bindUserButtons(el('usersTable'));
-  }
-  async function openUser(id){
-    var data = await request('/api/v1/admin/users/' + encodeURIComponent(id));
-    currentUser = data.user;
-    var u = data.user;
-    var entries = (u.walletEntries || []).map(function(entry){
-      var cls = Number(entry.amountAfn) >= 0 ? 'pos' : 'neg';
-      return '<div class="tx"><div><b>'+esc(entry.description)+'</b><br><small>'+new Date(entry.createdAt).toLocaleString('fa-IR')+'</small></div><span class="'+cls+'">'+esc(entry.amountAfn)+' AFN</span></div>';
-    }).join('');
-    el('userDetail').innerHTML = '<div class="row"><div class="info"><small>نام</small><b>'+esc(u.fullName || '—')+'</b></div><div class="info"><small>نقش</small><b>'+esc(u.role)+'</b></div></div><div class="info"><small>ایمیل / شماره</small><b>'+esc(u.email || u.phone || '—')+'</b></div><div class="info"><small>موجودی فعلی</small><b class="money">'+fmt(u.balanceAfn)+'</b></div><div class="section-title">افزایش / کسر دستی کیف پول</div><div class="amount-actions"><button data-amount="100">+100</button><button data-amount="500">+500</button><button data-amount="1000">+1,000</button><button data-amount="-100">-100</button></div><div class="field"><label>مبلغ AFN (برای کسر، عدد منفی)</label><input id="adjAmount" inputmode="numeric"></div><div class="field"><label>دلیل</label><input id="adjReason" maxlength="300"></div><button class="primary wide" id="applyAdjustment">ثبت تغییر کیف پول</button><div class="section-title">آخرین تراکنش‌ها</div>'+(entries || '<div class="sub">تراکنشی وجود ندارد.</div>');
-    el('userDetail').querySelectorAll('[data-amount]').forEach(function(button){ button.addEventListener('click', function(){ el('adjAmount').value = button.getAttribute('data-amount'); }); });
-    el('applyAdjustment').addEventListener('click', adjustWallet);
-    el('drawer').classList.remove('hidden');
-  }
-  async function adjustWallet(){
-    if(!currentUser){ return; }
-    var amount = el('adjAmount').value.trim();
-    var reason = el('adjReason').value.trim();
-    if(!amount || !reason){ alert('مبلغ و دلیل را وارد کنید.'); return; }
-    if(!confirm('تغییر ' + amount + ' AFN برای این کاربر ثبت شود؟')){ return; }
-    try {
-      await request('/api/v1/admin/wallet-adjustments', {method:'POST', body:{userId:currentUser.id,amountAfn:String(amount),reason:reason,idempotencyKey:'web-'+Date.now()+'-'+currentUser.id}});
-      alert('تغییر کیف پول ثبت شد.');
-      await openUser(currentUser.id);
-      await loadDashboard();
-      await loadUsers();
-    } catch(error){ alert(humanError(error.message)); }
-  }
-  async function loadRates(){
-    var data = await request('/api/v1/rates', {auth:false});
-    (data.rates || []).forEach(function(rate){ if(rate.code === 'USD'){ el('usdRate').value = rate.afnPerUnit; } if(rate.code === 'TOMAN'){ el('tomanRate').value = rate.afnPerUnit; } });
-  }
-  async function saveRate(code){
-    var value = code === 'USD' ? el('usdRate').value.trim() : el('tomanRate').value.trim();
-    if(!value){ return; }
-    try { await request('/api/v1/admin/rates', {method:'PUT',body:{code:code,afnPerUnit:value}}); alert('نرخ ذخیره شد.'); }
-    catch(error){ alert(humanError(error.message)); }
-  }
-  function switchView(name){
-    ['dashboard','users','rates','providers'].forEach(function(view){ el(view+'View').classList.toggle('hidden', view !== name); });
-    document.querySelectorAll('.nav button[data-view]').forEach(function(button){ button.classList.toggle('active', button.getAttribute('data-view') === name); });
-    var titles = {dashboard:'داشبورد',users:'کاربران',rates:'نرخ ارز',providers:'API و Providerها'};
-    el('pageTitle').textContent = titles[name] || 'VELIXEO';
-    if(name === 'dashboard'){ loadDashboard(); }
-    if(name === 'users'){ loadUsers(); }
-    if(name === 'rates'){ loadRates(); }
-  }
-  el('loginForm').addEventListener('submit', login);
-  el('logoutBtn').addEventListener('click', logout);
-  el('searchBtn').addEventListener('click', loadUsers);
-  el('refreshUsersBtn').addEventListener('click', loadUsers);
-  el('closeDrawer').addEventListener('click', function(){ el('drawer').classList.add('hidden'); });
-  el('drawer').addEventListener('click', function(event){ if(event.target === el('drawer')){ el('drawer').classList.add('hidden'); } });
-  document.querySelectorAll('.nav button[data-view]').forEach(function(button){ button.addEventListener('click', function(){ switchView(button.getAttribute('data-view')); }); });
-  document.querySelectorAll('[data-rate]').forEach(function(button){ button.addEventListener('click', function(){ saveRate(button.getAttribute('data-rate')); }); });
-  restore();
-})();
-</script>
-</body>
+<body>${body}</body>
 </html>`;
+
+export function adminLoginHtml(error?: string) {
+  return shell(`<section class="login"><div class="login-card"><div class="brand"><div class="logo">V</div><div><b>VELIXEO</b><div class="sub">پنل مدیریت امن</div></div></div><h2>ورود مدیر</h2><div class="sub">ورود این صفحه کاملاً سمت سرور انجام می‌شود و به JavaScript وابسته نیست.</div><form method="post" action="/admin/login" autocomplete="on"><div class="field"><label for="identifier">ایمیل یا شماره</label><input id="identifier" name="identifier" autocomplete="username" required></div><div class="field"><label for="password">رمز عبور</label><input id="password" name="password" type="password" autocomplete="current-password" required></div><button class="primary wide" type="submit">ورود به پنل</button>${error ? `<div class="err">${esc(error)}</div>` : ''}</form></div></section>`);
+}
+
+function usersTable(users: AdminUserRow[]) {
+  if (!users.length) return '<div class="sub" style="margin-top:14px">کاربری پیدا نشد.</div>';
+  return `<div class="table-wrap"><table><thead><tr><th>نام</th><th>ایمیل/شماره</th><th>موجودی</th><th>نقش</th><th>عضویت</th><th></th></tr></thead><tbody>${users.map((u) => `<tr><td>${esc(u.fullName || '—')}</td><td>${esc(u.email || u.phone || '—')}</td><td class="money">${fmt(u.balanceAfn)}</td><td><span class="badge ${u.role === 'ADMIN' ? 'admin' : ''}">${esc(u.role)}</span></td><td>${esc(dateFa(u.createdAt))}</td><td><a class="ghost" href="/admin?view=users&user=${encodeURIComponent(u.id)}">مشاهده</a></td></tr>`).join('')}</tbody></table></div>`;
+}
+
+function selectedUserCard(user: AdminSelectedUser) {
+  return `<div class="card"><div class="section-title" style="margin-top:0">جزئیات کاربر</div><div class="grid2"><div class="info"><small>نام</small><b>${esc(user.fullName || '—')}</b></div><div class="info"><small>نقش</small><b>${esc(user.role)}</b></div></div><div class="info"><small>ایمیل / شماره</small><b>${esc(user.email || user.phone || '—')}</b></div><div class="info"><small>موجودی فعلی</small><b class="money">${fmt(user.balanceAfn)}</b></div><div class="section-title">افزایش / کسر دستی Wallet</div><div class="danger-note">برای کسر موجودی، مبلغ را با علامت منفی وارد کن. هر تغییر در Ledger ثبت می‌شود و بدون سابقه موجودی تغییر نمی‌کند.</div><form method="post" action="/admin/wallet-adjust"><input type="hidden" name="userId" value="${esc(user.id)}"><div class="grid2"><div class="field"><label>مبلغ AFN</label><input name="amountAfn" type="number" step="1" placeholder="مثلاً 1500 یا -500" required></div><div class="field"><label>دلیل عملیات</label><input name="reason" placeholder="مثلاً پرداخت حضوری" minlength="3" maxlength="300" required></div></div><button class="primary wide" type="submit">ثبت تغییر کیف پول</button></form><div class="section-title">آخرین تراکنش‌ها</div>${user.walletEntries.length ? user.walletEntries.map((x) => `<div class="tx"><div><b>${esc(x.description || x.type)}</b><br><small>${esc(dateFa(x.createdAt))}</small></div><div class="${Number(x.amountAfn) >= 0 ? 'pos' : 'neg'}">${Number(x.amountAfn) > 0 ? '+' : ''}${fmt(x.amountAfn)}</div></div>`).join('') : '<div class="sub">هنوز تراکنشی ثبت نشده است.</div>'}</div>`;
+}
+
+export function adminDashboardHtml(model: AdminDashboardModel) {
+  const titles = { dashboard: 'داشبورد', users: 'کاربران', rates: 'نرخ ارز', providers: 'API و Providerها' } as const;
+  const nav = (view: AdminDashboardModel['view'], label: string) => `<a class="${model.view === view ? 'active' : ''}" href="/admin?view=${view}">${label}</a>`;
+  let content = '';
+  if (model.view === 'dashboard') {
+    content = `<div class="stats"><div class="stat"><span>کل کاربران</span><strong>${model.totalUsers}</strong></div><div class="stat"><span>ثبت‌نام امروز</span><strong>${model.usersToday}</strong></div><div class="stat"><span>موجودی کل کیف پول‌ها</span><strong>${fmt(model.totalWalletBalanceAfn)}</strong></div><div class="stat"><span>مدیران</span><strong>${model.totalAdmins}</strong></div></div><div class="card"><b>آخرین کاربران</b>${usersTable(model.users)}</div>`;
+  } else if (model.view === 'users') {
+    content = `<div class="card"><form method="get" action="/admin" class="toolbar"><input type="hidden" name="view" value="users"><div class="field"><label>جستجو</label><input name="q" value="${esc(model.q || '')}" placeholder="نام، ایمیل یا شماره"></div><button class="primary" type="submit">جستجو</button><a class="ghost" href="/admin?view=users">پاک کردن</a></form>${usersTable(model.users)}</div>${model.selectedUser ? selectedUserCard(model.selectedUser) : ''}`;
+  } else if (model.view === 'rates') {
+    const usd = model.rates.find((r) => r.code === 'USD')?.afnPerUnit || '';
+    const toman = model.rates.find((r) => r.code === 'TOMAN')?.afnPerUnit || '';
+    content = `<div class="card"><b>نرخ‌های نمایش</b><p class="sub">واحد پایه همیشه AFN است. تغییر نرخ روی سفارش‌های قدیمی اثر نمی‌گذارد.</p><div class="grid2"><form class="ratebox" method="post" action="/admin/rates"><input type="hidden" name="code" value="USD"><label>AFN به ازای 1 USD</label><input name="afnPerUnit" inputmode="decimal" value="${esc(usd)}" required><button class="primary" type="submit">ذخیره USD</button></form><form class="ratebox" method="post" action="/admin/rates"><input type="hidden" name="code" value="TOMAN"><label>AFN به ازای 1 TOMAN</label><input name="afnPerUnit" inputmode="decimal" value="${esc(toman)}" required><button class="primary" type="submit">ذخیره TOMAN</button></form></div></div>`;
+  } else {
+    content = `<div class="card"><b>API و Providerها</b><p class="sub">این بخش برای HesabPay، Social، Virtual Number، Top-up و Premium آماده شده است. کلیدهای Provider فقط در Backend نگهداری خواهند شد و هیچ API Key داخل APK قرار نمی‌گیرد.</p></div>`;
+  }
+
+  const msg = model.message === 'wallet_updated' ? 'تغییر Wallet با موفقیت ثبت شد.' : model.message === 'rate_updated' ? 'نرخ با موفقیت ذخیره شد.' : model.message === 'insufficient_funds' ? 'موجودی کاربر برای این مقدار کسر کافی نیست.' : model.message === 'invalid_request' ? 'اطلاعات واردشده معتبر نیست.' : '';
+
+  return shell(`<section class="app"><aside class="side"><div class="brand"><div class="logo">V</div><div><b>VELIXEO</b><div class="sub" style="color:#9fc2db">Admin Console</div></div></div><nav class="nav">${nav('dashboard','داشبورد')}${nav('users','کاربران')}${nav('rates','نرخ ارز')}${nav('providers','API و Providerها')}<form class="inline-form" method="post" action="/admin/logout"><button class="logout" type="submit">خروج</button></form></nav></aside><main class="main"><div class="top"><div><h1>${titles[model.view]}</h1><div class="sub">مدیریت واقعی VELIXEO — بدون وابستگی به JavaScript</div></div><span class="chip">${esc(model.adminIdentity)}</span></div>${msg ? `<div class="${model.message === 'insufficient_funds' || model.message === 'invalid_request' ? 'err' : 'ok'}">${esc(msg)}</div>` : ''}${content}</main></section>`);
+}
