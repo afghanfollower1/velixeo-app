@@ -1,0 +1,40 @@
+name: Audit VELIXEO Backend Dependencies
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/package.json'
+      - 'backend/package-lock.json'
+      - '.github/workflows/backend-security-audit.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: velixeo-backend-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit-production-dependencies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Audit production dependencies
+        shell: bash
+        run: |
+          set -o pipefail
+          npm audit --omit=dev --audit-level=high
