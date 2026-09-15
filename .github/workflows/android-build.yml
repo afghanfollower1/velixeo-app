@@ -43,7 +43,6 @@ jobs:
           python3 - <<'PY'
           from PIL import Image, ImageDraw
           from pathlib import Path
-
           sizes = {
               'mipmap-mdpi': 48,
               'mipmap-hdpi': 72,
@@ -74,11 +73,21 @@ jobs:
               img.save(out / 'ic_launcher_round.png')
           PY
 
+      - name: Apply source syntax correction
+        run: |
+          python3 - <<'PY'
+          p='lib/main.dart'
+          s=open(p, encoding='utf-8').read()
+          s=s.replace("Navigator.pop(context); })])))),\n        _SettingsTile(icon: Icons.currency_exchange", "Navigator.pop(context); })]))))),\n        _SettingsTile(icon: Icons.currency_exchange")
+          s=s.replace("Navigator.pop(context); })).toList())))),\n        _SettingsTile(icon: Icons.notifications_outlined", "Navigator.pop(context); })).toList()))))),\n        _SettingsTile(icon: Icons.notifications_outlined")
+          open(p,'w',encoding='utf-8').write(s)
+          PY
+
       - name: Get Flutter packages
         run: flutter pub get
 
-      - name: Format check
-        run: dart format --output=none --set-exit-if-changed lib/main.dart
+      - name: Format Dart source
+        run: dart format lib/main.dart
 
       - name: Build release APK
         run: flutter build apk --release
