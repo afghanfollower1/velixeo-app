@@ -1,0 +1,95 @@
+name: Verify VELIXEO Release Signing
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-signing-check.yml'
+  workflow_dispatch:
+
+jobs:
+  verify-secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      EXPECTED_SHA1: C3:54:C7:03:DD:FC:DD:C5:83:A8:A6:4F:64:DA:4E:5E:18:43:5B:A4
+
+    steps:
+      - name: Validate required secrets are present
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in GOOGLE_WEB_CLIENT_ID ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "Required repository secret is missing: $name"
+              exit 1
+            fi
+          done
+          if [[ "$GOOGLE_WEB_CLIENT_ID" != *.apps.googleusercontent.com ]]; then
+            echo "GOOGLE_WEB_CLIENT_ID format is invalid."
+            exit 1
+          fi
+          if [ "$ANDROID_KEY_ALIAS" != "velixeo" ]; then
+            echo "ANDROID_KEY_ALIAS must be velixeo."
+            exit 1
+          fi
+          echo "Required signing and Google OAuth settings are present."
+
+      - name: Decode release keystore safely
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/velixeo-release.jks"
+          test -s "$RUNNER_TEMP/velixeo-release.jks"
+          echo "Release keystore decoded successfully."
+
+      - name: Verify keystore alias and SHA-1
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTUAL_SHA1="$(keytool -list -v \
+            -keystore "$RUNNER_TEMP/velixeo-release.jks" \
+            -alias "$ANDROID_KEY_ALIAS" \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" 2>/dev/null \
+            | sed -nE 's/^[[:space:]]*SHA1:[[:space:]]*//p' \
+            | head -n1)"
+          if [ -z "$ACTUAL_SHA1" ]; then
+            echo "Could not read the release certificate. Check keystore password and alias."
+            exit 1
+          fi
+          if [ "$ACTUAL_SHA1" != "$EXPECTED_SHA1" ]; then
+            echo "Release signing certificate SHA-1 does not match the registered VELIXEO Android OAuth certificate."
+            echo "Expected: $EXPECTED_SHA1"
+            echo "Actual:   $ACTUAL_SHA1"
+            exit 1
+          fi
+          echo "Release certificate SHA-1 matches VELIXEO OAuth configuration."
+
+      - name: Verify private key password by signing a disposable JAR
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/signing-check"
+          printf 'VELIXEO signing verification\n' > "$RUNNER_TEMP/signing-check/payload.txt"
+          jar cf "$RUNNER_TEMP/signing-check.jar" -C "$RUNNER_TEMP/signing-check" payload.txt
+          jarsigner \
+            -keystore "$RUNNER_TEMP/velixeo-release.jks" \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -keypass "$ANDROID_KEY_PASSWORD" \
+            "$RUNNER_TEMP/signing-check.jar" \
+            "$ANDROID_KEY_ALIAS" >/dev/null
+          jarsigner -verify "$RUNNER_TEMP/signing-check.jar" >/dev/null
+          echo "Keystore password, key password, alias, and private key are valid."
+
+      - name: Remove temporary signing material
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP/velixeo-release.jks" "$RUNNER_TEMP/signing-check.jar"
+          rm -rf "$RUNNER_TEMP/signing-check"
