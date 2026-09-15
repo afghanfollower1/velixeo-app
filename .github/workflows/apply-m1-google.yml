@@ -1,0 +1,37 @@
+name: Apply VELIXEO M1 Google Sign-In
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/patch_m1_google.py'
+      - 'tools/m1-google.trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Apply Google auth patch
+        run: python3 tools/patch_m1_google.py
+
+      - name: Commit implementation
+        run: |
+          git config user.name "VELIXEO Build Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add backend/prisma/schema.prisma backend/package.json backend/src/index.ts pubspec.yaml lib/core/models.dart lib/core/google_auth_service.dart lib/core/api_service.dart lib/app.dart
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Implement real Google Sign-In foundation"
+          git pull --rebase origin main
+          git push
