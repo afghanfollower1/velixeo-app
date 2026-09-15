@@ -19,6 +19,7 @@ import { z } from 'zod';
 import { adminDashboardHtml, adminLoginHtml } from './adminPage.js';
 import { registerExtendedAdminRoutes } from './adminExtended.js';
 import { registerClientFoundationRoutes } from './clientFoundationRoutes.js';
+import { registerAdminCsrfGuard } from './adminSecurity.js';
 
 const env = z
   .object({
@@ -53,6 +54,8 @@ await app.register(rateLimit, {
   max: 120,
   timeWindow: '1 minute',
 });
+
+registerAdminCsrfGuard(app);
 
 app.addContentTypeParser(
   'application/x-www-form-urlencoded',
