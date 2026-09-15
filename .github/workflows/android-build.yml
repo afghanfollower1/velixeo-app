@@ -100,16 +100,16 @@ jobs:
       - name: Prepare artifact
         run: |
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk dist/VELIXEO-v0.2.0-release.apk
-          ls -lh dist/VELIXEO-v0.2.0-release.apk
-          sha256sum dist/VELIXEO-v0.2.0-release.apk | tee dist/SHA256SUMS.txt
+          cp build/app/outputs/flutter-apk/app-release.apk dist/VELIXEO-v0.3.0-release.apk
+          ls -lh dist/VELIXEO-v0.3.0-release.apk
+          sha256sum dist/VELIXEO-v0.3.0-release.apk | tee dist/SHA256SUMS.txt
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VELIXEO-v0.2.0-Android-APK
+          name: VELIXEO-v0.3.0-Android-APK
           path: |
-            dist/VELIXEO-v0.2.0-release.apk
+            dist/VELIXEO-v0.3.0-release.apk
             dist/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
