@@ -26,6 +26,10 @@ jobs:
       PORT: 8080
       JWT_SECRET: ci-only-jwt-secret-with-at-least-32-characters
       CORS_ORIGINS: ''
+      HESABPAY_ENVIRONMENT: sandbox
+      HESABPAY_API_KEY: ci-hesabpay-api-key
+      HESABPAY_API_BASE_URL: http://127.0.0.1:9081
+      PUBLIC_BASE_URL: http://127.0.0.1:8080
 
     services:
       postgres:
@@ -66,6 +70,71 @@ jobs:
       - name: TypeScript build
         run: npm run build
 
+      - name: Start HesabPay mock gateway
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/hesabpay-mock.mjs" <<'NODE'
+          import http from 'node:http';
+
+          const server = http.createServer(async (req, res) => {
+            if (req.method !== 'POST' || req.url !== '/api/v1/payment/create-session') {
+              res.writeHead(404, { 'content-type': 'application/json' });
+              res.end(JSON.stringify({ success: false, message: 'not found' }));
+              return;
+            }
+            if (req.headers.authorization !== 'API-KEY ci-hesabpay-api-key') {
+              res.writeHead(401, { 'content-type': 'application/json' });
+              res.end(JSON.stringify({ success: false, message: 'bad api key' }));
+              return;
+            }
+
+            let raw = '';
+            for await (const chunk of req) raw += chunk;
+            let body;
+            try { body = JSON.parse(raw); } catch { body = null; }
+
+            const valid =
+              body &&
+              typeof body.user_id === 'string' &&
+              Array.isArray(body.items) &&
+              body.items.length === 1 &&
+              body.items[0]?.id === body.user_id &&
+              body.items[0]?.name === 'VELIXEO Wallet Top-up' &&
+              body.items[0]?.price === 500 &&
+              typeof body.redirect_success_url === 'string' &&
+              typeof body.redirect_failure_url === 'string';
+
+            if (!valid) {
+              res.writeHead(400, { 'content-type': 'application/json' });
+              res.end(JSON.stringify({ success: false, message: 'invalid payload' }));
+              return;
+            }
+
+            res.writeHead(200, { 'content-type': 'application/json' });
+            res.end(JSON.stringify({
+              status_code: 10,
+              success: true,
+              message: 'Payment session created successfully',
+              url: `https://checkout.example/${body.user_id}`,
+            }));
+          });
+
+          server.listen(9081, '127.0.0.1');
+          NODE
+          node "$RUNNER_TEMP/hesabpay-mock.mjs" > "$RUNNER_TEMP/hesabpay-mock.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/hesabpay-mock.pid"
+          for attempt in {1..20}; do
+            if curl --silent http://127.0.0.1:9081/ >/dev/null; then
+              echo "HesabPay mock gateway is ready."
+              exit 0
+            fi
+            sleep 0.25
+          done
+          cat "$RUNNER_TEMP/hesabpay-mock.log"
+          echo "HesabPay mock gateway did not start."
+          exit 1
+
       - name: Start backend for smoke tests
         shell: bash
         run: |
@@ -83,7 +152,7 @@ jobs:
           echo "Backend did not become healthy in time."
           exit 1
 
-      - name: Run auth wallet client API and admin security smoke tests
+      - name: Run auth wallet payment client API and admin security smoke tests
         shell: bash
         run: |
           set -euo pipefail
@@ -147,10 +216,9 @@ jobs:
             throw new Error(`Registration failed: ${registration.response.status} ${JSON.stringify(registration.body)}`);
           }
           const token = registration.body.accessToken;
+          const authHeaders = { authorization: `Bearer ${token}` };
 
-          const me = await jsonRequest('/api/v1/me', {
-            headers: { authorization: `Bearer ${token}` },
-          });
+          const me = await jsonRequest('/api/v1/me', { headers: authHeaders });
           if (me.response.status !== 200 || me.body?.user?.email !== email) {
             throw new Error(`Authenticated profile failed: ${me.response.status}`);
           }
@@ -158,9 +226,7 @@ jobs:
             throw new Error(`New user status is not ACTIVE: ${me.body?.user?.status}`);
           }
 
-          const wallet = await jsonRequest('/api/v1/wallet', {
-            headers: { authorization: `Bearer ${token}` },
-          });
+          const wallet = await jsonRequest('/api/v1/wallet', { headers: authHeaders });
           if (wallet.response.status !== 200 || wallet.body?.balanceAfn !== '0') {
             throw new Error(`Wallet smoke test failed: ${wallet.response.status} ${JSON.stringify(wallet.body)}`);
           }
@@ -174,6 +240,66 @@ jobs:
             throw new Error(`Login smoke test failed: ${login.response.status}`);
           }
 
+          const idempotencyKey = `ci-wallet-topup-${Date.now()}`;
+          const paymentSession = await jsonRequest('/api/v1/payments/hesabpay/session', {
+            method: 'POST',
+            headers: {
+              ...authHeaders,
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({ amountAfn: 500, idempotencyKey }),
+          });
+          if (
+            paymentSession.response.status !== 201 ||
+            paymentSession.body?.payment?.status !== 'PENDING' ||
+            paymentSession.body?.payment?.amountAfn !== '500' ||
+            typeof paymentSession.body?.checkoutUrl !== 'string' ||
+            paymentSession.body?.idempotent !== false
+          ) {
+            throw new Error(`Payment session failed: ${paymentSession.response.status} ${JSON.stringify(paymentSession.body)}`);
+          }
+          const paymentId = paymentSession.body.payment.id;
+
+          const paymentStatus = await jsonRequest(`/api/v1/payments/${paymentId}`, { headers: authHeaders });
+          if (paymentStatus.response.status !== 200 || paymentStatus.body?.payment?.status !== 'PENDING') {
+            throw new Error(`Payment status endpoint failed: ${paymentStatus.response.status}`);
+          }
+
+          const repeatedSession = await jsonRequest('/api/v1/payments/hesabpay/session', {
+            method: 'POST',
+            headers: {
+              ...authHeaders,
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({ amountAfn: 500, idempotencyKey }),
+          });
+          if (
+            repeatedSession.response.status !== 200 ||
+            repeatedSession.body?.payment?.id !== paymentId ||
+            repeatedSession.body?.idempotent !== true
+          ) {
+            throw new Error(`Payment idempotency failed: ${repeatedSession.response.status} ${JSON.stringify(repeatedSession.body)}`);
+          }
+
+          const walletAfterSession = await jsonRequest('/api/v1/wallet', { headers: authHeaders });
+          if (walletAfterSession.response.status !== 200 || walletAfterSession.body?.balanceAfn !== '0') {
+            throw new Error(`Payment redirect/session incorrectly changed wallet balance: ${JSON.stringify(walletAfterSession.body)}`);
+          }
+
+          const paymentList = await jsonRequest('/api/v1/payments', { headers: authHeaders });
+          if (
+            paymentList.response.status !== 200 ||
+            !Array.isArray(paymentList.body?.payments) ||
+            !paymentList.body.payments.some((item) => item.id === paymentId)
+          ) {
+            throw new Error(`Payment list endpoint failed: ${paymentList.response.status}`);
+          }
+
+          const successReturn = await jsonRequest(`/payments/hesabpay/return/success?payment=${paymentId}`);
+          if (successReturn.response.status !== 200 || typeof successReturn.body !== 'string') {
+            throw new Error(`Payment success return page failed: ${successReturn.response.status}`);
+          }
+
           const catalog = await jsonRequest('/api/v1/catalog/services');
           if (catalog.response.status !== 200 || catalog.body?.baseCurrency !== 'AFN' || !Array.isArray(catalog.body?.services)) {
             throw new Error(`Catalog endpoint failed: ${catalog.response.status}`);
@@ -184,16 +310,12 @@ jobs:
             throw new Error(`Banners endpoint failed: ${banners.response.status}`);
           }
 
-          const notifications = await jsonRequest('/api/v1/content/notifications', {
-            headers: { authorization: `Bearer ${token}` },
-          });
+          const notifications = await jsonRequest('/api/v1/content/notifications', { headers: authHeaders });
           if (notifications.response.status !== 200 || !Array.isArray(notifications.body?.notifications)) {
             throw new Error(`Notifications endpoint failed: ${notifications.response.status}`);
           }
 
-          const orders = await jsonRequest('/api/v1/orders', {
-            headers: { authorization: `Bearer ${token}` },
-          });
+          const orders = await jsonRequest('/api/v1/orders', { headers: authHeaders });
           if (orders.response.status !== 200 || !Array.isArray(orders.body?.orders)) {
             throw new Error(`Orders endpoint failed: ${orders.response.status}`);
           }
@@ -217,18 +339,23 @@ jobs:
             throw new Error(`Google safe-failure behavior changed: ${googleWithoutConfig.response.status} ${JSON.stringify(googleWithoutConfig.body)}`);
           }
 
-          console.log('VELIXEO backend runtime and admin security smoke tests passed.');
+          console.log('VELIXEO backend runtime, payment safety, and admin security smoke tests passed.');
           NODE
 
-      - name: Show backend logs on failure
+      - name: Show service logs on failure
         if: failure()
         shell: bash
-        run: cat "$RUNNER_TEMP/velixeo-backend.log" || true
+        run: |
+          cat "$RUNNER_TEMP/velixeo-backend.log" || true
+          cat "$RUNNER_TEMP/hesabpay-mock.log" || true
 
-      - name: Stop smoke-test backend
+      - name: Stop smoke-test services
         if: always()
         shell: bash
         run: |
           if [ -f "$RUNNER_TEMP/velixeo-backend.pid" ]; then
             kill "$(cat "$RUNNER_TEMP/velixeo-backend.pid")" 2>/dev/null || true
+          fi
+          if [ -f "$RUNNER_TEMP/hesabpay-mock.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/hesabpay-mock.pid")" 2>/dev/null || true
           fi
