@@ -45,6 +45,9 @@ jobs:
           cp -R /tmp/velixeo_scaffold/android ./android
           cp /tmp/velixeo_scaffold/.metadata ./.metadata
           sed -i 's/android:label="velixeo"/android:label="VELIXEO"/' android/app/src/main/AndroidManifest.xml
+          if ! grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml; then
+            sed -i '/<manifest/a\\    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
+          fi
 
       - name: Generate VELIXEO launcher icon
         run: |
@@ -60,10 +63,10 @@ jobs:
               'mipmap-xxxhdpi': 192,
           }
           for folder, size in sizes.items():
-              img = Image.new('RGB', (size, size), '#0D6EFD')
+              img = Image.new('RGB', (size, size), '#0D78C8')
               px = img.load()
-              top = (73, 197, 255)
-              bottom = (13, 110, 253)
+              top = (77, 184, 255)
+              bottom = (13, 120, 200)
               for y in range(size):
                   t = y / max(1, size - 1)
                   c = tuple(int(top[i]*(1-t)+bottom[i]*t) for i in range(3))
@@ -82,21 +85,14 @@ jobs:
               img.save(out / 'ic_launcher_round.png')
           PY
 
-      - name: Apply source syntax correction
-        run: |
-          python3 - <<'PY'
-          p='lib/main.dart'
-          s=open(p, encoding='utf-8').read()
-          s=s.replace("Navigator.pop(context); })])))),\n        _SettingsTile(icon: Icons.currency_exchange", "Navigator.pop(context); })]))))),\n        _SettingsTile(icon: Icons.currency_exchange")
-          s=s.replace("Navigator.pop(context); })).toList())))),\n        _SettingsTile(icon: Icons.notifications_outlined", "Navigator.pop(context); })).toList()))))),\n        _SettingsTile(icon: Icons.notifications_outlined")
-          open(p,'w',encoding='utf-8').write(s)
-          PY
-
       - name: Get Flutter packages
         run: flutter pub get
 
       - name: Format Dart source
-        run: dart format lib/main.dart
+        run: dart format lib
+
+      - name: Analyze Flutter source
+        run: flutter analyze --no-fatal-infos
 
       - name: Build release APK
         run: flutter build apk --release
@@ -104,16 +100,16 @@ jobs:
       - name: Prepare artifact
         run: |
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk dist/VELIXEO-v0.1.0-release.apk
-          ls -lh dist/VELIXEO-v0.1.0-release.apk
-          sha256sum dist/VELIXEO-v0.1.0-release.apk | tee dist/SHA256SUMS.txt
+          cp build/app/outputs/flutter-apk/app-release.apk dist/VELIXEO-v0.2.0-release.apk
+          ls -lh dist/VELIXEO-v0.2.0-release.apk
+          sha256sum dist/VELIXEO-v0.2.0-release.apk | tee dist/SHA256SUMS.txt
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VELIXEO-Android-APK
+          name: VELIXEO-v0.2.0-Android-APK
           path: |
-            dist/VELIXEO-v0.1.0-release.apk
+            dist/VELIXEO-v0.2.0-release.apk
             dist/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
