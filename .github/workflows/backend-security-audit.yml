@@ -30,8 +30,8 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install production dependencies only
+        run: npm install --omit=dev
 
       - name: Audit production dependencies
         shell: bash
