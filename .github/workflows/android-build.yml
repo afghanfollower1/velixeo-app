@@ -17,6 +17,7 @@ jobs:
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      EXPECTED_RELEASE_SHA1: C3:54:C7:03:DD:FC:DD:C5:83:A8:A6:4F:64:DA:4E:5E:18:43:5B:A4
 
     steps:
       - name: Checkout source
@@ -40,33 +41,59 @@ jobs:
           test -f android/app/src/main/AndroidManifest.xml
           grep -R "com.velixeo.velixeo" android/app >/dev/null
 
-      - name: Configure production signing when available
+      - name: Verify required production secrets
+        shell: bash
         run: |
-          if [ -n "${ANDROID_KEYSTORE_BASE64:-}" ]; then
-            test -n "${ANDROID_KEYSTORE_PASSWORD:-}"
-            test -n "${ANDROID_KEY_ALIAS:-}"
-            test -n "${ANDROID_KEY_PASSWORD:-}"
-            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/velixeo-release.jks
-            cat > android/key.properties <<EOF
+          set -euo pipefail
+          for name in GOOGLE_WEB_CLIENT_ID ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is not configured. Production APK build is blocked."
+              exit 1
+            fi
+          done
+          if [[ "$GOOGLE_WEB_CLIENT_ID" != *.apps.googleusercontent.com ]]; then
+            echo "::error::GOOGLE_WEB_CLIENT_ID does not look like a Google OAuth Web Client ID."
+            exit 1
+          fi
+          if [ "$ANDROID_KEY_ALIAS" != "velixeo" ]; then
+            echo "::error::ANDROID_KEY_ALIAS must be velixeo for the permanent VELIXEO release key."
+            exit 1
+          fi
+
+      - name: Configure production signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/velixeo-release.jks
+          cat > android/key.properties <<EOF
           storePassword=$ANDROID_KEYSTORE_PASSWORD
           keyPassword=$ANDROID_KEY_PASSWORD
           keyAlias=$ANDROID_KEY_ALIAS
           storeFile=velixeo-release.jks
           EOF
-            echo "VELIXEO production signing configured."
-          else
-            echo "Production signing secrets are not configured; this build will use development signing."
-          fi
+          keytool -list -v \
+            -keystore android/app/velixeo-release.jks \
+            -alias "$ANDROID_KEY_ALIAS" \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" >/tmp/velixeo-key.txt
+          echo "VELIXEO production signing configured."
 
-      - name: Print signing SHA-1 when production key exists
+      - name: Verify permanent signing SHA-1
+        shell: bash
         run: |
-          if [ -f android/app/velixeo-release.jks ]; then
-            keytool -list -v \
-              -keystore android/app/velixeo-release.jks \
-              -alias "$ANDROID_KEY_ALIAS" \
-              -storepass "$ANDROID_KEYSTORE_PASSWORD" \
-              | grep -E 'SHA1:|SHA-1:' || true
+          set -euo pipefail
+          ACTUAL_SHA1=$(grep -E 'SHA1:|SHA-1:' /tmp/velixeo-key.txt | head -n1 | sed -E 's/.*SHA-?1:[[:space:]]*//' | tr '[:lower:]' '[:upper:]' | xargs)
+          if [ -z "$ACTUAL_SHA1" ]; then
+            echo "::error::Could not read SHA-1 from the release keystore."
+            exit 1
           fi
+          if [ "$ACTUAL_SHA1" != "$EXPECTED_RELEASE_SHA1" ]; then
+            echo "::error::Release keystore SHA-1 does not match the permanent VELIXEO signing key."
+            echo "Expected: $EXPECTED_RELEASE_SHA1"
+            echo "Actual:   $ACTUAL_SHA1"
+            exit 1
+          fi
+          printf '%s\n' "$ACTUAL_SHA1" > /tmp/ANDROID_SIGNING_SHA1.txt
+          echo "Permanent VELIXEO signing key verified."
 
       - name: Generate VELIXEO launcher icon
         run: |
@@ -115,17 +142,12 @@ jobs:
 
       - name: Prepare artifact
         run: |
+          set -euo pipefail
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk dist/VELIXEO-v0.3.0-release.apk
+          cp /tmp/ANDROID_SIGNING_SHA1.txt dist/ANDROID_SIGNING_SHA1.txt
           ls -lh dist/VELIXEO-v0.3.0-release.apk
           sha256sum dist/VELIXEO-v0.3.0-release.apk | tee dist/SHA256SUMS.txt
-          if [ -f android/app/velixeo-release.jks ]; then
-            keytool -list -v \
-              -keystore android/app/velixeo-release.jks \
-              -alias "$ANDROID_KEY_ALIAS" \
-              -storepass "$ANDROID_KEYSTORE_PASSWORD" \
-              | grep -E 'SHA1:|SHA-1:' > dist/ANDROID_SIGNING_SHA1.txt || true
-          fi
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -135,5 +157,5 @@ jobs:
             dist/VELIXEO-v0.3.0-release.apk
             dist/SHA256SUMS.txt
             dist/ANDROID_SIGNING_SHA1.txt
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
