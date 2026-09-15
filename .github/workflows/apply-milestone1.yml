@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'tools/patch_milestone1.py'
+      - 'tools/milestone1.trigger'
   workflow_dispatch:
 
 permissions:
