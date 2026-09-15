@@ -152,12 +152,14 @@ class ApiService {
       );
 
   Future<AppSession> register({
+    required String fullName,
     required String identifier,
     required String password,
     required AppLang language,
   }) async {
     final trimmed = identifier.trim();
     final body = <String, dynamic>{
+      'fullName': fullName.trim(),
       if (trimmed.contains('@')) 'email': trimmed.toLowerCase() else 'phone': trimmed,
       'password': password,
       'locale': language == AppLang.fa ? 'FA' : 'EN',
