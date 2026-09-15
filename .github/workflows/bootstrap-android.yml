@@ -49,4 +49,5 @@ jobs:
             exit 0
           fi
           git commit -m "Add stable VELIXEO Android project scaffold"
+          git pull --rebase origin main
           git push
