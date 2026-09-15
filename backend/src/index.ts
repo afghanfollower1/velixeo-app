@@ -514,11 +514,19 @@ app.post(
   },
 );
 
-app.setErrorHandler((error, request, reply) => {
+app.setErrorHandler((error: unknown, request, reply) => {
   request.log.error(error);
-  const status = error.statusCode && error.statusCode >= 400 ? error.statusCode : 500;
+  const statusCode =
+    typeof error === 'object' &&
+    error !== null &&
+    'statusCode' in error &&
+    typeof (error as { statusCode?: unknown }).statusCode === 'number'
+      ? (error as { statusCode: number }).statusCode
+      : 500;
+  const status = statusCode >= 400 ? statusCode : 500;
+  const message = error instanceof Error ? error.message : 'unknown_error';
   reply.code(status).send({
-    error: status >= 500 ? 'internal_server_error' : error.message,
+    error: status >= 500 ? 'internal_server_error' : message,
   });
 });
 
