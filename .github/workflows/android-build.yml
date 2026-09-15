@@ -11,6 +11,12 @@ jobs:
   build-android:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
     steps:
       - name: Checkout source
@@ -33,6 +39,34 @@ jobs:
           test -f android/app/build.gradle.kts || test -f android/app/build.gradle
           test -f android/app/src/main/AndroidManifest.xml
           grep -R "com.velixeo.velixeo" android/app >/dev/null
+
+      - name: Configure production signing when available
+        run: |
+          if [ -n "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+            test -n "${ANDROID_KEYSTORE_PASSWORD:-}"
+            test -n "${ANDROID_KEY_ALIAS:-}"
+            test -n "${ANDROID_KEY_PASSWORD:-}"
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/velixeo-release.jks
+            cat > android/key.properties <<EOF
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyPassword=$ANDROID_KEY_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          storeFile=velixeo-release.jks
+          EOF
+            echo "VELIXEO production signing configured."
+          else
+            echo "Production signing secrets are not configured; this build will use development signing."
+          fi
+
+      - name: Print signing SHA-1 when production key exists
+        run: |
+          if [ -f android/app/velixeo-release.jks ]; then
+            keytool -list -v \
+              -keystore android/app/velixeo-release.jks \
+              -alias "$ANDROID_KEY_ALIAS" \
+              -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+              | grep -E 'SHA1:|SHA-1:' || true
+          fi
 
       - name: Generate VELIXEO launcher icon
         run: |
@@ -77,7 +111,7 @@ jobs:
         run: flutter analyze --no-fatal-infos
 
       - name: Build release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --dart-define=GOOGLE_WEB_CLIENT_ID="$GOOGLE_WEB_CLIENT_ID"
 
       - name: Prepare artifact
         run: |
@@ -85,6 +119,13 @@ jobs:
           cp build/app/outputs/flutter-apk/app-release.apk dist/VELIXEO-v0.3.0-release.apk
           ls -lh dist/VELIXEO-v0.3.0-release.apk
           sha256sum dist/VELIXEO-v0.3.0-release.apk | tee dist/SHA256SUMS.txt
+          if [ -f android/app/velixeo-release.jks ]; then
+            keytool -list -v \
+              -keystore android/app/velixeo-release.jks \
+              -alias "$ANDROID_KEY_ALIAS" \
+              -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+              | grep -E 'SHA1:|SHA-1:' > dist/ANDROID_SIGNING_SHA1.txt || true
+          fi
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -93,5 +134,6 @@ jobs:
           path: |
             dist/VELIXEO-v0.3.0-release.apk
             dist/SHA256SUMS.txt
-          if-no-files-found: error
+            dist/ANDROID_SIGNING_SHA1.txt
+          if-no-files-found: warn
           retention-days: 30
