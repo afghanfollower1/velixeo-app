@@ -11,6 +11,7 @@ import {
   SupportStatus,
   UserRole,
   UserStatus,
+  WalletEntryType,
 } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import {
@@ -96,6 +97,7 @@ function adminShell(input: {
     ['/admin/notifications', 'اعلان‌ها', 'notifications'],
     ['/admin/support', 'پشتیبانی', 'support'],
     ['/admin/settings', 'تنظیمات سیستم', 'settings'],
+    ['/admin/reports', 'گزارش مالی', 'reports'],
     ['/admin/audit', 'گزارش مدیر', 'audit'],
   ] as const;
 
@@ -137,6 +139,8 @@ function messageFromQuery(query: unknown) {
     not_found: ['مورد موردنظر پیدا نشد.', true],
     encryption_missing: ['کلید رمزگذاری Provider در سرور تنظیم نشده است.', true],
     self_protected: ['نمی‌توانی حساب مدیریتی خودت را تعلیق یا از نقش ADMIN خارج کنی.', true],
+    refunded: ['مبلغ سفارش با Ledger به کیف پول کاربر برگشت داده شد.', false],
+    already_refunded: ['این سفارش قبلاً Refund شده است.', true],
     user_not_found: ['کاربر پیدا نشد.', true],
   };
   return messages[key] ?? ['', false] as [string, boolean];
@@ -294,7 +298,7 @@ export function registerExtendedAdminRoutes(
     ]);
     const [message, error] = messageFromQuery(request.query);
     const s = selected;
-    const body = `<div class="split"><div class="card"><h3 class="section">کاتالوگ خدمات</h3><div class="table"><table><thead><tr><th>خدمت</th><th>دسته</th><th>قیمت پایه</th><th>Route</th><th>وضعیت</th><th></th></tr></thead><tbody>${services.map((x) => `<tr><td><b>${esc(x.titleFa)}</b><br><span class="muted">${esc(x.titleEn)}</span><br><span class="muted code">${esc(x.slug)}</span></td><td>${x.category}</td><td>${x.basePriceAfn == null ? 'Dynamic' : fmtAfn(x.basePriceAfn)}</td><td>${x.routes.filter((r) => r.enabled).length}/${x.routes.length}</td><td><span class="badge ${x.enabled ? 'okbadge' : 'badbadge'}">${x.enabled ? 'فعال' : 'خاموش'}</span></td><td><a class="ghost" href="/admin/services?edit=${encodeURIComponent(x.id)}">ویرایش</a></td></tr>`).join('')}</tbody></table></div></div><div><div class="card"><h3 class="section">${s ? 'ویرایش خدمت' : 'خدمت جدید'}</h3><form method="post" action="/admin/services/save">${s ? `<input type="hidden" name="id" value="${esc(s.id)}">` : ''}<div class="grid2"><div class="field"><label>عنوان فارسی</label><input name="titleFa" value="${esc(s?.titleFa || '')}" required></div><div class="field"><label>English title</label><input name="titleEn" value="${esc(s?.titleEn || '')}" required></div></div><div class="grid2"><div class="field"><label>Slug</label><input class="mono" name="slug" value="${esc(s?.slug || '')}" pattern="[a-z0-9_-]+" required></div><div class="field"><label>دسته</label><select name="category">${selectOptions(Object.values(ServiceCategory), s?.category)}</select></div></div><div class="grid3"><div class="field"><label>قیمت پایه AFN</label><input name="basePriceAfn" type="number" min="0" value="${esc(s?.basePriceAfn?.toString() || '')}" placeholder="خالی = Dynamic"></div><div class="field"><label>حداقل تعداد</label><input name="minQty" type="number" min="1" value="${esc(s?.minQty ?? '')}"></div><div class="field"><label>حداکثر تعداد</label><input name="maxQty" type="number" min="1" value="${esc(s?.maxQty ?? '')}"></div></div><div class="field"><label>توضیح فارسی</label><textarea name="descriptionFa">${esc(s?.descriptionFa || '')}</textarea></div><div class="field"><label>English description</label><textarea name="descriptionEn">${esc(s?.descriptionEn || '')}</textarea></div><div class="field"><label>ترتیب نمایش</label><input name="sortOrder" type="number" value="${esc(s?.sortOrder ?? 100)}"></div><div class="row"><label class="check"><input type="checkbox" name="enabled"${s?.enabled !== false ? ' checked' : ''}>فعال</label><label class="check"><input type="checkbox" name="featured"${s?.featured ? ' checked' : ''}>ویژه</label></div><div class="row" style="margin-top:14px"><button class="primary" type="submit">ذخیره خدمت</button>${s ? '<a class="ghost" href="/admin/services">خدمت جدید</a>' : ''}</div></form></div>${s ? `<div class="card"><h3 class="section">Provider Route</h3><div class="muted">برای Failover می‌توانی چند Provider برای یک خدمت تعریف کنی. اولویت کمتر زودتر انتخاب می‌شود.</div>${s.routes.length ? `<div class="table"><table><thead><tr><th>Provider</th><th>Code</th><th>Priority</th><th>Cost</th><th>Markup</th><th>وضعیت</th></tr></thead><tbody>${s.routes.map((r) => `<tr><td>${esc(r.provider.name)}</td><td class="code">${esc(r.providerServiceCode)}</td><td>${r.priority}</td><td>${r.costAfn == null ? 'API' : fmtAfn(r.costAfn)}</td><td>${r.markupPercent?.toString() ?? 'Default'}%</td><td>${r.enabled ? 'ON' : 'OFF'}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">هنوز Route ثبت نشده است.</p>'}<form method="post" action="/admin/routes/save"><input type="hidden" name="serviceId" value="${esc(s.id)}"><div class="grid2"><div class="field"><label>Provider</label><select name="providerId" required><option value="">انتخاب...</option>${providers.map((p) => `<option value="${esc(p.id)}">${esc(p.name)} — ${p.kind}</option>`).join('')}</select></div><div class="field"><label>Provider service code</label><input class="mono" name="providerServiceCode" required></div></div><div class="grid3"><div class="field"><label>Priority</label><input name="priority" type="number" value="100"></div><div class="field"><label>Cost AFN اختیاری</label><input name="costAfn" type="number" min="0"></div><div class="field"><label>Markup % اختیاری</label><input name="markup" inputmode="decimal"></div></div><label class="check"><input type="checkbox" name="enabled" checked>فعال</label><button class="primary" type="submit" style="margin-top:12px">افزودن Route</button></form></div>` : ''}</div></div>`;
+    const body = `<div class="split"><div class="card"><h3 class="section">کاتالوگ خدمات</h3><div class="table"><table><thead><tr><th>خدمت</th><th>دسته</th><th>قیمت پایه</th><th>Route</th><th>وضعیت</th><th></th></tr></thead><tbody>${services.map((x) => `<tr><td><b>${esc(x.titleFa)}</b><br><span class="muted">${esc(x.titleEn)}</span><br><span class="muted code">${esc(x.slug)}</span></td><td>${x.category}</td><td>${x.basePriceAfn == null ? 'Dynamic' : fmtAfn(x.basePriceAfn)}</td><td>${x.routes.filter((r) => r.enabled).length}/${x.routes.length}</td><td><span class="badge ${x.enabled ? 'okbadge' : 'badbadge'}">${x.enabled ? 'فعال' : 'خاموش'}</span></td><td><a class="ghost" href="/admin/services?edit=${encodeURIComponent(x.id)}">ویرایش</a></td></tr>`).join('')}</tbody></table></div></div><div><div class="card"><h3 class="section">${s ? 'ویرایش خدمت' : 'خدمت جدید'}</h3><form method="post" action="/admin/services/save">${s ? `<input type="hidden" name="id" value="${esc(s.id)}">` : ''}<div class="grid2"><div class="field"><label>عنوان فارسی</label><input name="titleFa" value="${esc(s?.titleFa || '')}" required></div><div class="field"><label>English title</label><input name="titleEn" value="${esc(s?.titleEn || '')}" required></div></div><div class="grid2"><div class="field"><label>Slug</label><input class="mono" name="slug" value="${esc(s?.slug || '')}" pattern="[a-z0-9_-]+" required></div><div class="field"><label>دسته</label><select name="category">${selectOptions(Object.values(ServiceCategory), s?.category)}</select></div></div><div class="grid3"><div class="field"><label>قیمت پایه AFN</label><input name="basePriceAfn" type="number" min="0" value="${esc(s?.basePriceAfn?.toString() || '')}" placeholder="خالی = Dynamic"></div><div class="field"><label>حداقل تعداد</label><input name="minQty" type="number" min="1" value="${esc(s?.minQty ?? '')}"></div><div class="field"><label>حداکثر تعداد</label><input name="maxQty" type="number" min="1" value="${esc(s?.maxQty ?? '')}"></div></div><div class="field"><label>توضیح فارسی</label><textarea name="descriptionFa">${esc(s?.descriptionFa || '')}</textarea></div><div class="field"><label>English description</label><textarea name="descriptionEn">${esc(s?.descriptionEn || '')}</textarea></div><div class="field"><label>Metadata JSON (تنظیمات پیشرفته سرویس)</label><textarea class="mono" name="metadata" placeholder='{"country":"afghanistan","operator":"..."}'>${esc(s?.metadata ? JSON.stringify(s.metadata, null, 2) : '')}</textarea></div><div class="field"><label>ترتیب نمایش</label><input name="sortOrder" type="number" value="${esc(s?.sortOrder ?? 100)}"></div><div class="row"><label class="check"><input type="checkbox" name="enabled"${s?.enabled !== false ? ' checked' : ''}>فعال</label><label class="check"><input type="checkbox" name="featured"${s?.featured ? ' checked' : ''}>ویژه</label></div><div class="row" style="margin-top:14px"><button class="primary" type="submit">ذخیره خدمت</button>${s ? '<a class="ghost" href="/admin/services">خدمت جدید</a>' : ''}</div></form></div>${s ? `<div class="card"><h3 class="section">Provider Route</h3><div class="muted">برای Failover می‌توانی چند Provider برای یک خدمت تعریف کنی. اولویت کمتر زودتر انتخاب می‌شود.</div>${s.routes.length ? `<div class="table"><table><thead><tr><th>Provider</th><th>Code</th><th>Priority</th><th>Cost</th><th>Markup</th><th>وضعیت</th></tr></thead><tbody>${s.routes.map((r) => `<tr><td>${esc(r.provider.name)}</td><td class="code">${esc(r.providerServiceCode)}</td><td>${r.priority}</td><td>${r.costAfn == null ? 'API' : fmtAfn(r.costAfn)}</td><td>${r.markupPercent?.toString() ?? 'Default'}%</td><td>${r.enabled ? 'ON' : 'OFF'}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">هنوز Route ثبت نشده است.</p>'}<form method="post" action="/admin/routes/save"><input type="hidden" name="serviceId" value="${esc(s.id)}"><div class="grid2"><div class="field"><label>Provider</label><select name="providerId" required><option value="">انتخاب...</option>${providers.map((p) => `<option value="${esc(p.id)}">${esc(p.name)} — ${p.kind}</option>`).join('')}</select></div><div class="field"><label>Provider service code</label><input class="mono" name="providerServiceCode" required></div></div><div class="grid3"><div class="field"><label>Priority</label><input name="priority" type="number" value="100"></div><div class="field"><label>Cost AFN اختیاری</label><input name="costAfn" type="number" min="0"></div><div class="field"><label>Markup % اختیاری</label><input name="markup" inputmode="decimal"></div></div><div class="field"><label>Route Metadata JSON</label><textarea class="mono" name="metadata" placeholder='{"countryCode":"af","operator":"any"}'></textarea></div><label class="check"><input type="checkbox" name="enabled" checked>فعال</label><button class="primary" type="submit" style="margin-top:12px">افزودن Route</button></form></div>` : ''}</div></div>`;
     return reply.type('text/html; charset=utf-8').send(adminShell({ title: 'خدمات و قیمت‌ها', admin, active: 'services', body, message, error }));
   });
 
@@ -324,6 +328,7 @@ export function registerExtendedAdminRoutes(
         basePriceAfn: bigIntOrNull(body, 'basePriceAfn'),
         minQty: minRaw ? Math.max(1, intValue(body, 'minQty', 1)) : null,
         maxQty: maxRaw ? Math.max(1, intValue(body, 'maxQty', 1)) : null,
+        metadata: text(body, 'metadata') ? JSON.parse(text(body, 'metadata')) as Prisma.InputJsonValue : Prisma.JsonNull,
       };
       const saved = id ? await prisma.service.update({ where: { id }, data }) : await prisma.service.create({ data });
       await audit(prisma, admin.id, id ? 'SERVICE_UPDATE' : 'SERVICE_CREATE', 'Service', saved.id, `${saved.titleEn} (${saved.slug})`);
@@ -349,6 +354,7 @@ export function registerExtendedAdminRoutes(
           priority: intValue(body, 'priority', 100),
           costAfn: bigIntOrNull(body, 'costAfn'),
           markupPercent: text(body, 'markup') ? new Prisma.Decimal(decimalValue(body, 'markup')) : null,
+          metadata: text(body, 'metadata') ? JSON.parse(text(body, 'metadata')) as Prisma.InputJsonValue : Prisma.JsonNull,
         },
         create: {
           serviceId,
@@ -358,6 +364,7 @@ export function registerExtendedAdminRoutes(
           priority: intValue(body, 'priority', 100),
           costAfn: bigIntOrNull(body, 'costAfn'),
           markupPercent: text(body, 'markup') ? new Prisma.Decimal(decimalValue(body, 'markup')) : null,
+          metadata: text(body, 'metadata') ? JSON.parse(text(body, 'metadata')) as Prisma.InputJsonValue : Prisma.JsonNull,
         },
       });
       await audit(prisma, admin.id, 'SERVICE_ROUTE_UPSERT', 'ServiceProviderRoute', route.id, providerServiceCode);
@@ -375,7 +382,7 @@ export function registerExtendedAdminRoutes(
     const where: Prisma.OrderWhereInput = Object.values(OrderStatus).includes(filter as OrderStatus) ? { status: filter as OrderStatus } : {};
     const orders = await prisma.order.findMany({ where, include: { user: true, service: true, provider: true }, orderBy: { createdAt: 'desc' }, take: 200 });
     const [message, error] = messageFromQuery(request.query);
-    const body = `<div class="card"><div class="row"><b>آخرین سفارش‌ها</b><span class="muted">Wallet-only purchase foundation</span><form method="get" action="/admin/orders" class="row" style="margin-right:auto"><select name="status"><option value="">همه وضعیت‌ها</option>${selectOptions(Object.values(OrderStatus), filter)}</select><button class="ghost" type="submit">فیلتر</button></form></div><div class="warn" style="margin-top:12px">REFUNDED فقط باید همراه Ledger Refund اجرا شود؛ این صفحه فعلاً برای وضعیت عملیاتی سفارش است.</div><div class="table"><table><thead><tr><th>ID</th><th>کاربر</th><th>خدمت</th><th>مبلغ</th><th>Provider</th><th>وضعیت</th><th>زمان</th></tr></thead><tbody>${orders.length ? orders.map((o) => `<tr><td class="code">${esc(o.id.slice(0, 8))}</td><td>${esc(o.user.fullName || o.user.email || o.user.phone || '—')}</td><td>${esc(o.service?.titleFa || o.category)}</td><td>${fmtAfn(o.totalAmountAfn)}</td><td>${esc(o.provider?.name || '—')}</td><td><form method="post" action="/admin/orders/status" class="row"><input type="hidden" name="id" value="${esc(o.id)}"><select name="status">${selectOptions(Object.values(OrderStatus).filter((x) => x !== 'REFUNDED'), o.status)}</select><button class="ghost" type="submit">ثبت</button></form></td><td>${faDate(o.createdAt)}</td></tr>`).join('') : '<tr><td colspan="7" class="muted">هنوز سفارشی ثبت نشده است.</td></tr>'}</tbody></table></div></div>`;
+    const body = `<div class="card"><div class="row"><b>آخرین سفارش‌ها</b><span class="muted">Wallet-only purchase foundation</span><form method="get" action="/admin/orders" class="row" style="margin-right:auto"><select name="status"><option value="">همه وضعیت‌ها</option>${selectOptions(Object.values(OrderStatus), filter)}</select><button class="ghost" type="submit">فیلتر</button></form></div><div class="warn" style="margin-top:12px">REFUNDED فقط باید همراه Ledger Refund اجرا شود؛ این صفحه فعلاً برای وضعیت عملیاتی سفارش است.</div><div class="table"><table><thead><tr><th>ID</th><th>کاربر</th><th>خدمت</th><th>مبلغ</th><th>Provider</th><th>وضعیت</th><th>زمان</th></tr></thead><tbody>${orders.length ? orders.map((o) => `<tr><td class="code">${esc(o.id.slice(0, 8))}</td><td>${esc(o.user.fullName || o.user.email || o.user.phone || '—')}</td><td>${esc(o.service?.titleFa || o.category)}</td><td>${fmtAfn(o.totalAmountAfn)}</td><td>${esc(o.provider?.name || '—')}</td><td><form method="post" action="/admin/orders/status" class="row"><input type="hidden" name="id" value="${esc(o.id)}"><select name="status">${selectOptions(Object.values(OrderStatus).filter((x) => x !== 'REFUNDED'), o.status)}</select><button class="ghost" type="submit">ثبت</button></form>${o.status !== OrderStatus.REFUNDED ? `<form method="post" action="/admin/orders/refund" style="margin-top:6px"><input type="hidden" name="id" value="${esc(o.id)}"><button class="danger" type="submit">Refund کامل</button></form>` : '<span class="badge okbadge">Refunded</span>'}</td><td>${faDate(o.createdAt)}</td></tr>`).join('') : '<tr><td colspan="7" class="muted">هنوز سفارشی ثبت نشده است.</td></tr>'}</tbody></table></div></div>`;
     return reply.type('text/html; charset=utf-8').send(adminShell({ title: 'سفارش‌ها', admin, active: 'orders', body, message, error }));
   });
 
@@ -389,6 +396,73 @@ export function registerExtendedAdminRoutes(
     const order = await prisma.order.update({ where: { id }, data: { status, completedAt: status === OrderStatus.COMPLETED ? new Date() : undefined } });
     await audit(prisma, admin.id, 'ORDER_STATUS_UPDATE', 'Order', id, `Order status changed to ${status}`, { previousUpdatedAt: order.updatedAt.toISOString() });
     return reply.code(303).redirect('/admin/orders?msg=saved');
+  });
+
+  app.post('/admin/orders/refund', async (request, reply) => {
+    const admin = await requireAdmin(request, reply, resolveAdmin);
+    if (!admin) return;
+    const orderId = text(request.body as AnyBody, 'id');
+    if (!orderId) return reply.code(303).redirect('/admin/orders?msg=invalid');
+    try {
+      const refund = await prisma.$transaction(
+        async (tx) => {
+          const order = await tx.order.findUnique({ where: { id: orderId } });
+          if (!order) throw new Error('ORDER_NOT_FOUND');
+          if (order.status === OrderStatus.REFUNDED) throw new Error('ALREADY_REFUNDED');
+
+          const existing = await tx.walletEntry.findUnique({
+            where: { idempotencyKey: `order-refund-${order.id}` },
+          });
+          if (existing) throw new Error('ALREADY_REFUNDED');
+
+          const wallet = await tx.wallet.findUnique({ where: { userId: order.userId } });
+          if (!wallet) throw new Error('WALLET_NOT_FOUND');
+          const nextBalance = wallet.balanceAfn + order.totalAmountAfn;
+
+          await tx.wallet.update({
+            where: { id: wallet.id },
+            data: { balanceAfn: nextBalance },
+          });
+          const entry = await tx.walletEntry.create({
+            data: {
+              walletId: wallet.id,
+              type: WalletEntryType.REFUND,
+              amountAfn: order.totalAmountAfn,
+              balanceAfterAfn: nextBalance,
+              description: `Refund order ${order.id}`,
+              idempotencyKey: `order-refund-${order.id}`,
+              referenceType: 'ORDER_REFUND',
+              referenceId: order.id,
+              metadata: { adminUserId: admin.id },
+            },
+          });
+          await tx.order.update({
+            where: { id: order.id },
+            data: { status: OrderStatus.REFUNDED },
+          });
+          return { order, entry };
+        },
+        { isolationLevel: 'Serializable' },
+      );
+      await audit(
+        prisma,
+        admin.id,
+        'ORDER_REFUND',
+        'Order',
+        orderId,
+        `Refunded ${refund.order.totalAmountAfn.toString()} AFN`,
+        { walletEntryId: refund.entry.id, userId: refund.order.userId },
+      );
+      return reply.code(303).redirect('/admin/orders?msg=refunded');
+    } catch (error) {
+      if (error instanceof Error && error.message === 'ALREADY_REFUNDED') {
+        return reply.code(303).redirect('/admin/orders?msg=already_refunded');
+      }
+      if (error instanceof Error && error.message === 'ORDER_NOT_FOUND') {
+        return reply.code(303).redirect('/admin/orders?msg=not_found');
+      }
+      throw error;
+    }
   });
 
   app.get('/admin/payments', async (request, reply) => {
@@ -568,6 +642,44 @@ export function registerExtendedAdminRoutes(
     } catch {
       return reply.code(303).redirect('/admin/settings?msg=invalid');
     }
+  });
+
+  app.get('/admin/reports', async (request, reply) => {
+    const admin = await requireAdmin(request, reply, resolveAdmin);
+    if (!admin) return;
+    const start = new Date();
+    start.setUTCDate(start.getUTCDate() - 30);
+    const [completed, refunded, paymentPaid, newUsers, walletSum, byCategory] = await Promise.all([
+      prisma.order.aggregate({
+        where: { status: { in: [OrderStatus.COMPLETED, OrderStatus.PARTIAL] }, createdAt: { gte: start } },
+        _sum: { totalAmountAfn: true, providerCostAfn: true },
+        _count: { _all: true },
+      }),
+      prisma.order.aggregate({
+        where: { status: OrderStatus.REFUNDED, updatedAt: { gte: start } },
+        _sum: { totalAmountAfn: true },
+        _count: { _all: true },
+      }),
+      prisma.paymentTransaction.aggregate({
+        where: { status: 'PAID', paidAt: { gte: start } },
+        _sum: { amountAfn: true },
+        _count: { _all: true },
+      }),
+      prisma.user.count({ where: { createdAt: { gte: start } } }),
+      prisma.wallet.aggregate({ _sum: { balanceAfn: true } }),
+      prisma.order.groupBy({
+        by: ['category'],
+        where: { createdAt: { gte: start } },
+        _count: { _all: true },
+        _sum: { totalAmountAfn: true },
+        orderBy: { _count: { category: 'desc' } },
+      }),
+    ]);
+    const sales = completed._sum.totalAmountAfn ?? 0n;
+    const cost = completed._sum.providerCostAfn ?? 0n;
+    const profit = sales - cost;
+    const body = `<div class="muted" style="margin-bottom:12px">خلاصه ۳۰ روز اخیر — محاسبات مالی بر پایه AFN</div><div class="statgrid"><div class="stat"><small>فروش تکمیل‌شده</small><b>${fmtAfn(sales)}</b><span class="muted">${completed._count._all} سفارش</span></div><div class="stat"><small>هزینه Provider ثبت‌شده</small><b>${fmtAfn(cost)}</b></div><div class="stat"><small>سود ناخالص ثبت‌شده</small><b>${fmtAfn(profit)}</b></div><div class="stat"><small>Refund</small><b>${fmtAfn(refunded._sum.totalAmountAfn ?? 0n)}</b><span class="muted">${refunded._count._all} سفارش</span></div></div><div class="grid2" style="margin-top:14px"><div class="stat"><small>پرداخت‌های تأییدشده</small><b>${fmtAfn(paymentPaid._sum.amountAfn ?? 0n)}</b><span class="muted">${paymentPaid._count._all} تراکنش</span></div><div class="stat"><small>موجودی کل Walletها</small><b>${fmtAfn(walletSum._sum.balanceAfn ?? 0n)}</b><span class="muted">${newUsers} کاربر جدید</span></div></div><div class="card table" style="margin-top:16px"><h3 class="section">عملکرد دسته‌ها</h3><table><thead><tr><th>دسته</th><th>تعداد سفارش</th><th>مبلغ</th></tr></thead><tbody>${byCategory.map((row) => `<tr><td>${row.category}</td><td>${row._count._all}</td><td>${fmtAfn(row._sum.totalAmountAfn ?? 0n)}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">داده‌ای وجود ندارد.</td></tr>'}</tbody></table></div>`;
+    return reply.type('text/html; charset=utf-8').send(adminShell({ title: 'گزارش مالی', admin, active: 'reports', body }));
   });
 
   app.get('/admin/audit', async (request, reply) => {
