@@ -12,10 +12,13 @@ import {
   Prisma,
   PrismaClient,
   UserRole,
+  UserStatus,
   WalletEntryType,
 } from '@prisma/client';
 import { z } from 'zod';
 import { adminDashboardHtml, adminLoginHtml } from './adminPage.js';
+import { registerExtendedAdminRoutes } from './adminExtended.js';
+import { registerClientFoundationRoutes } from './clientFoundationRoutes.js';
 
 const env = z
   .object({
@@ -185,6 +188,15 @@ async function authenticate(request: FastifyRequest, reply: FastifyReply) {
   } catch {
     return reply.code(401).send({ error: 'unauthorized' });
   }
+  const claims = request.user as JwtClaims;
+  const account = await prisma.user.findUnique({
+    where: { id: claims.sub },
+    select: { status: true },
+  });
+  if (!account) return reply.code(401).send({ error: 'unauthorized' });
+  if (account.status !== UserStatus.ACTIVE) {
+    return reply.code(403).send({ error: 'account_suspended' });
+  }
 }
 
 async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
@@ -206,6 +218,7 @@ function publicUser(user: {
   email: string | null;
   phone: string | null;
   role: UserRole;
+  status: UserStatus;
   locale: AppLocale;
   displayCurrency: DisplayCurrency;
   createdAt: Date;
@@ -217,6 +230,7 @@ function publicUser(user: {
     email: user.email,
     phone: user.phone,
     role: user.role,
+    status: user.status,
     locale: user.locale,
     displayCurrency: user.displayCurrency,
     hasPassword: Boolean(user.passwordHash),
@@ -325,7 +339,7 @@ async function adminWebUser(request: FastifyRequest) {
     const claims = app.jwt.verify<AdminWebClaims>(token);
     if (claims.scope !== 'admin-web' || claims.role !== UserRole.ADMIN) return null;
     return prisma.user.findFirst({
-      where: { id: claims.sub, role: UserRole.ADMIN },
+      where: { id: claims.sub, role: UserRole.ADMIN, status: UserStatus.ACTIVE },
       include: { wallet: true },
     });
   } catch {
@@ -467,7 +481,7 @@ app.post('/admin/wallet-adjust', async (request, reply) => {
   const amountAfn = BigInt(parsed.data.amountAfn);
   if (amountAfn === 0n) return reply.code(303).redirect(`/admin?view=users&user=${encodeURIComponent(parsed.data.userId)}&msg=invalid_request`);
   try {
-    await applyWalletDelta({
+    const entry = await applyWalletDelta({
       userId: parsed.data.userId,
       amountAfn,
       type: amountAfn > 0n ? WalletEntryType.MANUAL_CREDIT : WalletEntryType.MANUAL_DEBIT,
@@ -475,6 +489,16 @@ app.post('/admin/wallet-adjust', async (request, reply) => {
       idempotencyKey: `admin-web-${admin.id}-${Date.now()}-${randomBytes(6).toString('hex')}`,
       referenceType: 'ADMIN_ADJUSTMENT',
       referenceId: admin.id,
+    });
+    await prisma.adminAuditLog.create({
+      data: {
+        adminUserId: admin.id,
+        action: 'WALLET_MANUAL_ADJUST',
+        entityType: 'WalletEntry',
+        entityId: entry.id,
+        summary: `${parsed.data.amountAfn} AFN — ${parsed.data.reason}`,
+        metadata: { userId: parsed.data.userId },
+      },
     });
     return reply.code(303).redirect(`/admin?view=users&user=${encodeURIComponent(parsed.data.userId)}&msg=wallet_updated`);
   } catch (error) {
@@ -494,6 +518,15 @@ app.post('/admin/rates', async (request, reply) => {
     where: { code: parsed.data.code },
     update: { afnPerUnit: new Prisma.Decimal(parsed.data.afnPerUnit) },
     create: { code: parsed.data.code, afnPerUnit: new Prisma.Decimal(parsed.data.afnPerUnit) },
+  });
+  await prisma.adminAuditLog.create({
+    data: {
+      adminUserId: admin.id,
+      action: 'EXCHANGE_RATE_UPDATE',
+      entityType: 'ExchangeRate',
+      entityId: parsed.data.code,
+      summary: `${parsed.data.code} = ${parsed.data.afnPerUnit} AFN`,
+    },
   });
   return reply.code(303).redirect('/admin?view=rates&msg=rate_updated');
 });
@@ -554,6 +587,9 @@ app.post('/api/v1/auth/login', async (request, reply) => {
   if (!user || !user.passwordHash || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
     return reply.code(401).send({ error: 'invalid_credentials' });
   }
+  if (user.status !== UserStatus.ACTIVE) {
+    return reply.code(403).send({ error: 'account_suspended' });
+  }
 
   const session = await createSession(user);
   return { user: publicUser(user), ...session };
@@ -609,6 +645,9 @@ app.post('/api/v1/auth/google', async (request, reply) => {
       }
     }
 
+    if (user.status !== UserStatus.ACTIVE) {
+      return reply.code(403).send({ error: 'account_suspended' });
+    }
     const session = await createSession(user);
     return { user: publicUser(user), ...session };
   } catch (error) {
@@ -628,6 +667,9 @@ app.post('/api/v1/auth/refresh', async (request, reply) => {
 
   if (!stored || stored.revokedAt || stored.expiresAt <= new Date()) {
     return reply.code(401).send({ error: 'invalid_refresh_token' });
+  }
+  if (stored.user.status !== UserStatus.ACTIVE) {
+    return reply.code(403).send({ error: 'account_suspended' });
   }
 
   const nextRefreshToken = newRefreshToken();
@@ -989,6 +1031,9 @@ app.post(
     }
   },
 );
+
+registerExtendedAdminRoutes(app, prisma, adminWebUser);
+registerClientFoundationRoutes(app, prisma, authenticate);
 
 app.setErrorHandler((error: unknown, request, reply) => {
   request.log.error(error);
