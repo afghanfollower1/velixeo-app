@@ -30,8 +30,8 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install locked dependencies
-        run: npm ci
+      - name: Install dependencies
+        run: npm install
 
       - name: Audit production dependencies
         shell: bash
