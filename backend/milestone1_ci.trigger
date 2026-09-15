@@ -1,1 +1,1 @@
-validate-extended-admin-foundation-2026-09-15
+validate-admin-financial-ops-2026-09-15
