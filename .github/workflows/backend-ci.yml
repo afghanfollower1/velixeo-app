@@ -83,7 +83,7 @@ jobs:
           echo "Backend did not become healthy in time."
           exit 1
 
-      - name: Run auth wallet and client API smoke tests
+      - name: Run auth wallet client API and admin security smoke tests
         shell: bash
         run: |
           set -euo pipefail
@@ -105,6 +105,32 @@ jobs:
           const health = await jsonRequest('/health');
           if (health.response.status !== 200 || health.body?.status !== 'ok') {
             throw new Error(`Health check failed: ${health.response.status}`);
+          }
+
+          const crossSiteAdmin = await jsonRequest('/admin/login', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/x-www-form-urlencoded',
+              origin: 'https://attacker.example',
+              'sec-fetch-site': 'cross-site',
+            },
+            body: 'identifier=admin%40example.invalid&password=wrong-password',
+          });
+          if (crossSiteAdmin.response.status !== 403 || crossSiteAdmin.body !== 'admin_request_origin_rejected') {
+            throw new Error(`Cross-site admin form request was not rejected: ${crossSiteAdmin.response.status}`);
+          }
+
+          const sameOriginAdmin = await jsonRequest('/admin/login', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/x-www-form-urlencoded',
+              origin: base,
+              'sec-fetch-site': 'same-origin',
+            },
+            body: 'identifier=admin%40example.invalid&password=wrong-password',
+          });
+          if (sameOriginAdmin.response.status !== 401) {
+            throw new Error(`Same-origin admin form request was blocked unexpectedly: ${sameOriginAdmin.response.status}`);
           }
 
           const registration = await jsonRequest('/api/v1/auth/register', {
@@ -191,7 +217,7 @@ jobs:
             throw new Error(`Google safe-failure behavior changed: ${googleWithoutConfig.response.status} ${JSON.stringify(googleWithoutConfig.body)}`);
           }
 
-          console.log('VELIXEO backend runtime smoke tests passed.');
+          console.log('VELIXEO backend runtime and admin security smoke tests passed.');
           NODE
 
       - name: Show backend logs on failure
