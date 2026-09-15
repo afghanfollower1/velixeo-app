@@ -12,6 +12,11 @@ enum UserRole {
   ADMIN
 }
 
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
 enum AppLocale {
   FA
   EN
@@ -39,6 +44,68 @@ enum WalletEntryStatus {
   REVERSED
 }
 
+enum ServiceCategory {
+  SOCIAL
+  VIRTUAL_NUMBER
+  PREMIUM
+  DIGITAL_ACCOUNT
+  MOBILE_TOPUP
+  PROMOTION
+}
+
+enum ProviderKind {
+  SOCIAL
+  VIRTUAL_NUMBER
+  TOPUP
+  PREMIUM
+  PAYMENT
+  GENERIC
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  PARTIAL
+  AWAITING_SMS
+  CANCELLED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum BannerPlacement {
+  HOME_HERO
+  HOME_INLINE
+  SERVICES_TOP
+  WALLET_TOP
+}
+
+enum CouponDiscountType {
+  FIXED_AFN
+  PERCENT
+}
+
+enum NotificationAudience {
+  ALL
+  USER
+}
+
+enum SupportStatus {
+  OPEN
+  PENDING_USER
+  PENDING_ADMIN
+  RESOLVED
+  CLOSED
+}
+
 model User {
   id              String          @id @default(uuid())
   fullName        String?
@@ -47,21 +114,28 @@ model User {
   passwordHash    String?
   googleSubject   String?         @unique
   role            UserRole        @default(USER)
+  status          UserStatus      @default(ACTIVE)
   locale          AppLocale       @default(FA)
   displayCurrency DisplayCurrency @default(AFN)
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
-  wallet        Wallet?
-  refreshTokens RefreshToken[]
+  wallet                Wallet?
+  refreshTokens         RefreshToken[]
+  orders                Order[]
+  payments              PaymentTransaction[]
+  supportTickets        SupportTicket[]
+  supportMessages       SupportMessage[]       @relation("SupportSender")
+  notifications         Notification[]
+  auditLogs             AdminAuditLog[]        @relation("AdminAuditLogs")
 }
 
 model Wallet {
-  id         String        @id @default(uuid())
-  userId     String        @unique
-  balanceAfn BigInt        @default(0)
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  balanceAfn BigInt   @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   entries WalletEntry[]
@@ -107,4 +181,242 @@ model ExchangeRate {
   afnPerUnit Decimal  @db.Decimal(20, 8)
   updatedAt  DateTime @updatedAt
   createdAt  DateTime @default(now())
+}
+
+model Provider {
+  id                   String       @id @default(uuid())
+  name                 String
+  slug                 String       @unique
+  kind                 ProviderKind
+  baseUrl              String?
+  enabled              Boolean      @default(true)
+  priority             Int          @default(100)
+  defaultMarkupPercent Decimal      @default(0) @db.Decimal(10, 2)
+  timeoutSeconds       Int          @default(30)
+  notes                String?
+  secretCiphertext     String?
+  secretIv             String?
+  secretTag            String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  routes   ServiceProviderRoute[]
+  orders   Order[]
+  payments PaymentTransaction[]
+
+  @@index([kind, enabled, priority])
+}
+
+model Service {
+  id             String          @id @default(uuid())
+  category       ServiceCategory
+  slug           String          @unique
+  titleFa        String
+  titleEn        String
+  descriptionFa String?
+  descriptionEn String?
+  enabled        Boolean         @default(true)
+  featured       Boolean         @default(false)
+  sortOrder      Int             @default(100)
+  basePriceAfn   BigInt?
+  minQty         Int?
+  maxQty         Int?
+  metadata       Json?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  routes ServiceProviderRoute[]
+  orders Order[]
+
+  @@index([category, enabled, sortOrder])
+}
+
+model ServiceProviderRoute {
+  id                  String   @id @default(uuid())
+  serviceId           String
+  providerId          String
+  providerServiceCode String
+  enabled             Boolean  @default(true)
+  priority            Int      @default(100)
+  costAfn             BigInt?
+  markupPercent       Decimal? @db.Decimal(10, 2)
+  metadata            Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  service  Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, providerId, providerServiceCode])
+  @@index([serviceId, enabled, priority])
+  @@index([providerId, enabled])
+}
+
+model Order {
+  id                   String          @id @default(uuid())
+  userId               String
+  serviceId            String?
+  providerId           String?
+  category             ServiceCategory
+  status               OrderStatus     @default(PENDING)
+  quantity             Int?
+  baseAmountAfn        BigInt
+  totalAmountAfn       BigInt
+  providerCostAfn      BigInt?
+  providerOrderId      String?
+  input                Json?
+  output               Json?
+  exchangeRateSnapshot Json?
+  failureReason        String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  completedAt          DateTime?
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  service  Service?  @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  provider Provider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([providerId, providerOrderId])
+}
+
+model PaymentTransaction {
+  id           String        @id @default(uuid())
+  userId       String
+  providerId   String?
+  status       PaymentStatus @default(PENDING)
+  amountAfn    BigInt
+  externalId   String?       @unique
+  referenceId  String?
+  metadata     Json?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  paidAt       DateTime?
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  provider Provider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+model Banner {
+  id            String          @id @default(uuid())
+  placement     BannerPlacement
+  titleFa       String?
+  titleEn       String?
+  subtitleFa    String?
+  subtitleEn    String?
+  imageUrl      String
+  actionLabelFa String?
+  actionLabelEn String?
+  actionUrl     String?
+  enabled       Boolean         @default(true)
+  sortOrder     Int             @default(100)
+  startsAt      DateTime?
+  endsAt        DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([placement, enabled, sortOrder])
+}
+
+model Coupon {
+  id             String             @id @default(uuid())
+  code           String             @unique
+  title          String?
+  discountType   CouponDiscountType
+  discountValue  Decimal            @db.Decimal(20, 4)
+  minOrderAfn    BigInt             @default(0)
+  maxDiscountAfn BigInt?
+  usageLimit     Int?
+  usedCount      Int                @default(0)
+  active         Boolean            @default(true)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([active, startsAt, endsAt])
+}
+
+model Notification {
+  id        String               @id @default(uuid())
+  userId    String?
+  audience  NotificationAudience @default(ALL)
+  titleFa   String
+  titleEn   String
+  bodyFa    String
+  bodyEn    String
+  enabled   Boolean              @default(true)
+  publishAt DateTime             @default(now())
+  expiresAt DateTime?
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([audience, enabled, publishAt])
+  @@index([userId, publishAt])
+}
+
+model SupportTicket {
+  id            String        @id @default(uuid())
+  userId        String
+  subject       String
+  status        SupportStatus @default(OPEN)
+  priority      Int           @default(0)
+  lastMessageAt DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages SupportMessage[]
+
+  @@index([status, lastMessageAt])
+  @@index([userId, createdAt])
+}
+
+model SupportMessage {
+  id           String   @id @default(uuid())
+  ticketId     String
+  senderUserId String?
+  isAdmin      Boolean  @default(false)
+  content      String
+  createdAt    DateTime @default(now())
+
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  senderUser User?         @relation("SupportSender", fields: [senderUserId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+}
+
+model SystemSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  category    String   @default("general")
+  value       Json
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category, key])
+}
+
+model AdminAuditLog {
+  id          String   @id @default(uuid())
+  adminUserId String
+  action      String
+  entityType  String
+  entityId    String?
+  summary     String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  adminUser User @relation("AdminAuditLogs", fields: [adminUserId], references: [id], onDelete: Restrict)
+
+  @@index([adminUserId, createdAt])
+  @@index([entityType, entityId])
+  @@index([createdAt])
 }
