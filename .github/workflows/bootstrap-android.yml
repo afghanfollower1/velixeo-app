@@ -1,0 +1,52 @@
+name: Bootstrap Stable VELIXEO Android Project
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/bootstrap-android.trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Flutter stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Create stable Android scaffold
+        run: |
+          rm -rf /tmp/velixeo_android
+          flutter create --platforms=android --org com.velixeo --project-name velixeo /tmp/velixeo_android
+          rm -rf android
+          cp -R /tmp/velixeo_android/android ./android
+          cp /tmp/velixeo_android/.metadata ./.metadata
+          sed -i 's/android:label="velixeo"/android:label="VELIXEO"/' android/app/src/main/AndroidManifest.xml
+          if ! grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml; then
+            sed -i '/<manifest/a\\    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
+          fi
+
+      - name: Commit Android project
+        run: |
+          git config user.name "VELIXEO Build Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add android .metadata
+          if git diff --cached --quiet; then
+            echo "Android project already up to date"
+            exit 0
+          fi
+          git commit -m "Add stable VELIXEO Android project scaffold"
+          git push
