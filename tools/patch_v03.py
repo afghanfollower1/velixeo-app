@@ -22,3 +22,4 @@ for old, new in replacements:
 
 p.write_text(s, encoding='utf-8')
 print('VELIXEO v0.3 auth UI patch applied')
+# Trigger marker: 2026-09-15
