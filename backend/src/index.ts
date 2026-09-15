@@ -62,7 +62,7 @@ app.addContentTypeParser(
 
 const registerSchema = z
   .object({
-    fullName: z.string().trim().min(2).max(120).optional(),
+    fullName: z.string().trim().min(2).max(120),
     email: z.string().trim().email().optional(),
     phone: z.string().trim().min(7).max(32).optional(),
     password: z.string().min(8).max(128),
@@ -89,6 +89,16 @@ const preferenceSchema = z
   .refine((data) => data.locale !== undefined || data.displayCurrency !== undefined, {
     message: 'no_changes_requested',
   });
+
+
+const profileSchema = z.object({
+  fullName: z.string().trim().min(2).max(120),
+});
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1).max(128),
+  newPassword: z.string().min(8).max(128),
+});
 
 const adminAdjustmentSchema = z.object({
   userId: z.string().uuid(),
@@ -499,7 +509,7 @@ app.post('/api/v1/auth/register', async (request, reply) => {
   const passwordHash = await bcrypt.hash(parsed.data.password, 12);
   const user = await prisma.user.create({
     data: {
-      fullName: parsed.data.fullName?.trim() || null,
+      fullName: parsed.data.fullName.trim(),
       email: email ?? null,
       phone: phone ?? null,
       passwordHash,
@@ -625,6 +635,49 @@ app.patch(
       },
     });
     return { user: publicUser(user) };
+  },
+);
+
+
+app.patch(
+  '/api/v1/me/profile',
+  { preHandler: authenticate },
+  async (request, reply) => {
+    const parsed = profileSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+
+    const claims = request.user as JwtClaims;
+    const user = await prisma.user.update({
+      where: { id: claims.sub },
+      data: { fullName: parsed.data.fullName },
+    });
+    return { user: publicUser(user) };
+  },
+);
+
+app.post(
+  '/api/v1/me/change-password',
+  { preHandler: authenticate },
+  async (request, reply) => {
+    const parsed = changePasswordSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+
+    const claims = request.user as JwtClaims;
+    const user = await prisma.user.findUnique({ where: { id: claims.sub } });
+    if (!user) return reply.code(404).send({ error: 'user_not_found' });
+
+    const matches = await bcrypt.compare(parsed.data.currentPassword, user.passwordHash);
+    if (!matches) return reply.code(400).send({ error: 'incorrect_current_password' });
+    if (parsed.data.currentPassword == parsed.data.newPassword) {
+      return reply.code(400).send({ error: 'new_password_must_differ' });
+    }
+
+    const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
+    await prisma.user.update({
+      where: { id: claims.sub },
+      data: { passwordHash },
+    });
+    return { ok: true };
   },
 );
 

@@ -274,4 +274,25 @@ class ApiService {
     if (response.statusCode != 200) _throwResponse(response);
     return AppUser.fromJson(Map<String, dynamic>.from(_decodeObject(response)['user'] as Map));
   }
+
+  Future<AppUser> updateProfile({required String fullName}) async {
+    final response = await _send(
+      'PATCH',
+      '/api/v1/me/profile',
+      body: {'fullName': fullName.trim()},
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+    return AppUser.fromJson(Map<String, dynamic>.from(_decodeObject(response)['user'] as Map));
+  }
+
+  Future<void> changePassword({required String currentPassword, required String newPassword}) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/me/change-password',
+      body: {'currentPassword': currentPassword, 'newPassword': newPassword},
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+  }
 }

@@ -117,6 +117,14 @@ class AppController extends ChangeNotifier {
       user = result.$1;
       balanceAfn = result.$2;
       await _loadSecondaryData();
+    } on ApiException catch (error) {
+      if (error.statusCode == 401) {
+        await api.clearSession();
+        authenticated = false;
+        user = null;
+        balanceAfn = 0;
+        walletEntries = const [];
+      }
     } finally {
       refreshing = false;
       notifyListeners();
@@ -168,6 +176,43 @@ class AppController extends ChangeNotifier {
       } catch (_) {}
     }
     notifyListeners();
+  }
+
+
+  Future<String?> updateFullName(String fullName) async {
+    final value = fullName.trim();
+    if (value.length < 2) return 'invalid_name';
+    try {
+      user = await api.updateProfile(fullName: value);
+      notifyListeners();
+      return null;
+    } on ApiException catch (error) {
+      if (error.statusCode == 401) {
+        await api.clearSession();
+        authenticated = false;
+        notifyListeners();
+      }
+      return error.code;
+    } catch (_) {
+      return 'network_error';
+    }
+  }
+
+  Future<String?> changePassword(String currentPassword, String newPassword) async {
+    if (newPassword.length < 8) return 'weak_password';
+    try {
+      await api.changePassword(currentPassword: currentPassword, newPassword: newPassword);
+      return null;
+    } on ApiException catch (error) {
+      if (error.statusCode == 401) {
+        await api.clearSession();
+        authenticated = false;
+        notifyListeners();
+      }
+      return error.code;
+    } catch (_) {
+      return 'network_error';
+    }
   }
 
   Future<void> logout() async {
@@ -1121,7 +1166,8 @@ class WalletPage extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 10),
                   child: TransactionTile(
                     title: entryTitle(c.fa, entry),
-                    amount: '${entry.amountAfn >= 0 ? '+' : ''}${entry.amountAfn} AFN',
+                    subtitle: '${entry.status} • ${entry.createdAt.toLocal().toString().substring(0, 16)} • ${tr(c.fa, 'موجودی بعد', 'Balance after')}: ${entry.balanceAfterAfn} AFN',
+                    amount: '${entry.amountAfn >= 0 ? '+' : ''}${c.money(entry.amountAfn)}',
                     positive: entry.amountAfn >= 0,
                   ),
                 ),
@@ -1209,7 +1255,7 @@ class ProfilePage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(tr(c.fa, 'کاربر VELIXEO', 'VELIXEO User'), style: const TextStyle(fontWeight: FontWeight.w900)),
+                      Text(c.user?.fullName?.trim().isNotEmpty == true ? c.user!.fullName! : tr(c.fa, 'کاربر VELIXEO', 'VELIXEO User'), style: const TextStyle(fontWeight: FontWeight.w900)),
                       Text(identity, style: const TextStyle(fontSize: 12, color: Color(0xFF607487))),
                       const SizedBox(height: 3),
                       Text(c.user?.role ?? 'USER', style: const TextStyle(fontSize: 11, color: Color(0xFF18A875), fontWeight: FontWeight.w700)),
@@ -1221,6 +1267,24 @@ class ProfilePage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+          SettingsTile(
+            icon: Icons.manage_accounts_outlined,
+            title: tr(c.fa, 'ویرایش پروفایل', 'Edit profile'),
+            value: c.user?.fullName ?? '',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => EditProfilePage(controller: c)),
+            ),
+          ),
+          SettingsTile(
+            icon: Icons.password_rounded,
+            title: tr(c.fa, 'تغییر رمز عبور', 'Change password'),
+            value: '',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ChangePasswordPage(controller: c)),
+            ),
+          ),
           SettingsTile(
             icon: Icons.language,
             title: tr(c.fa, 'زبان', 'Language'),
@@ -1310,7 +1374,202 @@ class ProfilePage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Center(child: Text('VELIXEO v0.2.0', style: const TextStyle(color: Color(0xFF8AA0B4), fontSize: 12))),
+          Center(child: Text('VELIXEO • Milestone 1', style: const TextStyle(color: Color(0xFF8AA0B4), fontSize: 12))),
+        ],
+      ),
+    );
+  }
+}
+
+class EditProfilePage extends StatefulWidget {
+  const EditProfilePage({super.key, required this.controller});
+  final AppController controller;
+
+  @override
+  State<EditProfilePage> createState() => _EditProfilePageState();
+}
+
+class _EditProfilePageState extends State<EditProfilePage> {
+  late final TextEditingController fullName;
+  bool busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    fullName = TextEditingController(text: widget.controller.user?.fullName ?? '');
+  }
+
+  @override
+  void dispose() {
+    fullName.dispose();
+    super.dispose();
+  }
+
+  Future<void> save() async {
+    FocusScope.of(context).unfocus();
+    if (fullName.text.trim().length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(widget.controller.fa, 'نام معتبر وارد کنید.', 'Enter a valid full name.'))),
+      );
+      return;
+    }
+    setState(() => busy = true);
+    final error = await widget.controller.updateFullName(fullName.text);
+    if (!mounted) return;
+    setState(() => busy = false);
+    if (error == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(widget.controller.fa, 'پروفایل ذخیره شد.', 'Profile updated.'))),
+      );
+      Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(widget.controller.fa, 'ذخیره پروفایل انجام نشد.', 'Could not update profile.'))),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.controller;
+    final identity = c.user?.email ?? c.user?.phone ?? '—';
+    return Scaffold(
+      appBar: AppBar(title: Text(tr(c.fa, 'ویرایش پروفایل', 'Edit profile'))),
+      body: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          TextField(
+            controller: fullName,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.badge_outlined),
+              labelText: tr(c.fa, 'نام و نام خانوادگی', 'Full name'),
+            ),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            readOnly: true,
+            controller: TextEditingController(text: identity),
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.alternate_email),
+              labelText: tr(c.fa, 'ایمیل / شماره', 'Email / phone'),
+              helperText: tr(c.fa, 'تغییر ایمیل یا شماره بعد از فعال‌شدن تأیید هویت اضافه می‌شود.', 'Email/phone changes will be enabled with identity verification.'),
+            ),
+          ),
+          const SizedBox(height: 24),
+          PrimaryButton(
+            label: busy ? tr(c.fa, 'درحال ذخیره...', 'Saving...') : tr(c.fa, 'ذخیره تغییرات', 'Save changes'),
+            onPressed: busy ? null : save,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ChangePasswordPage extends StatefulWidget {
+  const ChangePasswordPage({super.key, required this.controller});
+  final AppController controller;
+
+  @override
+  State<ChangePasswordPage> createState() => _ChangePasswordPageState();
+}
+
+class _ChangePasswordPageState extends State<ChangePasswordPage> {
+  final current = TextEditingController();
+  final next = TextEditingController();
+  final confirm = TextEditingController();
+  bool hidden = true;
+  bool busy = false;
+
+  @override
+  void dispose() {
+    current.dispose();
+    next.dispose();
+    confirm.dispose();
+    super.dispose();
+  }
+
+  String errorText(String code) {
+    final fa = widget.controller.fa;
+    switch (code) {
+      case 'incorrect_current_password':
+        return tr(fa, 'رمز فعلی نادرست است.', 'Current password is incorrect.');
+      case 'new_password_must_differ':
+        return tr(fa, 'رمز جدید باید با رمز فعلی متفاوت باشد.', 'New password must be different.');
+      case 'weak_password':
+      case 'invalid_request':
+        return tr(fa, 'رمز جدید باید حداقل ۸ کاراکتر باشد.', 'New password must be at least 8 characters.');
+      case 'network_error':
+        return tr(fa, 'اتصال به سرور برقرار نشد.', 'Could not reach the server.');
+      default:
+        return tr(fa, 'تغییر رمز انجام نشد.', 'Password could not be changed.');
+    }
+  }
+
+  Future<void> submit() async {
+    FocusScope.of(context).unfocus();
+    if (next.text.length < 8) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorText('weak_password'))));
+      return;
+    }
+    if (next.text != confirm.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(widget.controller.fa, 'رمز جدید و تکرار آن یکسان نیست.', 'New passwords do not match.'))),
+      );
+      return;
+    }
+    setState(() => busy = true);
+    final error = await widget.controller.changePassword(current.text, next.text);
+    if (!mounted) return;
+    setState(() => busy = false);
+    if (error == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(widget.controller.fa, 'رمز عبور با موفقیت تغییر کرد.', 'Password changed successfully.'))),
+      );
+      Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorText(error))));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.controller;
+    return Scaffold(
+      appBar: AppBar(title: Text(tr(c.fa, 'تغییر رمز عبور', 'Change password'))),
+      body: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          TextField(
+            controller: current,
+            obscureText: hidden,
+            decoration: InputDecoration(prefixIcon: const Icon(Icons.lock_outline), labelText: tr(c.fa, 'رمز فعلی', 'Current password')),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: next,
+            obscureText: hidden,
+            decoration: InputDecoration(prefixIcon: const Icon(Icons.password), labelText: tr(c.fa, 'رمز جدید', 'New password')),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: confirm,
+            obscureText: hidden,
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.lock_reset_outlined),
+              labelText: tr(c.fa, 'تکرار رمز جدید', 'Confirm new password'),
+              suffixIcon: IconButton(
+                onPressed: () => setState(() => hidden = !hidden),
+                icon: Icon(hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          PrimaryButton(
+            label: busy ? tr(c.fa, 'لطفاً صبر کنید...', 'Please wait...') : tr(c.fa, 'تغییر رمز', 'Change password'),
+            onPressed: busy ? null : submit,
+          ),
         ],
       ),
     );
@@ -1429,8 +1688,9 @@ class ServiceCard extends StatelessWidget {
 }
 
 class TransactionTile extends StatelessWidget {
-  const TransactionTile({super.key, required this.title, required this.amount, required this.positive});
+  const TransactionTile({super.key, required this.title, required this.subtitle, required this.amount, required this.positive});
   final String title;
+  final String subtitle;
   final String amount;
   final bool positive;
 
@@ -1446,7 +1706,17 @@ class TransactionTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w800))),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 3),
+                  Text(subtitle, style: const TextStyle(fontSize: 11, color: Color(0xFF607487))),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
             Text(
               amount,
               style: TextStyle(
