@@ -6,6 +6,7 @@ class AppUser {
   const AppUser({
     required this.id,
     required this.role,
+    required this.status,
     required this.locale,
     required this.displayCurrency,
     required this.hasPassword,
@@ -19,6 +20,7 @@ class AppUser {
   final String? email;
   final String? phone;
   final String role;
+  final String status;
   final String locale;
   final String displayCurrency;
   final bool hasPassword;
@@ -29,6 +31,7 @@ class AppUser {
         email: json['email'] as String?,
         phone: json['phone'] as String?,
         role: (json['role'] as String?) ?? 'USER',
+        status: (json['status'] as String?) ?? 'ACTIVE',
         locale: (json['locale'] as String?) ?? 'FA',
         displayCurrency: (json['displayCurrency'] as String?) ?? 'AFN',
         hasPassword: (json['hasPassword'] as bool?) ?? true,
@@ -94,5 +97,168 @@ class ExchangeRates {
       if (row['code'] == 'TOMAN') toman = value;
     }
     return ExchangeRates(afnPerUsd: usd, afnPerToman: toman);
+  }
+}
+
+class CatalogService {
+  const CatalogService({
+    required this.id,
+    required this.category,
+    required this.slug,
+    required this.titleFa,
+    required this.titleEn,
+    required this.featured,
+    required this.sortOrder,
+    this.descriptionFa,
+    this.descriptionEn,
+    this.basePriceAfn,
+    this.minQty,
+    this.maxQty,
+  });
+
+  final String id;
+  final String category;
+  final String slug;
+  final String titleFa;
+  final String titleEn;
+  final String? descriptionFa;
+  final String? descriptionEn;
+  final bool featured;
+  final int sortOrder;
+  final int? basePriceAfn;
+  final int? minQty;
+  final int? maxQty;
+
+  factory CatalogService.fromJson(Map<String, dynamic> json) => CatalogService(
+        id: json['id'] as String,
+        category: (json['category'] as String?) ?? 'SOCIAL',
+        slug: (json['slug'] as String?) ?? '',
+        titleFa: (json['titleFa'] as String?) ?? '',
+        titleEn: (json['titleEn'] as String?) ?? '',
+        descriptionFa: json['descriptionFa'] as String?,
+        descriptionEn: json['descriptionEn'] as String?,
+        featured: (json['featured'] as bool?) ?? false,
+        sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 100,
+        basePriceAfn: json['basePriceAfn'] == null
+            ? null
+            : int.tryParse('${json['basePriceAfn']}'),
+        minQty: (json['minQty'] as num?)?.toInt(),
+        maxQty: (json['maxQty'] as num?)?.toInt(),
+      );
+}
+
+class AppBanner {
+  const AppBanner({
+    required this.id,
+    required this.placement,
+    required this.imageUrl,
+    required this.sortOrder,
+    this.titleFa,
+    this.titleEn,
+    this.subtitleFa,
+    this.subtitleEn,
+    this.actionLabelFa,
+    this.actionLabelEn,
+    this.actionUrl,
+  });
+
+  final String id;
+  final String placement;
+  final String imageUrl;
+  final int sortOrder;
+  final String? titleFa;
+  final String? titleEn;
+  final String? subtitleFa;
+  final String? subtitleEn;
+  final String? actionLabelFa;
+  final String? actionLabelEn;
+  final String? actionUrl;
+
+  factory AppBanner.fromJson(Map<String, dynamic> json) => AppBanner(
+        id: json['id'] as String,
+        placement: (json['placement'] as String?) ?? 'HOME_HERO',
+        imageUrl: (json['imageUrl'] as String?) ?? '',
+        sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 100,
+        titleFa: json['titleFa'] as String?,
+        titleEn: json['titleEn'] as String?,
+        subtitleFa: json['subtitleFa'] as String?,
+        subtitleEn: json['subtitleEn'] as String?,
+        actionLabelFa: json['actionLabelFa'] as String?,
+        actionLabelEn: json['actionLabelEn'] as String?,
+        actionUrl: json['actionUrl'] as String?,
+      );
+}
+
+class AppNotification {
+  const AppNotification({
+    required this.id,
+    required this.titleFa,
+    required this.titleEn,
+    required this.bodyFa,
+    required this.bodyEn,
+    required this.publishAt,
+  });
+
+  final String id;
+  final String titleFa;
+  final String titleEn;
+  final String bodyFa;
+  final String bodyEn;
+  final DateTime publishAt;
+
+  factory AppNotification.fromJson(Map<String, dynamic> json) => AppNotification(
+        id: json['id'] as String,
+        titleFa: (json['titleFa'] as String?) ?? '',
+        titleEn: (json['titleEn'] as String?) ?? '',
+        bodyFa: (json['bodyFa'] as String?) ?? '',
+        bodyEn: (json['bodyEn'] as String?) ?? '',
+        publishAt: DateTime.tryParse('${json['publishAt']}') ?? DateTime.now(),
+      );
+}
+
+class AppOrder {
+  const AppOrder({
+    required this.id,
+    required this.category,
+    required this.status,
+    required this.baseAmountAfn,
+    required this.totalAmountAfn,
+    required this.createdAt,
+    this.quantity,
+    this.serviceSlug,
+    this.serviceTitleFa,
+    this.serviceTitleEn,
+    this.failureReason,
+  });
+
+  final String id;
+  final String category;
+  final String status;
+  final int? quantity;
+  final int baseAmountAfn;
+  final int totalAmountAfn;
+  final DateTime createdAt;
+  final String? serviceSlug;
+  final String? serviceTitleFa;
+  final String? serviceTitleEn;
+  final String? failureReason;
+
+  factory AppOrder.fromJson(Map<String, dynamic> json) {
+    final service = json['service'] is Map
+        ? Map<String, dynamic>.from(json['service'] as Map)
+        : const <String, dynamic>{};
+    return AppOrder(
+      id: json['id'] as String,
+      category: (json['category'] as String?) ?? 'SOCIAL',
+      status: (json['status'] as String?) ?? 'PENDING',
+      quantity: (json['quantity'] as num?)?.toInt(),
+      baseAmountAfn: int.tryParse('${json['baseAmountAfn']}') ?? 0,
+      totalAmountAfn: int.tryParse('${json['totalAmountAfn']}') ?? 0,
+      createdAt: DateTime.tryParse('${json['createdAt']}') ?? DateTime.now(),
+      serviceSlug: service['slug'] as String?,
+      serviceTitleFa: service['titleFa'] as String?,
+      serviceTitleEn: service['titleEn'] as String?,
+      failureReason: json['failureReason'] as String?,
+    );
   }
 }
