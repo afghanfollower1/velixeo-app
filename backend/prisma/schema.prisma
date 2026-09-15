@@ -282,23 +282,29 @@ model Order {
 }
 
 model PaymentTransaction {
-  id           String        @id @default(uuid())
-  userId       String
-  providerId   String?
-  status       PaymentStatus @default(PENDING)
-  amountAfn    BigInt
-  externalId   String?       @unique
-  referenceId  String?
-  metadata     Json?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  paidAt       DateTime?
+  id             String        @id @default(uuid())
+  userId         String
+  providerId     String?
+  gateway        String        @default("HESABPAY")
+  status         PaymentStatus @default(PENDING)
+  amountAfn      BigInt
+  externalId     String?       @unique
+  referenceId    String?
+  idempotencyKey String?       @unique
+  checkoutUrl    String?
+  failureReason  String?
+  metadata       Json?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  paidAt         DateTime?
+  verifiedAt     DateTime?
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Restrict)
   provider Provider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
   @@index([status, createdAt])
+  @@index([gateway, status, createdAt])
 }
 
 model Banner {
