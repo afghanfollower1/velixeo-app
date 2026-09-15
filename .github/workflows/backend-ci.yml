@@ -116,6 +116,33 @@ jobs:
           print('login + wallet: ok')
           PY
 
+      - name: Test no-JavaScript admin login form
+        run: |
+          node --input-type=module <<'NODE'
+          import { PrismaClient, UserRole } from '@prisma/client';
+          const prisma = new PrismaClient();
+          await prisma.user.update({
+            where: { email: 'ci-user@velixeo.app' },
+            data: { role: UserRole.ADMIN },
+          });
+          await prisma.$disconnect();
+          NODE
+
+          curl -sS -D /tmp/admin-login-headers.txt -o /tmp/admin-login-body.txt \
+            -c /tmp/admin-cookies.txt \
+            -X POST http://127.0.0.1:8080/admin/login \
+            -H 'content-type: application/x-www-form-urlencoded' \
+            --data-urlencode 'identifier=ci-user@velixeo.app' \
+            --data-urlencode 'password=StrongPass123!'
+
+          grep -Eq 'HTTP/[0-9.]+ 303' /tmp/admin-login-headers.txt
+          grep -qi 'set-cookie: velixeo_admin=' /tmp/admin-login-headers.txt
+
+          curl -fsS -b /tmp/admin-cookies.txt http://127.0.0.1:8080/admin > /tmp/admin-dashboard.html
+          grep -q 'Admin Console' /tmp/admin-dashboard.html
+          grep -q 'کل کاربران' /tmp/admin-dashboard.html
+          echo 'server-rendered admin login: ok'
+
       - name: Print API logs on failure
         if: failure()
         run: cat /tmp/velixeo-api.log || true
