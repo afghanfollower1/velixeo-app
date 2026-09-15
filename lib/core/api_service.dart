@@ -301,6 +301,42 @@ class ApiService {
     return ExchangeRates.fromJson(_decodeObject(response));
   }
 
+  Future<List<CatalogService>> catalogServices() async {
+    final response = await _send('GET', '/api/v1/catalog/services');
+    if (response.statusCode != 200) _throwResponse(response);
+    final rows = (_decodeObject(response)['services'] as List<dynamic>?) ?? const [];
+    return rows
+        .map((item) => CatalogService.fromJson(Map<String, dynamic>.from(item as Map)))
+        .toList(growable: false);
+  }
+
+  Future<List<AppBanner>> banners() async {
+    final response = await _send('GET', '/api/v1/content/banners');
+    if (response.statusCode != 200) _throwResponse(response);
+    final rows = (_decodeObject(response)['banners'] as List<dynamic>?) ?? const [];
+    return rows
+        .map((item) => AppBanner.fromJson(Map<String, dynamic>.from(item as Map)))
+        .toList(growable: false);
+  }
+
+  Future<List<AppNotification>> notifications() async {
+    final response = await _send('GET', '/api/v1/content/notifications', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    final rows = (_decodeObject(response)['notifications'] as List<dynamic>?) ?? const [];
+    return rows
+        .map((item) => AppNotification.fromJson(Map<String, dynamic>.from(item as Map)))
+        .toList(growable: false);
+  }
+
+  Future<List<AppOrder>> orders() async {
+    final response = await _send('GET', '/api/v1/orders', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    final rows = (_decodeObject(response)['orders'] as List<dynamic>?) ?? const [];
+    return rows
+        .map((item) => AppOrder.fromJson(Map<String, dynamic>.from(item as Map)))
+        .toList(growable: false);
+  }
+
   Future<AppUser> updatePreferences({AppLang? language, DisplayCurrency? currency}) async {
     final body = <String, dynamic>{
       if (language != null) 'locale': language == AppLang.fa ? 'FA' : 'EN',
