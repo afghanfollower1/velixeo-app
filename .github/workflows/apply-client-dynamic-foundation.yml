@@ -1,0 +1,34 @@
+name: Apply VELIXEO Client Dynamic Foundation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/client-dynamic-foundation.trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Apply client dynamic integration
+        run: python3 tools/apply-client-dynamic-foundation.py
+      - name: Commit integration
+        run: |
+          git config user.name "VELIXEO Build Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add lib/app.dart lib/core/api_service.dart
+          if git diff --cached --quiet; then
+            echo "Client dynamic foundation already integrated"
+            exit 0
+          fi
+          git commit -m "Connect app to admin-managed catalog content and orders"
+          git push
