@@ -3,6 +3,11 @@ name: Build VELIXEO Android APK
 on:
   push:
     branches: [main]
+    paths:
+      - 'lib/**'
+      - 'assets/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/android-build.yml'
   workflow_dispatch:
 
 jobs:
