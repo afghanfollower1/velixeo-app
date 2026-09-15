@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 
 import 'core/api_service.dart';
+import 'core/google_auth_service.dart';
 import 'core/models.dart';
 
 String tr(bool fa, String faText, String enText) => fa ? faText : enText;
 
 class AppController extends ChangeNotifier {
-  AppController(this.api);
+  AppController(this.api, this.googleAuth);
 
   final ApiService api;
+  final GoogleAuthService googleAuth;
 
   AppLang language = AppLang.fa;
   DisplayCurrency currency = DisplayCurrency.afn;
@@ -24,6 +26,7 @@ class AppController extends ChangeNotifier {
   String? authError;
 
   bool get fa => language == AppLang.fa;
+  bool get googleConfigured => googleAuth.configured;
 
   Future<void> boot() async {
     language = await api.restoreLanguage();
@@ -101,6 +104,37 @@ class AppController extends ChangeNotifier {
       return false;
     } catch (_) {
       authError = 'network_error';
+      return false;
+    } finally {
+      authBusy = false;
+      notifyListeners();
+    }
+  }
+
+
+  Future<bool> loginWithGoogle() async {
+    authBusy = true;
+    authError = null;
+    notifyListeners();
+    try {
+      final idToken = await googleAuth.authenticateIdToken();
+      final session = await api.loginWithGoogle(idToken: idToken, language: language);
+      user = session.user;
+      authenticated = true;
+      _applyUserPreferences(session.user);
+      final result = await api.me();
+      user = result.$1;
+      balanceAfn = result.$2;
+      await _loadSecondaryData();
+      return true;
+    } on GoogleAuthException catch (error) {
+      authError = error.code;
+      return false;
+    } on ApiException catch (error) {
+      authError = error.code;
+      return false;
+    } catch (_) {
+      authError = 'google_sign_in_failed';
       return false;
     } finally {
       authBusy = false;
@@ -217,6 +251,7 @@ class AppController extends ChangeNotifier {
 
   Future<void> logout() async {
     await api.logout();
+    await googleAuth.signOut();
     authenticated = false;
     user = null;
     balanceAfn = 0;
@@ -291,7 +326,7 @@ class _VelixeoAppState extends State<VelixeoApp> {
   @override
   void initState() {
     super.initState();
-    controller = AppController(ApiService());
+    controller = AppController(ApiService(), GoogleAuthService());
     controller.boot();
   }
 
@@ -589,6 +624,14 @@ class _AuthPageState extends State<AuthPage> {
         return tr(fa, 'اطلاعات واردشده معتبر نیست.', 'Please check the entered information.');
       case 'network_error':
         return tr(fa, 'اتصال به سرور برقرار نشد. اینترنت را بررسی کنید.', 'Could not reach the server. Check your internet connection.');
+      case 'google_auth_not_configured':
+        return tr(fa, 'ورود با Google هنوز برای این نسخه فعال نشده است.', 'Google Sign-In is not configured for this build yet.');
+      case 'google_sign_in_failed':
+      case 'invalid_google_token':
+      case 'invalid_google_identity':
+        return tr(fa, 'ورود با Google انجام نشد. دوباره تلاش کنید.', 'Google Sign-In failed. Please try again.');
+      case 'google_account_conflict':
+        return tr(fa, 'این ایمیل به حساب Google دیگری متصل است.', 'This email is linked to a different Google account.');
       default:
         return tr(fa, 'خطایی رخ داد. دوباره تلاش کنید.', 'Something went wrong. Please try again.');
     }
@@ -719,19 +762,16 @@ class _AuthPageState extends State<AuthPage> {
                 width: double.infinity,
                 height: 52,
                 child: OutlinedButton.icon(
-                  onPressed: c.authBusy
+                  onPressed: c.authBusy || !c.googleConfigured
                       ? null
-                      : () => ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                tr(
-                                  fa,
-                                  'ورود با Google در مرحله اتصال OAuth است و بعد از تنظیم Client ID فعال می‌شود.',
-                                  'Google Sign-In is ready for OAuth wiring and will activate after the Client ID is configured.',
-                                ),
-                              ),
-                            ),
-                          ),
+                      : () async {
+                          final ok = await c.loginWithGoogle();
+                          if (!ok && mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(errorMessage(c.authError ?? 'google_sign_in_failed'))),
+                            );
+                          }
+                        },
                   icon: const Text(
                     'G',
                     style: TextStyle(
@@ -740,7 +780,11 @@ class _AuthPageState extends State<AuthPage> {
                       color: Color(0xFF4285F4),
                     ),
                   ),
-                  label: Text(tr(fa, 'ادامه با Google', 'Continue with Google')),
+                  label: Text(
+                    c.googleConfigured
+                        ? tr(fa, 'ادامه با Google', 'Continue with Google')
+                        : tr(fa, 'Google — در انتظار تنظیم OAuth', 'Google — OAuth setup pending'),
+                  ),
                 ),
               ),
             ],
@@ -1292,15 +1336,16 @@ class ProfilePage extends StatelessWidget {
               MaterialPageRoute(builder: (_) => EditProfilePage(controller: c)),
             ),
           ),
-          SettingsTile(
-            icon: Icons.password_rounded,
-            title: tr(c.fa, 'تغییر رمز عبور', 'Change password'),
-            value: '',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => ChangePasswordPage(controller: c)),
+          if (c.user?.hasPassword == true)
+            SettingsTile(
+              icon: Icons.password_rounded,
+              title: tr(c.fa, 'تغییر رمز عبور', 'Change password'),
+              value: '',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => ChangePasswordPage(controller: c)),
+              ),
             ),
-          ),
           SettingsTile(
             icon: Icons.language,
             title: tr(c.fa, 'زبان', 'Language'),

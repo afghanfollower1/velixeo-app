@@ -4,6 +4,7 @@ import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
 import rateLimit from '@fastify/rate-limit';
 import bcrypt from 'bcryptjs';
+import { OAuth2Client } from 'google-auth-library';
 import { createHash, randomBytes } from 'node:crypto';
 import {
   AppLocale,
@@ -25,10 +26,12 @@ const env = z
     CORS_ORIGINS: z.string().default(''),
     ACCESS_TOKEN_TTL: z.string().default('15m'),
     REFRESH_TOKEN_DAYS: z.coerce.number().int().positive().default(30),
+    GOOGLE_WEB_CLIENT_ID: z.string().trim().min(1).optional(),
   })
   .parse(process.env);
 
 const prisma = new PrismaClient();
+const googleOAuth = new OAuth2Client();
 const app = Fastify({
   logger: true,
   trustProxy: true,
@@ -79,6 +82,11 @@ const loginSchema = z.object({
 
 const refreshSchema = z.object({
   refreshToken: z.string().min(40),
+});
+
+const googleAuthSchema = z.object({
+  idToken: z.string().min(20),
+  locale: z.enum(['FA', 'EN']).default('FA'),
 });
 
 const preferenceSchema = z
@@ -201,6 +209,7 @@ function publicUser(user: {
   locale: AppLocale;
   displayCurrency: DisplayCurrency;
   createdAt: Date;
+  passwordHash?: string | null;
 }) {
   return {
     id: user.id,
@@ -210,6 +219,7 @@ function publicUser(user: {
     role: user.role,
     locale: user.locale,
     displayCurrency: user.displayCurrency,
+    hasPassword: Boolean(user.passwordHash),
     createdAt: user.createdAt,
   };
 }
@@ -430,7 +440,7 @@ app.post('/admin/login', async (request, reply) => {
   const user = await prisma.user.findFirst({
     where: { OR: [{ email: emailIdentifier }, { phone: phoneIdentifier }] },
   });
-  if (!user || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
+  if (!user || !user.passwordHash || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
     return reply.code(401).type('text/html; charset=utf-8').send(adminLoginHtml('ایمیل/شماره یا رمز عبور نادرست است.'));
   }
   if (user.role !== UserRole.ADMIN) {
@@ -541,12 +551,70 @@ app.post('/api/v1/auth/login', async (request, reply) => {
     },
   });
 
-  if (!user || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
+  if (!user || !user.passwordHash || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
     return reply.code(401).send({ error: 'invalid_credentials' });
   }
 
   const session = await createSession(user);
   return { user: publicUser(user), ...session };
+});
+
+
+app.post('/api/v1/auth/google', async (request, reply) => {
+  if (!env.GOOGLE_WEB_CLIENT_ID) {
+    return reply.code(503).send({ error: 'google_auth_not_configured' });
+  }
+
+  const parsed = googleAuthSchema.safeParse(request.body);
+  if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+
+  try {
+    const ticket = await googleOAuth.verifyIdToken({
+      idToken: parsed.data.idToken,
+      audience: env.GOOGLE_WEB_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const googleSubject = payload?.sub;
+    const email = normalizeEmail(payload?.email);
+    if (!googleSubject || !email || payload?.email_verified !== true) {
+      return reply.code(401).send({ error: 'invalid_google_identity' });
+    }
+
+    let user = await prisma.user.findUnique({ where: { googleSubject } });
+    if (!user) {
+      const existing = await prisma.user.findUnique({ where: { email } });
+      if (existing?.googleSubject && existing.googleSubject !== googleSubject) {
+        return reply.code(409).send({ error: 'google_account_conflict' });
+      }
+
+      if (existing) {
+        user = await prisma.user.update({
+          where: { id: existing.id },
+          data: {
+            googleSubject,
+            fullName: existing.fullName?.trim() ? existing.fullName : payload?.name?.trim() || null,
+          },
+        });
+      } else {
+        user = await prisma.user.create({
+          data: {
+            fullName: payload?.name?.trim() || email.split('@')[0],
+            email,
+            googleSubject,
+            passwordHash: null,
+            locale: parsed.data.locale as AppLocale,
+            wallet: { create: {} },
+          },
+        });
+      }
+    }
+
+    const session = await createSession(user);
+    return { user: publicUser(user), ...session };
+  } catch (error) {
+    request.log.warn({ error }, 'google token verification failed');
+    return reply.code(401).send({ error: 'invalid_google_token' });
+  }
 });
 
 app.post('/api/v1/auth/refresh', async (request, reply) => {
@@ -666,6 +734,7 @@ app.post(
     const user = await prisma.user.findUnique({ where: { id: claims.sub } });
     if (!user) return reply.code(404).send({ error: 'user_not_found' });
 
+    if (!user.passwordHash) return reply.code(400).send({ error: 'password_not_set' });
     const matches = await bcrypt.compare(parsed.data.currentPassword, user.passwordHash);
     if (!matches) return reply.code(400).send({ error: 'incorrect_current_password' });
     if (parsed.data.currentPassword == parsed.data.newPassword) {

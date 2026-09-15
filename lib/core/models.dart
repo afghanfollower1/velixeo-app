@@ -8,6 +8,7 @@ class AppUser {
     required this.role,
     required this.locale,
     required this.displayCurrency,
+    required this.hasPassword,
     this.fullName,
     this.email,
     this.phone,
@@ -20,6 +21,7 @@ class AppUser {
   final String role;
   final String locale;
   final String displayCurrency;
+  final bool hasPassword;
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
         id: json['id'] as String,
@@ -29,6 +31,7 @@ class AppUser {
         role: (json['role'] as String?) ?? 'USER',
         locale: (json['locale'] as String?) ?? 'FA',
         displayCurrency: (json['displayCurrency'] as String?) ?? 'AFN',
+        hasPassword: (json['hasPassword'] as bool?) ?? true,
       );
 }
 

@@ -44,7 +44,8 @@ model User {
   fullName        String?
   email           String?         @unique
   phone           String?         @unique
-  passwordHash    String
+  passwordHash    String?
+  googleSubject   String?         @unique
   role            UserRole        @default(USER)
   locale          AppLocale       @default(FA)
   displayCurrency DisplayCurrency @default(AFN)

@@ -188,6 +188,22 @@ class ApiService {
     return session;
   }
 
+
+  Future<AppSession> loginWithGoogle({required String idToken, required AppLang language}) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/auth/google',
+      body: {
+        'idToken': idToken,
+        'locale': language == AppLang.fa ? 'FA' : 'EN',
+      },
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+    final session = _sessionFromJson(_decodeObject(response));
+    await _saveSession(session);
+    return session;
+  }
+
   Future<bool> refreshSession() {
     final active = _refreshInFlight;
     if (active != null) return active;
