@@ -8,11 +8,13 @@ class AppUser {
     required this.role,
     required this.locale,
     required this.displayCurrency,
+    this.fullName,
     this.email,
     this.phone,
   });
 
   final String id;
+  final String? fullName;
   final String? email;
   final String? phone;
   final String role;
@@ -21,6 +23,7 @@ class AppUser {
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
         id: json['id'] as String,
+        fullName: json['fullName'] as String?,
         email: json['email'] as String?,
         phone: json['phone'] as String?,
         role: (json['role'] as String?) ?? 'USER',
