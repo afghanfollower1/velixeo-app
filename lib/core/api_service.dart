@@ -34,6 +34,8 @@ class ApiService {
 
   String? _accessToken;
   String? _refreshToken;
+  Future<bool>? _refreshInFlight;
+  int _sessionGeneration = 0;
 
   Future<void> restoreTokens() async {
     _accessToken ??= await _storage.read(key: _accessKey);
@@ -64,6 +66,7 @@ class ApiService {
       _storage.write(key: _currencyKey, value: currency.name.toUpperCase());
 
   Future<void> _saveSession(AppSession session) async {
+    _sessionGeneration += 1;
     _accessToken = session.accessToken;
     _refreshToken = session.refreshToken;
     await Future.wait([
@@ -73,6 +76,7 @@ class ApiService {
   }
 
   Future<void> clearSession() async {
+    _sessionGeneration += 1;
     _accessToken = null;
     _refreshToken = null;
     await Future.wait([
@@ -184,10 +188,22 @@ class ApiService {
     return session;
   }
 
-  Future<bool> refreshSession() async {
+  Future<bool> refreshSession() {
+    final active = _refreshInFlight;
+    if (active != null) return active;
+    final operation = _refreshSessionOnce();
+    _refreshInFlight = operation;
+    operation.whenComplete(() {
+      if (identical(_refreshInFlight, operation)) _refreshInFlight = null;
+    });
+    return operation;
+  }
+
+  Future<bool> _refreshSessionOnce() async {
     await restoreTokens();
     final token = _refreshToken;
     if (token == null || token.isEmpty) return false;
+    final generation = _sessionGeneration;
 
     try {
       final response = await _send(
@@ -196,20 +212,24 @@ class ApiService {
         body: {'refreshToken': token},
         retry401: false,
       );
+      if (generation != _sessionGeneration) return false;
       if (response.statusCode != 200) {
         await clearSession();
         return false;
       }
       final json = _decodeObject(response);
-      _accessToken = json['accessToken'] as String?;
-      _refreshToken = json['refreshToken'] as String?;
-      if (_accessToken == null || _refreshToken == null) {
+      final nextAccess = json['accessToken'] as String?;
+      final nextRefresh = json['refreshToken'] as String?;
+      if (nextAccess == null || nextRefresh == null) {
         await clearSession();
         return false;
       }
+      if (generation != _sessionGeneration) return false;
+      _accessToken = nextAccess;
+      _refreshToken = nextRefresh;
       await Future.wait([
-        _storage.write(key: _accessKey, value: _accessToken),
-        _storage.write(key: _refreshKey, value: _refreshToken),
+        _storage.write(key: _accessKey, value: nextAccess),
+        _storage.write(key: _refreshKey, value: nextRefresh),
       ]);
       return true;
     } catch (_) {
@@ -294,5 +314,7 @@ class ApiService {
       auth: true,
     );
     if (response.statusCode != 200) _throwResponse(response);
+    final session = _sessionFromJson(_decodeObject(response));
+    await _saveSession(session);
   }
 }

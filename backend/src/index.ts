@@ -673,11 +673,20 @@ app.post(
     }
 
     const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
-    await prisma.user.update({
-      where: { id: claims.sub },
-      data: { passwordHash },
+    const revokedAt = new Date();
+    const updated = await prisma.$transaction(async (tx) => {
+      const nextUser = await tx.user.update({
+        where: { id: claims.sub },
+        data: { passwordHash },
+      });
+      await tx.refreshToken.updateMany({
+        where: { userId: claims.sub, revokedAt: null },
+        data: { revokedAt },
+      });
+      return nextUser;
     });
-    return { ok: true };
+    const session = await createSession(updated);
+    return { ok: true, user: publicUser(updated), ...session };
   },
 );
 

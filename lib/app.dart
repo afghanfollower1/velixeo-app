@@ -602,9 +602,12 @@ class _AuthPageState extends State<AuthPage> {
       );
       return;
     }
-    if (identifier.text.trim().isEmpty || password.text.length < 8) {
+    final rawIdentifier = identifier.text.trim();
+    final looksLikeEmail = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(rawIdentifier);
+    final looksLikePhone = RegExp(r'^\+?[0-9][0-9\s-]{6,31}$').hasMatch(rawIdentifier);
+    if ((!looksLikeEmail && !looksLikePhone) || password.text.length < 8) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr(widget.controller.fa, 'ایمیل/شماره و رمز حداقل ۸ کاراکتری وارد کنید.', 'Enter your email/phone and a password of at least 8 characters.'))),
+        SnackBar(content: Text(tr(widget.controller.fa, 'ایمیل یا شماره معتبر و رمز حداقل ۸ کاراکتری وارد کنید.', 'Enter a valid email or phone number and a password of at least 8 characters.'))),
       );
       return;
     }
@@ -1113,6 +1116,19 @@ class WalletPage extends StatelessWidget {
   const WalletPage({super.key, required this.controller});
   final AppController controller;
 
+  String entryStatus(bool fa, WalletEntry entry) {
+    switch (entry.status) {
+      case 'PENDING':
+        return tr(fa, 'در انتظار', 'Pending');
+      case 'FAILED':
+        return tr(fa, 'ناموفق', 'Failed');
+      case 'REVERSED':
+        return tr(fa, 'برگشت خورده', 'Reversed');
+      default:
+        return tr(fa, 'تکمیل', 'Completed');
+    }
+  }
+
   String entryTitle(bool fa, WalletEntry entry) {
     if (entry.description.isNotEmpty) return entry.description;
     switch (entry.type) {
@@ -1166,7 +1182,7 @@ class WalletPage extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 10),
                   child: TransactionTile(
                     title: entryTitle(c.fa, entry),
-                    subtitle: '${entry.status} • ${entry.createdAt.toLocal().toString().substring(0, 16)} • ${tr(c.fa, 'موجودی بعد', 'Balance after')}: ${entry.balanceAfterAfn} AFN',
+                    subtitle: '${entryStatus(c.fa, entry)} • ${entry.createdAt.toLocal().toString().substring(0, 16)} • ${tr(c.fa, 'موجودی بعد', 'Balance after')}: ${entry.balanceAfterAfn} AFN',
                     amount: '${entry.amountAfn >= 0 ? '+' : ''}${c.money(entry.amountAfn)}',
                     positive: entry.amountAfn >= 0,
                   ),
