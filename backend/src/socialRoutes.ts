@@ -714,7 +714,20 @@ export function registerSocialRoutes(
         sortOrder: Number.isFinite(Number(item.sortOrder)) ? Number(item.sortOrder) : 100,
       }];
     }).sort((a, b) => a.sortOrder - b.sortOrder);
-    return { baseCurrency: 'AFN', categories, services: rows };
+    const configuredCategorySlugs = new Set(categorySettings.flatMap((setting) => {
+      const value = setting.value;
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+      const item = value as Record<string, unknown>;
+      const slug = typeof item.slug === 'string'
+        ? item.slug
+        : setting.key.replace(/^social\.category\./, '');
+      return slug ? [slug] : [];
+    }));
+    const activeCategorySlugs = new Set(categories.map((category) => category.slug));
+    const visibleRows = rows.filter((service) =>
+      !configuredCategorySlugs.has(service.group) || activeCategorySlugs.has(service.group),
+    );
+    return { baseCurrency: 'AFN', categories, services: visibleRows };
   });
 
   app.post('/api/v1/social/quote', { preHandler: authenticate }, async (request, reply) => {

@@ -470,6 +470,10 @@ export function registerSocialAdminV2(
         value: value as unknown as Prisma.InputJsonValue,
       },
     });
+    await prisma.service.updateMany({
+      where: { category: ServiceCategory.SOCIAL, socialGroup: slug },
+      data: { socialPlatform: platform },
+    });
     await audit(prisma, admin.id, 'SOCIAL_CATEGORY_SAVE', 'SocialCategory', slug, `${platform} → ${titleFa}`);
     return reply.code(303).redirect(`/admin/social?tab=categories&edit=${encodeURIComponent(slug)}&msg=${encodeURIComponent('دسته‌بندی ذخیره شد')}`);
   });
