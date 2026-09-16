@@ -26,6 +26,7 @@ import { registerSocialRoutes } from './socialRoutes.js';
 import { registerSocialAdminV2 } from './socialAdminV2.js';
 import { startSocialAutoSync } from './socialSync.js';
 import { registerVirtualNumberRoutes } from './virtualNumberRoutes.js';
+import { registerAdminV3 } from './adminV3.js';
 
 const env = z
   .object({
@@ -109,7 +110,6 @@ const preferenceSchema = z
   .refine((data) => data.locale !== undefined || data.displayCurrency !== undefined, {
     message: 'no_changes_requested',
   });
-
 
 const profileSchema = z.object({
   fullName: z.string().trim().min(2).max(120),
@@ -363,93 +363,7 @@ function adminCookie(token: string, maxAge = 8 * 60 * 60) {
 app.get('/admin', async (request, reply) => {
   const admin = await adminWebUser(request);
   if (!admin) return reply.type('text/html; charset=utf-8').send(adminLoginHtml());
-
-  const query = z
-    .object({
-      view: z.enum(['dashboard', 'users', 'rates', 'providers']).default('dashboard'),
-      q: z.string().trim().max(120).optional(),
-      user: z.string().uuid().optional(),
-      msg: z.string().max(40).optional(),
-    })
-    .safeParse(request.query);
-  const view = query.success ? query.data.view : 'dashboard';
-  const q = query.success ? query.data.q : undefined;
-  const selectedUserId = query.success ? query.data.user : undefined;
-  const message = query.success ? query.data.msg : undefined;
-
-  const dayStart = new Date();
-  dayStart.setUTCHours(0, 0, 0, 0);
-  const where: Prisma.UserWhereInput = q
-    ? {
-        OR: [
-          { fullName: { contains: q, mode: 'insensitive' } },
-          { email: { contains: q, mode: 'insensitive' } },
-          { phone: { contains: q, mode: 'insensitive' } },
-        ],
-      }
-    : {};
-
-  const [totalUsers, usersToday, totalAdmins, walletAggregate, users, rates, selectedUser] =
-    await Promise.all([
-      prisma.user.count(),
-      prisma.user.count({ where: { createdAt: { gte: dayStart } } }),
-      prisma.user.count({ where: { role: UserRole.ADMIN } }),
-      prisma.wallet.aggregate({ _sum: { balanceAfn: true } }),
-      prisma.user.findMany({
-        where: view === 'users' ? where : {},
-        orderBy: { createdAt: 'desc' },
-        take: view === 'users' ? 100 : 8,
-        include: { wallet: true },
-      }),
-      prisma.exchangeRate.findMany({ orderBy: { code: 'asc' } }),
-      selectedUserId
-        ? prisma.user.findUnique({
-            where: { id: selectedUserId },
-            include: {
-              wallet: {
-                include: { entries: { orderBy: { createdAt: 'desc' }, take: 30 } },
-              },
-            },
-          })
-        : Promise.resolve(null),
-    ]);
-
-  return reply.type('text/html; charset=utf-8').send(
-    adminDashboardHtml({
-      adminIdentity: admin.fullName || admin.email || admin.phone || 'ADMIN',
-      view,
-      totalUsers,
-      usersToday,
-      totalAdmins,
-      totalWalletBalanceAfn: (walletAggregate._sum.balanceAfn ?? 0n).toString(),
-      q,
-      message,
-      users: users.map((user) => ({
-        ...publicUser(user),
-        balanceAfn: (user.wallet?.balanceAfn ?? 0n).toString(),
-      })),
-      rates: rates.map((rate) => ({
-        code: rate.code,
-        afnPerUnit: rate.afnPerUnit.toString(),
-        updatedAt: rate.updatedAt,
-      })),
-      selectedUser: selectedUser
-        ? {
-            ...publicUser(selectedUser),
-            balanceAfn: (selectedUser.wallet?.balanceAfn ?? 0n).toString(),
-            walletEntries: (selectedUser.wallet?.entries ?? []).map((entry) => ({
-              id: entry.id,
-              type: entry.type,
-              status: entry.status,
-              amountAfn: entry.amountAfn.toString(),
-              balanceAfterAfn: entry.balanceAfterAfn.toString(),
-              description: entry.description,
-              createdAt: entry.createdAt,
-            })),
-          }
-        : null,
-    }),
-  );
+  return reply.code(303).redirect('/admin/v3');
 });
 
 app.post('/admin/login', async (request, reply) => {
@@ -474,7 +388,7 @@ app.post('/admin/login', async (request, reply) => {
     { expiresIn: '8h' },
   );
   reply.header('Set-Cookie', adminCookie(token));
-  return reply.code(303).redirect('/admin');
+  return reply.code(303).redirect('/admin/v3');
 });
 
 app.post('/admin/logout', async (_request, reply) => {
@@ -537,7 +451,7 @@ app.post('/admin/rates', async (request, reply) => {
       summary: `${parsed.data.code} = ${parsed.data.afnPerUnit} AFN`,
     },
   });
-  return reply.code(303).redirect('/admin?view=rates&msg=rate_updated');
+  return reply.code(303).redirect('/admin/v3?section=settings&msg=rate_updated');
 });
 
 app.post('/api/v1/auth/register', async (request, reply) => {
@@ -603,7 +517,6 @@ app.post('/api/v1/auth/login', async (request, reply) => {
   const session = await createSession(user);
   return { user: publicUser(user), ...session };
 });
-
 
 app.post('/api/v1/auth/google', async (request, reply) => {
   if (!env.GOOGLE_WEB_CLIENT_ID) {
@@ -756,7 +669,6 @@ app.patch(
     return { user: publicUser(user) };
   },
 );
-
 
 app.patch(
   '/api/v1/me/profile',
@@ -1041,6 +953,7 @@ app.post(
   },
 );
 
+registerAdminV3(app, prisma, adminWebUser);
 registerExtendedAdminRoutes(app, prisma, adminWebUser);
 registerClientFoundationRoutes(app, prisma, authenticate);
 registerPaymentRoutes(app, prisma, authenticate);
