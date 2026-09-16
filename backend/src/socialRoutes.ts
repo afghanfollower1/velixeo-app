@@ -500,7 +500,11 @@ async function maybeApplyTerminalRefund(
   status: OrderStatus,
   remainsRaw: string | undefined,
 ) {
-  if (![OrderStatus.PARTIAL, OrderStatus.CANCELLED, OrderStatus.FAILED].includes(status)) return null;
+  if (
+    status !== OrderStatus.PARTIAL &&
+    status !== OrderStatus.CANCELLED &&
+    status !== OrderStatus.FAILED
+  ) return null;
   const quantity = order.quantity ?? 0;
   const remains = Math.max(0, Number.parseInt(remainsRaw ?? '', 10) || 0);
   if (quantity <= 0) {
@@ -872,7 +876,7 @@ export function registerSocialRoutes(
               refillSupported: route.providerRefill,
               cancelSupported: route.providerCancel,
               providerType: candidateType,
-              providerResponse: result.raw,
+              providerResponse: result.raw as Prisma.InputJsonValue,
             },
             exchangeRateSnapshot: {
               providerCurrency: route.providerCurrency,
@@ -1081,7 +1085,12 @@ export function registerSocialRoutes(
       ? order.output as Record<string, unknown>
       : {};
     if (output.cancelSupported !== true) return reply.code(409).send({ error: 'cancel_not_supported' });
-    if ([OrderStatus.COMPLETED, OrderStatus.CANCELLED, OrderStatus.REFUNDED, OrderStatus.FAILED].includes(order.status)) {
+    if (
+      order.status === OrderStatus.COMPLETED ||
+      order.status === OrderStatus.CANCELLED ||
+      order.status === OrderStatus.REFUNDED ||
+      order.status === OrderStatus.FAILED
+    ) {
       return reply.code(409).send({ error: 'order_not_cancellable' });
     }
     try {
