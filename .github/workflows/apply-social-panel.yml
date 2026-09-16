@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/apply-social-panel.yml'
       - 'tools/patch_social_panel.py'
+      - 'tools/fix_figma_ui.py'
   workflow_dispatch:
 
 permissions:
@@ -32,6 +33,7 @@ jobs:
           p.write_text(s, encoding='utf-8')
           PY
           python3 tools/patch_social_panel.py
+          python3 tools/fix_figma_ui.py
       - name: Commit implementation
         shell: bash
         run: |
