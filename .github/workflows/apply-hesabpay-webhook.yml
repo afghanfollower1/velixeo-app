@@ -1,0 +1,60 @@
+name: Apply VELIXEO HesabPay Webhook Routes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-hesabpay-webhook.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Integrate HesabPay webhook routes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/src/index.ts')
+          source = path.read_text()
+
+          import_anchor = "import { registerPaymentRoutes } from './paymentRoutes.js';\n"
+          import_line = "import { registerHesabPayWebhookRoutes } from './hesabPayWebhookRoutes.js';\n"
+          if import_line not in source:
+              if import_anchor not in source:
+                  raise SystemExit('payment route import anchor not found')
+              source = source.replace(import_anchor, import_anchor + import_line, 1)
+
+          register_anchor = "registerPaymentRoutes(app, prisma, authenticate);\n"
+          register_line = "registerHesabPayWebhookRoutes(app, prisma, authenticate);\n"
+          if register_line not in source:
+              if register_anchor not in source:
+                  raise SystemExit('payment route registration anchor not found')
+              source = source.replace(register_anchor, register_anchor + register_line, 1)
+
+          path.write_text(source)
+          PY
+
+      - name: Commit integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "VELIXEO Build Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add backend/src/index.ts
+          if git diff --cached --quiet; then
+            echo "HesabPay webhook routes already integrated."
+            exit 0
+          fi
+          git commit -m "Register verified HesabPay webhook routes"
+          git push origin HEAD:main
