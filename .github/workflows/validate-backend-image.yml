@@ -1,0 +1,17 @@
+name: Validate VELIXEO Backend Container
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/validate-backend-image.yml'
+  workflow_dispatch:
+
+jobs:
+  docker-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production backend image
+        run: docker build -f backend/Dockerfile -t velixeo-backend:ci backend
