@@ -369,4 +369,45 @@ class ApiService {
     final session = _sessionFromJson(_decodeObject(response));
     await _saveSession(session);
   }
+
+  Future<PaymentCapabilities> paymentCapabilities() async {
+    final response = await _send('GET', '/api/v1/payments/capabilities', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    return PaymentCapabilities.fromJson(_decodeObject(response));
+  }
+
+  Future<List<AppPayment>> payments() async {
+    final response = await _send('GET', '/api/v1/payments', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    final rows = (_decodeObject(response)['payments'] as List<dynamic>?) ?? const [];
+    return rows
+        .map((item) => AppPayment.fromJson(Map<String, dynamic>.from(item as Map)))
+        .toList(growable: false);
+  }
+
+  Future<AppPayment> payment(String id) async {
+    final response = await _send('GET', '/api/v1/payments/$id', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    return AppPayment.fromJson(
+      Map<String, dynamic>.from(_decodeObject(response)['payment'] as Map),
+    );
+  }
+
+  Future<PaymentSessionResult> createHesabPaySession({
+    required int amountAfn,
+    required String idempotencyKey,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/payments/hesabpay/session',
+      body: {
+        'amountAfn': amountAfn,
+        'idempotencyKey': idempotencyKey,
+      },
+      auth: true,
+    );
+    if (![200, 201, 202].contains(response.statusCode)) _throwResponse(response);
+    return PaymentSessionResult.fromJson(_decodeObject(response));
+  }
+
 }

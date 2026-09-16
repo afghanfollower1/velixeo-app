@@ -262,3 +262,95 @@ class AppOrder {
     );
   }
 }
+
+
+class AppPayment {
+  const AppPayment({
+    required this.id,
+    required this.gateway,
+    required this.status,
+    required this.amountAfn,
+    required this.createdAt,
+    required this.updatedAt,
+    this.checkoutUrl,
+    this.externalId,
+    this.failureReason,
+    this.paidAt,
+    this.verifiedAt,
+  });
+
+  final String id;
+  final String gateway;
+  final String status;
+  final int amountAfn;
+  final String? checkoutUrl;
+  final String? externalId;
+  final String? failureReason;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? paidAt;
+  final DateTime? verifiedAt;
+
+  factory AppPayment.fromJson(Map<String, dynamic> json) => AppPayment(
+        id: json['id'] as String,
+        gateway: (json['gateway'] as String?) ?? 'UNKNOWN',
+        status: (json['status'] as String?) ?? 'PENDING',
+        amountAfn: int.tryParse('${json['amountAfn']}') ?? 0,
+        checkoutUrl: json['checkoutUrl'] as String?,
+        externalId: json['externalId'] as String?,
+        failureReason: json['failureReason'] as String?,
+        createdAt: DateTime.tryParse('${json['createdAt']}') ?? DateTime.now(),
+        updatedAt: DateTime.tryParse('${json['updatedAt']}') ?? DateTime.now(),
+        paidAt: json['paidAt'] == null ? null : DateTime.tryParse('${json['paidAt']}'),
+        verifiedAt: json['verifiedAt'] == null ? null : DateTime.tryParse('${json['verifiedAt']}'),
+      );
+}
+
+class PaymentCapabilities {
+  const PaymentCapabilities({
+    this.hesabPayConfigured = false,
+    this.hesabPayEnvironment,
+    this.webhookUrl,
+  });
+
+  final bool hesabPayConfigured;
+  final String? hesabPayEnvironment;
+  final String? webhookUrl;
+
+  factory PaymentCapabilities.fromJson(Map<String, dynamic> json) {
+    final gateways = json['gateways'] is Map
+        ? Map<String, dynamic>.from(json['gateways'] as Map)
+        : const <String, dynamic>{};
+    final hesabPay = gateways['HESABPAY'] is Map
+        ? Map<String, dynamic>.from(gateways['HESABPAY'] as Map)
+        : const <String, dynamic>{};
+    return PaymentCapabilities(
+      hesabPayConfigured: (hesabPay['configured'] as bool?) ?? false,
+      hesabPayEnvironment: hesabPay['environment'] as String?,
+      webhookUrl: json['webhookUrl'] as String?,
+    );
+  }
+}
+
+class PaymentSessionResult {
+  const PaymentSessionResult({
+    required this.payment,
+    required this.idempotent,
+    this.checkoutUrl,
+  });
+
+  final AppPayment payment;
+  final bool idempotent;
+  final String? checkoutUrl;
+
+  factory PaymentSessionResult.fromJson(Map<String, dynamic> json) {
+    final payment = AppPayment.fromJson(
+      Map<String, dynamic>.from(json['payment'] as Map),
+    );
+    return PaymentSessionResult(
+      payment: payment,
+      idempotent: (json['idempotent'] as bool?) ?? false,
+      checkoutUrl: (json['checkoutUrl'] as String?) ?? payment.checkoutUrl,
+    );
+  }
+}
