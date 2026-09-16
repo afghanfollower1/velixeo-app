@@ -1,1 +1,1 @@
-Validate current social-media backend after schema integration.
+Validate current social-media backend after TypeScript fixes.
