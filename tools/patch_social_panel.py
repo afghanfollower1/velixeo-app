@@ -2,12 +2,15 @@ from pathlib import Path
 import runpy
 import subprocess
 
-# Reuse the validated completion patcher. This workflow is kept as the existing
-# trusted contents-write path for large Flutter/backend integration updates.
-runpy.run_path('tools/complete_live_panels.py', run_name='__main__')
+# This existing trusted workflow is reused for the next validated completion pass.
+runpy.run_path('tools/patch_coupon_checkout.py', run_name='__main__')
 
-# The legacy workflow's explicit git-add list predates the virtual-number module.
-# Stage its small CI type fix here so it is committed together with the integration.
-subprocess.run(['git', 'add', 'backend/src/virtualNumberRoutes.ts'], check=True)
+# Stage files that were added after the legacy workflow's original explicit list.
+subprocess.run([
+    'git', 'add',
+    'backend/src/socialRoutes.ts',
+    'lib/social/social_models.dart',
+    'lib/social/social_panel.dart',
+], check=True)
 
-print('Live panels patch applied and virtual-number route fix staged.')
+print('Coupon checkout integration applied and staged.')
