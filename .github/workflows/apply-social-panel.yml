@@ -1,0 +1,34 @@
+name: Apply VELIXEO Social Panel
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-social-panel.yml'
+      - 'tools/patch_social_panel.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply social media platform integration
+        run: python3 tools/patch_social_panel.py
+      - name: Commit implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "VELIXEO Build Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add backend/prisma/schema.prisma backend/src/index.ts backend/src/adminExtended.ts backend/src/paymentRoutes.ts backend/.env.example lib/core/api_service.dart lib/app.dart pubspec.yaml
+          if git diff --cached --quiet; then
+            echo "Social panel integration already applied."
+            exit 0
+          fi
+          git commit -m "Integrate complete social media services panel"
+          git push origin HEAD:main
