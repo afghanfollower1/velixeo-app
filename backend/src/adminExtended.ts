@@ -11,6 +11,7 @@ import {
   SupportStatus,
   UserRole,
   UserStatus,
+  WalletEntryStatus,
   WalletEntryType,
 } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
@@ -142,6 +143,7 @@ function messageFromQuery(query: unknown) {
     self_protected: ['نمی‌توانی حساب مدیریتی خودت را تعلیق یا از نقش ADMIN خارج کنی.', true],
     refunded: ['مبلغ سفارش با Ledger به کیف پول کاربر برگشت داده شد.', false],
     already_refunded: ['این سفارش قبلاً Refund شده است.', true],
+    refund_not_charged: ['برای این سفارش هیچ Ledger Purchase معتبر پیدا نشد؛ Refund مالی متوقف شد.', true],
     user_not_found: ['کاربر پیدا نشد.', true],
   };
   return messages[key] ?? ['', false] as [string, boolean];
@@ -418,6 +420,22 @@ export function registerExtendedAdminRoutes(
 
           const wallet = await tx.wallet.findUnique({ where: { userId: order.userId } });
           if (!wallet) throw new Error('WALLET_NOT_FOUND');
+
+          // A refund must reverse a real, completed wallet purchase for this exact order.
+          // This prevents an admin-created or malformed order from minting wallet balance.
+          const purchaseEntry = await tx.walletEntry.findFirst({
+            where: {
+              walletId: wallet.id,
+              type: WalletEntryType.PURCHASE,
+              status: WalletEntryStatus.COMPLETED,
+              referenceType: 'ORDER_PURCHASE',
+              referenceId: order.id,
+              amountAfn: -order.totalAmountAfn,
+            },
+            orderBy: { createdAt: 'desc' },
+          });
+          if (!purchaseEntry) throw new Error('ORDER_NOT_CHARGED');
+
           const nextBalance = wallet.balanceAfn + order.totalAmountAfn;
 
           await tx.wallet.update({
@@ -452,7 +470,7 @@ export function registerExtendedAdminRoutes(
         'Order',
         orderId,
         `Refunded ${refund.order.totalAmountAfn.toString()} AFN`,
-        { walletEntryId: refund.entry.id, userId: refund.order.userId },
+        { walletEntryId: refund.entry.id, userId: refund.order.userId, invariant: 'ORDER_PURCHASE_LEDGER_REQUIRED' },
       );
       return reply.code(303).redirect('/admin/orders?msg=refunded');
     } catch (error) {
@@ -461,6 +479,9 @@ export function registerExtendedAdminRoutes(
       }
       if (error instanceof Error && error.message === 'ORDER_NOT_FOUND') {
         return reply.code(303).redirect('/admin/orders?msg=not_found');
+      }
+      if (error instanceof Error && error.message === 'ORDER_NOT_CHARGED') {
+        return reply.code(303).redirect('/admin/orders?msg=refund_not_charged');
       }
       throw error;
     }
