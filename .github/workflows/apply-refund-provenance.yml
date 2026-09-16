@@ -1,0 +1,34 @@
+name: Apply VELIXEO Refund Provenance Guard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-refund-provenance.yml'
+      - 'tools/patch_refund_provenance.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require real purchase ledger before refunds
+        run: python3 tools/patch_refund_provenance.py
+      - name: Commit implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "VELIXEO Build Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add backend/src/adminExtended.ts
+          if git diff --cached --quiet; then
+            echo "Refund provenance guard already applied."
+            exit 0
+          fi
+          git commit -m "Require purchase ledger provenance for refunds"
+          git push origin HEAD:main
