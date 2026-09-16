@@ -122,13 +122,48 @@ class SocialService {
       );
 }
 
+class SocialCategory {
+  const SocialCategory({
+    required this.slug,
+    required this.titleFa,
+    required this.titleEn,
+    required this.platform,
+    required this.sortOrder,
+    this.descriptionFa,
+    this.descriptionEn,
+  });
+
+  final String slug;
+  final String titleFa;
+  final String titleEn;
+  final String platform;
+  final int sortOrder;
+  final String? descriptionFa;
+  final String? descriptionEn;
+
+  factory SocialCategory.fromJson(Map<String, dynamic> json) => SocialCategory(
+        slug: (json['slug'] as String?) ?? '',
+        titleFa: (json['titleFa'] as String?) ?? (json['slug'] as String? ?? ''),
+        titleEn: (json['titleEn'] as String?) ?? (json['slug'] as String? ?? ''),
+        platform: (json['platform'] as String?) ?? 'OTHER',
+        sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 100,
+        descriptionFa: json['descriptionFa'] as String?,
+        descriptionEn: json['descriptionEn'] as String?,
+      );
+}
+
 class SocialCatalog {
-  const SocialCatalog({this.services = const []});
+  const SocialCatalog({this.services = const [], this.categories = const []});
   final List<SocialService> services;
+  final List<SocialCategory> categories;
 
   factory SocialCatalog.fromJson(Map<String, dynamic> json) => SocialCatalog(
         services: ((json['services'] as List<dynamic>?) ?? const [])
             .map((item) => SocialService.fromJson(Map<String, dynamic>.from(item as Map)))
+            .toList(growable: false),
+        categories: ((json['categories'] as List<dynamic>?) ?? const [])
+            .map((item) => SocialCategory.fromJson(Map<String, dynamic>.from(item as Map)))
+            .where((item) => item.slug.isNotEmpty)
             .toList(growable: false),
       );
 }

@@ -692,7 +692,29 @@ export function registerSocialRoutes(
         orderFields: orderFields(providerType),
       });
     }
-    return { baseCurrency: 'AFN', services: rows };
+    const categorySettings = await prisma.systemSetting.findMany({
+      where: { category: 'social-category' },
+      orderBy: { key: 'asc' },
+    });
+    const categories = categorySettings.flatMap((setting) => {
+      const value = setting.value;
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+      const item = value as Record<string, unknown>;
+      const slug = typeof item.slug === 'string'
+        ? item.slug
+        : setting.key.replace(/^social\.category\./, '');
+      if (!slug || item.enabled === false) return [];
+      return [{
+        slug,
+        titleFa: typeof item.titleFa === 'string' ? item.titleFa : slug,
+        titleEn: typeof item.titleEn === 'string' ? item.titleEn : slug,
+        platform: typeof item.platform === 'string' ? item.platform : 'OTHER',
+        descriptionFa: typeof item.descriptionFa === 'string' ? item.descriptionFa : null,
+        descriptionEn: typeof item.descriptionEn === 'string' ? item.descriptionEn : null,
+        sortOrder: Number.isFinite(Number(item.sortOrder)) ? Number(item.sortOrder) : 100,
+      }];
+    }).sort((a, b) => a.sortOrder - b.sortOrder);
+    return { baseCurrency: 'AFN', categories, services: rows };
   });
 
   app.post('/api/v1/social/quote', { preHandler: authenticate }, async (request, reply) => {

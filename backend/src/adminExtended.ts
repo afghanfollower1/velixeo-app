@@ -89,9 +89,8 @@ function adminShell(input: {
   const nav = [
     ['/admin', 'داشبورد', 'dashboard'],
     ['/admin/users-control', 'کاربران', 'users'],
-    ['/admin/services', 'خدمات و قیمت‌ها', 'services'],
-    ['/admin/providers', 'Provider و API', 'providers'],
-    ['/admin/social-services', 'پنل شبکه‌های اجتماعی', 'social'],
+    ['/admin/services', 'خدمات', 'services'],
+    ['/admin/social', 'شبکه‌های اجتماعی', 'social'],
     ['/admin/virtual-numbers', 'شماره مجازی و SMS', 'virtual'],
     ['/admin/orders', 'سفارش‌ها', 'orders'],
     ['/admin/payments', 'پرداخت‌ها', 'payments'],

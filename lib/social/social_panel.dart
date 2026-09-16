@@ -104,8 +104,18 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
         .map((e) => e.group)
         .toSet()
         .toList();
+    final serverOrder = <String, int>{
+      for (final category in catalog.categories)
+        if (selectedPlatform == null || category.platform == selectedPlatform)
+          category.slug: category.sortOrder,
+    };
     const preferred = ['FOLLOWERS','LIKES','VIEWS','COMMENTS','SHARES','SAVES','REACH','POLL','TRAFFIC','OTHER'];
     values.sort((a, b) {
+      final sa = serverOrder[a];
+      final sb = serverOrder[b];
+      if (sa != null || sb != null) {
+        return (sa ?? 999999).compareTo(sb ?? 999999);
+      }
       final ia = preferred.indexOf(a);
       final ib = preferred.indexOf(b);
       return (ia < 0 ? 999 : ia).compareTo(ib < 0 ? 999 : ib);
@@ -597,6 +607,11 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
   }
 
   String groupLabel(String group) {
+    for (final category in catalog.categories) {
+      if (category.slug == group) {
+        return fa ? category.titleFa : category.titleEn;
+      }
+    }
     const faLabels = {
       'FOLLOWERS': 'فالوور / عضو', 'LIKES': 'لایک', 'VIEWS': 'بازدید',
       'COMMENTS': 'کامنت', 'SHARES': 'اشتراک‌گذاری', 'SAVES': 'ذخیره',
