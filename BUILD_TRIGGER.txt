@@ -1,1 +1,1 @@
-Trigger Android build for VELIXEO v0.1.0
+Trigger signed Android build for VELIXEO v0.5.0+5 after live panels completion — 2026-09-16.
