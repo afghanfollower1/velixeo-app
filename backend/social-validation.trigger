@@ -1,1 +1,1 @@
-Validate VELIXEO backend after modular Social Admin and automatic live pricing sync — 2026-09-16.
+Validate VELIXEO backend after Social category visibility/platform propagation hardening — 2026-09-16.
