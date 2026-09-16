@@ -22,6 +22,7 @@ import { registerClientFoundationRoutes } from './clientFoundationRoutes.js';
 import { registerPaymentRoutes } from './paymentRoutes.js';
 import { registerHesabPayWebhookRoutes } from './hesabPayWebhookRoutes.js';
 import { registerAdminCsrfGuard } from './adminSecurity.js';
+import { registerSocialRoutes } from './socialRoutes.js';
 
 const env = z
   .object({
@@ -1041,6 +1042,7 @@ registerExtendedAdminRoutes(app, prisma, adminWebUser);
 registerClientFoundationRoutes(app, prisma, authenticate);
 registerPaymentRoutes(app, prisma, authenticate);
 registerHesabPayWebhookRoutes(app, prisma, authenticate);
+registerSocialRoutes(app, prisma, authenticate, adminWebUser);
 
 app.setErrorHandler((error: unknown, request, reply) => {
   request.log.error(error);

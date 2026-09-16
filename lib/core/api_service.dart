@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 import 'models.dart';
+import '../social/social_models.dart';
 
 class ApiException implements Exception {
   const ApiException(this.code, {this.statusCode, this.details});
@@ -408,6 +409,94 @@ class ApiService {
     );
     if (![200, 201, 202].contains(response.statusCode)) _throwResponse(response);
     return PaymentSessionResult.fromJson(_decodeObject(response));
+  }
+
+
+  Future<SocialCatalog> socialCatalog() async {
+    final response = await _send('GET', '/api/v1/social/catalog');
+    if (response.statusCode != 200) _throwResponse(response);
+    return SocialCatalog.fromJson(_decodeObject(response));
+  }
+
+  Future<List<SocialOrder>> socialOrders() async {
+    final response = await _send('GET', '/api/v1/social/orders', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    final rows = (_decodeObject(response)['orders'] as List<dynamic>?) ?? const [];
+    return rows
+        .map((item) => SocialOrder.fromJson(Map<String, dynamic>.from(item as Map)))
+        .toList(growable: false);
+  }
+
+  Future<SocialQuote> socialQuote({
+    required String serviceId,
+    required Map<String, dynamic> parameters,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/social/quote',
+      body: {'serviceId': serviceId, 'parameters': parameters},
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+    return SocialQuote.fromJson(_decodeObject(response));
+  }
+
+  Future<SocialCreateOrderResult> createSocialOrder({
+    required String serviceId,
+    required String clientRequestId,
+    required Map<String, dynamic> parameters,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/social/orders',
+      body: {
+        'serviceId': serviceId,
+        'clientRequestId': clientRequestId,
+        'parameters': parameters,
+      },
+      auth: true,
+    );
+    if (![200, 201, 202].contains(response.statusCode)) _throwResponse(response);
+    return SocialCreateOrderResult.fromJson(_decodeObject(response));
+  }
+
+  Future<SocialOrder> refreshSocialOrder(String orderId) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/social/orders/$orderId/refresh',
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+    return SocialOrder.fromJson(
+      Map<String, dynamic>.from(_decodeObject(response)['order'] as Map),
+    );
+  }
+
+  Future<void> refillSocialOrder(String orderId) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/social/orders/$orderId/refill',
+      auth: true,
+    );
+    if (![200, 201].contains(response.statusCode)) _throwResponse(response);
+  }
+
+  Future<void> cancelSocialOrder(String orderId) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/social/orders/$orderId/cancel',
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+  }
+
+  Future<void> refreshSocialAction(String orderId, String actionId) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/social/orders/$orderId/actions/$actionId/refresh',
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
   }
 
 }

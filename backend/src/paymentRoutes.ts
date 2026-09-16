@@ -34,7 +34,7 @@ const hesabPayResponseSchema = z
 function paymentConfig() {
   const parsed = z
     .object({
-      HESABPAY_ENVIRONMENT: z.enum(['sandbox', 'production']).default('sandbox'),
+      HESABPAY_ENVIRONMENT: z.enum(['sandbox', 'production']).default('production'),
       HESABPAY_API_KEY: z.string().trim().min(1).optional(),
       HESABPAY_API_BASE_URL: z.string().url().optional(),
       HESABPAY_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(15_000),

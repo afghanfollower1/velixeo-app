@@ -91,6 +91,7 @@ function adminShell(input: {
     ['/admin/users-control', 'کاربران', 'users'],
     ['/admin/services', 'خدمات و قیمت‌ها', 'services'],
     ['/admin/providers', 'Provider و API', 'providers'],
+    ['/admin/social-services', 'پنل شبکه‌های اجتماعی', 'social'],
     ['/admin/orders', 'سفارش‌ها', 'orders'],
     ['/admin/payments', 'پرداخت‌ها', 'payments'],
     ['/admin/banners', 'بنرها', 'banners'],

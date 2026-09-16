@@ -219,8 +219,14 @@ model Service {
   featured       Boolean         @default(false)
   sortOrder      Int             @default(100)
   basePriceAfn   BigInt?
+  priceUnit      Int             @default(1)
   minQty         Int?
   maxQty         Int?
+  socialPlatform String?
+  socialGroup    String?
+  estimatedMinMinutes Int?
+  estimatedMaxMinutes Int?
+  refillDays     Int?
   metadata       Json?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -240,6 +246,16 @@ model ServiceProviderRoute {
   priority            Int      @default(100)
   costAfn             BigInt?
   markupPercent       Decimal? @db.Decimal(10, 2)
+  providerName        String?
+  providerType        String?
+  providerCategory    String?
+  providerRate        Decimal? @db.Decimal(20, 8)
+  providerCurrency    String?
+  providerMinQty      Int?
+  providerMaxQty      Int?
+  providerRefill      Boolean  @default(false)
+  providerCancel      Boolean  @default(false)
+  lastSyncedAt        DateTime?
   metadata            Json?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -264,6 +280,7 @@ model Order {
   totalAmountAfn       BigInt
   providerCostAfn      BigInt?
   providerOrderId      String?
+  clientRequestId      String?         @unique
   input                Json?
   output               Json?
   exchangeRateSnapshot Json?
@@ -275,10 +292,27 @@ model Order {
   user     User      @relation(fields: [userId], references: [id], onDelete: Restrict)
   service  Service?  @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   provider Provider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  actions  OrderActionLog[]
 
   @@index([userId, createdAt])
   @@index([status, createdAt])
   @@index([providerId, providerOrderId])
+}
+
+model OrderActionLog {
+  id                String   @id @default(uuid())
+  orderId           String
+  action            String
+  status            String
+  providerReference String?
+  response          Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@index([action, status])
 }
 
 model PaymentTransaction {

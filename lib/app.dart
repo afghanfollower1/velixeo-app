@@ -4,10 +4,11 @@ import 'package:url_launcher/url_launcher.dart';
 import 'core/api_service.dart';
 import 'core/google_auth_service.dart';
 import 'core/models.dart';
+import 'social/social_panel.dart';
 
 String tr(bool fa, String faText, String enText) => fa ? faText : enText;
 
-class AppController extends ChangeNotifier {
+class AppController extends ChangeNotifier implements SocialPanelHost {
   AppController(this.api, this.googleAuth);
 
   final ApiService api;
@@ -1006,7 +1007,9 @@ class HomePage extends StatelessWidget {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => ServicePreviewPage(controller: c, service: services[i]),
+                    builder: (_) => services[i].en == 'Social Media'
+                        ? SocialPanelPage(host: c)
+                        : ServicePreviewPage(controller: c, service: services[i]),
                   ),
                 ),
               ),
@@ -1182,7 +1185,9 @@ class ServicesPage extends StatelessWidget {
                   child: SoftCard(
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => ServicePreviewPage(controller: c, service: service)),
+                      MaterialPageRoute(builder: (_) => service.en == 'Social Media'
+                          ? SocialPanelPage(host: c)
+                          : ServicePreviewPage(controller: c, service: service)),
                     ),
                     child: Row(
                       children: [
@@ -1201,7 +1206,39 @@ class ServicesPage extends StatelessWidget {
                 ),
               ),
             ] else ...[
-              ...c.catalogServices.map((service) {
+              if (c.catalogServices.any((service) => service.category == 'SOCIAL'))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 11),
+                  child: SoftCard(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => SocialPanelPage(host: c)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(color: const Color(0xFF8B5CF6).withValues(alpha: .1), borderRadius: BorderRadius.circular(16)),
+                          child: const Icon(Icons.trending_up_rounded, color: Color(0xFF8B5CF6)),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(tr(c.fa, 'شبکه‌های اجتماعی', 'Social Media'), style: const TextStyle(fontWeight: FontWeight.w900)),
+                              const SizedBox(height: 3),
+                              Text(tr(c.fa, 'سفارش جدید، پیگیری، جبران و لغو', 'Order, track, refill and cancel'), style: const TextStyle(fontSize: 12, color: Color(0xFF607487))),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right),
+                      ],
+                    ),
+                  ),
+                ),
+              ...c.catalogServices.where((service) => service.category != 'SOCIAL').map((service) {
                 final color = catalogColor(service.category);
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 11),
