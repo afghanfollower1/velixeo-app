@@ -14,6 +14,7 @@ import {
   type SmmService,
   smmClientForProvider,
 } from './smmPanelAdapter.js';
+import { claimCoupon, quoteCoupon, releaseCoupon } from './couponPricing.js';
 
 type AuthenticateHook = (
   request: FastifyRequest,
@@ -45,6 +46,7 @@ type OrderField = {
 const createOrderSchema = z.object({
   serviceId: z.string().uuid(),
   clientRequestId: z.string().uuid(),
+  couponCode: z.string().trim().max(80).optional().nullable(),
   parameters: z.record(
     z.string(),
     z.union([z.string(), z.number(), z.boolean(), z.null()]),
@@ -53,6 +55,7 @@ const createOrderSchema = z.object({
 
 const quoteSchema = z.object({
   serviceId: z.string().uuid(),
+  couponCode: z.string().trim().max(80).optional().nullable(),
   parameters: z.record(
     z.string(),
     z.union([z.string(), z.number(), z.boolean(), z.null()]),
@@ -722,12 +725,22 @@ export function registerSocialRoutes(
     }
     const rateAfn = await customerRateAfn(prisma, service, route);
     if (rateAfn == null) return reply.code(409).send({ error: 'service_price_unavailable' });
-    const totalAmountAfn = ceilDiv(rateAfn * BigInt(quantity), BigInt(Math.max(1, service.priceUnit)));
+    const subtotalAmountAfn = ceilDiv(rateAfn * BigInt(quantity), BigInt(Math.max(1, service.priceUnit)));
+    let couponPrice;
+    try {
+      couponPrice = await quoteCoupon(prisma, parsed.data.couponCode, subtotalAmountAfn);
+    } catch (error) {
+      const code = error instanceof Error ? error.message.toLowerCase() : 'coupon_invalid';
+      return reply.code(409).send({ error: code });
+    }
     return {
       quantity,
       rateAfn: rateAfn.toString(),
       priceUnit: service.priceUnit,
-      totalAmountAfn: totalAmountAfn.toString(),
+      subtotalAmountAfn: couponPrice.subtotalAfn.toString(),
+      discountAmountAfn: couponPrice.discountAfn.toString(),
+      totalAmountAfn: couponPrice.totalAfn.toString(),
+      couponCode: couponPrice.couponCode,
     };
   });
 
@@ -784,11 +797,19 @@ export function registerSocialRoutes(
     }
     const customerRate = await customerRateAfn(prisma, service, firstRoute);
     if (customerRate == null) return reply.code(409).send({ error: 'service_price_unavailable' });
-    const totalAmountAfn = ceilDiv(
+    const subtotalAmountAfn = ceilDiv(
       customerRate * BigInt(quantity),
       BigInt(Math.max(1, service.priceUnit)),
     );
-    if (totalAmountAfn <= 0n) return reply.code(409).send({ error: 'service_price_invalid' });
+    if (subtotalAmountAfn <= 0n) return reply.code(409).send({ error: 'service_price_invalid' });
+    let couponPrice;
+    try {
+      couponPrice = await quoteCoupon(prisma, parsed.data.couponCode, subtotalAmountAfn);
+    } catch (error) {
+      const code = error instanceof Error ? error.message.toLowerCase() : 'coupon_invalid';
+      return reply.code(409).send({ error: code });
+    }
+    const totalAmountAfn = couponPrice.totalAfn;
 
     let order;
     try {
@@ -796,6 +817,7 @@ export function registerSocialRoutes(
         async (tx) => {
           const duplicate = await tx.order.findUnique({ where: { clientRequestId: parsed.data.clientRequestId } });
           if (duplicate) return duplicate;
+          await claimCoupon(tx, couponPrice);
           const wallet = await tx.wallet.findUnique({ where: { userId } });
           if (!wallet) throw new Error('WALLET_NOT_FOUND');
           if (wallet.balanceAfn < totalAmountAfn) throw new Error('INSUFFICIENT_FUNDS');
@@ -815,6 +837,10 @@ export function registerSocialRoutes(
                 customerRateAfn: customerRate.toString(),
                 priceUnit: service.priceUnit,
                 refillDays: service.refillDays,
+                couponCode: couponPrice.couponCode,
+                couponId: couponPrice.couponId,
+                subtotalAmountAfn: couponPrice.subtotalAfn.toString(),
+                discountAmountAfn: couponPrice.discountAfn.toString(),
               },
             },
           });
@@ -856,7 +882,7 @@ export function registerSocialRoutes(
       const candidateType = route.providerType || providerType;
       if (candidateType.toLowerCase() !== providerType.toLowerCase()) continue;
       const expectedCost = await providerCostAfn(prisma, route, quantity, service.priceUnit);
-      if (expectedCost != null && expectedCost > totalAmountAfn && service.routes.length > 1) continue;
+      if (expectedCost != null && expectedCost > subtotalAmountAfn && service.routes.length > 1) continue;
       try {
         const client = smmClientForProvider(route.provider);
         const result = await client.addOrder({
@@ -935,6 +961,7 @@ export function registerSocialRoutes(
       where: { id: order.id },
       data: { status: OrderStatus.FAILED, failureReason: explicitFailure },
     });
+    await releaseCoupon(prisma, couponPrice.couponId);
     const hydrated = await prisma.order.findUnique({
       where: { id: order.id },
       include: { service: true, actions: { orderBy: { createdAt: 'desc' } } },

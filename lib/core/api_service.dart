@@ -432,11 +432,16 @@ class ApiService {
   Future<SocialQuote> socialQuote({
     required String serviceId,
     required Map<String, dynamic> parameters,
+    String? couponCode,
   }) async {
     final response = await _send(
       'POST',
       '/api/v1/social/quote',
-      body: {'serviceId': serviceId, 'parameters': parameters},
+      body: {
+        'serviceId': serviceId,
+        'parameters': parameters,
+        if (couponCode?.trim().isNotEmpty == true) 'couponCode': couponCode!.trim(),
+      },
       auth: true,
     );
     if (response.statusCode != 200) _throwResponse(response);
@@ -447,6 +452,7 @@ class ApiService {
     required String serviceId,
     required String clientRequestId,
     required Map<String, dynamic> parameters,
+    String? couponCode,
   }) async {
     final response = await _send(
       'POST',

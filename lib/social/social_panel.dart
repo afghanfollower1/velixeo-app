@@ -35,6 +35,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
   int tab = 0;
   Timer? quoteTimer;
   final Map<String, TextEditingController> fields = {};
+  final coupon = TextEditingController();
 
   SocialPanelHost get host => widget.host;
   bool get fa => host.fa;
@@ -42,6 +43,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
   @override
   void initState() {
     super.initState();
+    coupon.addListener(scheduleQuote);
     load();
   }
 
@@ -51,6 +53,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     for (final controller in fields.values) {
       controller.dispose();
     }
+    coupon.dispose();
     super.dispose();
   }
 
@@ -153,6 +156,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
         final result = await host.api.socialQuote(
           serviceId: service.id,
           parameters: currentParameters(),
+          couponCode: coupon.text.trim().isEmpty ? null : coupon.text.trim(),
         );
         if (mounted && selectedService?.id == service.id) setState(() => quote = result);
       } catch (_) {
@@ -170,6 +174,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
       final latestQuote = await host.api.socialQuote(
         serviceId: service.id,
         parameters: currentParameters(),
+        couponCode: coupon.text.trim().isEmpty ? null : coupon.text.trim(),
       );
       if (latestQuote.totalAmountAfn > host.balanceAfn) {
         if (!mounted) return;
@@ -212,6 +217,11 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     if (error.code == 'provider_rejected') return t('Provider سفارش را نپذیرفت و مبلغ برگشت داده شد.', 'Provider rejected the order and the amount was refunded.');
     if (error.code == 'refill_not_supported') return t('این سفارش جبران ریزش ندارد.', 'Refill is not available for this order.');
     if (error.code == 'cancel_not_supported') return t('لغو این سفارش از سمت Provider پشتیبانی نمی‌شود.', 'Provider does not support cancelling this order.');
+    if (error.code == 'coupon_invalid') return t('کد تخفیف معتبر نیست.', 'Coupon code is invalid.');
+    if (error.code == 'coupon_expired') return t('اعتبار این کد تخفیف تمام شده است.', 'This coupon has expired.');
+    if (error.code == 'coupon_not_started') return t('زمان استفاده از این کد هنوز شروع نشده است.', 'This coupon is not active yet.');
+    if (error.code == 'coupon_usage_limit') return t('سقف استفاده از این کد تکمیل شده است.', 'This coupon has reached its usage limit.');
+    if (error.code == 'coupon_min_order') return t('مبلغ سفارش برای این کد کافی نیست.', 'This order does not meet the coupon minimum.');
     return t('عملیات انجام نشد. دوباره تلاش کنید.', 'The operation failed. Please try again.');
   }
 
@@ -432,12 +442,31 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
                 style: const TextStyle(fontSize: 12, color: Color(0xFF607487)),
               ),
             ),
+          TextField(
+            controller: coupon,
+            textCapitalization: TextCapitalization.characters,
+            decoration: InputDecoration(
+              labelText: t('کد تخفیف', 'Coupon code'),
+              hintText: t('اختیاری', 'Optional'),
+              prefixIcon: const Icon(Icons.local_offer_outlined),
+              suffixIcon: coupon.text.trim().isEmpty
+                  ? null
+                  : IconButton(onPressed: coupon.clear, icon: const Icon(Icons.close_rounded)),
+            ),
+          ),
+          const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(color: const Color(0xFFF4FAFF), borderRadius: BorderRadius.circular(16)),
             child: Column(
               children: [
                 _InfoRow(label: t('نرخ', 'Rate'), value: '${host.money(service.priceRateAfn, showBase: true)} / ${service.priceUnit}'),
+                if (quote != null && quote!.discountAmountAfn > 0) ...[
+                  const SizedBox(height: 8),
+                  _InfoRow(label: t('جمع قبل از تخفیف', 'Subtotal'), value: host.money(quote!.subtotalAmountAfn, showBase: true)),
+                  const SizedBox(height: 8),
+                  _InfoRow(label: t('تخفیف', 'Discount'), value: '- ${host.money(quote!.discountAmountAfn, showBase: true)}'),
+                ],
                 const SizedBox(height: 8),
                 _InfoRow(
                   label: t('قیمت نهایی', 'Total'),

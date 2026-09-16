@@ -139,18 +139,27 @@ class SocialQuote {
     required this.rateAfn,
     required this.priceUnit,
     required this.totalAmountAfn,
+    required this.subtotalAmountAfn,
+    required this.discountAmountAfn,
+    this.couponCode,
   });
 
   final int quantity;
   final int rateAfn;
   final int priceUnit;
+  final int subtotalAmountAfn;
+  final int discountAmountAfn;
   final int totalAmountAfn;
+  final String? couponCode;
 
   factory SocialQuote.fromJson(Map<String, dynamic> json) => SocialQuote(
         quantity: (json['quantity'] as num?)?.toInt() ?? 0,
         rateAfn: int.tryParse('${json['rateAfn']}') ?? 0,
         priceUnit: (json['priceUnit'] as num?)?.toInt() ?? 1000,
+        subtotalAmountAfn: int.tryParse('${json['subtotalAmountAfn'] ?? json['totalAmountAfn']}') ?? 0,
+        discountAmountAfn: int.tryParse('${json['discountAmountAfn']}') ?? 0,
         totalAmountAfn: int.tryParse('${json['totalAmountAfn']}') ?? 0,
+        couponCode: json['couponCode'] as String?,
       );
 }
 
