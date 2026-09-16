@@ -1,7 +1,7 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 COPY prisma ./prisma
 COPY tsconfig.json ./
 COPY src ./src
@@ -11,7 +11,7 @@ FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package*.json ./
-RUN npm install --omit=dev
+RUN npm ci --omit=dev
 COPY prisma ./prisma
 COPY scripts ./scripts
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
