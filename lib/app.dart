@@ -5,10 +5,12 @@ import 'core/api_service.dart';
 import 'core/google_auth_service.dart';
 import 'core/models.dart';
 import 'social/social_panel.dart';
+import 'support/support_page.dart';
+import 'virtual_numbers/virtual_number_panel.dart';
 
 String tr(bool fa, String faText, String enText) => fa ? faText : enText;
 
-class AppController extends ChangeNotifier implements SocialPanelHost {
+class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNumberPanelHost, SupportPanelHost {
   AppController(this.api, this.googleAuth);
 
   final ApiService api;
@@ -889,6 +891,22 @@ class _AuthPageState extends State<AuthPage> {
   }
 }
 
+Widget _serviceDestination(AppController c, ServiceItem service) {
+  if (service.en == 'Social Media') return SocialPanelPage(host: c);
+  if (service.en == 'Virtual Numbers') return VirtualNumberPanelPage(host: c);
+  return ServicePreviewPage(controller: c, service: service);
+}
+
+Widget _catalogDestination(AppController c, CatalogService service) {
+  if (service.category == 'SOCIAL') return SocialPanelPage(host: c);
+  if (service.category == 'VIRTUAL_NUMBER') return VirtualNumberPanelPage(host: c);
+  return CatalogServicePage(controller: c, service: service);
+}
+
+Future<void> _openServiceSearch(BuildContext context, AppController c) async {
+  await Navigator.push(context, MaterialPageRoute(builder: (_) => ServiceSearchPage(controller: c)));
+}
+
 class MainShell extends StatefulWidget {
   const MainShell({super.key, required this.controller});
   final AppController controller;
@@ -984,9 +1002,11 @@ class HomePage extends StatelessWidget {
             const SizedBox(height: 18),
             TextField(
               readOnly: true,
+              onTap: () => _openServiceSearch(context, c),
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search),
                 hintText: tr(c.fa, 'چه خدمتی نیاز دارید؟', 'What service do you need?'),
+                suffixIcon: const Icon(Icons.arrow_forward_rounded),
               ),
             ),
             const SizedBox(height: 22),
@@ -1007,9 +1027,7 @@ class HomePage extends StatelessWidget {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => services[i].en == 'Social Media'
-                        ? SocialPanelPage(host: c)
-                        : ServicePreviewPage(controller: c, service: services[i]),
+                    builder: (_) => _serviceDestination(c, services[i]),
                   ),
                 ),
               ),
@@ -1139,6 +1157,87 @@ Color catalogColor(String category) {
   }
 }
 
+class ServiceSearchPage extends StatefulWidget {
+  const ServiceSearchPage({super.key, required this.controller});
+  final AppController controller;
+
+  @override
+  State<ServiceSearchPage> createState() => _ServiceSearchPageState();
+}
+
+class _ServiceSearchPageState extends State<ServiceSearchPage> {
+  final query = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    query.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    query.dispose();
+    super.dispose();
+  }
+
+  bool matches(String value) => value.toLowerCase().contains(query.text.trim().toLowerCase());
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.controller;
+    final q = query.text.trim();
+    final categories = HomePage.services.where((item) => q.isEmpty || matches(item.fa) || matches(item.en)).toList(growable: false);
+    final live = c.catalogServices.where((item) => q.isEmpty || matches(item.titleFa) || matches(item.titleEn) || matches(item.slug) || matches(item.category)).toList(growable: false);
+    return Scaffold(
+      appBar: AppBar(title: Text(tr(c.fa, 'جستجوی خدمات', 'Search services'))),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          TextField(
+            controller: query,
+            autofocus: true,
+            decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: tr(c.fa, 'نام سرویس، شبکه یا دسته...', 'Service, platform or category...'), suffixIcon: q.isEmpty ? null : IconButton(onPressed: query.clear, icon: const Icon(Icons.close))),
+          ),
+          const SizedBox(height: 16),
+          if (categories.isEmpty && live.isEmpty)
+            EmptyCard(icon: Icons.search_off_rounded, title: tr(c.fa, 'نتیجه‌ای پیدا نشد', 'No results found'), subtitle: tr(c.fa, 'عبارت دیگری جستجو کنید.', 'Try another search.')),
+          ...categories.map((service) => Padding(
+                padding: const EdgeInsets.only(bottom: 9),
+                child: SoftCard(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _serviceDestination(c, service))),
+                  child: Row(children: [
+                    CircleAvatar(backgroundColor: service.color.withValues(alpha: .10), child: Icon(service.icon, color: service.color)),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(c.fa ? service.fa : service.en, style: const TextStyle(fontWeight: FontWeight.w900))),
+                    const Icon(Icons.chevron_right_rounded),
+                  ]),
+                ),
+              )),
+          if (live.isNotEmpty) ...[
+            const SizedBox(height: 7),
+            SectionTitle(tr(c.fa, 'سرویس‌های فعال', 'Live services')),
+            ...live.map((service) => Padding(
+                  padding: const EdgeInsets.only(bottom: 9),
+                  child: SoftCard(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _catalogDestination(c, service))),
+                    child: Row(children: [
+                      CircleAvatar(backgroundColor: catalogColor(service.category).withValues(alpha: .10), child: Icon(catalogIcon(service.category), color: catalogColor(service.category))),
+                      const SizedBox(width: 12),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(c.fa ? service.titleFa : service.titleEn, style: const TextStyle(fontWeight: FontWeight.w900)),
+                        Text(service.category, style: const TextStyle(fontSize: 10, color: Color(0xFF607487))),
+                      ])),
+                      const Icon(Icons.chevron_right_rounded),
+                    ]),
+                  ),
+                )),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class ServicesPage extends StatelessWidget {
   const ServicesPage({super.key, required this.controller});
   final AppController controller;
@@ -1162,7 +1261,8 @@ class ServicesPage extends StatelessWidget {
             const SizedBox(height: 16),
             TextField(
               readOnly: true,
-              decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: tr(c.fa, 'جستجوی سرویس...', 'Search services...')),
+              onTap: () => _openServiceSearch(context, c),
+              decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: tr(c.fa, 'جستجوی سرویس...', 'Search services...'), suffixIcon: const Icon(Icons.arrow_forward_rounded)),
             ),
             const SizedBox(height: 18),
             if (c.catalogServices.isEmpty) ...[
@@ -1185,9 +1285,7 @@ class ServicesPage extends StatelessWidget {
                   child: SoftCard(
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => service.en == 'Social Media'
-                          ? SocialPanelPage(host: c)
-                          : ServicePreviewPage(controller: c, service: service)),
+                      MaterialPageRoute(builder: (_) => _serviceDestination(c, service)),
                     ),
                     child: Row(
                       children: [
@@ -1245,7 +1343,7 @@ class ServicesPage extends StatelessWidget {
                   child: SoftCard(
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => CatalogServicePage(controller: c, service: service)),
+                      MaterialPageRoute(builder: (_) => _catalogDestination(c, service)),
                     ),
                     child: Row(
                       children: [
@@ -1555,49 +1653,79 @@ class RemoteBannerCard extends StatelessWidget {
   final AppController controller;
   final AppBanner banner;
 
+  Future<void> openAction(BuildContext context) async {
+    final raw = banner.actionUrl?.trim();
+    if (raw == null || raw.isEmpty) return;
+    final uri = Uri.tryParse(raw);
+    if (uri == null) return;
+    if (uri.scheme == 'velixeo') {
+      final target = uri.host.isNotEmpty ? uri.host : uri.path.replaceFirst('/', '');
+      if (target == 'social') {
+        await Navigator.push(context, MaterialPageRoute(builder: (_) => SocialPanelPage(host: controller)));
+      } else if (target == 'virtual-numbers' || target == 'virtual') {
+        await Navigator.push(context, MaterialPageRoute(builder: (_) => VirtualNumberPanelPage(host: controller)));
+      } else if (target == 'wallet') {
+        await Navigator.push(context, MaterialPageRoute(builder: (_) => AddFundsPage(controller: controller)));
+      } else if (target == 'support') {
+        await Navigator.push(context, MaterialPageRoute(builder: (_) => SupportPage(host: controller)));
+      } else if (target == 'services') {
+        await _openServiceSearch(context, controller);
+      }
+      return;
+    }
+    if (uri.scheme == 'https' || uri.scheme == 'http') {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final fa = controller.fa;
     final title = fa ? banner.titleFa : banner.titleEn;
     final subtitle = fa ? banner.subtitleFa : banner.subtitleEn;
     final action = fa ? banner.actionLabelFa : banner.actionLabelEn;
-    return ClipRRect(
+    final clickable = banner.actionUrl?.trim().isNotEmpty == true;
+    return InkWell(
       borderRadius: BorderRadius.circular(22),
-      child: SizedBox(
-        height: 150,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.network(
-              banner.imageUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(colors: [Color(0xFF0D78C8), Color(0xFF31A8FF)]),
+      onTap: clickable ? () => openAction(context) : null,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: SizedBox(
+          height: 150,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.network(
+                banner.imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF0D78C8), Color(0xFF31A8FF)])),
                 ),
               ),
-            ),
-            Container(color: Colors.black.withValues(alpha: .24)),
-            Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  if (title?.trim().isNotEmpty == true)
-                    Text(title!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
-                  if (subtitle?.trim().isNotEmpty == true) ...[
-                    const SizedBox(height: 4),
-                    Text(subtitle!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              Container(color: Colors.black.withValues(alpha: .24)),
+              Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (title?.trim().isNotEmpty == true) Text(title!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
+                    if (subtitle?.trim().isNotEmpty == true) ...[
+                      const SizedBox(height: 4),
+                      Text(subtitle!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                    ],
+                    if (action?.trim().isNotEmpty == true) ...[
+                      const SizedBox(height: 8),
+                      Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text(action!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
+                        if (clickable) const Padding(padding: EdgeInsetsDirectional.only(start: 5), child: Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 15)),
+                      ]),
+                    ],
                   ],
-                  if (action?.trim().isNotEmpty == true) ...[
-                    const SizedBox(height: 8),
-                    Text(action!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
-                  ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -2135,6 +2263,12 @@ class ProfilePage extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+          SettingsTile(
+            icon: Icons.support_agent_rounded,
+            title: tr(c.fa, 'پشتیبانی و تیکت', 'Support & tickets'),
+            value: '',
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SupportPage(host: c))),
           ),
           SettingsTile(
             icon: Icons.cloud_done_outlined,

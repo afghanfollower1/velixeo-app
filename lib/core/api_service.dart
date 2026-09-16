@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 
 import 'models.dart';
 import '../social/social_models.dart';
+import '../support/support_models.dart';
+import '../virtual_numbers/virtual_number_models.dart';
 
 class ApiException implements Exception {
   const ApiException(this.code, {this.statusCode, this.details});
@@ -497,6 +499,97 @@ class ApiService {
       auth: true,
     );
     if (response.statusCode != 200) _throwResponse(response);
+  }
+
+
+  Future<VirtualCatalog> virtualNumberCatalog() async {
+    final response = await _send('GET', '/api/v1/virtual-numbers/catalog');
+    if (response.statusCode != 200) _throwResponse(response);
+    return VirtualCatalog.fromJson(_decodeObject(response));
+  }
+
+  Future<VirtualOffers> virtualNumberOffers({required String serviceId, required String country}) async {
+    final query = Uri(queryParameters: {'serviceId': serviceId, 'country': country}).query;
+    final response = await _send('GET', '/api/v1/virtual-numbers/offers?$query');
+    if (response.statusCode != 200) _throwResponse(response);
+    return VirtualOffers.fromJson(_decodeObject(response));
+  }
+
+  Future<List<VirtualOrder>> virtualNumberOrders() async {
+    final response = await _send('GET', '/api/v1/virtual-numbers/orders', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    final rows = (_decodeObject(response)['orders'] as List<dynamic>?) ?? const [];
+    return rows.map((item) => VirtualOrder.fromJson(Map<String, dynamic>.from(item as Map))).toList(growable: false);
+  }
+
+  Future<VirtualOrder> createVirtualNumberOrder({
+    required String serviceId,
+    required String country,
+    required String operatorName,
+    required String mode,
+    required String clientRequestId,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/virtual-numbers/orders',
+      body: {
+        'serviceId': serviceId,
+        'country': country,
+        'operator': operatorName,
+        'mode': mode,
+        'clientRequestId': clientRequestId,
+      },
+      auth: true,
+    );
+    if (![200, 201, 202].contains(response.statusCode)) _throwResponse(response);
+    return VirtualOrder.fromJson(Map<String, dynamic>.from(_decodeObject(response)['order'] as Map));
+  }
+
+  Future<VirtualOrder> checkVirtualNumberOrder(String id) async {
+    final response = await _send('POST', '/api/v1/virtual-numbers/orders/$id/check', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    return VirtualOrder.fromJson(Map<String, dynamic>.from(_decodeObject(response)['order'] as Map));
+  }
+
+  Future<VirtualOrder> cancelVirtualNumberOrder(String id) async {
+    final response = await _send('POST', '/api/v1/virtual-numbers/orders/$id/cancel', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    return VirtualOrder.fromJson(Map<String, dynamic>.from(_decodeObject(response)['order'] as Map));
+  }
+
+  Future<VirtualOrder> finishVirtualNumberOrder(String id) async {
+    final response = await _send('POST', '/api/v1/virtual-numbers/orders/$id/finish', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    return VirtualOrder.fromJson(Map<String, dynamic>.from(_decodeObject(response)['order'] as Map));
+  }
+
+  Future<List<SupportTicket>> supportTickets() async {
+    final response = await _send('GET', '/api/v1/support/tickets', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    final rows = (_decodeObject(response)['tickets'] as List<dynamic>?) ?? const [];
+    return rows.map((item) => SupportTicket.fromJson(Map<String, dynamic>.from(item as Map))).toList(growable: false);
+  }
+
+  Future<SupportTicket> createSupportTicket({required String subject, required String message}) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/support/tickets',
+      body: {'subject': subject.trim(), 'message': message.trim()},
+      auth: true,
+    );
+    if (response.statusCode != 201) _throwResponse(response);
+    return SupportTicket.fromJson(Map<String, dynamic>.from(_decodeObject(response)['ticket'] as Map));
+  }
+
+  Future<SupportMessage> replySupportTicket(String ticketId, String message) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/support/tickets/$ticketId/messages',
+      body: {'message': message.trim()},
+      auth: true,
+    );
+    if (response.statusCode != 201) _throwResponse(response);
+    return SupportMessage.fromJson(Map<String, dynamic>.from(_decodeObject(response)['message'] as Map));
   }
 
 }

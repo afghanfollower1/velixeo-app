@@ -92,6 +92,7 @@ function adminShell(input: {
     ['/admin/services', 'خدمات و قیمت‌ها', 'services'],
     ['/admin/providers', 'Provider و API', 'providers'],
     ['/admin/social-services', 'پنل شبکه‌های اجتماعی', 'social'],
+    ['/admin/virtual-numbers', 'شماره مجازی و SMS', 'virtual'],
     ['/admin/orders', 'سفارش‌ها', 'orders'],
     ['/admin/payments', 'پرداخت‌ها', 'payments'],
     ['/admin/banners', 'بنرها', 'banners'],

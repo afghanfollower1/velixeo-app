@@ -724,7 +724,7 @@ export function registerVirtualNumberRoutes(
       include: { provider: true, service: true },
     });
     if (!order) return reply.code(404).send({ error: 'order_not_found' });
-    if ([OrderStatus.COMPLETED, OrderStatus.CANCELLED, OrderStatus.REFUNDED].includes(order.status)) {
+    if (order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELLED || order.status === OrderStatus.REFUNDED) {
       return reply.code(409).send({ error: 'order_not_cancellable' });
     }
     if (!order.provider || !order.providerOrderId) return reply.code(409).send({ error: 'provider_order_not_available' });
