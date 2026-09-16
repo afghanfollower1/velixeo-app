@@ -17,18 +17,31 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
-      - name: Apply social media platform integration
-        run: python3 tools/patch_social_panel.py
+      - name: Apply Figma English UI implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('tools/patch_social_panel.py')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace(
+              "re.subn(pattern, replacement, text, count=1, flags=re.S)",
+              "re.subn(pattern, lambda _match: replacement, text, count=1, flags=re.S)",
+          )
+          p.write_text(s, encoding='utf-8')
+          PY
+          python3 tools/patch_social_panel.py
       - name: Commit implementation
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "VELIXEO Build Bot"
           git config user.email "actions@users.noreply.github.com"
-          git add backend/prisma/schema.prisma backend/src/index.ts backend/src/adminExtended.ts backend/src/paymentRoutes.ts backend/.env.example lib/core/api_service.dart lib/app.dart pubspec.yaml
+          git add backend/prisma/schema.prisma backend/src/index.ts backend/src/adminExtended.ts backend/src/adminPage.ts backend/src/paymentRoutes.ts backend/src/socialAdminV2.ts backend/src/virtualNumberRoutes.ts backend/.env.example lib/core/api_service.dart lib/app.dart lib/social/social_panel.dart lib/virtual_numbers/virtual_number_panel.dart pubspec.yaml
           if git diff --cached --quiet; then
-            echo "Social panel integration already applied."
+            echo "VELIXEO Figma English UI already applied."
             exit 0
           fi
-          git commit -m "Integrate complete social media services panel"
+          git commit -m "Implement Figma English UI across VELIXEO app and admin"
           git push origin HEAD:main
