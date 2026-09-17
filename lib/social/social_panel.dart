@@ -87,7 +87,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
   List<String> get availablePlatforms {
     final values = catalog.services.map((e) => e.platform).toSet().toList();
     const preferred = [
-      'INSTAGRAM','TIKTOK','YOUTUBE','FACEBOOK','TELEGRAM','X','THREADS',
+      'INSTAGRAM','TIKTOK','YOUTUBE','FACEBOOK','TELEGRAM','WHATSAPP','X','THREADS',
       'SNAPCHAT','LINKEDIN','PINTEREST','SPOTIFY','SOUNDCLOUD','DISCORD','OTHER',
     ];
     values.sort((a, b) {
@@ -669,6 +669,7 @@ class _PlatformCard extends StatelessWidget {
     switch (platform) {
       case 'YOUTUBE': return Icons.play_circle_fill_rounded;
       case 'TELEGRAM': return Icons.send_rounded;
+      case 'WHATSAPP': return Icons.chat_rounded;
       case 'FACEBOOK': return Icons.facebook_rounded;
       case 'TIKTOK': return Icons.music_note_rounded;
       case 'X': return Icons.alternate_email_rounded;
@@ -686,6 +687,7 @@ class _PlatformCard extends StatelessWidget {
       case 'YOUTUBE': return 'YouTube';
       case 'FACEBOOK': return 'Facebook';
       case 'TELEGRAM': return 'Telegram';
+      case 'WHATSAPP': return 'WhatsApp';
       case 'X': return 'X';
       case 'THREADS': return 'Threads';
       case 'SNAPCHAT': return 'Snapchat';
@@ -694,7 +696,15 @@ class _PlatformCard extends StatelessWidget {
       case 'SPOTIFY': return 'Spotify';
       case 'SOUNDCLOUD': return 'SoundCloud';
       case 'DISCORD': return 'Discord';
-      default: return fa ? 'سایر' : 'Other';
+      default:
+        final readable = platform
+            .split('_')
+            .where((part) => part.isNotEmpty)
+            .map((part) => part.length == 1
+                ? part.toUpperCase()
+                : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}')
+            .join(' ');
+        return readable.isEmpty ? (fa ? 'سایر' : 'Other') : readable;
     }
   }
 
