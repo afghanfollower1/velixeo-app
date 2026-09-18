@@ -19,6 +19,7 @@ import {
   syncSocialProviderCatalog,
 } from './socialSync.js';
 import { brandSettingKey, defaultBrandIcons, loadSocialBrands, normalizeBrandKey, parseBrand, validateBrandIcon, type SocialBrand } from './socialBrands.js';
+import { getSocialOrderSettings, saveSocialOrderSettings } from './socialOrderSettings.js';
 
 type AdminIdentity = {
   id: string;
@@ -198,6 +199,7 @@ function socialTabs(active: string) {
     ['/admin/v3/social/brands', 'Brands', 'brands'],
     ['/admin/v3/social/categories', 'Categories', 'categories'],
     ['/admin/v3/social/my-services', 'My Services', 'services'],
+    ['/admin/v3/social/order-settings', 'Order Settings', 'order-settings'],
     ['/admin/v3?section=social&tab=routing', 'Routing', 'routing'],
     ['/admin/v3?section=social&tab=orders', 'Orders', 'orders'],
     ['/admin/v3?section=social&tab=logs', 'API Logs', 'logs'],
@@ -223,6 +225,7 @@ function shell(input: {
     ['/admin/v3/social/brands', 'Brands', 'category', 'brands'],
     ['/admin/v3/social/categories', 'Categories', 'category', 'categories'],
     ['/admin/v3/social/my-services', 'My Services', 'service', 'services'],
+    ['/admin/v3/social/order-settings', 'Order Settings', 'service', 'order-settings'],
     ['/admin/v3?section=social&tab=routing', 'Routing', 'sync', 'routing'],
     ['/admin/v3?section=social&tab=orders', 'Orders', 'list', 'orders'],
     ['/admin/v3?section=social&tab=logs', 'API Logs', 'list', 'logs'],
@@ -558,6 +561,42 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
   });
 }
 
+async function orderSettingsPage(prisma: PrismaClient, admin: AdminIdentity, request: FastifyRequest) {
+  const q = query(request);
+  const settings = await getSocialOrderSettings(prisma);
+  return shell({
+    admin,
+    title: 'Order Settings',
+    subtitle: 'Control customer order IDs, terms and the post-completion refill window.',
+    active: 'order-settings',
+    message: q.msg,
+    error: q.error,
+    body: `<div class="grid eq">
+      <div class="card">
+        <div class="cardhead"><div><h2>Customer Order ID</h2><span class="muted">Choose what customers see as their Order ID.</span></div></div>
+        <form method="post" action="/admin/v3/social/order-settings/save">
+          <div class="field"><label>Order ID Mode</label><select name="orderIdMode">
+            <option value="PROVIDER" ${settings.orderIdMode==='PROVIDER'?'selected':''}>Provider/API Order ID</option>
+            <option value="SEQUENTIAL" ${settings.orderIdMode==='SEQUENTIAL'?'selected':''}>VELIXEO Sequential Order ID</option>
+          </select></div>
+          <div class="field"><label>Sequential Start Number</label><input type="number" min="1" name="startNumber" value="${esc(settings.startNumber)}"><span class="tiny">Example: 100063. Existing assigned numbers are never changed.</span></div>
+          <div class="field"><label>Refill Window After Completion (hours)</label><input type="number" min="1" max="720" name="refillWindowHours" value="${esc(settings.refillWindowHours)}"><span class="tiny">Refill capability itself always comes from the provider API. This only controls how long the button remains available after completion.</span></div>
+          <div class="field"><label>English Terms & Conditions</label><textarea name="termsEn" required>${esc(settings.termsEn)}</textarea></div>
+          <div class="field"><label>Persian Terms & Conditions</label><textarea name="termsFa" required>${esc(settings.termsFa)}</textarea></div>
+          <button class="btn">Save Order Settings</button>
+        </form>
+      </div>
+      <div class="card">
+        <div class="cardhead"><h2>How it works</h2>${pill('Server enforced','ok')}</div>
+        <div class="notice"><b>Provider/API ID:</b> customers see the order number returned by the SMM provider, but it is labeled only as “Order ID”.</div>
+        <div class="notice"><b>VELIXEO Sequential ID:</b> customers see a VELIXEO number starting from your chosen value, such as 100063, 100064, 100065… Provider IDs remain private for status, refill and cancellation.</div>
+        <div class="notice"><b>Refill:</b> no manual capability switch is needed. Sync reads the provider API <span class="mono">refill</span> flag automatically. A refill button appears only for completed eligible orders and disappears when the configured window expires.</div>
+        <div class="notice"><b>Cancel:</b> the provider API <span class="mono">cancel</span> flag is also synchronized automatically and the button is hidden for terminal/partial orders.</div>
+      </div>
+    </div>`,
+  });
+}
+
 export function registerAdminSocialProviderManager(
   app: FastifyInstance,
   prisma: PrismaClient,
@@ -575,6 +614,7 @@ export function registerAdminSocialProviderManager(
       brands: '/admin/v3/social/brands',
       categories: '/admin/v3/social/categories',
       services: '/admin/v3/social/my-services',
+      settings: '/admin/v3/social/order-settings',
     };
     if (tab && redirects[tab]) {
       const target = new URL(redirects[tab], 'http://velixeo.local');
@@ -601,6 +641,39 @@ export function registerAdminSocialProviderManager(
       ...(await providerStatus(provider)),
     })));
     return reply.header('Cache-Control', 'no-store').send({ updatedAt: new Date().toISOString(), providers: statuses });
+  });
+
+  app.get('/admin/v3/social/order-settings', async (request, reply) => {
+    const admin = await requireAdmin(request, reply, resolveAdmin);
+    if (!admin) return;
+    return reply.type('text/html; charset=utf-8').send(await orderSettingsPage(prisma, admin, request));
+  });
+
+  app.post('/admin/v3/social/order-settings/save', async (request, reply) => {
+    const admin = await requireAdmin(request, reply, resolveAdmin);
+    if (!admin) return;
+    const body = request.body as Body;
+    try {
+      const current = await getSocialOrderSettings(prisma);
+      const saved = await saveSocialOrderSettings(prisma, {
+        orderIdMode: text(body, 'orderIdMode') === 'PROVIDER' ? 'PROVIDER' : 'SEQUENTIAL',
+        startNumber: Math.max(1, intValue(body.startNumber, current.startNumber)),
+        refillWindowHours: Math.max(1, Math.min(720, intValue(body.refillWindowHours, current.refillWindowHours))),
+        termsEn: text(body, 'termsEn') || current.termsEn,
+        termsFa: text(body, 'termsFa') || current.termsFa,
+      });
+      await audit(
+        prisma,
+        admin.id,
+        'SOCIAL_ORDER_SETTINGS_UPDATE',
+        'SystemSetting',
+        'social.order.settings',
+        `Order IDs: ${saved.orderIdMode}; refill window: ${saved.refillWindowHours}h`,
+      );
+      return reply.code(303).redirect('/admin/v3/social/order-settings?msg=Order%20settings%20saved.');
+    } catch (error) {
+      return reply.code(303).redirect(`/admin/v3/social/order-settings?error=1&msg=${encodeURIComponent(error instanceof Error ? error.message : 'order_settings_failed')}`);
+    }
   });
 
   app.post('/admin/v3/social/providers/save', async (request, reply) => {
