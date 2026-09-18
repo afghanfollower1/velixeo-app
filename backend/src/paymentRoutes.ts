@@ -270,11 +270,12 @@ export function registerPaymentRoutes(
         throw error;
       }
 
+      const gatewayReference = `VLX-${payment.id}`;
       const gatewayBody: Record<string, unknown> = {
-        user_id: payment.id,
+        user_id: gatewayReference,
         items: [
           {
-            id: payment.id,
+            id: gatewayReference,
             name: 'VELIXEO Wallet Top-up',
             price: Number(amountAfn),
           },
