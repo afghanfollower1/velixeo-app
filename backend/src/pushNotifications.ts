@@ -289,3 +289,55 @@ export function startNotificationPushScheduler(
   timer.unref?.();
   return () => clearInterval(timer);
 }
+
+export async function publishUserNotification(
+  prisma: PrismaClient,
+  userId: string,
+  input: {
+    type: NotificationType;
+    priority?: NotificationPriority;
+    titleEn: string;
+    titleFa: string;
+    bodyEn: string;
+    bodyFa: string;
+    actionRoute?: string | null;
+    actionEntityId?: string | null;
+    actionLabelEn?: string | null;
+    actionLabelFa?: string | null;
+    imageUrl?: string | null;
+  },
+) {
+  const notification = await prisma.notification.create({
+    data: {
+      audience: NotificationAudience.USER,
+      userId,
+      type: input.type,
+      priority: input.priority ?? NotificationPriority.NORMAL,
+      titleEn: input.titleEn,
+      titleFa: input.titleFa,
+      bodyEn: input.bodyEn,
+      bodyFa: input.bodyFa,
+      actionRoute: input.actionRoute ?? 'notifications',
+      actionEntityId: input.actionEntityId ?? null,
+      actionLabelEn: input.actionLabelEn ?? null,
+      actionLabelFa: input.actionLabelFa ?? null,
+      imageUrl: input.imageUrl ?? null,
+      enabled: true,
+      publishAt: new Date(),
+    },
+  });
+
+  let push = {
+    configured: firebasePushConfigured(),
+    total: 0,
+    sent: 0,
+    failed: 0,
+    disabledTokens: 0,
+  };
+  try {
+    push = await dispatchNotificationPush(prisma, notification);
+  } catch {
+    // The in-app notification must remain available even if FCM is temporarily unavailable.
+  }
+  return { notification, push };
+}
