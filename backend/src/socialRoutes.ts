@@ -491,7 +491,6 @@ function mapProviderStatus(raw: string) {
 function providerRefillAvailableAt(message: string | undefined) {
   if (!message) return null;
   const text = message.toLowerCase();
-  if (!text.includes('refill') || (!text.includes('available') && !text.includes('wait'))) return null;
   let milliseconds = 0;
   const matches = text.matchAll(/(\d+)\s*(day|days|hour|hours|hr|hrs|minute|minutes|min|mins)/g);
   for (const match of matches) {
@@ -559,7 +558,7 @@ function dripFeedSnapshot(order: {
 
   let status = rawStatus;
   if (!status) {
-    if ([OrderStatus.CANCELLED, OrderStatus.FAILED, OrderStatus.REFUNDED].includes(order.status)) status = 'Stopped';
+    if (order.status === OrderStatus.CANCELLED || order.status === OrderStatus.FAILED || order.status === OrderStatus.REFUNDED) status = 'Stopped';
     else if (scheduledCurrent >= runs && order.status === OrderStatus.COMPLETED) status = 'Finished';
     else status = 'Active';
   }
