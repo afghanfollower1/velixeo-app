@@ -194,7 +194,6 @@ function socialTabs(active: string) {
   const items = [
     ['/admin/v3?section=social&tab=overview', 'Overview', 'overview'],
     ['/admin/v3/social/providers', 'Providers', 'providers'],
-    ['/admin/v3/social/provider-services', 'Provider Services', 'catalog'],
     ['/admin/v3/social/categories', 'Categories', 'categories'],
     ['/admin/v3/social/my-services', 'My Services', 'services'],
     ['/admin/v3?section=social&tab=routing', 'Routing', 'routing'],
@@ -219,7 +218,6 @@ function shell(input: {
   const navItems = [
     ['/admin/v3?section=social&tab=overview', 'Overview', 'service', 'overview'],
     ['/admin/v3/social/providers', 'Providers', 'provider', 'providers'],
-    ['/admin/v3/social/provider-services', 'Provider Services', 'list', 'catalog'],
     ['/admin/v3/social/categories', 'Categories', 'category', 'categories'],
     ['/admin/v3/social/my-services', 'My Services', 'service', 'services'],
     ['/admin/v3?section=social&tab=routing', 'Routing', 'sync', 'routing'],
@@ -394,12 +392,12 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
 
   return shell({
     admin,
-    title: 'Provider Services',
-    subtitle: 'Select a provider, fetch its real catalog, then add only the services you want to sell.',
-    active: 'catalog',
+    title: provider ? provider.name + ' — Service List' : 'Provider Service List',
+    subtitle: 'Fetch this provider’s real catalog, then add selected services to your VELIXEO categories.',
+    active: 'providers',
     message: q.msg,
     error: q.error,
-    body: `<div class="card"><div class="cardhead"><div class="searchbar"><form method="get" action="/admin/v3/social/provider-services" class="searchbar"><select name="provider" onchange="this.form.submit()"><option value="">Choose provider</option>${providerOptions}</select><input name="q" value="${esc(q.q)}" placeholder="Search ID, name or category"><button class="btn ghost">Search</button></form></div>${provider ? `<form method="post" action="/admin/v3/social/provider-services/sync"><input type="hidden" name="providerId" value="${provider.id}"><button class="btn">${icon('sync')} Get / Refresh Services</button></form>` : ''}</div><div class="notice">Fetching services imports the provider catalog as hidden source data. Nothing appears in the customer app until you explicitly add/publish a service.</div></div><div class="grid"><div class="card"><div class="cardhead"><div><h2>${provider ? esc(provider.name) : 'Provider Catalog'}</h2><span class="muted">${priced.length.toLocaleString('en-US')} services shown${q.q?' after search':''}</span></div>${provider ? pill('Source catalog','info') : ''}</div><div class="tablewrap"><table class="table"><thead><tr><th>ID</th><th>Original Service Name</th><th>Provider Category</th><th>Provider Cost</th><th>VELIXEO Sale</th><th>Min / Max</th><th>Refill</th><th>Cancel</th><th>App Status</th><th>Add</th></tr></thead><tbody>${rows || `<tr><td colspan="10" class="empty">${provider ? 'Click “Get / Refresh Services” to download this provider’s service list.' : 'Add or select a provider first.'}</td></tr>`}</tbody></table></div></div>${config}</div>`,
+    body: `<div class="card"><div class="cardhead"><div class="searchbar"><a class="btn ghost" href="/admin/v3/social/providers">← Providers</a><form method="get" action="/admin/v3/social/provider-services" class="searchbar"><input type="hidden" name="provider" value="${esc(providerId)}"><input name="q" value="${esc(q.q)}" placeholder="Search ID, name or category"><button class="btn ghost">Search</button></form></div>${provider ? `<form method="post" action="/admin/v3/social/provider-services/sync"><input type="hidden" name="providerId" value="${provider.id}"><button class="btn">${icon('sync')} Get / Refresh Services</button></form>` : ''}</div><div class="notice">Fetching services imports the provider catalog as hidden source data. Nothing appears in the customer app until you explicitly add/publish a service.</div></div><div class="grid"><div class="card"><div class="cardhead"><div><h2>${provider ? esc(provider.name) : 'Provider Catalog'}</h2><span class="muted">${priced.length.toLocaleString('en-US')} services shown${q.q?' after search':''}</span></div>${provider ? pill('Source catalog','info') : ''}</div><div class="tablewrap"><table class="table"><thead><tr><th>ID</th><th>Original Service Name</th><th>Provider Category</th><th>Provider Cost</th><th>VELIXEO Sale</th><th>Min / Max</th><th>Refill</th><th>Cancel</th><th>App Status</th><th>Add</th></tr></thead><tbody>${rows || `<tr><td colspan="10" class="empty">${provider ? 'Click “Get / Refresh Services” to download this provider’s service list.' : 'Add or select a provider first.'}</td></tr>`}</tbody></table></div></div>${config}</div>`,
   });
 }
 
@@ -412,7 +410,11 @@ async function categoriesPage(prisma: PrismaClient, admin: AdminIdentity, reques
   });
   const counts = new Map<string, { total: number; live: number }>();
   for (const service of services) {
-    if (!service.socialGroup || jsonObject(service.metadata).rawCatalog === true) continue;
+    const meta = jsonObject(service.metadata);
+    const added = meta.addedToVelixeo === true
+      || typeof meta.publishedAt === 'string'
+      || typeof meta.publishedFromProviderId === 'string';
+    if (!service.socialGroup || !added) continue;
     const current = counts.get(service.socialGroup) ?? { total: 0, live: 0 };
     current.total += 1;
     if (service.enabled) current.live += 1;
@@ -455,7 +457,12 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
     orderBy: [{ enabled: 'desc' }, { sortOrder: 'asc' }, { titleEn: 'asc' }],
     take: 500,
   });
-  const services = all.filter(service => jsonObject(service.metadata).rawCatalog !== true);
+  const services = all.filter(service => {
+    const meta = jsonObject(service.metadata);
+    return meta.addedToVelixeo === true
+      || typeof meta.publishedAt === 'string'
+      || typeof meta.publishedFromProviderId === 'string';
+  });
   const rows = services.map(service => {
     const primary = service.routes[0];
     return `<tr><td><b>${esc(service.titleEn)}</b><br><span class="mono muted">${esc(service.slug)}</span></td><td>${esc(service.socialPlatform || 'OTHER')} → ${esc(service.socialGroup || '—')}</td><td>${primary ? esc(primary.provider.name) : '—'}${service.routes.length > 1 ? ` +${service.routes.length - 1}` : ''}</td><td>${service.basePriceAfn != null ? `<span class="price-fixed">Fixed · ${money(service.basePriceAfn)}</span>` : '<span class="price-auto">Auto Markup</span>'}</td><td>${service.minQty ?? '—'} – ${service.maxQty ?? '—'}</td><td>${service.featured?pill('Featured','info'):''} ${service.enabled?pill('Live','ok'):pill('Draft / Hidden','warn')}</td><td><div class="actions">${primary ? `<a class="iconbtn" href="/admin/v3/social/provider-services?provider=${primary.providerId}&route=${primary.id}" title="Edit service">${icon('edit')}</a>` : ''}<form method="post" action="/admin/v3/social/my-services/toggle"><input type="hidden" name="id" value="${service.id}"><button class="iconbtn ${service.enabled?'orange':'green'}" title="${service.enabled?'Hide from customer app':'Publish to customer app'}">${icon('eye')}</button></form></div></td></tr>`;
@@ -467,7 +474,7 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
     active: 'services',
     message: q.msg,
     error: q.error,
-    body: `<div class="card"><div class="cardhead"><form method="get" action="/admin/v3/social/my-services" class="searchbar"><input name="q" value="${esc(q.q)}" placeholder="Search service, slug or category"><button class="btn ghost">Search</button></form><a class="btn" href="/admin/v3/social/provider-services">${icon('plus')} Add from Provider</a></div><div class="tablewrap"><table class="table"><thead><tr><th>VELIXEO Service</th><th>Platform / Category</th><th>Provider</th><th>Pricing</th><th>Min / Max</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="empty">No VELIXEO social services yet.</td></tr>'}</tbody></table></div></div>`,
+    body: `<div class="card"><div class="cardhead"><form method="get" action="/admin/v3/social/my-services" class="searchbar"><input name="q" value="${esc(q.q)}" placeholder="Search service, slug or category"><button class="btn ghost">Search</button></form><a class="btn" href="/admin/v3/social/providers">${icon('plus')} Choose Provider</a></div><div class="tablewrap"><table class="table"><thead><tr><th>VELIXEO Service</th><th>Platform / Category</th><th>Provider</th><th>Pricing</th><th>Min / Max</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="empty">No VELIXEO social services yet.</td></tr>'}</tbody></table></div></div>`,
   });
 }
 
@@ -626,6 +633,8 @@ export function registerAdminSocialProviderManager(
   app.get('/admin/v3/social/provider-services', async (request, reply) => {
     const admin = await requireAdmin(request, reply, resolveAdmin);
     if (!admin) return;
+    const q = query(request);
+    if (!q.provider) return reply.code(303).redirect('/admin/v3/social/providers');
     return reply.type('text/html; charset=utf-8').send(await providerServicesPage(prisma, admin, request));
   });
 
@@ -687,6 +696,7 @@ export function registerAdminSocialProviderManager(
             metadata: {
               ...oldMeta,
               rawCatalog: false,
+              addedToVelixeo: true,
               pricingMode: mode,
               categorySlug: category.slug,
               publishedFromProviderId: route.providerId,
