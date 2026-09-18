@@ -21,7 +21,7 @@ import { randomBytes } from 'node:crypto';
 import { encryptProviderSecret, providerSecretEncryptionConfigured } from './providerSecrets.js';
 import { smmClientForProvider } from './smmPanelAdapter.js';
 import { fiveSimClientForProvider } from './fiveSimAdapter.js';
-import { dispatchNotificationPush, firebasePushConfigured } from './pushNotifications.js';
+import { dispatchNotificationPush, firebasePushConfigured, publishUserNotification } from './pushNotifications.js';
 import {
   convertSocialPriceToAfn,
   getSocialProviderSyncConfig,
@@ -373,6 +373,19 @@ export function registerAdminV3(app:FastifyInstance,p:PrismaClient,resolve:Admin
       }});
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
     await audit(p,a.id,'WALLET_MANUAL_ADJUST','WalletEntry',entry.id,`${amount} AFN — ${reason}`,{userId:id});
+    await publishUserNotification(p,id,{
+      type:NotificationType.WALLET,
+      priority:NotificationPriority.HIGH,
+      titleEn:amount>0n?'Wallet credited':'Wallet adjusted',
+      titleFa:amount>0n?'کیف پول شما شارژ شد':'موجودی کیف پول تغییر کرد',
+      bodyEn:amount>0n
+        ? `${amount.toLocaleString('en-US')} AFN was added to your VELIXEO wallet.`
+        : `${(-amount).toLocaleString('en-US')} AFN was deducted from your VELIXEO wallet.`,
+      bodyFa:amount>0n
+        ? `${amount.toLocaleString('en-US')} افغانی به کیف پول VELIXEO شما اضافه شد.`
+        : `${(-amount).toLocaleString('en-US')} افغانی از کیف پول VELIXEO شما کسر شد.`,
+      actionRoute:'wallet',actionEntityId:entry.id,actionLabelEn:'Open wallet',actionLabelFa:'مشاهده کیف پول',
+    });
     return rep.code(303).redirect(destination(true,'Wallet adjustment posted'));
   }catch(err){
     return rep.code(303).redirect(destination(false,err instanceof Error?err.message:'wallet_failed'));
@@ -392,6 +405,17 @@ export function registerAdminV3(app:FastifyInstance,p:PrismaClient,resolve:Admin
     output:{...output,adminStatusOverride:true,adminStatusOverrideValue:status,adminStatusOverrideAt:new Date().toISOString(),adminStatusOverrideBy:a.id},
   }});
   await audit(p,a.id,'ORDER_STATUS_OVERRIDE','Order',id,`Admin set order status to ${status}`);
+  await publishUserNotification(p,current.userId,{
+    type:NotificationType.ORDER,
+    priority:[OrderStatus.COMPLETED,OrderStatus.FAILED,OrderStatus.CANCELLED,OrderStatus.REFUNDED].includes(status)
+      ? NotificationPriority.HIGH
+      : NotificationPriority.NORMAL,
+    titleEn:'Order status updated',
+    titleFa:'وضعیت سفارش بروزرسانی شد',
+    bodyEn:`Your order ${sid(id)} is now ${status.replaceAll('_',' ')}.`,
+    bodyFa:`وضعیت سفارش ${sid(id)} به ${status.replaceAll('_',' ')} تغییر کرد.`,
+    actionRoute:'orders',actionEntityId:id,actionLabelEn:'View order',actionLabelFa:'مشاهده سفارش',
+  });
   return rep.code(303).redirect(href('orders','&msg=Order status overridden'));
  });
  app.post('/admin/v3/order-status-provider',async(req,rep)=>{
@@ -434,5 +458,20 @@ export function registerAdminV3(app:FastifyInstance,p:PrismaClient,resolve:Admin
    return rep.code(303).redirect(href('notifications',`&msg=${encodeURIComponent(message)}`))
  }catch(err){return rep.code(303).redirect(href('notifications',`&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'notification_failed')}`))}});
 
- app.post('/admin/v3/support',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body,id=t(b,'ticketId'),content=t(b,'content'),status=String(b.status) as SupportStatus;try{await p.$transaction([p.supportMessage.create({data:{ticketId:id,senderUserId:a.id,isAdmin:true,content}}),p.supportTicket.update({where:{id},data:{status,lastMessageAt:new Date()}})]);await audit(p,a.id,'SUPPORT_REPLY','SupportTicket',id,content.slice(0,120));return rep.code(303).redirect(href('support',`&ticket=${id}&msg=Reply sent`))}catch(err){return rep.code(303).redirect(href('support',`&ticket=${id}&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'reply_failed')}`))}});
+ app.post('/admin/v3/support',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body,id=t(b,'ticketId'),content=t(b,'content'),status=String(b.status) as SupportStatus;try{
+   const result=await p.$transaction([
+     p.supportMessage.create({data:{ticketId:id,senderUserId:a.id,isAdmin:true,content}}),
+     p.supportTicket.update({where:{id},data:{status,lastMessageAt:new Date()}}),
+   ]);
+   const ticket=result[1];
+   await audit(p,a.id,'SUPPORT_REPLY','SupportTicket',id,content.slice(0,120));
+   await publishUserNotification(p,ticket.userId,{
+     type:NotificationType.SUPPORT,priority:NotificationPriority.HIGH,
+     titleEn:'New support reply',titleFa:'پاسخ جدید پشتیبانی',
+     bodyEn:content.length>180?`${content.slice(0,177)}...`:content,
+     bodyFa:content.length>180?`${content.slice(0,177)}...`:content,
+     actionRoute:'support',actionEntityId:id,actionLabelEn:'Open ticket',actionLabelFa:'مشاهده تیکت',
+   });
+   return rep.code(303).redirect(href('support',`&ticket=${id}&msg=Reply sent`))
+  }catch(err){return rep.code(303).redirect(href('support',`&ticket=${id}&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'reply_failed')}`))}});
 }
