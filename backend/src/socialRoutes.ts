@@ -1534,13 +1534,29 @@ export function registerSocialRoutes(
       ? order.output as Record<string, unknown>
       : {};
     if (output.cancelSupported !== true) return reply.code(409).send({ error: 'cancel_not_supported' });
-    if (
+    const dripFeed = dripFeedSnapshot(order);
+    const dripStatus = String(dripFeed?.status ?? '').trim().toLowerCase();
+    const dripTerminal = [
+      'finished',
+      'completed',
+      'complete',
+      'stopped',
+      'cancelled',
+      'canceled',
+      'failed',
+      'refunded',
+    ].includes(dripStatus);
+    const normalTerminal =
       order.status === OrderStatus.COMPLETED ||
       order.status === OrderStatus.CANCELLED ||
       order.status === OrderStatus.PARTIAL ||
       order.status === OrderStatus.REFUNDED ||
-      order.status === OrderStatus.FAILED
-    ) {
+      order.status === OrderStatus.FAILED;
+    // A drip-feed parent can have an underlying order status of COMPLETED after
+    // the first child run while the provider master is still Active. In that
+    // case the master remains cancellable until the provider reports a terminal
+    // drip-feed state.
+    if ((dripFeed && dripTerminal) || (!dripFeed && normalTerminal)) {
       return reply.code(409).send({ error: 'order_not_cancellable' });
     }
     try {
