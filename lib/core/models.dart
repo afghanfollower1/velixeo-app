@@ -197,25 +197,48 @@ class AppNotification {
     required this.bodyFa,
     required this.bodyEn,
     required this.publishAt,
+    this.type = 'SYSTEM',
+    this.priority = 'NORMAL',
+    this.actionRoute,
+    this.actionEntityId,
+    this.actionLabelFa,
+    this.actionLabelEn,
+    this.imageUrl,
     this.isRead = false,
     this.readAt,
   });
 
   final String id;
+  final String type;
+  final String priority;
   final String titleFa;
   final String titleEn;
   final String bodyFa;
   final String bodyEn;
+  final String? actionRoute;
+  final String? actionEntityId;
+  final String? actionLabelFa;
+  final String? actionLabelEn;
+  final String? imageUrl;
   final DateTime publishAt;
   final bool isRead;
   final DateTime? readAt;
 
+  bool get hasAction => actionRoute?.trim().isNotEmpty == true && actionRoute != 'notifications';
+
   AppNotification copyWith({bool? isRead, DateTime? readAt}) => AppNotification(
         id: id,
+        type: type,
+        priority: priority,
         titleFa: titleFa,
         titleEn: titleEn,
         bodyFa: bodyFa,
         bodyEn: bodyEn,
+        actionRoute: actionRoute,
+        actionEntityId: actionEntityId,
+        actionLabelFa: actionLabelFa,
+        actionLabelEn: actionLabelEn,
+        imageUrl: imageUrl,
         publishAt: publishAt,
         isRead: isRead ?? this.isRead,
         readAt: readAt ?? this.readAt,
@@ -223,10 +246,17 @@ class AppNotification {
 
   factory AppNotification.fromJson(Map<String, dynamic> json) => AppNotification(
         id: json['id'] as String,
+        type: (json['type'] as String?) ?? 'SYSTEM',
+        priority: (json['priority'] as String?) ?? 'NORMAL',
         titleFa: (json['titleFa'] as String?) ?? '',
         titleEn: (json['titleEn'] as String?) ?? '',
         bodyFa: (json['bodyFa'] as String?) ?? '',
         bodyEn: (json['bodyEn'] as String?) ?? '',
+        actionRoute: json['actionRoute'] as String?,
+        actionEntityId: json['actionEntityId'] as String?,
+        actionLabelFa: json['actionLabelFa'] as String?,
+        actionLabelEn: json['actionLabelEn'] as String?,
+        imageUrl: json['imageUrl'] as String?,
         publishAt: DateTime.tryParse('${json['publishAt']}') ?? DateTime.now(),
         isRead: (json['isRead'] as bool?) ?? false,
         readAt: json['readAt'] == null ? null : DateTime.tryParse('${json['readAt']}'),
