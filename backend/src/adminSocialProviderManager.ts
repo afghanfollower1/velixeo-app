@@ -89,7 +89,7 @@ async function requireAdmin(
 ) {
   const admin = await resolveAdmin(request);
   if (!admin) {
-    reply.code(303).redirect('/admin');
+    reply.code(303).redirect('/admin/login');
     return null;
   }
   return admin;
