@@ -506,6 +506,74 @@ function providerRefillAvailableAt(message: string | undefined) {
   return new Date(Date.now() + milliseconds);
 }
 
+function providerBool(value: unknown) {
+  if (value === true || value === 1) return true;
+  const text = String(value ?? '').trim().toLowerCase();
+  return ['1','true','yes','on','enabled','available'].includes(text);
+}
+
+function providerText(row: Record<string, unknown>, ...keys: string[]) {
+  for (const key of keys) {
+    const value = row[key];
+    if (value != null && String(value).trim()) return String(value).trim();
+  }
+  return null;
+}
+
+function dripFeedSnapshot(order: {
+  status: OrderStatus;
+  createdAt: Date;
+  quantity: number | null;
+  input: Prisma.JsonValue | null;
+  output: Prisma.JsonValue | null;
+}) {
+  const input = order.input && typeof order.input === 'object' && !Array.isArray(order.input)
+    ? order.input as Record<string, unknown>
+    : {};
+  const output = order.output && typeof order.output === 'object' && !Array.isArray(order.output)
+    ? order.output as Record<string, unknown>
+    : {};
+  const params = input.parameters && typeof input.parameters === 'object' && !Array.isArray(input.parameters)
+    ? input.parameters as Record<string, unknown>
+    : {};
+  const runs = Math.max(1, Number(input.runs ?? params.runs ?? 1) || 1);
+  const interval = Math.max(0, Number(input.intervalMinutes ?? params.interval ?? 0) || 0);
+  const unitQuantity = Math.max(0, Number(input.unitQuantity ?? params.quantity ?? order.quantity ?? 0) || 0);
+  const totalQuantity = Math.max(0, Number(input.totalQuantity ?? (unitQuantity * runs)) || 0);
+  const isDripFeed = input.dripFeed === true || runs > 1;
+  if (!isDripFeed) return null;
+
+  const raw = output.providerRawStatus && typeof output.providerRawStatus === 'object' && !Array.isArray(output.providerRawStatus)
+    ? output.providerRawStatus as Record<string, unknown>
+    : {};
+  const rawStatus = providerText(raw, 'status_name', 'drip_feed_status', 'dripfeed_status');
+  const rawRunsCurrent = Number(raw.runs_current ?? raw.current_run ?? raw.run ?? NaN);
+  const rawRunsAll = Number(raw.runs_all ?? raw.runs ?? NaN);
+  const rawTotal = Number(raw.total_quantity ?? NaN);
+  const rawInterval = Number(raw.interval ?? NaN);
+
+  const elapsedMinutes = Math.max(0, (Date.now() - order.createdAt.getTime()) / 60_000);
+  const scheduledCurrent = interval > 0
+    ? Math.min(runs, Math.max(1, Math.floor(elapsedMinutes / interval) + 1))
+    : 1;
+
+  let status = rawStatus;
+  if (!status) {
+    if ([OrderStatus.CANCELLED, OrderStatus.FAILED, OrderStatus.REFUNDED].includes(order.status)) status = 'Stopped';
+    else if (scheduledCurrent >= runs && order.status === OrderStatus.COMPLETED) status = 'Finished';
+    else status = 'Active';
+  }
+
+  return {
+    status,
+    runsCurrent: Number.isFinite(rawRunsCurrent) ? rawRunsCurrent : scheduledCurrent,
+    runsAll: Number.isFinite(rawRunsAll) ? rawRunsAll : runs,
+    interval: Number.isFinite(rawInterval) ? rawInterval : interval,
+    totalQuantity: Number.isFinite(rawTotal) ? rawTotal : totalQuantity,
+    unitQuantity,
+  };
+}
+
 async function audit(
   prisma: PrismaClient,
   adminId: string,
@@ -597,10 +665,14 @@ function socialOrderJson(order: any) {
   const refillCheckable = output.refillSupported === true
     && order.status === OrderStatus.COMPLETED
     && !activeRefill;
-  const canRefill = refillCheckable
-    && refillAvailableAt != null
-    && !Number.isNaN(refillAvailableAt.getTime())
-    && refillAvailableAt.getTime() <= Date.now();
+  const providerRefillReady = output.providerRefillReady === true;
+  const canRefill = refillCheckable && (
+    providerRefillReady
+    || (refillAvailableAt != null
+      && !Number.isNaN(refillAvailableAt.getTime())
+      && refillAvailableAt.getTime() <= Date.now())
+  );
+  const dripFeed = dripFeedSnapshot(order);
   return {
     id: order.id,
     displayOrderId: orderDisplayId(order),
@@ -616,6 +688,7 @@ function socialOrderJson(order: any) {
     refillAvailabilityMessage: output.refillAvailabilityMessage ?? null,
     refillCheckable,
     canRefill,
+    dripFeed,
     canCancel: output.cancelSupported === true
       && ![OrderStatus.COMPLETED, OrderStatus.PARTIAL, OrderStatus.CANCELLED, OrderStatus.FAILED, OrderStatus.REFUNDED].includes(order.status),
     input: order.input,
@@ -759,10 +832,19 @@ async function syncSocialOrderRecord(prisma: PrismaClient, order: any) {
         ...currentOutput,
         providerStatus: status.status,
         providerMappedStatus,
+        providerRawStatus: status.raw as Prisma.InputJsonValue,
         charge: status.charge ?? null,
         startCount: status.startCount ?? null,
         remains: status.remains ?? null,
         providerCurrency: status.currency ?? null,
+        providerRefillReady: providerBool(status.raw.refill),
+        providerCancelReady: providerBool(status.raw.cancel),
+        refillAvailabilityMessage: providerText(status.raw, 'refillAvailableTime', 'refill_available_time', 'refill_available'),
+        refillAvailableAt: (() => {
+          const message = providerText(status.raw, 'refillAvailableTime', 'refill_available_time', 'refill_available');
+          const parsed = providerRefillAvailableAt(message ?? undefined);
+          return parsed?.toISOString() ?? currentOutput.refillAvailableAt ?? null;
+        })(),
         lastStatusSyncAt: new Date().toISOString(),
       },
     },
@@ -1246,7 +1328,8 @@ export function registerSocialRoutes(
         userId,
         category: ServiceCategory.SOCIAL,
         providerOrderId: { not: null },
-        status: { in: [OrderStatus.PENDING, OrderStatus.PROCESSING] },
+        createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+        status: { notIn: [OrderStatus.CANCELLED, OrderStatus.FAILED, OrderStatus.REFUNDED] },
       },
       include: { provider: true, service: true, actions: { orderBy: { createdAt: 'desc' } } },
       orderBy: { createdAt: 'desc' },
@@ -1448,7 +1531,8 @@ export function registerSocialRoutes(
         where: {
           category: ServiceCategory.SOCIAL,
           providerOrderId: { not: null },
-          status: { in: [OrderStatus.PENDING, OrderStatus.PROCESSING] },
+          createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+          status: { notIn: [OrderStatus.CANCELLED, OrderStatus.FAILED, OrderStatus.REFUNDED] },
         },
         include: { provider: true, service: true, actions: { orderBy: { createdAt: 'desc' } } },
         orderBy: { updatedAt: 'asc' },
