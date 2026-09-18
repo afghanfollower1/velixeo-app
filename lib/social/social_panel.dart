@@ -698,6 +698,28 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
                 style: const TextStyle(fontSize: 12, color: Color(0xFF607487)),
               ),
             ),
+          if (service.providerEta?.trim().isNotEmpty == true)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4F7FA),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.schedule_rounded, size: 18, color: Color(0xFF607487)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${t('زمان تقریبی تکمیل', 'Estimated completion')}: ${service.providerEta!}',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           TextField(
             controller: coupon,
             textCapitalization: TextCapitalization.characters,
@@ -733,11 +755,39 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
             ),
           ),
           const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              border: Border.all(color: termsAccepted ? const Color(0xFFBFE8D6) : const Color(0xFFDCE8F1)),
+              borderRadius: BorderRadius.circular(14),
+              color: termsAccepted ? const Color(0xFFF0FBF6) : const Color(0xFFFAFCFE),
+            ),
+            child: CheckboxListTile(
+              value: termsAccepted,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              onChanged: (value) => setState(() => termsAccepted = value == true),
+              title: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(t('قوانین و مقررات را خوانده‌ام و می‌پذیرم. ', 'I have read and accept the ')),
+                  InkWell(
+                    onTap: showTerms,
+                    child: Text(
+                      t('مشاهده قوانین', 'terms & conditions'),
+                      style: const TextStyle(color: Color(0xFF1686FF), fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             height: 52,
             child: FilledButton.icon(
-              onPressed: submitting ? null : submitOrder,
+              onPressed: submitting || !termsAccepted ? null : submitOrder,
               icon: submitting
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.lock_outline_rounded),
@@ -1101,6 +1151,7 @@ class _ServiceCard extends StatelessWidget {
   final VoidCallback onTap;
 
   String eta() {
+    if (service.providerEta?.trim().isNotEmpty == true) return service.providerEta!.trim();
     final min = service.estimatedMinMinutes;
     final max = service.estimatedMaxMinutes;
     if (min == null && max == null) return fa ? 'زمان تقریبی ثبت نشده' : 'ETA not set';
