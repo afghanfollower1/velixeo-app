@@ -559,7 +559,6 @@ function dripFeedSnapshot(order: {
   let status = rawStatus;
   if (!status) {
     if (order.status === OrderStatus.CANCELLED || order.status === OrderStatus.FAILED || order.status === OrderStatus.REFUNDED) status = 'Stopped';
-    else if (scheduledCurrent >= runs && order.status === OrderStatus.COMPLETED) status = 'Finished';
     else status = 'Active';
   }
 
