@@ -280,6 +280,7 @@ model Order {
   totalAmountAfn       BigInt
   providerCostAfn      BigInt?
   providerOrderId      String?
+  publicOrderNumber    BigInt?         @unique
   clientRequestId      String?         @unique
   input                Json?
   output               Json?
