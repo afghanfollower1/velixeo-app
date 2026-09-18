@@ -38,6 +38,8 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
   bool refreshing = false;
   bool languageConfirmed = true;
   String? authError;
+  Map<String, String>? _pendingNotificationOpen;
+  ({String title, String body, Map<String, String> data})? _foregroundPush;
 
   bool get fa => false; // English-first release. Persian layout will be enabled in the next design pass.
   bool get googleConfigured => googleAuth.configured;
@@ -213,6 +215,18 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
     }
   }
 
+  Map<String, String>? takePendingNotificationOpen() {
+    final value = _pendingNotificationOpen;
+    _pendingNotificationOpen = null;
+    return value;
+  }
+
+  ({String title, String body, Map<String, String> data})? takeForegroundPush() {
+    final value = _foregroundPush;
+    _foregroundPush = null;
+    return value;
+  }
+
   Future<void> markNotificationRead(AppNotification notice) async {
     if (notice.isRead) return;
     final now = DateTime.now();
@@ -258,6 +272,14 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
             notifications = await api.notifications();
             notifyListeners();
           } catch (_) {}
+        },
+        onNotificationOpened: (data) async {
+          _pendingNotificationOpen = Map<String, String>.from(data);
+          notifyListeners();
+        },
+        onForegroundNotification: (title, body, data) async {
+          _foregroundPush = (title: title, body: body, data: Map<String, String>.from(data));
+          notifyListeners();
         },
       );
     } catch (_) {
@@ -602,28 +624,19 @@ class BrandMark extends StatelessWidget {
   Widget build(BuildContext context) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(size * .28),
-              gradient: const LinearGradient(
-                colors: [Color(0xFF4DB8FF), Color(0xFF0D78C8)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
+          SizedBox.square(
+            dimension: size,
             child: CustomPaint(painter: _LogoPainter()),
           ),
           if (wordmark) ...[
-            const SizedBox(width: 10),
+            SizedBox(width: size * .18),
             Text(
               'VELIXEO',
               style: TextStyle(
                 fontSize: size * .43,
                 fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
-                color: const Color(0xFF102235),
+                letterSpacing: 1.7,
+                color: const Color(0xFF092C56),
               ),
             ),
           ],
@@ -634,22 +647,65 @@ class BrandMark extends StatelessWidget {
 class _LogoPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * .14
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    final path = Path()
-      ..moveTo(size.width * .25, size.height * .29)
-      ..lineTo(size.width * .49, size.height * .73)
-      ..lineTo(size.width * .72, size.height * .31);
-    canvas.drawPath(path, paint);
-    canvas.drawCircle(
-      Offset(size.width * .77, size.height * .22),
-      size.width * .07,
-      Paint()..color = Colors.white,
-    );
+    final sx = size.width / 96;
+    final sy = size.height / 96;
+    Offset p(double x, double y) => Offset(x * sx, y * sy);
+
+    final main = Path()
+      ..moveTo(19 * sx, 18 * sy)
+      ..cubicTo(15 * sx, 18 * sy, 12 * sx, 20 * sy, 10.3 * sx, 23.2 * sy)
+      ..cubicTo(8.6 * sx, 26.4 * sy, 8.7 * sx, 30 * sy, 10.6 * sx, 33.2 * sy)
+      ..lineTo(37.8 * sx, 80.4 * sy)
+      ..cubicTo(40.1 * sx, 84.4 * sy, 43.7 * sx, 86.7 * sy, 47.9 * sx, 86.7 * sy)
+      ..cubicTo(51 * sx, 86.7 * sy, 53.8 * sx, 85.5 * sy, 56.1 * sx, 83.2 * sy)
+      ..lineTo(74.2 * sx, 65 * sy)
+      ..lineTo(61.4 * sx, 46.6 * sy)
+      ..lineTo(49.2 * sx, 58.7 * sy)
+      ..lineTo(27.8 * sx, 22.5 * sy)
+      ..cubicTo(25.8 * sx, 19.5 * sy, 22.9 * sx, 18 * sy, 19 * sx, 18 * sy)
+      ..close();
+    final mainPaint = Paint()
+      ..shader = const LinearGradient(
+        colors: [Color(0xFF55D0FF), Color(0xFF168BFF), Color(0xFF0753D9)],
+        stops: [0, .50, 1],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ).createShader(Offset.zero & size);
+    canvas.drawPath(main, mainPaint);
+
+    final fold = Path()
+      ..moveTo(21.5 * sx, 18.2 * sy)
+      ..lineTo(36.9 * sx, 18.2 * sy)
+      ..lineTo(64.3 * sx, 57.8 * sy)
+      ..lineTo(49.4 * sx, 72.9 * sy)
+      ..lineTo(21.4 * sx, 24.5 * sy)
+      ..cubicTo(20.1 * sx, 22.3 * sy, 20.2 * sx, 20.1 * sy, 21.5 * sx, 18.2 * sy)
+      ..close();
+    canvas.drawPath(fold, Paint()..color = const Color(0xFF176CE5).withValues(alpha: .58));
+
+    final shine = Path()
+      ..moveTo(50 * sx, 59 * sy)
+      ..lineTo(58.5 * sx, 50.5 * sy)
+      ..lineTo(64.3 * sx, 57.8 * sy)
+      ..lineTo(54.3 * sx, 67.9 * sy)
+      ..close();
+    canvas.drawPath(shine, Paint()..color = Colors.white.withValues(alpha: .95));
+
+    final detailShader = const LinearGradient(
+      colors: [Color(0xFF5CD4FF), Color(0xFF1269EC)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ).createShader(Offset.zero & size);
+    canvas.drawCircle(p(76, 23), 9.4 * sx, Paint()..shader = detailShader);
+    final person = Path()
+      ..moveTo(67.5 * sx, 43.5 * sy)
+      ..cubicTo(67.5 * sx, 38.3 * sy, 71.6 * sx, 34.3 * sy, 76.7 * sx, 34.3 * sy)
+      ..cubicTo(81.8 * sx, 34.3 * sy, 85.8 * sx, 38.3 * sy, 85.8 * sx, 43.5 * sy)
+      ..cubicTo(85.8 * sx, 46.5 * sy, 84.3 * sx, 48.7 * sy, 82 * sx, 51 * sy)
+      ..lineTo(75.1 * sx, 58 * sy)
+      ..lineTo(67.5 * sx, 50.1 * sy)
+      ..close();
+    canvas.drawPath(person, Paint()..shader = detailShader);
   }
 
   @override
@@ -1023,6 +1079,85 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_handleControllerSignals);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _handleControllerSignals());
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_handleControllerSignals);
+    super.dispose();
+  }
+
+  void _openPushRoute(Map<String, String> data) {
+    if (!mounted) return;
+    final route = (data['route'] ?? 'notifications').trim().toLowerCase();
+    switch (route) {
+      case 'home':
+        setState(() => index = 0);
+        break;
+      case 'services':
+        setState(() => index = 1);
+        break;
+      case 'orders':
+        setState(() => index = 2);
+        break;
+      case 'wallet':
+      case 'payments':
+        setState(() => index = 3);
+        break;
+      case 'profile':
+        setState(() => index = 4);
+        break;
+      case 'support':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => SupportPage(host: widget.controller)));
+        break;
+      default:
+        Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationsPage(controller: widget.controller)));
+    }
+  }
+
+  void _handleControllerSignals() {
+    final opened = widget.controller.takePendingNotificationOpen();
+    final foreground = widget.controller.takeForegroundPush();
+    if (opened != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openPushRoute(opened));
+    }
+    if (foreground != null && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            content: Row(
+              children: [
+                const SizedBox.square(dimension: 34, child: CustomPaint(painter: _LogoPainter())),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(foreground.title.isEmpty ? 'VELIXEO' : foreground.title, style: const TextStyle(fontWeight: FontWeight.w900)),
+                      if (foreground.body.isNotEmpty) Text(foreground.body, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            action: SnackBarAction(label: 'OPEN', onPressed: () => _openPushRoute(foreground.data)),
+          ),
+        );
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1807,109 +1942,382 @@ class OrdersPage extends StatelessWidget {
   }
 }
 
-class NotificationsPage extends StatelessWidget {
+IconData _notificationIcon(String type) {
+  switch (type) {
+    case 'ORDER':
+    case 'REFILL':
+    case 'DRIPFEED':
+      return Icons.receipt_long_rounded;
+    case 'PAYMENT':
+      return Icons.payments_rounded;
+    case 'WALLET':
+      return Icons.account_balance_wallet_rounded;
+    case 'SUPPORT':
+      return Icons.support_agent_rounded;
+    case 'PROMOTION':
+      return Icons.campaign_rounded;
+    case 'ACCOUNT':
+      return Icons.manage_accounts_rounded;
+    default:
+      return Icons.notifications_active_rounded;
+  }
+}
+
+Color _notificationColor(String type) {
+  switch (type) {
+    case 'ORDER':
+    case 'REFILL':
+    case 'DRIPFEED':
+      return const Color(0xFF1686FF);
+    case 'PAYMENT':
+    case 'WALLET':
+      return const Color(0xFF16A873);
+    case 'SUPPORT':
+      return const Color(0xFF7457E8);
+    case 'PROMOTION':
+      return const Color(0xFFE9508B);
+    case 'ACCOUNT':
+      return const Color(0xFFF29A2E);
+    default:
+      return const Color(0xFF2E86C9);
+  }
+}
+
+String _notificationTypeLabel(String type) {
+  switch (type) {
+    case 'ORDER': return 'Order';
+    case 'REFILL': return 'Refill';
+    case 'DRIPFEED': return 'Drip-feed';
+    case 'PAYMENT': return 'Payment';
+    case 'WALLET': return 'Wallet';
+    case 'SUPPORT': return 'Support';
+    case 'PROMOTION': return 'Promotion';
+    case 'ACCOUNT': return 'Account';
+    default: return 'System';
+  }
+}
+
+String _relativeNotificationTime(DateTime value) {
+  final diff = DateTime.now().difference(value.toLocal());
+  if (diff.inMinutes < 1) return 'Just now';
+  if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+  if (diff.inHours < 24) return '${diff.inHours}h ago';
+  if (diff.inDays < 7) return '${diff.inDays}d ago';
+  return value.toLocal().toString().substring(0, 10);
+}
+
+Future<void> _openNotificationAction(BuildContext context, AppController c, AppNotification notice) async {
+  await c.markNotificationRead(notice);
+  if (!context.mounted || !notice.hasAction) return;
+  switch ((notice.actionRoute ?? '').toLowerCase()) {
+    case 'orders':
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => OrdersPage(controller: c)));
+      break;
+    case 'wallet':
+    case 'payments':
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => WalletPage(controller: c)));
+      break;
+    case 'support':
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => SupportPage(host: c)));
+      break;
+    case 'services':
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => ServicesPage(controller: c)));
+      break;
+    case 'profile':
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage(controller: c)));
+      break;
+    case 'home':
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => HomePage(controller: c)));
+      break;
+  }
+}
+
+class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key, required this.controller});
   final AppController controller;
 
   @override
+  State<NotificationsPage> createState() => _NotificationsPageState();
+}
+
+class _NotificationsPageState extends State<NotificationsPage> {
+  String filter = 'ALL';
+
+  List<AppNotification> visible(AppController c) {
+    if (filter == 'ALL') return c.notifications;
+    if (filter == 'ORDER') {
+      return c.notifications.where((n) => const ['ORDER', 'REFILL', 'DRIPFEED'].contains(n.type)).toList(growable: false);
+    }
+    if (filter == 'WALLET') {
+      return c.notifications.where((n) => const ['WALLET', 'PAYMENT'].contains(n.type)).toList(growable: false);
+    }
+    return c.notifications.where((n) => n.type == filter).toList(growable: false);
+  }
+
+  int countType(AppController c, String key) {
+    if (key == 'ALL') return c.notifications.length;
+    if (key == 'ORDER') return c.notifications.where((n) => const ['ORDER', 'REFILL', 'DRIPFEED'].contains(n.type)).length;
+    if (key == 'WALLET') return c.notifications.where((n) => const ['WALLET', 'PAYMENT'].contains(n.type)).length;
+    return c.notifications.where((n) => n.type == key).length;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final c = controller;
+    final c = widget.controller;
+    const filters = <(String, String)>[
+      ('ALL', 'All'),
+      ('ORDER', 'Orders'),
+      ('WALLET', 'Wallet'),
+      ('SUPPORT', 'Support'),
+      ('PROMOTION', 'Offers'),
+      ('SYSTEM', 'System'),
+    ];
     return AnimatedBuilder(
       animation: c,
-      builder: (context, _) => Scaffold(
-        appBar: AppBar(
-          title: Text(tr(c.fa, 'اعلان‌ها', 'Notifications')),
-          actions: [
-            if (c.unreadNotificationCount > 0)
-              TextButton(
-                onPressed: c.markAllNotificationsRead,
-                child: Text(tr(c.fa, 'خواندن همه', 'Read all')),
-              ),
-          ],
-        ),
-        body: RefreshIndicator(
-          onRefresh: c.refreshAccount,
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(18),
-            children: [
-              if (c.notifications.isEmpty)
-                EmptyCard(
-                  icon: Icons.notifications_none_rounded,
-                  title: tr(c.fa, 'اعلانی ندارید', 'No notifications'),
-                  subtitle: tr(c.fa, 'اعلان‌های عمومی یا اختصاصی از پنل مدیریت اینجا نمایش داده می‌شوند.', 'Admin announcements and personal notifications will appear here.'),
-                )
-              else
-                ...c.notifications.map(
-                  (notice) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(18),
-                      onTap: () => c.markNotificationRead(notice),
-                      child: SoftCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    c.fa ? notice.titleFa : notice.titleEn,
-                                    style: TextStyle(
-                                      fontWeight: notice.isRead ? FontWeight.w700 : FontWeight.w900,
-                                    ),
-                                  ),
-                                ),
-                                if (!notice.isRead)
-                                  Container(
-                                    width: 9,
-                                    height: 9,
-                                    margin: const EdgeInsets.only(top: 4),
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFF1686FF),
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              c.fa ? notice.bodyFa : notice.bodyEn,
-                              style: TextStyle(
-                                color: notice.isRead ? const Color(0xFF7D8998) : const Color(0xFF4F6073),
-                                height: 1.45,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    notice.publishAt.toLocal().toString().substring(0, 16),
-                                    style: const TextStyle(fontSize: 11, color: Color(0xFF8AA0B3)),
-                                  ),
-                                ),
-                                Text(
-                                  notice.isRead ? tr(c.fa, 'خوانده شده', 'Read') : tr(c.fa, 'جدید', 'New'),
-                                  style: TextStyle(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: notice.isRead ? const Color(0xFF8AA0B3) : const Color(0xFF1686FF),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+      builder: (context, _) {
+        final items = visible(c);
+        return Scaffold(
+          backgroundColor: const Color(0xFFF5F8FC),
+          body: SafeArea(
+            child: RefreshIndicator(
+              onRefresh: c.refreshAccount,
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Container(
+                      margin: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(26),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF082D58), Color(0xFF0F70D9), Color(0xFF28B2FF)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
+                        boxShadow: const [BoxShadow(color: Color(0x261686FF), blurRadius: 28, offset: Offset(0, 12))],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              IconButton.filledTonal(
+                                style: IconButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: .14), foregroundColor: Colors.white),
+                                onPressed: () => Navigator.pop(context),
+                                icon: const Icon(Icons.arrow_back_rounded),
+                              ),
+                              const SizedBox(width: 10),
+                              Container(
+                                width: 48,
+                                height: 48,
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15)),
+                                child: const BrandMark(size: 40, wordmark: false),
+                              ),
+                              const SizedBox(width: 11),
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Notification Center', style: TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900)),
+                                    SizedBox(height: 2),
+                                    Text('Orders, wallet, support & updates', style: TextStyle(color: Color(0xFFD7EDFF), fontSize: 11.5)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 18),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: .11), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withValues(alpha: .13))),
+                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    const Text('Unread', style: TextStyle(color: Color(0xFFD6ECFF), fontSize: 10.5)),
+                                    const SizedBox(height: 4),
+                                    Text('${c.unreadNotificationCount}', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
+                                  ]),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: .11), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withValues(alpha: .13))),
+                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    const Text('Total', style: TextStyle(color: Color(0xFFD6ECFF), fontSize: 10.5)),
+                                    const SizedBox(height: 4),
+                                    Text('${c.notifications.length}', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
+                                  ]),
+                                ),
+                              ),
+                              if (c.unreadNotificationCount > 0) ...[
+                                const SizedBox(width: 10),
+                                FilledButton(
+                                  style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF1268C7), minimumSize: const Size(86, 58), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                                  onPressed: c.markAllNotificationsRead,
+                                  child: const Text('Read all', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ),
-            ],
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 48,
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        scrollDirection: Axis.horizontal,
+                        itemCount: filters.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 7),
+                        itemBuilder: (_, i) {
+                          final item = filters[i];
+                          final active = filter == item.$1;
+                          final count = countType(c, item.$1);
+                          return ChoiceChip(
+                            selected: active,
+                            onSelected: (_) => setState(() => filter = item.$1),
+                            label: Text('${item.$2}  $count'),
+                            showCheckmark: false,
+                            selectedColor: const Color(0xFF1686FF),
+                            backgroundColor: Colors.white,
+                            side: BorderSide(color: active ? const Color(0xFF1686FF) : const Color(0xFFE0E8F0)),
+                            labelStyle: TextStyle(color: active ? Colors.white : const Color(0xFF5D6C7E), fontSize: 11, fontWeight: FontWeight.w800),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  if (items.isEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(18),
+                        child: EmptyCard(
+                          icon: Icons.notifications_none_rounded,
+                          title: 'Nothing here yet',
+                          subtitle: filter == 'ALL' ? 'Your important VELIXEO updates will appear here.' : 'No notifications in this category yet.',
+                        ),
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(14, 8, 14, 28),
+                      sliver: SliverList.separated(
+                        itemCount: items.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final notice = items[index];
+                          final color = _notificationColor(notice.type);
+                          final title = c.fa ? notice.titleFa : notice.titleEn;
+                          final body = c.fa ? notice.bodyFa : notice.bodyEn;
+                          final action = c.fa ? notice.actionLabelFa : notice.actionLabelEn;
+                          return Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(21),
+                              onTap: () => _openNotificationAction(context, c, notice),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                padding: const EdgeInsets.all(15),
+                                decoration: BoxDecoration(
+                                  color: notice.isRead ? Colors.white : color.withValues(alpha: .055),
+                                  borderRadius: BorderRadius.circular(21),
+                                  border: Border.all(color: notice.isRead ? const Color(0xFFE3EAF2) : color.withValues(alpha: .24)),
+                                  boxShadow: const [BoxShadow(color: Color(0x0D133F69), blurRadius: 20, offset: Offset(0, 8))],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                          width: 46,
+                                          height: 46,
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(colors: [color.withValues(alpha: .72), color]),
+                                            borderRadius: BorderRadius.circular(15),
+                                          ),
+                                          child: Icon(_notificationIcon(notice.type), color: Colors.white, size: 23),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(children: [
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                  decoration: BoxDecoration(color: color.withValues(alpha: .10), borderRadius: BorderRadius.circular(999)),
+                                                  child: Text(_notificationTypeLabel(notice.type), style: TextStyle(color: color, fontSize: 9.5, fontWeight: FontWeight.w900)),
+                                                ),
+                                                if (notice.priority == 'HIGH') ...[
+                                                  const SizedBox(width: 5),
+                                                  const Icon(Icons.bolt_rounded, size: 15, color: Color(0xFFF29A2E)),
+                                                ],
+                                                const Spacer(),
+                                                Text(_relativeNotificationTime(notice.publishAt), style: const TextStyle(color: Color(0xFF8A9AA9), fontSize: 10)),
+                                                if (!notice.isRead) ...[
+                                                  const SizedBox(width: 7),
+                                                  Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                                                ],
+                                              ]),
+                                              const SizedBox(height: 7),
+                                              Text(title, style: TextStyle(fontSize: 14, height: 1.25, fontWeight: notice.isRead ? FontWeight.w800 : FontWeight.w900, color: const Color(0xFF17263A))),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 11),
+                                    Text(body, style: TextStyle(color: notice.isRead ? const Color(0xFF7C8997) : const Color(0xFF506276), fontSize: 12.2, height: 1.48)),
+                                    if (notice.imageUrl?.trim().isNotEmpty == true) ...[
+                                      const SizedBox(height: 11),
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(14),
+                                        child: AspectRatio(
+                                          aspectRatio: 2.3,
+                                          child: Image.network(
+                                            notice.imageUrl!,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                    if (notice.hasAction) ...[
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+                                        decoration: BoxDecoration(color: color.withValues(alpha: .075), borderRadius: BorderRadius.circular(12)),
+                                        child: Row(
+                                          children: [
+                                            Expanded(child: Text(action?.trim().isNotEmpty == true ? action! : 'Open ${_notificationTypeLabel(notice.type)}', style: TextStyle(color: color, fontSize: 10.8, fontWeight: FontWeight.w900))),
+                                            Icon(Icons.arrow_forward_rounded, color: color, size: 17),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
