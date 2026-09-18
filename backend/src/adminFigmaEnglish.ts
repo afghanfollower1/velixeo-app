@@ -407,9 +407,12 @@ export function registerAdminV3(app:FastifyInstance,p:PrismaClient,resolve:Admin
   await audit(p,a.id,'ORDER_STATUS_OVERRIDE','Order',id,`Admin set order status to ${status}`);
   await publishUserNotification(p,current.userId,{
     type:NotificationType.ORDER,
-    priority:[OrderStatus.COMPLETED,OrderStatus.FAILED,OrderStatus.CANCELLED,OrderStatus.REFUNDED].includes(status)
-      ? NotificationPriority.HIGH
-      : NotificationPriority.NORMAL,
+    priority:(
+      status===OrderStatus.COMPLETED
+      || status===OrderStatus.FAILED
+      || status===OrderStatus.CANCELLED
+      || status===OrderStatus.REFUNDED
+    ) ? NotificationPriority.HIGH : NotificationPriority.NORMAL,
     titleEn:'Order status updated',
     titleFa:'وضعیت سفارش بروزرسانی شد',
     bodyEn:`Your order ${sid(id)} is now ${status.replaceAll('_',' ')}.`,
