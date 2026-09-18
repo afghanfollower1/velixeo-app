@@ -127,6 +127,8 @@ model User {
   supportTickets        SupportTicket[]
   supportMessages       SupportMessage[]       @relation("SupportSender")
   notifications         Notification[]
+  notificationReads     NotificationRead[]
+  pushDevices           PushDevice[]
   auditLogs             AdminAuditLog[]        @relation("AdminAuditLogs")
 }
 
@@ -397,10 +399,42 @@ model Notification {
   createdAt DateTime             @default(now())
   updatedAt DateTime             @updatedAt
 
-  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reads NotificationRead[]
 
   @@index([audience, enabled, publishAt])
   @@index([userId, publishAt])
+}
+
+model NotificationRead {
+  id             String   @id @default(uuid())
+  notificationId String
+  userId         String
+  readAt         DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, userId])
+  @@index([userId, readAt])
+}
+
+model PushDevice {
+  id         String   @id @default(uuid())
+  userId     String
+  token      String   @unique
+  platform   String   @default("ANDROID")
+  enabled    Boolean  @default(true)
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, enabled])
+  @@index([enabled, lastSeenAt])
 }
 
 model SupportTicket {

@@ -168,7 +168,7 @@ function defaultPriceUnit(providerType: string) {
   return 1000;
 }
 
-function orderFields(providerType: string): OrderField[] {
+function orderFields(providerType: string, dripFeedSupported = true): OrderField[] {
   const link: OrderField = {
     key: 'link', type: 'text', required: true,
     labelFa: 'لینک', labelEn: 'Link',
@@ -303,8 +303,7 @@ function orderFields(providerType: string): OrderField[] {
       return [
         link,
         quantity,
-        runs,
-        interval,
+        ...(dripFeedSupported ? [runs, interval] : []),
         { key: 'country', type: 'text', required: true, labelFa: 'کشور', labelEn: 'Country' },
         {
           key: 'device', type: 'select', required: true,
@@ -330,15 +329,16 @@ function orderFields(providerType: string): OrderField[] {
         { key: 'referring_url', type: 'text', required: false, labelFa: 'Referring URL', labelEn: 'Referring URL' },
       ];
     default:
-      return [link, quantity, runs, interval];
+      return dripFeedSupported ? [link, quantity, runs, interval] : [link, quantity];
   }
 }
 
 function normalizeParameters(
   providerType: string,
   raw: Record<string, string | number | boolean | null>,
+  dripFeedSupported = true,
 ) {
-  const specs = orderFields(providerType);
+  const specs = orderFields(providerType, dripFeedSupported);
   const allowed = new Set(specs.map((field) => field.key));
   const out: Record<string, string | number> = {};
   for (const [key, value] of Object.entries(raw)) {
@@ -519,6 +519,14 @@ function providerText(row: Record<string, unknown>, ...keys: string[]) {
   return null;
 }
 
+function routeDripFeedSupported(route: { metadata?: Prisma.JsonValue | null; providerType?: string | null }) {
+  const metadata = route.metadata && typeof route.metadata === 'object' && !Array.isArray(route.metadata)
+    ? route.metadata as Record<string, unknown>
+    : {};
+  return providerBool(metadata.dripfeed ?? metadata.drip_feed)
+    || String(route.providerType ?? '').trim().toLowerCase() === 'drip-feed';
+}
+
 function dripFeedSnapshot(order: {
   status: OrderStatus;
   createdAt: Date;
@@ -564,12 +572,46 @@ function dripFeedSnapshot(order: {
 
   return {
     status,
-    runsCurrent: Number.isFinite(rawRunsCurrent) ? rawRunsCurrent : scheduledCurrent,
-    runsAll: Number.isFinite(rawRunsAll) ? rawRunsAll : runs,
-    interval: Number.isFinite(rawInterval) ? rawInterval : interval,
-    totalQuantity: Number.isFinite(rawTotal) ? rawTotal : totalQuantity,
+    runsCurrent: Number.isFinite(rawRunsCurrent) ? Math.max(0, Math.min(runs, rawRunsCurrent)) : scheduledCurrent,
+    runsAll: Number.isFinite(rawRunsAll) ? Math.max(1, rawRunsAll) : runs,
+    interval: Number.isFinite(rawInterval) ? Math.max(0, rawInterval) : interval,
+    totalQuantity: Number.isFinite(rawTotal) ? Math.max(0, rawTotal) : totalQuantity,
     unitQuantity,
   };
+}
+
+function dripFeedRunSnapshots(order: {
+  status: OrderStatus;
+  createdAt: Date;
+  quantity: number | null;
+  input: Prisma.JsonValue | null;
+  output: Prisma.JsonValue | null;
+}) {
+  const drip = dripFeedSnapshot(order);
+  if (!drip) return [];
+  const normalized = String(drip.status ?? '').trim().toLowerCase();
+  const finished = ['finished', 'completed', 'complete'].includes(normalized);
+  const stopped = ['stopped', 'cancelled', 'canceled', 'failed', 'refunded'].includes(normalized);
+  const current = Math.max(0, Math.min(drip.runsAll, drip.runsCurrent));
+  const perRun = Math.max(0, drip.unitQuantity);
+  const rows = [];
+  for (let index = 1; index <= drip.runsAll; index += 1) {
+    let status: OrderStatus;
+    if (finished) status = OrderStatus.COMPLETED;
+    else if (stopped) status = index < current ? OrderStatus.COMPLETED : OrderStatus.CANCELLED;
+    else if (index < current) status = OrderStatus.COMPLETED;
+    else if (index === current && current > 0) status = OrderStatus.PROCESSING;
+    else status = OrderStatus.PENDING;
+    rows.push({
+      id: `${String((order as any).id ?? 'drip')}:run:${index}`,
+      runIndex: index,
+      runsAll: drip.runsAll,
+      quantity: perRun,
+      status,
+      scheduledAt: new Date(order.createdAt.getTime() + Math.max(0, index - 1) * drip.interval * 60_000),
+    });
+  }
+  return rows;
 }
 
 async function audit(
@@ -687,8 +729,13 @@ function socialOrderJson(order: any) {
     refillCheckable,
     canRefill,
     dripFeed,
-    canCancel: output.cancelSupported === true
-      && ![OrderStatus.COMPLETED, OrderStatus.PARTIAL, OrderStatus.CANCELLED, OrderStatus.FAILED, OrderStatus.REFUNDED].includes(order.status),
+    dripRuns: dripFeedRunSnapshots(order),
+    canCancel: output.cancelSupported === true && (
+      dripFeed != null
+        ? !['finished', 'completed', 'stopped', 'cancelled', 'canceled', 'failed', 'refunded']
+            .includes(String(dripFeed.status ?? '').trim().toLowerCase())
+        : ![OrderStatus.COMPLETED, OrderStatus.PARTIAL, OrderStatus.CANCELLED, OrderStatus.FAILED, OrderStatus.REFUNDED].includes(order.status)
+    ),
     input: order.input,
     output,
     service: order.service
@@ -934,7 +981,8 @@ export function registerSocialRoutes(
         refillDays: service.refillDays,
         providerEta: providerEtaFromMetadata(route.metadata),
         providerType,
-        orderFields: orderFields(providerType),
+        dripFeedSupported: routeDripFeedSupported(route),
+        orderFields: orderFields(providerType, routeDripFeedSupported(route)),
       });
     }
     const [categorySettings, allBrands] = await Promise.all([
@@ -1009,7 +1057,7 @@ export function registerSocialRoutes(
     const providerType = route.providerType || 'Default';
     let parameters: Record<string, string | number>;
     try {
-      parameters = normalizeParameters(providerType, parsed.data.parameters);
+      parameters = normalizeParameters(providerType, parsed.data.parameters, routeDripFeedSupported(route));
     } catch (error) {
       return reply.code(400).send({ error: error instanceof Error ? error.message : 'invalid_parameters' });
     }
@@ -1084,7 +1132,7 @@ export function registerSocialRoutes(
     const providerType = firstRoute.providerType || 'Default';
     let parameters: Record<string, string | number>;
     try {
-      parameters = normalizeParameters(providerType, parsed.data.parameters);
+      parameters = normalizeParameters(providerType, parsed.data.parameters, routeDripFeedSupported(firstRoute));
     } catch (error) {
       return reply.code(400).send({ error: error instanceof Error ? error.message : 'invalid_parameters' });
     }
@@ -1486,13 +1534,29 @@ export function registerSocialRoutes(
       ? order.output as Record<string, unknown>
       : {};
     if (output.cancelSupported !== true) return reply.code(409).send({ error: 'cancel_not_supported' });
-    if (
+    const dripFeed = dripFeedSnapshot(order);
+    const dripStatus = String(dripFeed?.status ?? '').trim().toLowerCase();
+    const dripTerminal = [
+      'finished',
+      'completed',
+      'complete',
+      'stopped',
+      'cancelled',
+      'canceled',
+      'failed',
+      'refunded',
+    ].includes(dripStatus);
+    const normalTerminal =
       order.status === OrderStatus.COMPLETED ||
       order.status === OrderStatus.CANCELLED ||
       order.status === OrderStatus.PARTIAL ||
       order.status === OrderStatus.REFUNDED ||
-      order.status === OrderStatus.FAILED
-    ) {
+      order.status === OrderStatus.FAILED;
+    // A drip-feed parent can have an underlying order status of COMPLETED after
+    // the first child run while the provider master is still Active. In that
+    // case the master remains cancellable until the provider reports a terminal
+    // drip-feed state.
+    if ((dripFeed && dripTerminal) || (!dripFeed && normalTerminal)) {
       return reply.code(409).send({ error: 'order_not_cancellable' });
     }
     try {

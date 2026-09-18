@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'core/api_service.dart';
 import 'core/google_auth_service.dart';
 import 'core/models.dart';
+import 'core/push_service.dart';
 import 'social/social_panel.dart';
 import 'support/support_page.dart';
 import 'virtual_numbers/virtual_number_panel.dart';
@@ -17,6 +18,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
 
   final ApiService api;
   final GoogleAuthService googleAuth;
+  final PushService pushService = PushService();
 
   AppLang language = AppLang.en;
   DisplayCurrency currency = DisplayCurrency.afn;
@@ -39,6 +41,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
 
   bool get fa => false; // English-first release. Persian layout will be enabled in the next design pass.
   bool get googleConfigured => googleAuth.configured;
+  int get unreadNotificationCount => notifications.where((notice) => !notice.isRead).length;
 
   Future<void> boot() async {
     language = await api.restoreLanguage();
@@ -53,6 +56,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
         languageConfirmed = true;
         _applyUserPreferences(user!);
         await _loadSecondaryData();
+        await _configurePush();
       } catch (_) {
         await api.clearSession();
       }
@@ -81,6 +85,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
       user = result.$1;
       balanceAfn = result.$2;
       await _loadSecondaryData();
+      await _configurePush();
       return true;
     } on ApiException catch (error) {
       authError = error.code;
@@ -110,6 +115,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
       balanceAfn = 0;
       _applyUserPreferences(session.user);
       await _loadSecondaryData();
+      await _configurePush();
       return true;
     } on ApiException catch (error) {
       authError = error.code;
@@ -138,6 +144,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
       user = result.$1;
       balanceAfn = result.$2;
       await _loadSecondaryData();
+      await _configurePush();
       return true;
     } on GoogleAuthException catch (error) {
       authError = error.code;
@@ -203,6 +210,59 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
       try {
         payments = await api.payments();
       } catch (_) {}
+    }
+  }
+
+  Future<void> markNotificationRead(AppNotification notice) async {
+    if (notice.isRead) return;
+    final now = DateTime.now();
+    notifications = notifications
+        .map((item) => item.id == notice.id ? item.copyWith(isRead: true, readAt: now) : item)
+        .toList(growable: false);
+    notifyListeners();
+    try {
+      await api.markNotificationRead(notice.id);
+    } catch (_) {
+      try {
+        notifications = await api.notifications();
+      } catch (_) {}
+      notifyListeners();
+    }
+  }
+
+  Future<void> markAllNotificationsRead() async {
+    if (unreadNotificationCount == 0) return;
+    final now = DateTime.now();
+    notifications = notifications
+        .map((item) => item.copyWith(isRead: true, readAt: item.readAt ?? now))
+        .toList(growable: false);
+    notifyListeners();
+    try {
+      await api.markAllNotificationsRead();
+    } catch (_) {
+      try {
+        notifications = await api.notifications();
+      } catch (_) {}
+      notifyListeners();
+    }
+  }
+
+  Future<void> _configurePush() async {
+    if (!authenticated) return;
+    try {
+      await pushService.configure(
+        api,
+        onNotification: () async {
+          if (!authenticated) return;
+          try {
+            notifications = await api.notifications();
+            notifyListeners();
+          } catch (_) {}
+        },
+      );
+    } catch (_) {
+      // Push is optional at runtime. In-app notifications keep working if
+      // Firebase credentials have not been configured yet.
     }
   }
 
@@ -318,6 +378,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
   }
 
   Future<void> logout() async {
+    await pushService.unregister(api);
     await api.logout();
     await googleAuth.signOut();
     authenticated = false;
@@ -1055,7 +1116,7 @@ class HomePage extends StatelessWidget {
                 ),
                 _TopCircleButton(
                   icon: Icons.notifications_none_rounded,
-                  badge: c.notifications.length,
+                  badge: c.unreadNotificationCount,
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationsPage(controller: c))),
                 ),
                 const SizedBox(width: 9),
@@ -1198,7 +1259,7 @@ class HomePage extends StatelessWidget {
                   child: Row(children: [
                     Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFF1686FF).withValues(alpha: .08), borderRadius: BorderRadius.circular(12)), child: Icon(catalogIcon(order.category), color: const Color(0xFF1686FF), size: 20)),
                     const SizedBox(width: 11),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(order.serviceTitleEn ?? order.serviceSlug ?? order.category, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(c.money(order.totalAmountAfn), style: const TextStyle(fontSize: 11.5, color: Color(0xFF7C8999)))])),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${order.serviceTitleEn ?? order.serviceSlug ?? order.category}${order.isDripRun ? ' · Run ${order.dripRunIndex}/${order.dripRunsAll}' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(c.money(order.totalAmountAfn), style: const TextStyle(fontSize: 11.5, color: Color(0xFF7C8999)))])),
                     Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: color.withValues(alpha: .10), borderRadius: BorderRadius.circular(999)), child: Text(order.status.replaceAll('_', ' '), style: TextStyle(fontSize: 9.5, color: color, fontWeight: FontWeight.w800))),
                   ]),
                 );
@@ -1711,7 +1772,7 @@ class OrdersPage extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                c.fa ? (order.serviceTitleFa ?? order.category) : (order.serviceTitleEn ?? order.category),
+                                '${c.fa ? (order.serviceTitleFa ?? order.category) : (order.serviceTitleEn ?? order.category)}${order.isDripRun ? ' · ${tr(c.fa, 'اجرای', 'Run')} ${order.dripRunIndex}/${order.dripRunsAll}' : ''}',
                                 style: const TextStyle(fontWeight: FontWeight.w900),
                               ),
                             ),
@@ -1725,7 +1786,10 @@ class OrdersPage extends StatelessWidget {
                         const SizedBox(height: 9),
                         Text(c.money(order.totalAmountAfn, showBase: true), style: const TextStyle(fontWeight: FontWeight.w900)),
                         const SizedBox(height: 4),
-                        Text('${order.createdAt.toLocal().toString().substring(0, 16)} • #${order.id.substring(0, 8)}', style: const TextStyle(fontSize: 12, color: Color(0xFF607487))),
+                        Text(
+                          '${order.createdAt.toLocal().toString().substring(0, 16)} • #${order.dripParentOrderId?.substring(0, 8) ?? order.id.substring(0, 8)}${order.isDripRun ? '-R${order.dripRunIndex}' : ''}',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF607487)),
+                        ),
                         if (order.failureReason?.isNotEmpty == true) ...[
                           const SizedBox(height: 7),
                           Text(order.failureReason!, style: const TextStyle(fontSize: 12, color: Color(0xFFE65454))),
@@ -1750,38 +1814,100 @@ class NotificationsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = controller;
-    return Scaffold(
-      appBar: AppBar(title: Text(tr(c.fa, 'اعلان‌ها', 'Notifications'))),
-      body: RefreshIndicator(
-        onRefresh: c.refreshAccount,
-        child: ListView(
-          padding: const EdgeInsets.all(18),
-          children: [
-            if (c.notifications.isEmpty)
-              EmptyCard(
-                icon: Icons.notifications_none_rounded,
-                title: tr(c.fa, 'اعلانی ندارید', 'No notifications'),
-                subtitle: tr(c.fa, 'اعلان‌های عمومی یا اختصاصی از پنل مدیریت اینجا نمایش داده می‌شوند.', 'Admin announcements and personal notifications will appear here.'),
-              )
-            else
-              ...c.notifications.map(
-                (notice) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: SoftCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(c.fa ? notice.titleFa : notice.titleEn, style: const TextStyle(fontWeight: FontWeight.w900)),
-                        const SizedBox(height: 6),
-                        Text(c.fa ? notice.bodyFa : notice.bodyEn, style: const TextStyle(color: Color(0xFF607487), height: 1.45)),
-                        const SizedBox(height: 8),
-                        Text(notice.publishAt.toLocal().toString().substring(0, 16), style: const TextStyle(fontSize: 11, color: Color(0xFF8AA0B3))),
-                      ],
+    return AnimatedBuilder(
+      animation: c,
+      builder: (context, _) => Scaffold(
+        appBar: AppBar(
+          title: Text(tr(c.fa, 'اعلان‌ها', 'Notifications')),
+          actions: [
+            if (c.unreadNotificationCount > 0)
+              TextButton(
+                onPressed: c.markAllNotificationsRead,
+                child: Text(tr(c.fa, 'خواندن همه', 'Read all')),
+              ),
+          ],
+        ),
+        body: RefreshIndicator(
+          onRefresh: c.refreshAccount,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(18),
+            children: [
+              if (c.notifications.isEmpty)
+                EmptyCard(
+                  icon: Icons.notifications_none_rounded,
+                  title: tr(c.fa, 'اعلانی ندارید', 'No notifications'),
+                  subtitle: tr(c.fa, 'اعلان‌های عمومی یا اختصاصی از پنل مدیریت اینجا نمایش داده می‌شوند.', 'Admin announcements and personal notifications will appear here.'),
+                )
+              else
+                ...c.notifications.map(
+                  (notice) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(18),
+                      onTap: () => c.markNotificationRead(notice),
+                      child: SoftCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    c.fa ? notice.titleFa : notice.titleEn,
+                                    style: TextStyle(
+                                      fontWeight: notice.isRead ? FontWeight.w700 : FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                                if (!notice.isRead)
+                                  Container(
+                                    width: 9,
+                                    height: 9,
+                                    margin: const EdgeInsets.only(top: 4),
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF1686FF),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              c.fa ? notice.bodyFa : notice.bodyEn,
+                              style: TextStyle(
+                                color: notice.isRead ? const Color(0xFF7D8998) : const Color(0xFF4F6073),
+                                height: 1.45,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    notice.publishAt.toLocal().toString().substring(0, 16),
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF8AA0B3)),
+                                  ),
+                                ),
+                                Text(
+                                  notice.isRead ? tr(c.fa, 'خوانده شده', 'Read') : tr(c.fa, 'جدید', 'New'),
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: notice.isRead ? const Color(0xFF8AA0B3) : const Color(0xFF1686FF),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

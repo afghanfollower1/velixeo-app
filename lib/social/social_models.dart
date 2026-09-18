@@ -292,6 +292,33 @@ class SocialOrderAction {
       );
 }
 
+class SocialDripRun {
+  const SocialDripRun({
+    required this.id,
+    required this.runIndex,
+    required this.runsAll,
+    required this.quantity,
+    required this.status,
+    required this.scheduledAt,
+  });
+
+  final String id;
+  final int runIndex;
+  final int runsAll;
+  final int quantity;
+  final String status;
+  final DateTime scheduledAt;
+
+  factory SocialDripRun.fromJson(Map<String, dynamic> json) => SocialDripRun(
+        id: (json['id'] as String?) ?? '',
+        runIndex: (json['runIndex'] as num?)?.toInt() ?? 1,
+        runsAll: (json['runsAll'] as num?)?.toInt() ?? 1,
+        quantity: (json['quantity'] as num?)?.toInt() ?? 0,
+        status: (json['status'] as String?) ?? 'PENDING',
+        scheduledAt: DateTime.tryParse('${json['scheduledAt']}') ?? DateTime.now(),
+      );
+}
+
 class SocialOrder {
   const SocialOrder({
     required this.id,
@@ -304,6 +331,7 @@ class SocialOrder {
     required this.output,
     required this.input,
     required this.dripFeed,
+    required this.dripRuns,
     required this.actions,
     this.quantity,
     this.failureReason,
@@ -343,6 +371,7 @@ class SocialOrder {
   final Map<String, dynamic> output;
   final Map<String, dynamic> input;
   final Map<String, dynamic> dripFeed;
+  final List<SocialDripRun> dripRuns;
   final List<SocialOrderAction> actions;
 
   bool get refillSupported => output['refillSupported'] == true;
@@ -418,6 +447,9 @@ class SocialOrder {
       output: output,
       input: input,
       dripFeed: dripFeed,
+      dripRuns: ((json['dripRuns'] as List<dynamic>?) ?? const [])
+          .map((item) => SocialDripRun.fromJson(Map<String, dynamic>.from(item as Map)))
+          .toList(growable: false),
       actions: ((json['actions'] as List<dynamic>?) ?? const [])
           .map((item) => SocialOrderAction.fromJson(Map<String, dynamic>.from(item as Map)))
           .toList(growable: false),

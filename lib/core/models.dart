@@ -197,6 +197,8 @@ class AppNotification {
     required this.bodyFa,
     required this.bodyEn,
     required this.publishAt,
+    this.isRead = false,
+    this.readAt,
   });
 
   final String id;
@@ -205,6 +207,19 @@ class AppNotification {
   final String bodyFa;
   final String bodyEn;
   final DateTime publishAt;
+  final bool isRead;
+  final DateTime? readAt;
+
+  AppNotification copyWith({bool? isRead, DateTime? readAt}) => AppNotification(
+        id: id,
+        titleFa: titleFa,
+        titleEn: titleEn,
+        bodyFa: bodyFa,
+        bodyEn: bodyEn,
+        publishAt: publishAt,
+        isRead: isRead ?? this.isRead,
+        readAt: readAt ?? this.readAt,
+      );
 
   factory AppNotification.fromJson(Map<String, dynamic> json) => AppNotification(
         id: json['id'] as String,
@@ -213,6 +228,8 @@ class AppNotification {
         bodyFa: (json['bodyFa'] as String?) ?? '',
         bodyEn: (json['bodyEn'] as String?) ?? '',
         publishAt: DateTime.tryParse('${json['publishAt']}') ?? DateTime.now(),
+        isRead: (json['isRead'] as bool?) ?? false,
+        readAt: json['readAt'] == null ? null : DateTime.tryParse('${json['readAt']}'),
       );
 }
 
@@ -229,6 +246,9 @@ class AppOrder {
     this.serviceTitleFa,
     this.serviceTitleEn,
     this.failureReason,
+    this.dripParentOrderId,
+    this.dripRunIndex,
+    this.dripRunsAll,
   });
 
   final String id;
@@ -242,10 +262,18 @@ class AppOrder {
   final String? serviceTitleFa;
   final String? serviceTitleEn;
   final String? failureReason;
+  final String? dripParentOrderId;
+  final int? dripRunIndex;
+  final int? dripRunsAll;
+
+  bool get isDripRun => dripRunIndex != null && dripRunsAll != null;
 
   factory AppOrder.fromJson(Map<String, dynamic> json) {
     final service = json['service'] is Map
         ? Map<String, dynamic>.from(json['service'] as Map)
+        : const <String, dynamic>{};
+    final dripRun = json['dripRun'] is Map
+        ? Map<String, dynamic>.from(json['dripRun'] as Map)
         : const <String, dynamic>{};
     return AppOrder(
       id: json['id'] as String,
@@ -259,10 +287,44 @@ class AppOrder {
       serviceTitleFa: service['titleFa'] as String?,
       serviceTitleEn: service['titleEn'] as String?,
       failureReason: json['failureReason'] as String?,
+      dripParentOrderId: dripRun['parentOrderId'] as String?,
+      dripRunIndex: (dripRun['runIndex'] as num?)?.toInt(),
+      dripRunsAll: (dripRun['runsAll'] as num?)?.toInt(),
     );
   }
 }
 
+
+class PushConfig {
+  const PushConfig({
+    required this.enabled,
+    this.projectId,
+    this.apiKey,
+    this.appId,
+    this.messagingSenderId,
+  });
+
+  final bool enabled;
+  final String? projectId;
+  final String? apiKey;
+  final String? appId;
+  final String? messagingSenderId;
+
+  bool get complete =>
+      enabled &&
+      projectId?.isNotEmpty == true &&
+      apiKey?.isNotEmpty == true &&
+      appId?.isNotEmpty == true &&
+      messagingSenderId?.isNotEmpty == true;
+
+  factory PushConfig.fromJson(Map<String, dynamic> json) => PushConfig(
+        enabled: (json['enabled'] as bool?) ?? false,
+        projectId: json['projectId'] as String?,
+        apiKey: json['apiKey'] as String?,
+        appId: json['appId'] as String?,
+        messagingSenderId: json['messagingSenderId'] as String?,
+      );
+}
 
 class AppPayment {
   const AppPayment({

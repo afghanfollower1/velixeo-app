@@ -322,6 +322,32 @@ class ApiService {
         .toList(growable: false);
   }
 
+  Future<PushConfig> pushConfig() async {
+    final response = await _send('GET', '/api/v1/content/push-config');
+    if (response.statusCode != 200) _throwResponse(response);
+    return PushConfig.fromJson(_decodeObject(response));
+  }
+
+  Future<void> registerPushDevice(String token, {String platform = 'ANDROID'}) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/push/devices',
+      body: {'token': token, 'platform': platform},
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+  }
+
+  Future<void> unregisterPushDevice(String token, {String platform = 'ANDROID'}) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/push/devices/unregister',
+      body: {'token': token, 'platform': platform},
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+  }
+
   Future<List<AppNotification>> notifications() async {
     final response = await _send('GET', '/api/v1/content/notifications', auth: true);
     if (response.statusCode != 200) _throwResponse(response);
@@ -329,6 +355,24 @@ class ApiService {
     return rows
         .map((item) => AppNotification.fromJson(Map<String, dynamic>.from(item as Map)))
         .toList(growable: false);
+  }
+
+  Future<void> markNotificationRead(String notificationId) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/content/notifications/$notificationId/read',
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+  }
+
+  Future<void> markAllNotificationsRead() async {
+    final response = await _send(
+      'POST',
+      '/api/v1/content/notifications/read-all',
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
   }
 
   Future<List<AppOrder>> orders() async {

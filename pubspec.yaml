@@ -1,10 +1,10 @@
 name: velixeo
 publish_to: 'none'
 description: VELIXEO bilingual digital services marketplace.
-version: 0.5.0+5
+version: 0.6.0+6
 
 environment:
-  sdk: '>=3.4.0 <4.0.0'
+  sdk: '>=3.6.0 <4.0.0'
 
 dependencies:
   flutter:
@@ -13,6 +13,8 @@ dependencies:
   flutter_secure_storage: ^9.2.4
   google_sign_in: ^7.2.0
   url_launcher: ^6.3.2
+  firebase_core: ^4.15.0
+  firebase_messaging: ^16.7.0
 
 flutter:
   uses-material-design: true

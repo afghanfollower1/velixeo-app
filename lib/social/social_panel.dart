@@ -418,7 +418,13 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
       await host.api.cancelSocialOrder(order.id);
       await refreshOrder(order);
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiError(e))));
+      if (!mounted) return;
+      final detail = e.details?.toString().trim();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(detail?.isNotEmpty == true ? detail! : apiError(e)),
+        ),
+      );
     }
   }
 
@@ -939,11 +945,42 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
   }
 
   Widget buildOrders() {
-    if (orders.isEmpty) {
+    final cards = <Widget>[];
+    for (final order in orders) {
+      if (order.isDripFeed) {
+        for (final run in order.dripRuns) {
+          cards.add(
+            _DripRunOrderCard(
+              order: order,
+              run: run,
+              host: host,
+              fa: fa,
+              statusLabel: statusLabel,
+              onRefresh: refreshOrder,
+            ),
+          );
+        }
+      } else {
+        cards.add(
+          _OrderCard(
+            order: order,
+            host: host,
+            fa: fa,
+            statusLabel: statusLabel,
+            onRefresh: refreshOrder,
+            onRefill: requestRefill,
+            onCancel: cancelOrder,
+            onRefreshAction: refreshRefill,
+          ),
+        );
+      }
+    }
+
+    if (cards.isEmpty) {
       return _EmptyState(
         icon: Icons.receipt_long_outlined,
         title: t('هنوز سفارش شبکه اجتماعی ندارید', 'No social orders yet'),
-        subtitle: t('بعد از ثبت سفارش، وضعیت، مقدار باقی‌مانده، جبران و لغو از همین بخش مدیریت می‌شود.', 'After ordering, status, remains, refill and cancellation are managed here.'),
+        subtitle: t('بعد از ثبت سفارش، هر اجرای Drip-feed نیز به‌صورت یک سفارش جداگانه در همین بخش نمایش داده می‌شود.', 'After ordering, every drip-feed run is also shown here as its own order row.'),
       );
     }
     return RefreshIndicator(
@@ -954,19 +991,10 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
-        itemCount: orders.length,
+        itemCount: cards.length,
         itemBuilder: (context, index) => Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: _OrderCard(
-            order: orders[index],
-            host: host,
-            fa: fa,
-            statusLabel: statusLabel,
-            onRefresh: refreshOrder,
-            onRefill: requestRefill,
-            onCancel: cancelOrder,
-            onRefreshAction: refreshRefill,
-          ),
+          child: cards[index],
         ),
       ),
     );
@@ -1078,6 +1106,24 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
                     ],
                   ),
                 ],
+                const Divider(height: 22),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () => refreshOrder(order),
+                      icon: const Icon(Icons.sync_rounded, size: 17),
+                      label: Text(t('بروزرسانی وضعیت', 'Refresh status')),
+                    ),
+                    if (order.canCancel)
+                      OutlinedButton.icon(
+                        onPressed: () => cancelOrder(order),
+                        icon: const Icon(Icons.cancel_outlined, size: 17),
+                        label: Text(t('لغو', 'Cancel')),
+                      ),
+                  ],
+                ),
               ],
             ),
           );
@@ -1441,6 +1487,91 @@ class _MiniBadge extends StatelessWidget {
             Icon(icon, size: 13, color: good ? const Color(0xFF0A8B5B) : const Color(0xFF607487)),
             const SizedBox(width: 4),
             Text(text, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: good ? const Color(0xFF0A8B5B) : const Color(0xFF607487))),
+          ],
+        ),
+      );
+}
+
+class _DripRunOrderCard extends StatelessWidget {
+  const _DripRunOrderCard({
+    required this.order,
+    required this.run,
+    required this.host,
+    required this.fa,
+    required this.statusLabel,
+    required this.onRefresh,
+  });
+
+  final SocialOrder order;
+  final SocialDripRun run;
+  final SocialPanelHost host;
+  final bool fa;
+  final String Function(String) statusLabel;
+  final Future<void> Function(SocialOrder) onRefresh;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: const Color(0xFFDCE8F1)),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    fa ? (order.serviceTitleFa ?? 'سرویس') : (order.serviceTitleEn ?? 'Service'),
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+                _StatusBadge(label: statusLabel(run.status), status: run.status),
+              ],
+            ),
+            const SizedBox(height: 9),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: [
+                _MiniBadge(
+                  text: '${fa ? 'اجرای' : 'Run'} ${run.runIndex}/${run.runsAll}',
+                  icon: Icons.repeat_rounded,
+                  good: run.status == 'COMPLETED',
+                ),
+                _MiniBadge(
+                  text: '${fa ? 'تعداد' : 'Qty'}: ${run.quantity}',
+                  icon: Icons.numbers_rounded,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              '${fa ? 'شناسه Drip-feed' : 'Drip-feed ID'}: ${order.displayOrderId}-R${run.runIndex}',
+              style: const TextStyle(fontSize: 11, color: Color(0xFF607487)),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              '${fa ? 'زمان برنامه‌ریزی' : 'Scheduled'}: ${run.scheduledAt.toLocal().toString().substring(0, 16)}',
+              style: const TextStyle(fontSize: 11, color: Color(0xFF7D92A4)),
+            ),
+            if (order.orderLink?.isNotEmpty == true) ...[
+              const SizedBox(height: 6),
+              Text(
+                '${fa ? 'لینک' : 'Link'}: ${order.orderLink}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11, color: Color(0xFF607487)),
+              ),
+            ],
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: () => onRefresh(order),
+              icon: const Icon(Icons.sync_rounded, size: 17),
+              label: Text(fa ? 'بروزرسانی' : 'Refresh'),
+            ),
           ],
         ),
       );

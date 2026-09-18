@@ -1,8 +1,10 @@
 name: Validate VELIXEO Flutter
 
 on:
-  push:
+  pull_request:
     branches: [main]
+  push:
+    branches: [main, 'chatgpt/**']
     paths:
       - 'lib/**'
       - 'pubspec.yaml'
