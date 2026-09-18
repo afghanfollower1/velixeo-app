@@ -761,6 +761,8 @@ class _BrandCard extends StatelessWidget {
 
   IconData get fallbackIcon {
     switch (brand.iconValue.toLowerCase()) {
+      case 'instagram': return Icons.camera_alt_rounded;
+      case 'threads': return Icons.alternate_email_rounded;
       case 'youtube': return Icons.play_circle_fill_rounded;
       case 'telegram': return Icons.send_rounded;
       case 'whatsapp': return Icons.chat_rounded;
