@@ -530,8 +530,10 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
               ),
               child: Row(
                 children: [
-                  Expanded(child: _TabButton(label: t('سفارش جدید', 'New order'), icon: Icons.add_shopping_cart_rounded, selected: tab == 0, onTap: () => setState(() => tab = 0))),
-                  Expanded(child: _TabButton(label: t('سفارش‌های من', 'My orders'), icon: Icons.receipt_long_rounded, selected: tab == 1, onTap: () => setState(() => tab = 1))),
+                  Expanded(child: _TabButton(label: t('سفارش', 'New'), icon: Icons.add_shopping_cart_rounded, selected: tab == 0, onTap: () => setState(() => tab = 0))),
+                  Expanded(child: _TabButton(label: t('سفارش‌ها', 'Orders'), icon: Icons.receipt_long_rounded, selected: tab == 1, onTap: () => setState(() => tab = 1))),
+                  Expanded(child: _TabButton(label: t('جبران', 'Refill'), icon: Icons.restart_alt_rounded, selected: tab == 2, onTap: () => setState(() => tab = 2))),
+                  Expanded(child: _TabButton(label: t('دریپ‌فید', 'Drip-feed'), icon: Icons.schedule_send_rounded, selected: tab == 3, onTap: () => setState(() => tab = 3))),
                 ],
               ),
             ),
@@ -543,7 +545,11 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
                     ? _ErrorState(message: t('دریافت خدمات ممکن نشد.', 'Could not load social services.'), onRetry: load)
                     : tab == 0
                         ? buildNewOrder()
-                        : buildOrders(),
+                        : tab == 1
+                            ? buildOrders()
+                            : tab == 2
+                                ? buildRefills()
+                                : buildDripFeed(),
           ),
         ],
       ),
