@@ -99,40 +99,35 @@ jobs:
           printf '%s\n' "$ACTUAL_SHA1" > /tmp/ANDROID_SIGNING_SHA1.txt
           echo "Permanent VELIXEO signing key verified."
 
-      - name: Generate VELIXEO launcher icon
+      - name: Generate VELIXEO branded launcher icon
         run: |
-          python3 -m pip install --quiet pillow
+          python3 -m pip install --quiet pillow cairosvg
           python3 - <<'PY'
-          from PIL import Image, ImageDraw
           from pathlib import Path
+          import io
+          from PIL import Image
+          import cairosvg
+
+          source = Path("assets/brand/velixeo-app-icon.svg")
+          if not source.exists():
+              raise SystemExit("VELIXEO brand icon source is missing")
+
+          master = cairosvg.svg2png(bytestring=source.read_bytes(), output_width=1024, output_height=1024)
+          image = Image.open(io.BytesIO(master)).convert("RGBA")
           sizes = {
-              'mipmap-mdpi': 48,
-              'mipmap-hdpi': 72,
-              'mipmap-xhdpi': 96,
-              'mipmap-xxhdpi': 144,
-              'mipmap-xxxhdpi': 192,
+              "mipmap-mdpi": 48,
+              "mipmap-hdpi": 72,
+              "mipmap-xhdpi": 96,
+              "mipmap-xxhdpi": 144,
+              "mipmap-xxxhdpi": 192,
           }
           for folder, size in sizes.items():
-              img = Image.new('RGB', (size, size), '#0D78C8')
-              px = img.load()
-              top = (77, 184, 255)
-              bottom = (13, 120, 200)
-              for y in range(size):
-                  t = y / max(1, size - 1)
-                  c = tuple(int(top[i]*(1-t)+bottom[i]*t) for i in range(3))
-                  for x in range(size):
-                      px[x, y] = c
-              d = ImageDraw.Draw(img)
-              w = max(5, int(size*.13))
-              pts = [(int(size*.25), int(size*.29)), (int(size*.49), int(size*.72)), (int(size*.72), int(size*.31))]
-              d.line(pts, fill='white', width=w, joint='curve')
-              r = int(size*.07)
-              cx, cy = int(size*.77), int(size*.22)
-              d.ellipse((cx-r, cy-r, cx+r, cy+r), fill='white')
-              out = Path('android/app/src/main/res') / folder
+              out = Path("android/app/src/main/res") / folder
               out.mkdir(parents=True, exist_ok=True)
-              img.save(out / 'ic_launcher.png')
-              img.save(out / 'ic_launcher_round.png')
+              icon = image.resize((size, size), Image.Resampling.LANCZOS)
+              icon.save(out / "ic_launcher.png", optimize=True)
+              icon.save(out / "ic_launcher_round.png", optimize=True)
+          print("VELIXEO brand launcher icons generated from assets/brand/velixeo-app-icon.svg")
           PY
 
       - name: Configure native Firebase push resources
@@ -213,17 +208,17 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk dist/VELIXEO-v0.6.2-release.apk
+          cp build/app/outputs/flutter-apk/app-release.apk dist/VELIXEO-v0.7.0-release.apk
           cp /tmp/ANDROID_SIGNING_SHA1.txt dist/ANDROID_SIGNING_SHA1.txt
-          ls -lh dist/VELIXEO-v0.6.2-release.apk
-          sha256sum dist/VELIXEO-v0.6.2-release.apk | tee dist/SHA256SUMS.txt
+          ls -lh dist/VELIXEO-v0.7.0-release.apk
+          sha256sum dist/VELIXEO-v0.7.0-release.apk | tee dist/SHA256SUMS.txt
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VELIXEO-v0.6.2-Android-APK
+          name: VELIXEO-v0.7.0-Android-APK
           path: |
-            dist/VELIXEO-v0.6.2-release.apk
+            dist/VELIXEO-v0.7.0-release.apk
             dist/SHA256SUMS.txt
             dist/ANDROID_SIGNING_SHA1.txt
           if-no-files-found: error
