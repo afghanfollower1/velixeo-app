@@ -1250,7 +1250,7 @@ class _OrderCard extends StatelessWidget {
   final Future<void> Function(SocialOrder) onCancel;
   final Future<void> Function(SocialOrder, SocialOrderAction) onRefreshAction;
 
-  bool get terminal => ['COMPLETED','CANCELLED','FAILED','REFUNDED'].contains(order.status);
+  bool get terminal => ['COMPLETED','PARTIAL','CANCELLED','FAILED','REFUNDED'].contains(order.status);
 
   @override
   Widget build(BuildContext context) => Container(
@@ -1272,18 +1272,47 @@ class _OrderCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(host.money(order.totalAmountAfn, showBase: true), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
             const SizedBox(height: 5),
-            Text('#${order.id.substring(0, 8)} • ${order.createdAt.toLocal().toString().substring(0, 16)}', style: const TextStyle(fontSize: 11, color: Color(0xFF7D92A4))),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${fa ? 'شناسه سفارش' : 'Order ID'}: ${order.displayOrderId} • ${order.createdAt.toLocal().toString().substring(0, 16)}',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF7D92A4)),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () async {
+                    await Clipboard.setData(ClipboardData(text: order.displayOrderId));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(fa ? 'شناسه سفارش کپی شد.' : 'Order ID copied.')),
+                      );
+                    }
+                  },
+                  tooltip: fa ? 'کپی شناسه' : 'Copy Order ID',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.copy_rounded, size: 17, color: Color(0xFF1686FF)),
+                ),
+              ],
+            ),
             if (order.providerStatus != null || order.startCount != null || order.remains != null) ...[
               const Divider(height: 22),
               Wrap(
                 spacing: 14,
                 runSpacing: 6,
                 children: [
-                  if (order.providerStatus != null) Text('${fa ? 'Provider' : 'Provider'}: ${order.providerStatus}', style: const TextStyle(fontSize: 12)),
                   if (order.startCount != null) Text('${fa ? 'شروع' : 'Start'}: ${order.startCount}', style: const TextStyle(fontSize: 12)),
                   if (order.remains != null) Text('${fa ? 'باقی‌مانده' : 'Remains'}: ${order.remains}', style: const TextStyle(fontSize: 12)),
                 ],
               ),
+            ],
+            if (order.orderLink?.isNotEmpty == true) ...[
+              const SizedBox(height: 8),
+              Text('${fa ? 'لینک' : 'Link'}: ${order.orderLink}', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Color(0xFF607487))),
+            ],
+            if (order.providerEta?.trim().isNotEmpty == true) ...[
+              const SizedBox(height: 6),
+              Text('${fa ? 'زمان تقریبی' : 'ETA'}: ${order.providerEta}', style: const TextStyle(fontSize: 11, color: Color(0xFF607487))),
             ],
             if (order.failureReason?.isNotEmpty == true) ...[
               const SizedBox(height: 8),
@@ -1310,9 +1339,9 @@ class _OrderCard extends StatelessWidget {
               runSpacing: 8,
               children: [
                 OutlinedButton.icon(onPressed: () => onRefresh(order), icon: const Icon(Icons.sync_rounded, size: 17), label: Text(fa ? 'بروزرسانی وضعیت' : 'Refresh status')),
-                if (order.refillSupported && ['COMPLETED','PARTIAL'].contains(order.status))
+                if (order.canRefill)
                   OutlinedButton.icon(onPressed: () => onRefill(order), icon: const Icon(Icons.restart_alt_rounded, size: 17), label: Text(fa ? 'جبران ریزش' : 'Refill')),
-                if (order.cancelSupported && !terminal)
+                if (order.canCancel && !terminal)
                   OutlinedButton.icon(onPressed: () => onCancel(order), icon: const Icon(Icons.cancel_outlined, size: 17), label: Text(fa ? 'لغو' : 'Cancel')),
               ],
             ),
