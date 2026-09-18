@@ -138,12 +138,20 @@ export async function sendNotificationPush(
               },
               data: {
                 type: 'notification',
+                route: 'notifications',
                 notificationId: notification.id,
               },
               android: {
                 priority: 'high',
+                ttl: '86400s',
+                collapse_key: `velixeo-notification-${notification.id}`,
                 notification: {
                   sound: 'default',
+                  channel_id: 'velixeo_alerts',
+                  tag: `velixeo-${notification.id}`,
+                  notification_priority: 'PRIORITY_HIGH',
+                  default_vibrate_timings: true,
+                  visibility: 'PUBLIC',
                 },
               },
             },
