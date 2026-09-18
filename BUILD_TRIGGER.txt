@@ -1,2 +1,2 @@
-Trigger signed Android build for latest VELIXEO UI update — 2026-09-18T10:02:00.290Z.
-Includes social brand grid, More services expansion, social banner, focused order form, and opt-in drip-feed.
+Trigger signed Android build for VELIXEO social order workflow update — 2026-09-18.
+Includes customer Order ID copy, provider ETA, terms acceptance, in-place success receipt, smart cancel, automatic provider refill capability and 24-hour post-completion refill window.
