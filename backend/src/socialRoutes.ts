@@ -15,6 +15,7 @@ import {
   smmClientForProvider,
 } from './smmPanelAdapter.js';
 import { claimCoupon, quoteCoupon, releaseCoupon } from './couponPricing.js';
+import { loadSocialBrands, normalizeBrandKey } from './socialBrands.js';
 
 type AuthenticateHook = (
   request: FastifyRequest,
@@ -701,10 +702,24 @@ export function registerSocialRoutes(
         orderFields: orderFields(providerType),
       });
     }
-    const categorySettings = await prisma.systemSetting.findMany({
-      where: { category: 'social-category' },
-      orderBy: { key: 'asc' },
-    });
+    const [categorySettings, allBrands] = await Promise.all([
+      prisma.systemSetting.findMany({
+        where: { category: 'social-category' },
+        orderBy: { key: 'asc' },
+      }),
+      loadSocialBrands(prisma),
+    ]);
+    const brands = allBrands
+      .filter((brand) => brand.enabled)
+      .map((brand) => ({
+        key: brand.key,
+        titleFa: brand.titleFa,
+        titleEn: brand.titleEn,
+        iconType: brand.iconType,
+        iconValue: brand.iconValue,
+        sortOrder: brand.sortOrder,
+      }));
+    const activeBrandKeys = new Set(brands.map((brand) => brand.key));
     const categories = categorySettings.flatMap((setting) => {
       const value = setting.value;
       if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
@@ -712,12 +727,13 @@ export function registerSocialRoutes(
       const slug = typeof item.slug === 'string'
         ? item.slug
         : setting.key.replace(/^social\.category\./, '');
-      if (!slug || item.enabled === false) return [];
+      const platform = normalizeBrandKey(typeof item.platform === 'string' ? item.platform : 'OTHER');
+      if (!slug || item.enabled === false || !activeBrandKeys.has(platform)) return [];
       return [{
         slug,
         titleFa: typeof item.titleFa === 'string' ? item.titleFa : slug,
         titleEn: typeof item.titleEn === 'string' ? item.titleEn : slug,
-        platform: typeof item.platform === 'string' ? item.platform : 'OTHER',
+        platform,
         descriptionFa: typeof item.descriptionFa === 'string' ? item.descriptionFa : null,
         descriptionEn: typeof item.descriptionEn === 'string' ? item.descriptionEn : null,
         sortOrder: Number.isFinite(Number(item.sortOrder)) ? Number(item.sortOrder) : 100,
@@ -734,9 +750,10 @@ export function registerSocialRoutes(
     }));
     const activeCategorySlugs = new Set(categories.map((category) => category.slug));
     const visibleRows = rows.filter((service) =>
-      !configuredCategorySlugs.has(service.group) || activeCategorySlugs.has(service.group),
+      activeBrandKeys.has(normalizeBrandKey(service.platform))
+      && (!configuredCategorySlugs.has(service.group) || activeCategorySlugs.has(service.group)),
     );
-    return { baseCurrency: 'AFN', categories, services: visibleRows };
+    return { baseCurrency: 'AFN', brands, categories, services: visibleRows };
   });
 
   app.post('/api/v1/social/quote', { preHandler: authenticate }, async (request, reply) => {
