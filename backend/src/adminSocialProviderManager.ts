@@ -807,6 +807,83 @@ export function registerAdminSocialProviderManager(
     }
   });
 
+  app.get('/admin/v3/social/brands', async (request, reply) => {
+    const admin = await requireAdmin(request, reply, resolveAdmin);
+    if (!admin) return;
+    return reply.type('text/html; charset=utf-8').send(await brandsPage(prisma, admin, request));
+  });
+
+  app.post('/admin/v3/social/brands/save', async (request, reply) => {
+    const admin = await requireAdmin(request, reply, resolveAdmin);
+    if (!admin) return;
+    const body = request.body as Body;
+    try {
+      const originalKey = normalizeBrandKey(text(body, 'originalKey'));
+      const key = normalizeBrandKey(text(body, 'key'));
+      const titleEn = text(body, 'titleEn');
+      if (!key || !titleEn) throw new Error('Brand key and English name are required.');
+      const rawType = text(body, 'iconType').toUpperCase();
+      const iconType: SocialBrand['iconType'] = rawType === 'URL' || rawType === 'UPLOAD' ? rawType : 'DEFAULT';
+      let iconValue = iconType === 'DEFAULT' ? text(body, 'defaultIcon') : iconType === 'URL' ? text(body, 'iconUrl') : text(body, 'iconUploadData');
+      if (iconType === 'UPLOAD' && !iconValue && originalKey) {
+        const existingSetting = await prisma.systemSetting.findUnique({ where: { key: brandSettingKey(originalKey) } });
+        const existing = existingSetting ? parseBrand(existingSetting) : null;
+        if (existing?.iconType === 'UPLOAD') iconValue = existing.iconValue;
+      }
+      iconValue = validateBrandIcon(iconType, iconValue || 'generic');
+      const value: SocialBrand = { key, titleEn, titleFa: text(body, 'titleFa') || titleEn, iconType, iconValue, sortOrder: intValue(body.sortOrder, 100), enabled: checked(body, 'enabled') };
+      if (originalKey && originalKey !== key) {
+        const categoryRows = await prisma.systemSetting.findMany({ where: { category: 'social-category' } });
+        for (const row of categoryRows) {
+          const category = parseCategory(row);
+          if (!category || normalizeBrandKey(category.platform) !== originalKey) continue;
+          await prisma.systemSetting.update({ where: { key: row.key }, data: { value: { ...jsonObject(row.value), platform: key } as Prisma.InputJsonValue } });
+        }
+        await prisma.service.updateMany({ where: { category: ServiceCategory.SOCIAL, socialPlatform: originalKey }, data: { socialPlatform: key } });
+        await prisma.systemSetting.deleteMany({ where: { key: brandSettingKey(originalKey) } });
+      }
+      await prisma.systemSetting.upsert({
+        where: { key: brandSettingKey(key) },
+        create: { key: brandSettingKey(key), category: 'social-brand', description: 'Social brand ' + key, value: value as unknown as Prisma.InputJsonValue },
+        update: { category: 'social-brand', value: value as unknown as Prisma.InputJsonValue },
+      });
+      await audit(prisma, admin.id, 'SOCIAL_BRAND_SAVE', 'SocialBrand', key, titleEn, { iconType, enabled: value.enabled });
+      return reply.code(303).redirect('/admin/v3/social/brands?edit=' + encodeURIComponent(key) + '&msg=Brand%20saved.');
+    } catch (error) {
+      return reply.code(303).redirect('/admin/v3/social/brands?error=1&msg=' + encodeURIComponent(error instanceof Error ? error.message : 'brand_save_failed'));
+    }
+  });
+
+  app.post('/admin/v3/social/brands/toggle', async (request, reply) => {
+    const admin = await requireAdmin(request, reply, resolveAdmin);
+    if (!admin) return;
+    const key = normalizeBrandKey(text(request.body as Body, 'key'));
+    const setting = await prisma.systemSetting.findUnique({ where: { key: brandSettingKey(key) } });
+    let brand = setting ? parseBrand(setting) : null;
+    if (!brand) brand = (await loadSocialBrands(prisma)).find(item => item.key === key) || null;
+    if (!brand) return reply.code(303).redirect('/admin/v3/social/brands?error=1&msg=Brand%20not%20found');
+    const value: SocialBrand = { ...brand, enabled: !brand.enabled };
+    await prisma.systemSetting.upsert({
+      where: { key: brandSettingKey(key) },
+      create: { key: brandSettingKey(key), category: 'social-brand', description: 'Social brand ' + key, value: value as unknown as Prisma.InputJsonValue },
+      update: { category: 'social-brand', value: value as unknown as Prisma.InputJsonValue },
+    });
+    await audit(prisma, admin.id, 'SOCIAL_BRAND_TOGGLE', 'SocialBrand', key, brand.titleEn + ': ' + (value.enabled ? 'enabled' : 'disabled'));
+    return reply.code(303).redirect('/admin/v3/social/brands');
+  });
+
+  app.post('/admin/v3/social/brands/delete', async (request, reply) => {
+    const admin = await requireAdmin(request, reply, resolveAdmin);
+    if (!admin) return;
+    const key = normalizeBrandKey(text(request.body as Body, 'key'));
+    const categories = await loadCategories(prisma);
+    const categoryCount = categories.filter(item => normalizeBrandKey(item.platform) === key).length;
+    const serviceCount = await prisma.service.count({ where: { category: ServiceCategory.SOCIAL, socialPlatform: key } });
+    if (categoryCount || serviceCount) return reply.code(303).redirect('/admin/v3/social/brands?error=1&msg=' + encodeURIComponent('Move or delete this brand’s categories/services first.'));
+    await prisma.systemSetting.deleteMany({ where: { key: brandSettingKey(key) } });
+    await audit(prisma, admin.id, 'SOCIAL_BRAND_DELETE', 'SocialBrand', key, key);
+    return reply.code(303).redirect('/admin/v3/social/brands?msg=Brand%20deleted.');
+  });
   app.get('/admin/v3/social/categories', async (request, reply) => {
     const admin = await requireAdmin(request, reply, resolveAdmin);
     if (!admin) return;
