@@ -1,2 +1,1 @@
-Trigger signed Android build for VELIXEO v0.5.0+5 social order UX update — 2026-09-18T06:24:22.995Z.
-Includes focused order form after service selection and opt-in Drip-feed controls.
+Trigger signed Android build for VELIXEO v0.5.0+5 — server-driven Social Brands, brand icons, and brand/category structure.
