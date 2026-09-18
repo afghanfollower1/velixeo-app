@@ -136,7 +136,9 @@ async function payments(p:PrismaClient,q:string){
   ]);
   const base=(process.env.PUBLIC_BASE_URL||'').replace(/\/$/,'');
   const has=Boolean(process.env.HESABPAY_API_KEY?.trim());
-  const webhook=base?`${base}/api/v1/payments/hesabpay/webhook`:'Set PUBLIC_BASE_URL';
+  const registeredWebhook=process.env.HESABPAY_REGISTERED_WEBHOOK_URL
+    || 'https://afghanfollower1.com/afghanfollower1/afghan-payments/v1/hesabpay/webhook';
+  const internalWebhook=base?`${base}/api/v1/payments/hesabpay/webhook`:'Set PUBLIC_BASE_URL';
 
   const walletSearch=`<div class="card">
     <div class="cardhead"><div><h2>Manual Wallet Adjustment</h2><span class="muted">Credit or debit a user wallet with a ledger and audit record.</span></div>${pill('AFN only','info')}</div>
@@ -175,8 +177,9 @@ async function payments(p:PrismaClient,q:string){
       <div class="cardhead"><h2>HesabPay Gateway</h2>${has?pill('Ready','ok'):pill('Key missing','warn')}</div>
       <div class="field"><label>Environment</label><input readonly value="${e(process.env.HESABPAY_ENVIRONMENT||'production')}"></div>
       <div class="field"><label>Public Base URL</label><input class="mono" readonly value="${e(base||'Not configured')}"></div>
-      <div class="field"><label>Webhook Endpoint</label><input class="mono" readonly value="${e(webhook)}"></div>
-      <div class="notice"><b>API key:</b> add <span class="mono">HESABPAY_API_KEY</span> in Railway → velixeo-api → Variables. The secret is never shown here.<br><b>HesabPay webhook:</b> register the Webhook Endpoint shown above in your HesabPay merchant/dashboard settings.</div>
+      <div class="field"><label>Registered HesabPay Webhook</label><input class="mono" readonly value="${e(registeredWebhook)}"></div>
+      <div class="field"><label>VELIXEO Internal Receiver</label><input class="mono" readonly value="${e(internalWebhook)}"></div>
+      <div class="notice"><b>Shared webhook mode:</b> HesabPay stays registered to the WordPress webhook above. AOP handles AOP-* payments, AF NUMBER handles AFN-* payments, and the WordPress relay forwards only VLX-* payments to the internal VELIXEO receiver.<br><b>API key:</b> Railway still needs the same HesabPay key as <span class="mono">HESABPAY_API_KEY</span>. Secrets are never shown here.</div>
     </div>
     <div class="card"><div class="cardhead"><h2>Wallet Ledger</h2>${pill('Base currency: AFN','info')}</div><p class="muted">Deposits, purchases, refunds and manual adjustments are ledger-backed. USD and Toman are display conversions only.</p></div>
   </div>
