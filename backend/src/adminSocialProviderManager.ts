@@ -454,7 +454,7 @@ function brandPreview(brand: SocialBrand) {
 async function brandsPage(prisma: PrismaClient, admin: AdminIdentity, request: FastifyRequest) {
   const q = query(request);
   const brands = await loadSocialBrands(prisma);
-  const [categories, brands] = await Promise.all([loadCategories(prisma), loadSocialBrands(prisma)]);
+  const categories = await loadCategories(prisma);
   const services = await prisma.service.findMany({ where: { category: ServiceCategory.SOCIAL }, select: { socialPlatform: true, metadata: true } });
   const selected = q.edit ? brands.find(item => item.key === normalizeBrandKey(q.edit)) ?? null : null;
   const showForm = q.mode === 'new' || Boolean(selected);
@@ -483,7 +483,7 @@ async function brandsPage(prisma: PrismaClient, admin: AdminIdentity, request: F
 }
 async function categoriesPage(prisma: PrismaClient, admin: AdminIdentity, request: FastifyRequest) {
   const q = query(request);
-  const categories = await loadCategories(prisma);
+  const [categories, brands] = await Promise.all([loadCategories(prisma), loadSocialBrands(prisma)]);
   const services = await prisma.service.findMany({
     where: { category: ServiceCategory.SOCIAL },
     select: { socialGroup: true, enabled: true, metadata: true },
