@@ -6,6 +6,7 @@ import {
   SupportStatus,
 } from '@prisma/client';
 import { z } from 'zod';
+import { firebaseClientConfig } from './pushNotifications.js';
 
 type AuthHandler = (request: FastifyRequest, reply: FastifyReply) => Promise<unknown>;
 type JwtClaims = { sub: string };
@@ -21,6 +22,10 @@ const ticketMessageSchema = z.object({
 
 const ticketParamsSchema = z.object({ id: z.string().uuid() });
 const notificationParamsSchema = z.object({ id: z.string().uuid() });
+const pushDeviceSchema = z.object({
+  token: z.string().trim().min(20).max(4096),
+  platform: z.enum(['ANDROID', 'IOS']).default('ANDROID'),
+});
 
 function orderJsonObject(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -153,6 +158,8 @@ export function registerClientFoundationRoutes(
     return { banners };
   });
 
+  app.get('/api/v1/content/push-config', async () => firebaseClientConfig());
+
   app.get(
     '/api/v1/content/notifications',
     { preHandler: authenticate },
@@ -253,6 +260,40 @@ export function registerClientFoundationRoutes(
       })),
     );
     return { markedRead: visible.length, readAt: now };
+  });
+
+  app.post('/api/v1/push/devices', { preHandler: authenticate }, async (request, reply) => {
+    const parsed = pushDeviceSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+    const claims = request.user as JwtClaims;
+    const device = await prisma.pushDevice.upsert({
+      where: { token: parsed.data.token },
+      create: {
+        userId: claims.sub,
+        token: parsed.data.token,
+        platform: parsed.data.platform,
+        enabled: true,
+        lastSeenAt: new Date(),
+      },
+      update: {
+        userId: claims.sub,
+        platform: parsed.data.platform,
+        enabled: true,
+        lastSeenAt: new Date(),
+      },
+    });
+    return { registered: true, deviceId: device.id };
+  });
+
+  app.post('/api/v1/push/devices/unregister', { preHandler: authenticate }, async (request, reply) => {
+    const parsed = pushDeviceSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+    const claims = request.user as JwtClaims;
+    await prisma.pushDevice.updateMany({
+      where: { token: parsed.data.token, userId: claims.sub },
+      data: { enabled: false, lastSeenAt: new Date() },
+    });
+    return { unregistered: true };
   });
 
   app.get('/api/v1/orders', { preHandler: authenticate }, async (request) => {
