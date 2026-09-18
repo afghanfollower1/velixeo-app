@@ -1,1 +1,2 @@
-Trigger signed Android build for VELIXEO v0.5.0+5 — server-driven Social Brands, brand icons, and brand/category structure.
+Trigger signed Android build for latest VELIXEO UI update — 2026-09-18T10:02:00.290Z.
+Includes social brand grid, More services expansion, social banner, focused order form, and opt-in drip-feed.
