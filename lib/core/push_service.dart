@@ -37,6 +37,7 @@ class PushService {
     }
 
     final messaging = FirebaseMessaging.instance;
+    await messaging.setAutoInitEnabled(true);
     final permission = await messaging.requestPermission(
       alert: true,
       badge: true,
@@ -45,7 +46,14 @@ class PushService {
     );
     if (permission.authorizationStatus == AuthorizationStatus.denied) return;
 
-    final token = await messaging.getToken();
+    String? token;
+    for (var attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        token = await messaging.getToken();
+        if (token?.trim().isNotEmpty == true) break;
+      } catch (_) {}
+      await Future<void>.delayed(Duration(milliseconds: 700 * (attempt + 1)));
+    }
     if (token?.trim().isNotEmpty == true) {
       _registeredToken = token!.trim();
       await api.registerPushDevice(_registeredToken!);
