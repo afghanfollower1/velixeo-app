@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import {
   NotificationAudience,
+  OrderStatus,
   PrismaClient,
   SupportStatus,
 } from '@prisma/client';
@@ -20,6 +21,88 @@ const ticketMessageSchema = z.object({
 
 const ticketParamsSchema = z.object({ id: z.string().uuid() });
 const notificationParamsSchema = z.object({ id: z.string().uuid() });
+
+function orderJsonObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function clientOrderRows(order: any) {
+  const base = {
+    id: order.id,
+    category: order.category,
+    status: order.status,
+    quantity: order.quantity,
+    baseAmountAfn: order.baseAmountAfn.toString(),
+    totalAmountAfn: order.totalAmountAfn.toString(),
+    input: order.input,
+    output: order.output,
+    failureReason: order.failureReason,
+    createdAt: order.createdAt,
+    updatedAt: order.updatedAt,
+    completedAt: order.completedAt,
+    service: order.service,
+  };
+  if (String(order.category) !== 'SOCIAL') return [base];
+
+  const input = orderJsonObject(order.input);
+  const params = orderJsonObject(input.parameters);
+  const runs = Math.max(1, Number(input.runs ?? params.runs ?? 1) || 1);
+  if (input.dripFeed !== true && runs <= 1) return [base];
+
+  const interval = Math.max(0, Number(input.intervalMinutes ?? params.interval ?? 0) || 0);
+  const unitQuantity = Math.max(0, Number(input.unitQuantity ?? params.quantity ?? order.quantity ?? 0) || 0);
+  const output = orderJsonObject(order.output);
+  const raw = orderJsonObject(output.providerRawStatus);
+  const explicitCurrent = Number(raw.runs_current ?? raw.current_run ?? raw.run ?? NaN);
+  const elapsed = Math.max(0, Date.now() - new Date(order.createdAt).getTime());
+  const scheduledCurrent = interval > 0
+    ? Math.min(runs, Math.max(1, Math.floor(elapsed / (interval * 60_000)) + 1))
+    : 1;
+  const current = Number.isFinite(explicitCurrent)
+    ? Math.max(0, Math.min(runs, explicitCurrent))
+    : scheduledCurrent;
+  const dripStatus = String(raw.status_name ?? raw.drip_feed_status ?? raw.dripfeed_status ?? 'Active')
+    .trim()
+    .toLowerCase();
+  const finished = ['finished', 'completed', 'complete'].includes(dripStatus);
+  const stopped = ['stopped', 'cancelled', 'canceled', 'failed', 'refunded'].includes(dripStatus);
+  const totalAmount = BigInt(order.totalAmountAfn);
+  const baseAmount = BigInt(order.baseAmountAfn);
+  const divisor = BigInt(runs);
+  const totalShare = totalAmount / divisor;
+  const baseShare = baseAmount / divisor;
+
+  return Array.from({ length: runs }, (_, offset) => {
+    const index = offset + 1;
+    let status: OrderStatus;
+    if (finished) status = OrderStatus.COMPLETED;
+    else if (stopped) status = index < current ? OrderStatus.COMPLETED : OrderStatus.CANCELLED;
+    else if (index < current) status = OrderStatus.COMPLETED;
+    else if (index === current && current > 0) status = OrderStatus.PROCESSING;
+    else status = OrderStatus.PENDING;
+    const scheduledAt = new Date(new Date(order.createdAt).getTime() + offset * interval * 60_000);
+    const runTotal = index === runs ? totalAmount - (totalShare * BigInt(runs - 1)) : totalShare;
+    const runBase = index === runs ? baseAmount - (baseShare * BigInt(runs - 1)) : baseShare;
+    return {
+      ...base,
+      id: `${order.id}:run:${index}`,
+      status,
+      quantity: unitQuantity,
+      baseAmountAfn: runBase.toString(),
+      totalAmountAfn: runTotal.toString(),
+      createdAt: scheduledAt,
+      dripRun: {
+        parentOrderId: order.id,
+        runIndex: index,
+        runsAll: runs,
+        interval,
+        scheduledAt,
+      },
+    };
+  });
+}
 
 export function registerClientFoundationRoutes(
   app: FastifyInstance,
@@ -185,21 +268,7 @@ export function registerClientFoundationRoutes(
       take: 100,
     });
     return {
-      orders: orders.map((order) => ({
-        id: order.id,
-        category: order.category,
-        status: order.status,
-        quantity: order.quantity,
-        baseAmountAfn: order.baseAmountAfn.toString(),
-        totalAmountAfn: order.totalAmountAfn.toString(),
-        input: order.input,
-        output: order.output,
-        failureReason: order.failureReason,
-        createdAt: order.createdAt,
-        updatedAt: order.updatedAt,
-        completedAt: order.completedAt,
-        service: order.service,
-      })),
+      orders: orders.flatMap(clientOrderRows).slice(0, 100),
     };
   });
 
