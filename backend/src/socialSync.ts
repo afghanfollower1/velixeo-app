@@ -247,7 +247,7 @@ export async function syncSocialProviderCatalog(
     let updated = 0;
     const syncedAt = new Date();
 
-    for (const row of services) {
+    for (const [catalogIndex, row] of services.entries()) {
       const current = byCode.get(row.service);
       const providerRate = new Prisma.Decimal(row.rate || '0');
       const providerRateScaled = decimalToScaled(providerRate);
@@ -266,7 +266,7 @@ export async function syncSocialProviderCatalog(
         providerCancel: row.cancel,
         costAfn,
         lastSyncedAt: syncedAt,
-        metadata: row.raw as Prisma.InputJsonValue,
+        metadata: { ...row.raw, _velixeoCatalogIndex: catalogIndex } as Prisma.InputJsonValue,
       };
 
       if (current) {
