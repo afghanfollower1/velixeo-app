@@ -488,6 +488,24 @@ function mapProviderStatus(raw: string) {
   return OrderStatus.PENDING;
 }
 
+function providerRefillAvailableAt(message: string | undefined) {
+  if (!message) return null;
+  const text = message.toLowerCase();
+  if (!text.includes('refill') || (!text.includes('available') && !text.includes('wait'))) return null;
+  let milliseconds = 0;
+  const matches = text.matchAll(/(\d+)\s*(day|days|hour|hours|hr|hrs|minute|minutes|min|mins)/g);
+  for (const match of matches) {
+    const amount = Number.parseInt(match[1] ?? '0', 10);
+    const unit = match[2] ?? '';
+    if (!Number.isFinite(amount) || amount < 0) continue;
+    if (unit.startsWith('day')) milliseconds += amount * 24 * 60 * 60 * 1000;
+    else if (unit.startsWith('hour') || unit === 'hr' || unit === 'hrs') milliseconds += amount * 60 * 60 * 1000;
+    else milliseconds += amount * 60 * 1000;
+  }
+  if (milliseconds <= 0) return null;
+  return new Date(Date.now() + milliseconds);
+}
+
 async function audit(
   prisma: PrismaClient,
   adminId: string,
@@ -569,10 +587,20 @@ async function maybeApplyTerminalRefund(
 
 function socialOrderJson(order: any) {
   const output = order.output && typeof order.output === 'object' ? order.output : {};
-  const refillWindowHours = Number(output.refillWindowHours ?? 24);
-  const refillAvailableUntil = order.completedAt && output.refillSupported === true
-    ? new Date(new Date(order.completedAt).getTime() + refillWindowHours * 60 * 60 * 1000)
+  const refillAvailableAt = typeof output.refillAvailableAt === 'string'
+    ? new Date(output.refillAvailableAt)
     : null;
+  const activeRefill = (order.actions ?? []).find((action: any) =>
+    action.action === 'REFILL'
+    && !['COMPLETED', 'REJECTED', 'FAILED', 'CANCELLED'].includes(String(action.status ?? '').toUpperCase()),
+  );
+  const refillCheckable = output.refillSupported === true
+    && order.status === OrderStatus.COMPLETED
+    && !activeRefill;
+  const canRefill = refillCheckable
+    && refillAvailableAt != null
+    && !Number.isNaN(refillAvailableAt.getTime())
+    && refillAvailableAt.getTime() <= Date.now();
   return {
     id: order.id,
     displayOrderId: orderDisplayId(order),
@@ -584,11 +612,10 @@ function socialOrderJson(order: any) {
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
     completedAt: order.completedAt,
-    refillAvailableUntil,
-    canRefill: output.refillSupported === true
-      && order.status === OrderStatus.COMPLETED
-      && refillAvailableUntil != null
-      && refillAvailableUntil.getTime() >= Date.now(),
+    refillAvailableAt,
+    refillAvailabilityMessage: output.refillAvailabilityMessage ?? null,
+    refillCheckable,
+    canRefill,
     canCancel: output.cancelSupported === true
       && ![OrderStatus.COMPLETED, OrderStatus.PARTIAL, OrderStatus.CANCELLED, OrderStatus.FAILED, OrderStatus.REFUNDED].includes(order.status),
     input: order.input,
@@ -1208,10 +1235,15 @@ export function registerSocialRoutes(
     if (order.status !== OrderStatus.COMPLETED || !order.completedAt) {
       return reply.code(409).send({ error: 'refill_not_available' });
     }
-    const settings = await getSocialOrderSettings(prisma);
-    const refillDeadline = new Date(order.completedAt.getTime() + settings.refillWindowHours * 60 * 60 * 1000);
-    if (Date.now() > refillDeadline.getTime()) {
-      return reply.code(409).send({ error: 'refill_window_expired' });
+    const knownAvailableAt = typeof output.refillAvailableAt === 'string'
+      ? new Date(output.refillAvailableAt)
+      : null;
+    if (knownAvailableAt && !Number.isNaN(knownAvailableAt.getTime()) && knownAvailableAt.getTime() > Date.now()) {
+      return reply.code(409).send({
+        error: 'refill_not_ready',
+        details: output.refillAvailabilityMessage ?? 'Refill is not available yet.',
+        availableAt: knownAvailableAt,
+      });
     }
     try {
       const result = await smmClientForProvider(order.provider).refill(order.providerOrderId);
@@ -1222,6 +1254,17 @@ export function registerSocialRoutes(
           providerReference: result.refillId,
           status: 'PENDING',
           response: result.raw as Prisma.InputJsonValue,
+        },
+      });
+      await prisma.order.update({
+        where: { id: order.id },
+        data: {
+          output: {
+            ...output,
+            refillAvailableAt: null,
+            refillAvailabilityMessage: null,
+            lastRefillRequestedAt: new Date().toISOString(),
+          },
         },
       });
       return reply.code(201).send({
@@ -1235,6 +1278,25 @@ export function registerSocialRoutes(
       });
     } catch (error) {
       if (error instanceof SmmProviderError) {
+        const availableAt = providerRefillAvailableAt(error.providerMessage);
+        if (availableAt) {
+          await prisma.order.update({
+            where: { id: order.id },
+            data: {
+              output: {
+                ...output,
+                refillAvailableAt: availableAt.toISOString(),
+                refillAvailabilityMessage: error.providerMessage ?? 'Refill is not available yet.',
+                refillLastCheckedAt: new Date().toISOString(),
+              },
+            },
+          });
+          return reply.code(409).send({
+            error: 'refill_not_ready',
+            details: error.providerMessage,
+            availableAt,
+          });
+        }
         return reply.code(409).send({ error: error.message, details: error.providerMessage });
       }
       throw error;
