@@ -90,7 +90,8 @@ function paymentIdFromPayload(payload: z.infer<typeof webhookSchema>) {
   ].filter((value): value is string => typeof value === 'string');
 
   for (const candidate of candidates) {
-    if (z.string().uuid().safeParse(candidate).success) return candidate;
+    const normalized = candidate.startsWith('VLX-') ? candidate.slice(4) : candidate;
+    if (z.string().uuid().safeParse(normalized).success) return normalized;
   }
   return null;
 }
