@@ -153,43 +153,48 @@ jobs:
             echo "Firebase GitHub secrets are incomplete; trying production push-config."
             CONFIG=$(curl --fail --silent --show-error --max-time 15 https://velixeo-api-production.up.railway.app/api/v1/content/push-config || true)
             if [ -n "$CONFIG" ]; then
-              eval "$(python3 - "$CONFIG" <<'PY'
-import json, shlex, sys
-try:
-    x=json.loads(sys.argv[1])
-except Exception:
-    x={}
-for env,key in [
-    ("PROJECT_ID","projectId"),
-    ("API_KEY","apiKey"),
-    ("APP_ID","appId"),
-    ("SENDER_ID","messagingSenderId"),
-]:
-    value=x.get(key) or ""
-    print(f"{env}={shlex.quote(str(value))}")
-PY
-)"
+              export CONFIG
+              eval "$(python3 - <<'PY'
+          import json, os, shlex
+          try:
+              x = json.loads(os.environ.get("CONFIG", "{}"))
+          except Exception:
+              x = {}
+          for env, key in [
+              ("PROJECT_ID", "projectId"),
+              ("API_KEY", "apiKey"),
+              ("APP_ID", "appId"),
+              ("SENDER_ID", "messagingSenderId"),
+          ]:
+              value = x.get(key) or ""
+              print(f"{env}={shlex.quote(str(value))}")
+          PY
+          )"
             fi
           fi
 
           if [ -n "$PROJECT_ID" ] && [ -n "$API_KEY" ] && [ -n "$APP_ID" ] && [ -n "$SENDER_ID" ]; then
             mkdir -p android/app/src/main/res/values
-            python3 - "$PROJECT_ID" "$API_KEY" "$APP_ID" "$SENDER_ID" <<'PY'
-from pathlib import Path
-from xml.sax.saxutils import escape
-import sys
-project_id, api_key, app_id, sender_id = sys.argv[1:]
-xml = f"""<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="google_app_id" translatable="false">{escape(app_id)}</string>
-    <string name="gcm_defaultSenderId" translatable="false">{escape(sender_id)}</string>
-    <string name="google_api_key" translatable="false">{escape(api_key)}</string>
-    <string name="google_storage_bucket" translatable="false">{escape(project_id)}.appspot.com</string>
-    <string name="project_id" translatable="false">{escape(project_id)}</string>
-</resources>
-"""
-Path("android/app/src/main/res/values/velixeo_firebase.xml").write_text(xml, encoding="utf-8")
-PY
+            export PROJECT_ID API_KEY APP_ID SENDER_ID
+            python3 - <<'PY'
+          from pathlib import Path
+          from xml.sax.saxutils import escape
+          import os
+          project_id = os.environ["PROJECT_ID"]
+          api_key = os.environ["API_KEY"]
+          app_id = os.environ["APP_ID"]
+          sender_id = os.environ["SENDER_ID"]
+          xml = f"""<?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="google_app_id" translatable="false">{escape(app_id)}</string>
+              <string name="gcm_defaultSenderId" translatable="false">{escape(sender_id)}</string>
+              <string name="google_api_key" translatable="false">{escape(api_key)}</string>
+              <string name="google_storage_bucket" translatable="false">{escape(project_id)}.appspot.com</string>
+              <string name="project_id" translatable="false">{escape(project_id)}</string>
+          </resources>
+          """
+          Path("android/app/src/main/res/values/velixeo_firebase.xml").write_text(xml, encoding="utf-8")
+          PY
             echo "Native Firebase resources embedded for terminated-state push."
           else
             echo "::warning::Firebase production credentials are not configured yet. APK will build, but remote push cannot activate until Firebase is configured on the backend."
