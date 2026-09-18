@@ -16,6 +16,7 @@ import {
 } from './smmPanelAdapter.js';
 import { claimCoupon, quoteCoupon, releaseCoupon } from './couponPricing.js';
 import { loadSocialBrands, normalizeBrandKey } from './socialBrands.js';
+import { getSocialOrderSettings } from './socialOrderSettings.js';
 
 type AuthenticateHook = (
   request: FastifyRequest,
@@ -47,6 +48,7 @@ type OrderField = {
 const createOrderSchema = z.object({
   serviceId: z.string().uuid(),
   clientRequestId: z.string().uuid(),
+  termsAccepted: z.literal(true),
   couponCode: z.string().trim().max(80).optional().nullable(),
   parameters: z.record(
     z.string(),
@@ -86,6 +88,38 @@ function decimalOrNull(value: unknown) {
   if (!raw) return null;
   if (!/^\d+(\.\d{1,8})?$/.test(raw)) throw new Error('INVALID_DECIMAL');
   return new Prisma.Decimal(raw);
+}
+
+function providerEtaFromMetadata(value: Prisma.JsonValue | null | undefined) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  const candidates = [
+    row.average_time,
+    row.averageTime,
+    row.estimated_time,
+    row.estimatedTime,
+    row.time,
+  ];
+  for (const candidate of candidates) {
+    if (candidate != null && String(candidate).trim()) return String(candidate).trim();
+  }
+  return null;
+}
+
+function orderDisplayId(order: {
+  id: string;
+  providerOrderId?: string | null;
+  publicOrderNumber?: bigint | null;
+  output?: Prisma.JsonValue | null;
+}) {
+  const output = order.output && typeof order.output === 'object' && !Array.isArray(order.output)
+    ? order.output as Record<string, unknown>
+    : {};
+  const explicit = output.displayOrderId;
+  if (typeof explicit === 'string' && explicit.trim()) return explicit.trim();
+  if (order.publicOrderNumber != null) return order.publicOrderNumber.toString();
+  if (order.providerOrderId?.trim()) return order.providerOrderId.trim();
+  return order.id.slice(0, 8);
 }
 
 const esc = (value: unknown) =>
@@ -525,8 +559,13 @@ async function maybeApplyTerminalRefund(
 
 function socialOrderJson(order: any) {
   const output = order.output && typeof order.output === 'object' ? order.output : {};
+  const refillWindowHours = Number(output.refillWindowHours ?? 24);
+  const refillAvailableUntil = order.completedAt && output.refillSupported === true
+    ? new Date(new Date(order.completedAt).getTime() + refillWindowHours * 60 * 60 * 1000)
+    : null;
   return {
     id: order.id,
+    displayOrderId: orderDisplayId(order),
     status: order.status,
     quantity: order.quantity,
     totalAmountAfn: order.totalAmountAfn.toString(),
@@ -535,6 +574,13 @@ function socialOrderJson(order: any) {
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
     completedAt: order.completedAt,
+    refillAvailableUntil,
+    canRefill: output.refillSupported === true
+      && order.status === OrderStatus.COMPLETED
+      && refillAvailableUntil != null
+      && refillAvailableUntil.getTime() >= Date.now(),
+    canCancel: output.cancelSupported === true
+      && ![OrderStatus.COMPLETED, OrderStatus.PARTIAL, OrderStatus.CANCELLED, OrderStatus.FAILED, OrderStatus.REFUNDED].includes(order.status),
     input: order.input,
     output,
     service: order.service
@@ -651,6 +697,16 @@ export function registerSocialRoutes(
   authenticate: AuthenticateHook,
   resolveAdmin: AdminResolver,
 ) {
+  app.get('/api/v1/social/order-config', async () => {
+    const settings = await getSocialOrderSettings(prisma);
+    return {
+      orderIdMode: settings.orderIdMode,
+      termsFa: settings.termsFa,
+      termsEn: settings.termsEn,
+      refillWindowHours: settings.refillWindowHours,
+    };
+  });
+
   app.get('/api/v1/social/catalog', async () => {
     const services = await prisma.service.findMany({
       where: { category: ServiceCategory.SOCIAL, enabled: true },
@@ -698,6 +754,7 @@ export function registerSocialRoutes(
         refillSupported: route.providerRefill,
         cancelSupported: route.providerCancel,
         refillDays: service.refillDays,
+        providerEta: providerEtaFromMetadata(route.metadata),
         providerType,
         orderFields: orderFields(providerType),
       });
@@ -820,6 +877,7 @@ export function registerSocialRoutes(
     const parsed = createOrderSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
     const userId = (request.user as JwtClaims).sub;
+    const orderSettings = await getSocialOrderSettings(prisma);
 
     const existing = await prisma.order.findUnique({
       where: { clientRequestId: parsed.data.clientRequestId },
@@ -882,6 +940,19 @@ export function registerSocialRoutes(
           const wallet = await tx.wallet.findUnique({ where: { userId } });
           if (!wallet) throw new Error('WALLET_NOT_FOUND');
           if (wallet.balanceAfn < totalAmountAfn) throw new Error('INSUFFICIENT_FUNDS');
+          let publicOrderNumber: bigint | null = null;
+          if (orderSettings.orderIdMode === 'SEQUENTIAL') {
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(764208315)`;
+            const latest = await tx.order.findFirst({
+              where: { publicOrderNumber: { not: null } },
+              orderBy: { publicOrderNumber: 'desc' },
+              select: { publicOrderNumber: true },
+            });
+            const start = BigInt(orderSettings.startNumber);
+            publicOrderNumber = latest?.publicOrderNumber != null && latest.publicOrderNumber >= start
+              ? latest.publicOrderNumber + 1n
+              : start;
+          }
           const created = await tx.order.create({
             data: {
               userId,
@@ -891,6 +962,7 @@ export function registerSocialRoutes(
               quantity,
               baseAmountAfn: customerRate,
               totalAmountAfn,
+              publicOrderNumber,
               clientRequestId: parsed.data.clientRequestId,
               input: {
                 parameters,
@@ -898,6 +970,8 @@ export function registerSocialRoutes(
                 customerRateAfn: customerRate.toString(),
                 priceUnit: service.priceUnit,
                 refillDays: service.refillDays,
+                termsAccepted: true,
+                termsAcceptedAt: new Date().toISOString(),
                 couponCode: couponPrice.couponCode,
                 couponId: couponPrice.couponId,
                 subtotalAmountAfn: couponPrice.subtotalAfn.toString(),
@@ -962,6 +1036,11 @@ export function registerSocialRoutes(
               providerStatus: 'Pending',
               refillSupported: route.providerRefill,
               cancelSupported: route.providerCancel,
+              providerEta: providerEtaFromMetadata(route.metadata),
+              refillWindowHours: orderSettings.refillWindowHours,
+              displayOrderId: orderSettings.orderIdMode === 'PROVIDER'
+                ? result.orderId
+                : (order.publicOrderNumber?.toString() ?? order.id.slice(0, 8)),
               providerType: candidateType,
               providerResponse: result.raw as Prisma.InputJsonValue,
             },
@@ -992,6 +1071,9 @@ export function registerSocialRoutes(
                   providerMessage: explicitFailure,
                   refillSupported: route.providerRefill,
                   cancelSupported: route.providerCancel,
+                  providerEta: providerEtaFromMetadata(route.metadata),
+                  refillWindowHours: orderSettings.refillWindowHours,
+                  displayOrderId: order.publicOrderNumber?.toString() ?? order.id.slice(0, 8),
                   providerType: candidateType,
                 },
               },
@@ -1062,7 +1144,7 @@ export function registerSocialRoutes(
         data: {
           status: nextStatus,
           providerCostAfn: actualCostAfn ?? order.providerCostAfn,
-          completedAt: nextStatus === OrderStatus.COMPLETED ? new Date() : order.completedAt,
+          completedAt: nextStatus === OrderStatus.COMPLETED ? (order.completedAt ?? new Date()) : order.completedAt,
           failureReason: nextStatus === OrderStatus.FAILED ? status.status : null,
           output: {
             ...currentOutput,
@@ -1106,6 +1188,14 @@ export function registerSocialRoutes(
       ? order.output as Record<string, unknown>
       : {};
     if (output.refillSupported !== true) return reply.code(409).send({ error: 'refill_not_supported' });
+    if (order.status !== OrderStatus.COMPLETED || !order.completedAt) {
+      return reply.code(409).send({ error: 'refill_not_available' });
+    }
+    const settings = await getSocialOrderSettings(prisma);
+    const refillDeadline = new Date(order.completedAt.getTime() + settings.refillWindowHours * 60 * 60 * 1000);
+    if (Date.now() > refillDeadline.getTime()) {
+      return reply.code(409).send({ error: 'refill_window_expired' });
+    }
     try {
       const result = await smmClientForProvider(order.provider).refill(order.providerOrderId);
       const action = await prisma.orderActionLog.create({
@@ -1176,6 +1266,7 @@ export function registerSocialRoutes(
     if (
       order.status === OrderStatus.COMPLETED ||
       order.status === OrderStatus.CANCELLED ||
+      order.status === OrderStatus.PARTIAL ||
       order.status === OrderStatus.REFUNDED ||
       order.status === OrderStatus.FAILED
     ) {
