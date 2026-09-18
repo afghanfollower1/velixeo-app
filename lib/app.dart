@@ -645,6 +645,8 @@ class BrandMark extends StatelessWidget {
 }
 
 class _LogoPainter extends CustomPainter {
+  const _LogoPainter();
+
   @override
   void paint(Canvas canvas, Size size) {
     final sx = size.width / 96;
