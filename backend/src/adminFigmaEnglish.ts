@@ -150,6 +150,8 @@ async function payments(p:PrismaClient,q:string){
         <div><b>${e(u.fullName||'—')}</b><small>${e(u.email||u.phone||'—')} · Balance: ${money(u.wallet?.balanceAfn||0n)}</small></div>
         <form method="post" action="/admin/v3/wallet" class="actions" style="justify-content:flex-end">
           <input type="hidden" name="userId" value="${u.id}">
+          <input type="hidden" name="returnSection" value="payments">
+          <input type="hidden" name="returnQ" value="${e(search)}">
           <select name="operation" style="height:34px;border:1px solid #e3eaf3;border-radius:8px;padding:0 8px">
             <option value="ADD">Add</option>
             <option value="DEDUCT">Deduct</option>
@@ -196,7 +198,51 @@ export function registerAdminV3(app:FastifyInstance,p:PrismaClient,resolve:Admin
  app.post('/admin/v3/social/category',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body;try{const original=t(b,'originalSlug'),s=slug(t(b,'slug')),titleEn=t(b,'titleEn'),platform=t(b,'platform');if(!s||!titleEn)throw new Error('Slug and English name are required');const value:SocialCategory={slug:s,titleEn,titleFa:t(b,'titleFa')||titleEn,platform,descriptionEn:t(b,'descriptionEn'),descriptionFa:t(b,'descriptionFa'),sortOrder:i(b.sortOrder,100),enabled:c(b,'enabled')};if(original&&original!==s)await p.systemSetting.deleteMany({where:{key:categoryKey(original)}});await p.systemSetting.upsert({where:{key:categoryKey(s)},create:{key:categoryKey(s),category:'social-category',description:'Social app category',value:value as unknown as Prisma.InputJsonValue},update:{category:'social-category',value:value as unknown as Prisma.InputJsonValue}});if(original&&original!==s)await p.service.updateMany({where:{category:ServiceCategory.SOCIAL,socialGroup:original},data:{socialGroup:s}});await audit(p,a.id,'SOCIAL_CATEGORY_SAVE','SocialCategory',s,`${platform} → ${titleEn}`);return rep.code(303).redirect(href('social',`&tab=categories&edit=${s}&msg=${encodeURIComponent('Category saved')}`))}catch(err){return rep.code(303).redirect(href('social',`&tab=categories&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'category_failed')}`))}});
  app.post('/admin/v3/social/publish',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body,routeId=t(b,'routeId'),providerId=t(b,'providerId');try{const route=await p.serviceProviderRoute.findUnique({where:{id:routeId},include:{service:true,provider:true}});if(!route||route.provider.kind!==ProviderKind.SOCIAL)throw new Error('Route not found');const cats=await categories(p),cat=cats.find(x=>x.slug===t(b,'categorySlug'));if(!cat)throw new Error('Choose a valid category');const mode=t(b,'pricingMode')==='FIXED'?'FIXED':'AUTO_MARKUP',markup=new Prisma.Decimal(t(b,'markup')||route.provider.defaultMarkupPercent.toString());let fixed:bigint|null=null;if(mode==='FIXED'){const raw=t(b,'fixedPrice');if(!raw)throw new Error('Fixed price is required');fixed=await convertSocialPriceToAfn(p,new Prisma.Decimal(raw),t(b,'fixedCurrency')||'AFN')}const old=jsonObj(route.service.metadata);await p.$transaction([p.service.update({where:{id:route.serviceId},data:{titleEn:t(b,'titleEn')||route.service.titleEn,titleFa:t(b,'titleFa')||t(b,'titleEn')||route.service.titleFa,descriptionEn:t(b,'descriptionEn')||null,descriptionFa:t(b,'descriptionFa')||null,enabled:c(b,'enabled'),sortOrder:i(b.sortOrder,route.service.sortOrder),basePriceAfn:fixed,minQty:t(b,'minQty')?i(b.minQty):route.providerMinQty,maxQty:t(b,'maxQty')?i(b.maxQty):route.providerMaxQty,socialPlatform:cat.platform,socialGroup:cat.slug,metadata:{...old,rawCatalog:false,pricingMode:mode,categorySlug:cat.slug,publishedFromProviderId:route.providerId,publishedAt:new Date().toISOString()} as Prisma.InputJsonValue}}),p.serviceProviderRoute.update({where:{id:route.id},data:{enabled:true,markupPercent:mode==='AUTO_MARKUP'?markup:null}})]);await audit(p,a.id,'SOCIAL_SERVICE_PUBLISH','Service',route.serviceId,`${t(b,'titleEn')} → ${cat.titleEn}`,{pricingMode:mode,markup:markup.toString(),fixedAfn:fixed?.toString()??null});return rep.code(303).redirect(href('social',`&tab=catalog&provider=${providerId}&route=${routeId}&msg=${encodeURIComponent('Service published to VELIXEO')}`))}catch(err){return rep.code(303).redirect(href('social',`&tab=catalog&provider=${providerId}&route=${routeId}&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'publish_failed')}`))}});
  app.post('/admin/v3/user',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body,id=t(b,'userId');if(id===a.id)return rep.code(303).redirect(href('users',`&edit=${id}&err=1&msg=${encodeURIComponent('Current admin account is protected')}`));const role=String(b.role) as UserRole,status=String(b.status) as UserStatus;if(!Object.values(UserRole).includes(role)||!Object.values(UserStatus).includes(status))return rep.code(303).redirect(href('users','&err=1&msg=Invalid access settings'));const x=await p.user.update({where:{id},data:{role,status}});await audit(p,a.id,'USER_ACCESS_UPDATE','User',x.id,`${role}/${status}`);return rep.code(303).redirect(href('users',`&edit=${x.id}&msg=${encodeURIComponent('Account saved')}`))});
- app.post('/admin/v3/wallet',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body,id=t(b,'userId'),reason=t(b,'reason'),operation=t(b,'operation');let amount:bigint;try{amount=BigInt(t(b,'amountAfn'));if(operation==='DEDUCT'&&amount>0n)amount=-amount;if(operation==='ADD'&&amount<0n)amount=-amount}catch{return rep.code(303).redirect(href('users',`&edit=${id}&err=1&msg=Invalid amount`))}try{const entry=await p.$transaction(async tx=>{const w=await tx.wallet.findUnique({where:{userId:id}});if(!w)throw new Error('Wallet not found');const next=w.balanceAfn+amount;if(next<0n)throw new Error('Insufficient balance');await tx.wallet.update({where:{id:w.id},data:{balanceAfn:next}});return tx.walletEntry.create({data:{walletId:w.id,type:amount>0n?WalletEntryType.MANUAL_CREDIT:WalletEntryType.MANUAL_DEBIT,status:WalletEntryStatus.COMPLETED,amountAfn:amount,balanceAfterAfn:next,description:reason,referenceType:'ADMIN_ADJUSTMENT',referenceId:a.id,idempotencyKey:`figma-${a.id}-${Date.now()}-${randomBytes(4).toString('hex')}`}})},{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});await audit(p,a.id,'WALLET_MANUAL_ADJUST','WalletEntry',entry.id,`${amount} AFN — ${reason}`,{userId:id});return rep.code(303).redirect(href('users',`&edit=${id}&msg=${encodeURIComponent('Wallet adjustment posted')}`))}catch(err){return rep.code(303).redirect(href('users',`&edit=${id}&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'wallet_failed')}`))}});
+ app.post('/admin/v3/wallet',async(req,rep)=>{
+  const a=await needAdmin(req,rep,resolve);if(!a)return;
+  const b=req.body as Body,id=t(b,'userId'),reason=t(b,'reason'),operation=t(b,'operation');
+  const returnSection=t(b,'returnSection');
+  const returnQ=t(b,'returnQ');
+  const destination=(ok:boolean,msg:string)=>{
+    if(returnSection==='payments'){
+      return href('payments',`${returnQ?`&q=${encodeURIComponent(returnQ)}`:''}&${ok?'msg':'err'}=${ok?'':1}&msg=${encodeURIComponent(msg)}`);
+    }
+    return href('users',`&edit=${id}&${ok?'msg':'err'}=${ok?'':1}&msg=${encodeURIComponent(msg)}`);
+  };
+  let amount:bigint;
+  try{
+    amount=BigInt(t(b,'amountAfn'));
+    if(operation==='DEDUCT'&&amount>0n)amount=-amount;
+    if(operation==='ADD'&&amount<0n)amount=-amount;
+    if(amount===0n)throw new Error('Amount must be greater than zero');
+  }catch{
+    return rep.code(303).redirect(destination(false,'Invalid amount'));
+  }
+  try{
+    const entry=await p.$transaction(async tx=>{
+      const w=await tx.wallet.findUnique({where:{userId:id}});
+      if(!w)throw new Error('Wallet not found');
+      const next=w.balanceAfn+amount;
+      if(next<0n)throw new Error('Insufficient balance');
+      await tx.wallet.update({where:{id:w.id},data:{balanceAfn:next}});
+      return tx.walletEntry.create({data:{
+        walletId:w.id,
+        type:amount>0n?WalletEntryType.MANUAL_CREDIT:WalletEntryType.MANUAL_DEBIT,
+        status:WalletEntryStatus.COMPLETED,
+        amountAfn:amount,
+        balanceAfterAfn:next,
+        description:reason,
+        referenceType:'ADMIN_ADJUSTMENT',
+        referenceId:a.id,
+        idempotencyKey:`figma-${a.id}-${Date.now()}-${randomBytes(4).toString('hex')}`
+      }});
+    },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
+    await audit(p,a.id,'WALLET_MANUAL_ADJUST','WalletEntry',entry.id,`${amount} AFN — ${reason}`,{userId:id});
+    return rep.code(303).redirect(destination(true,'Wallet adjustment posted'));
+  }catch(err){
+    return rep.code(303).redirect(destination(false,err instanceof Error?err.message:'wallet_failed'));
+  }
+});
  app.post('/admin/v3/rates',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body;try{for(const [code,key] of [['USD','usd'],['TOMAN','toman']] as const){const raw=t(b,key);if(!/^\d+(\.\d{1,8})?$/.test(raw))throw new Error(`Invalid ${code} rate`);await p.exchangeRate.upsert({where:{code},update:{afnPerUnit:new Prisma.Decimal(raw)},create:{code,afnPerUnit:new Prisma.Decimal(raw)}})}await audit(p,a.id,'EXCHANGE_RATES_UPDATE','ExchangeRate',null,`USD=${t(b,'usd')}, TOMAN=${t(b,'toman')}`);return rep.code(303).redirect(href('settings','&msg=Exchange rates saved'))}catch(err){return rep.code(303).redirect(href('settings',`&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'rate_failed')}`))}});
  app.post('/admin/v3/coupon',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body;try{const x=await p.coupon.create({data:{code:t(b,'code').toUpperCase(),title:t(b,'title')||null,discountType:String(b.discountType) as CouponDiscountType,discountValue:new Prisma.Decimal(t(b,'discountValue')),minOrderAfn:BigInt(t(b,'minOrderAfn')||'0'),usageLimit:t(b,'usageLimit')?i(b.usageLimit):null,active:c(b,'active')}});await audit(p,a.id,'COUPON_CREATE','Coupon',x.id,x.code);return rep.code(303).redirect(href('coupons','&msg=Coupon created'))}catch(err){return rep.code(303).redirect(href('coupons',`&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'coupon_failed')}`))}});
  app.post('/admin/v3/banner',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body;try{const x=await p.banner.create({data:{placement:String(b.placement) as BannerPlacement,titleEn:t(b,'titleEn')||null,titleFa:t(b,'titleFa')||null,imageUrl:t(b,'imageUrl'),actionUrl:t(b,'actionUrl')||null,enabled:c(b,'enabled'),sortOrder:i(b.sortOrder,100)}});await audit(p,a.id,'BANNER_CREATE','Banner',x.id,x.titleEn||x.placement);return rep.code(303).redirect(href('banners','&msg=Banner created'))}catch(err){return rep.code(303).redirect(href('banners',`&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'banner_failed')}`))}});
