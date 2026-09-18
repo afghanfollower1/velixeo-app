@@ -295,6 +295,37 @@ class AppOrder {
 }
 
 
+class PushConfig {
+  const PushConfig({
+    required this.enabled,
+    this.projectId,
+    this.apiKey,
+    this.appId,
+    this.messagingSenderId,
+  });
+
+  final bool enabled;
+  final String? projectId;
+  final String? apiKey;
+  final String? appId;
+  final String? messagingSenderId;
+
+  bool get complete =>
+      enabled &&
+      projectId?.isNotEmpty == true &&
+      apiKey?.isNotEmpty == true &&
+      appId?.isNotEmpty == true &&
+      messagingSenderId?.isNotEmpty == true;
+
+  factory PushConfig.fromJson(Map<String, dynamic> json) => PushConfig(
+        enabled: (json['enabled'] as bool?) ?? false,
+        projectId: json['projectId'] as String?,
+        apiKey: json['apiKey'] as String?,
+        appId: json['appId'] as String?,
+        messagingSenderId: json['messagingSenderId'] as String?,
+      );
+}
+
 class AppPayment {
   const AppPayment({
     required this.id,
