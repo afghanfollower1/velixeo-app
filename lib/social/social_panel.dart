@@ -27,6 +27,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
   List<SocialOrder> orders = const [];
   bool loading = true;
   bool submitting = false;
+  bool dripFeedEnabled = false;
   String? selectedPlatform;
   String? selectedGroup;
   SocialService? selectedService;
@@ -147,6 +148,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     }
     setState(() {
       selectedService = service;
+      dripFeedEnabled = false;
       quote = null;
     });
     scheduleQuote();
@@ -154,8 +156,23 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
 
   Map<String, dynamic> currentParameters() => {
         for (final entry in fields.entries)
-          if (entry.value.text.trim().isNotEmpty) entry.key: entry.value.text.trim(),
+          if (entry.value.text.trim().isNotEmpty &&
+              (dripFeedEnabled || (entry.key != 'runs' && entry.key != 'interval')))
+            entry.key: entry.value.text.trim(),
       };
+
+  void changeService() {
+    quoteTimer?.cancel();
+    for (final controller in fields.values) {
+      controller.dispose();
+    }
+    fields.clear();
+    setState(() {
+      selectedService = null;
+      dripFeedEnabled = false;
+      quote = null;
+    });
+  }
 
   void scheduleQuote() {
     quoteTimer?.cancel();
@@ -351,6 +368,29 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
         subtitle: t('سرویس‌ها بعد از Sync و فعال‌سازی از پنل مدیریت اینجا نمایش داده می‌شوند.', 'Services appear here after they are synced and enabled in Admin.'),
       );
     }
+
+    final service = selectedService;
+    if (service != null) {
+      return ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _WalletStrip(host: host, fa: fa),
+          const SizedBox(height: 14),
+          Align(
+            alignment: fa ? Alignment.centerRight : Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: changeService,
+              icon: Icon(fa ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded, size: 18),
+              label: Text(t('تغییر سرویس', 'Change service')),
+            ),
+          ),
+          const SizedBox(height: 10),
+          buildOrderForm(service),
+          const SizedBox(height: 24),
+        ],
+      );
+    }
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -410,11 +450,6 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
                 onTap: () => selectService(service),
               ),
             )),
-        if (selectedService != null) ...[
-          const SizedBox(height: 8),
-          buildOrderForm(selectedService!),
-          const SizedBox(height: 24),
-        ],
       ],
     );
   }
@@ -440,10 +475,56 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
           const SizedBox(height: 6),
           Text(fa ? service.titleFa : service.titleEn, style: const TextStyle(color: Color(0xFF607487))),
           const SizedBox(height: 16),
-          ...service.orderFields.map((field) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: buildField(field),
-              )),
+          ...service.orderFields
+              .where((field) => field.key != 'runs' && field.key != 'interval')
+              .map((field) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: buildField(field),
+                  )),
+          if (service.orderFields.any((field) => field.key == 'runs' || field.key == 'interval')) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7FAFD),
+                border: Border.all(color: const Color(0xFFDCE8F1)),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: CheckboxListTile(
+                value: dripFeedEnabled,
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: Text(
+                  t('دریپ‌فید (ارسال مرحله‌ای)', 'Drip-feed'),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: Text(
+                  t('فقط در صورت نیاز فعال کنید.', 'Enable only if you want scheduled delivery.'),
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF718399)),
+                ),
+                onChanged: (value) {
+                  final enabled = value == true;
+                  if (!enabled) {
+                    fields['runs']?.clear();
+                    fields['interval']?.clear();
+                  }
+                  setState(() {
+                    dripFeedEnabled = enabled;
+                    quote = null;
+                  });
+                  scheduleQuote();
+                },
+              ),
+            ),
+            if (dripFeedEnabled)
+              ...service.orderFields
+                  .where((field) => field.key == 'runs' || field.key == 'interval')
+                  .map((field) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: buildField(field),
+                      )),
+          ],
           if (service.minQty != null || service.maxQty != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
