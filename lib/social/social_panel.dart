@@ -5,12 +5,14 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../core/api_service.dart';
+import '../core/models.dart';
 import 'social_models.dart';
 
 abstract class SocialPanelHost {
   ApiService get api;
   bool get fa;
   int get balanceAfn;
+  List<AppBanner> get banners;
   String money(int amountAfn, {bool showBase});
   Future<void> refreshAccount();
 }
@@ -29,6 +31,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
   bool loading = true;
   bool submitting = false;
   bool dripFeedEnabled = false;
+  bool showAllBrands = false;
   String? selectedPlatform;
   String? selectedGroup;
   SocialService? selectedService;
@@ -136,6 +139,20 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
         if (selectedGroup != null && service.group != selectedGroup) return false;
         return true;
       }).toList(growable: false);
+
+  AppBanner? get socialBanner {
+    final rows = host.banners
+        .where((banner) => banner.placement == 'SERVICES_TOP')
+        .toList(growable: false)
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  List<SocialBrand> get displayedBrands {
+    final rows = availableBrands;
+    if (showAllBrands || rows.length <= 6) return rows;
+    return rows.take(6).toList(growable: false);
+  }
 
   void selectService(SocialService service) {
     quoteTimer?.cancel();
@@ -402,30 +419,52 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
       padding: const EdgeInsets.all(16),
       children: [
         _WalletStrip(host: host, fa: fa),
+        if (socialBanner != null) ...[
+          const SizedBox(height: 14),
+          _SocialPromoBanner(banner: socialBanner!, fa: fa),
+        ],
         const SizedBox(height: 18),
-        Text(t('برند', 'Brand'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                t('شبکه‌های اجتماعی', 'Social platforms'),
+                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+              ),
+            ),
+            if (availableBrands.length > 6)
+              TextButton.icon(
+                onPressed: () => setState(() => showAllBrands = !showAllBrands),
+                icon: Icon(showAllBrands ? Icons.expand_less_rounded : Icons.grid_view_rounded, size: 18),
+                label: Text(t(showAllBrands ? 'نمایش کمتر' : 'سرویس‌های بیشتر', showAllBrands ? 'Show less' : 'More services')),
+              ),
+          ],
+        ),
         const SizedBox(height: 10),
-        SizedBox(
-          height: 96,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: availableBrands.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 9),
-            itemBuilder: (context, index) {
-              final brand = availableBrands[index];
-              return _BrandCard(
-                brand: brand,
-                fa: fa,
-                selected: brand.key == selectedPlatform,
-                onTap: () => setState(() {
-                  selectedPlatform = brand.key;
-                  selectedGroup = null;
-                  selectedService = null;
-                  quote = null;
-                }),
-              );
-            },
-          ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            const gap = 9.0;
+            const columns = 3;
+            final width = (constraints.maxWidth - (gap * (columns - 1))) / columns;
+            return Wrap(
+              spacing: gap,
+              runSpacing: gap,
+              children: displayedBrands.map((brand) => SizedBox(
+                width: width,
+                child: _BrandCard(
+                  brand: brand,
+                  fa: fa,
+                  selected: brand.key == selectedPlatform,
+                  onTap: () => setState(() {
+                    selectedPlatform = brand.key;
+                    selectedGroup = null;
+                    selectedService = null;
+                    quote = null;
+                  }),
+                ),
+              )).toList(growable: false),
+            );
+          },
         ),
         const SizedBox(height: 18),
         Text(t('نوع سرویس', 'Service type'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
@@ -746,6 +785,102 @@ class _WalletStrip extends StatelessWidget {
       );
 }
 
+class _SocialPromoBanner extends StatelessWidget {
+  const _SocialPromoBanner({required this.banner, required this.fa});
+
+  final AppBanner banner;
+  final bool fa;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = (fa ? banner.titleFa : banner.titleEn)?.trim() ?? '';
+    final subtitle = (fa ? banner.subtitleFa : banner.subtitleEn)?.trim() ?? '';
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: AspectRatio(
+        aspectRatio: 1080 / 420,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (banner.imageUrl.trim().isNotEmpty)
+              Image.network(
+                banner.imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF0E6DD8), Color(0xFF35B5FF)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                ),
+              )
+            else
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF0E6DD8), Color(0xFF35B5FF)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+              ),
+            if (title.isNotEmpty || subtitle.isNotEmpty)
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: fa ? Alignment.centerRight : Alignment.centerLeft,
+                    end: fa ? Alignment.centerLeft : Alignment.centerRight,
+                    colors: const [Color(0xA6000000), Color(0x18000000), Color(0x00000000)],
+                  ),
+                ),
+              ),
+            if (title.isNotEmpty || subtitle.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                child: Align(
+                  alignment: fa ? Alignment.centerRight : Alignment.centerLeft,
+                  child: FractionallySizedBox(
+                    widthFactor: .72,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: fa ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                      children: [
+                        if (title.isNotEmpty)
+                          Text(
+                            title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: fa ? TextAlign.right : TextAlign.left,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              height: 1.2,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        if (title.isNotEmpty && subtitle.isNotEmpty) const SizedBox(height: 5),
+                        if (subtitle.isNotEmpty)
+                          Text(
+                            subtitle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: fa ? TextAlign.right : TextAlign.left,
+                            style: const TextStyle(color: Colors.white70, fontSize: 11, height: 1.35),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _BrandCard extends StatelessWidget {
   const _BrandCard({
     required this.brand,
@@ -811,8 +946,8 @@ class _BrandCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          width: 100,
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 10),
+          constraints: const BoxConstraints(minHeight: 92),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           decoration: BoxDecoration(
             color: selected ? const Color(0xFF0D78C8) : Colors.white,
             borderRadius: BorderRadius.circular(18),
