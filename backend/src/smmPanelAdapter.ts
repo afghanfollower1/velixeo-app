@@ -11,6 +11,7 @@ export type SmmService = {
   max: number;
   refill: boolean;
   cancel: boolean;
+  dripfeed: boolean;
   raw: Record<string, unknown>;
 };
 
@@ -151,6 +152,7 @@ export class SmmPanelClient {
         max: intValue(row.max),
         refill: boolValue(row.refill),
         cancel: boolValue(row.cancel),
+        dripfeed: boolValue(row.dripfeed ?? row.drip_feed),
         raw: row,
       }];
     });
@@ -223,26 +225,67 @@ export class SmmPanelClient {
   }
 
   async cancel(orderId: string) {
-    const raw = await this.post({ action: 'cancel', orders: orderId });
-    if (!Array.isArray(raw) || raw.length === 0) {
-      throw new SmmProviderError('smm_cancel_failed', {
-        providerMessage: JSON.stringify(raw).slice(0, 240),
-      });
+    const parse = (raw: unknown) => {
+      const source = Array.isArray(raw) ? raw[0] : raw;
+      const item = asObject(source);
+      const topError = typeof item.error === 'string' ? item.error : undefined;
+      if (topError) return { accepted: false, retrySingle: true, message: topError, item };
+
+      const cancel = item.cancel;
+      if (cancel && typeof cancel === 'object') {
+        const detail = asObject(cancel);
+        const error = typeof detail.error === 'string' ? detail.error : undefined;
+        if (error) return { accepted: false, retrySingle: false, message: error, item };
+        const status = String(detail.status ?? detail.state ?? '').trim().toLowerCase();
+        if (['pending', 'processing', 'accepted', 'success', 'successful', '1'].includes(status)) {
+          return { accepted: true, retrySingle: false, item };
+        }
+      }
+
+      const scalar = String(cancel ?? '').trim().toLowerCase();
+      if (
+        cancel === 1 ||
+        cancel === true ||
+        scalar === '1' ||
+        scalar === 'true' ||
+        scalar === 'accepted' ||
+        scalar === 'pending' ||
+        scalar === 'success' ||
+        scalar === String(orderId).trim().toLowerCase()
+      ) {
+        return { accepted: true, retrySingle: false, item };
+      }
+
+      const status = String(item.status ?? '').trim().toLowerCase();
+      if (['pending', 'processing', 'accepted', 'success', 'successful'].includes(status)) {
+        return { accepted: true, retrySingle: false, item };
+      }
+
+      return {
+        accepted: false,
+        retrySingle: !Array.isArray(raw),
+        message: JSON.stringify(source ?? raw).slice(0, 240),
+        item,
+      };
+    };
+
+    const batchRaw = await this.post({ action: 'cancel', orders: orderId });
+    const batch = parse(batchRaw);
+    if (batch.accepted) return { accepted: true, raw: batch.item };
+    if (!batch.retrySingle) {
+      throw new SmmProviderError('smm_cancel_failed', { providerMessage: batch.message });
     }
-    const item = asObject(raw[0]);
-    const cancel = item.cancel;
-    if (cancel && typeof cancel === 'object') {
-      const error = asObject(cancel).error;
-      throw new SmmProviderError('smm_cancel_failed', {
-        providerMessage: typeof error === 'string' ? error : JSON.stringify(cancel).slice(0, 240),
-      });
-    }
-    if (cancel !== 1 && cancel !== '1' && cancel !== true) {
-      throw new SmmProviderError('smm_cancel_failed', {
-        providerMessage: JSON.stringify(item).slice(0, 240),
-      });
-    }
-    return { accepted: true, raw: item };
+
+    // Most PerfectPanel-compatible providers use "orders", while some compatible
+    // panels only accept the singular "order" field and return an object instead
+    // of an array. Retry only when the first response looks like a shape/parameter
+    // mismatch; a real per-order rejection is never retried.
+    const singleRaw = await this.post({ action: 'cancel', order: orderId });
+    const single = parse(singleRaw);
+    if (single.accepted) return { accepted: true, raw: single.item };
+    throw new SmmProviderError('smm_cancel_failed', {
+      providerMessage: single.message ?? batch.message,
+    });
   }
 }
 
