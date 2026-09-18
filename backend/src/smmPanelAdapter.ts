@@ -64,7 +64,9 @@ function asObject(value: unknown): Record<string, unknown> {
 }
 
 function boolValue(value: unknown) {
-  return value === true || value === 1 || value === '1' || value === 'true';
+  if (value === true || value === 1) return true;
+  const normalized = String(value ?? '').trim().toLowerCase();
+  return ['1', 'true', 'yes', 'on', 'enabled'].includes(normalized);
 }
 
 function intValue(value: unknown) {
