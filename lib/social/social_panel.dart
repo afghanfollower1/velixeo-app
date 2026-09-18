@@ -74,7 +74,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
   Future<void> autoSyncOrders() async {
     if (!mounted || loading || submitting) return;
     try {
-      final synced = await host.api.syncSocialOrders();
+      final synced = await host.api.socialOrders();
       if (!mounted) return;
       await host.refreshAccount();
       setState(() {
@@ -1588,10 +1588,13 @@ class _StatusBadge extends StatelessWidget {
     final normalized = status.toUpperCase().replaceAll('_', ' ');
     late final Color color;
     late final Color bg;
-    if (normalized == 'COMPLETED') {
+    if (normalized == 'COMPLETED' || normalized == 'FINISHED') {
       color = const Color(0xFF0A8B5B);
       bg = const Color(0xFFE7F8F1);
-    } else if (['FAILED','CANCELLED','REJECTED'].contains(normalized)) {
+    } else if (normalized == 'ACTIVE') {
+      color = const Color(0xFF7A1FA2);
+      bg = const Color(0xFFF4E8FA);
+    } else if (['FAILED','CANCELLED','REJECTED','STOPPED'].contains(normalized)) {
       color = const Color(0xFFB33737);
       bg = const Color(0xFFFFF0F0);
     } else if (normalized == 'PENDING') {
