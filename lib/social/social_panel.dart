@@ -337,52 +337,70 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
 
   Future<void> requestRefill(SocialOrder order) async {
     final availableAt = order.refillAvailableAt;
-    if (availableAt != null && availableAt.isAfter(DateTime.now())) {
+    if (!order.canRefill && availableAt != null && availableAt.isAfter(DateTime.now())) {
       final remaining = availableAt.difference(DateTime.now());
       final hours = remaining.inHours;
       final minutes = remaining.inMinutes.remainder(60);
       final message = t(
-        'جبران این سفارش هنوز از طرف ارائه‌دهنده فعال نشده است. حدود $hours ساعت و $minutes دقیقه دیگر فعال می‌شود.',
-        'Refill is not available from the provider yet. It should become available in about $hours hours and $minutes minutes.',
+        'جبران این سفارش هنوز فعال نشده است. حدود $hours ساعت و $minutes دقیقه دیگر دوباره تلاش کنید.',
+        'Refill is not available yet. Try again in about $hours hours and $minutes minutes.',
       );
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      }
       return;
     }
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(t('درخواست جبران ریزش', 'Request refill')),
-        content: Text(t('وضعیت جبران از خود ارائه‌دهنده بررسی می‌شود. اگر آماده باشد درخواست فوراً ثبت می‌شود.', 'Refill availability is checked with the provider. If it is ready, the request is submitted immediately.')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(t('نه', 'No'))),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(t('بررسی و ارسال', 'Check & send'))),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
+    if (order.canRefill) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(t('جبران ریزش', 'Refill')),
+          content: Text(t('درخواست جبران این سفارش ارسال شود؟', 'Send a refill request for this order?')),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: Text(t('خیر', 'No'))),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(t('ارسال', 'Send'))),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
     try {
       await host.api.refillSocialOrder(order.id);
       orders = await host.api.socialOrders();
       if (mounted) {
         setState(() => tab = 2);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t('درخواست جبران در ارائه‌دهنده ثبت شد.', 'Refill request was accepted by the provider.'))));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t('درخواست جبران ثبت شد.', 'Refill request created.'))),
+        );
       }
     } on ApiException catch (e) {
       try { orders = await host.api.socialOrders(); } catch (_) {}
       if (!mounted) return;
       setState(() {});
       final detail = e.details?.toString().trim();
+      if (e.code == 'refill_not_ready') {
+        final refreshed = orders.where((item) => item.id == order.id).cast<SocialOrder?>().firstWhere((item) => item != null, orElse: () => null);
+        final at = refreshed?.refillAvailableAt;
+        if (at != null && at.isAfter(DateTime.now())) {
+          final remaining = at.difference(DateTime.now());
+          final hours = remaining.inHours;
+          final minutes = remaining.inMinutes.remainder(60);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(t(
+              'جبران هنوز فعال نشده است. حدود $hours ساعت و $minutes دقیقه دیگر دوباره تلاش کنید.',
+              'Refill is not available yet. Try again in about $hours hours and $minutes minutes.',
+            ))),
+          );
+          return;
+        }
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(
-          e.code == 'refill_not_ready' && detail?.isNotEmpty == true
-              ? detail!
-              : apiError(e),
-        )),
+        SnackBar(content: Text(detail?.isNotEmpty == true ? detail! : apiError(e))),
       );
     }
   }
-
   Future<void> cancelOrder(SocialOrder order) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -1038,18 +1056,18 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
               children: [
                 Row(children: [
                   Expanded(child: Text(fa ? (order.serviceTitleFa ?? 'سرویس') : (order.serviceTitleEn ?? 'Service'), style: const TextStyle(fontWeight: FontWeight.w900))),
-                  _StatusBadge(label: statusLabel(order.status), status: order.status),
+                  _StatusBadge(label: dripFeedStatusLabel(order.dripFeedStatus), status: order.dripFeedStatus),
                 ]),
                 const SizedBox(height: 10),
                 _InfoRow(label: t('شناسه سفارش', 'Order ID'), value: order.displayOrderId),
                 const SizedBox(height: 7),
-                _InfoRow(label: t('تعداد هر اجرا', 'Per run'), value: '${order.unitQuantity}'),
+                _InfoRow(label: t('تعداد هر اجرا', 'Per run'), value: '${order.dripFeedUnitQuantity}'),
                 const SizedBox(height: 7),
-                _InfoRow(label: t('تعداد اجرا', 'Runs'), value: '${order.runs}'),
+                _InfoRow(label: t('اجرا شده / کل اجرا', 'Runs'), value: '${order.dripFeedRunsCurrent} / ${order.dripFeedRunsAll}'),
                 const SizedBox(height: 7),
-                _InfoRow(label: t('فاصله زمانی', 'Interval'), value: '${order.intervalMinutes ?? 0} ${t('دقیقه', 'min')}'),
+                _InfoRow(label: t('فاصله زمانی', 'Interval'), value: '${order.dripFeedInterval} ${t('دقیقه', 'min')}'),
                 const SizedBox(height: 7),
-                _InfoRow(label: t('تعداد کل', 'Total quantity'), value: '${order.unitQuantity} × ${order.runs} = ${order.totalQuantity}', strong: true),
+                _InfoRow(label: t('تعداد کل', 'Total quantity'), value: '${order.dripFeedUnitQuantity} × ${order.dripFeedRunsAll} = ${order.dripFeedTotalQuantity}', strong: true),
                 if (order.startCount != null || order.remains != null) ...[
                   const Divider(height: 22),
                   Wrap(
@@ -1066,6 +1084,15 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
         },
       ),
     );
+  }
+
+  String dripFeedStatusLabel(String status) {
+    switch (status.trim().toLowerCase()) {
+      case 'active': return t('فعال', 'Active');
+      case 'finished': return t('پایان یافته', 'Finished');
+      case 'stopped': return t('متوقف', 'Stopped');
+      default: return statusLabel(status.toUpperCase());
+    }
   }
 
   String refillStatusLabel(String status) {
@@ -1540,7 +1567,7 @@ class _OrderCard extends StatelessWidget {
                             backgroundColor: const Color(0xFFF4F7FA),
                           ),
                     icon: Icon(order.canRefill ? Icons.restart_alt_rounded : Icons.schedule_rounded, size: 17),
-                    label: Text(order.canRefill ? (fa ? 'جبران ریزش' : 'Refill') : (fa ? 'بررسی جبران' : 'Check refill')),
+                    label: Text(fa ? 'جبران ریزش' : 'Refill'),
                   ),
                 if (order.canCancel && !terminal)
                   OutlinedButton.icon(onPressed: () => onCancel(order), icon: const Icon(Icons.cancel_outlined, size: 17), label: Text(fa ? 'لغو' : 'Cancel')),
