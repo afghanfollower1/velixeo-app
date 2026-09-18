@@ -128,6 +128,7 @@ model User {
   supportMessages       SupportMessage[]       @relation("SupportSender")
   notifications         Notification[]
   notificationReads     NotificationRead[]
+  pushDevices           PushDevice[]
   auditLogs             AdminAuditLog[]        @relation("AdminAuditLogs")
 }
 
@@ -418,6 +419,22 @@ model NotificationRead {
 
   @@unique([notificationId, userId])
   @@index([userId, readAt])
+}
+
+model PushDevice {
+  id         String   @id @default(uuid())
+  userId     String
+  token      String   @unique
+  platform   String   @default("ANDROID")
+  enabled    Boolean  @default(true)
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, enabled])
+  @@index([enabled, lastSeenAt])
 }
 
 model SupportTicket {
