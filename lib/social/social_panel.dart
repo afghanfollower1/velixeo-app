@@ -43,6 +43,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
   String? error;
   int tab = 0;
   Timer? quoteTimer;
+  Timer? statusTimer;
   final Map<String, TextEditingController> fields = {};
   final coupon = TextEditingController();
 
@@ -54,11 +55,13 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     super.initState();
     coupon.addListener(scheduleQuote);
     load();
+    statusTimer = Timer.periodic(const Duration(minutes: 1), (_) => autoSyncOrders());
   }
 
   @override
   void dispose() {
     quoteTimer?.cancel();
+    statusTimer?.cancel();
     for (final controller in fields.values) {
       controller.dispose();
     }
@@ -67,6 +70,29 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
   }
 
   String t(String faText, String enText) => fa ? faText : enText;
+
+  Future<void> autoSyncOrders() async {
+    if (!mounted || loading || submitting) return;
+    try {
+      final synced = await host.api.syncSocialOrders();
+      if (!mounted) return;
+      await host.refreshAccount();
+      setState(() {
+        orders = synced;
+        if (lastCreatedOrder != null) {
+          for (final item in synced) {
+            if (item.id == lastCreatedOrder!.id) {
+              lastCreatedOrder = item;
+              break;
+            }
+          }
+        }
+      });
+    } catch (_) {
+      // Keep the last known state; the next minute retries automatically.
+    }
+  }
+
 
   Future<void> load() async {
     if (mounted) setState(() { loading = true; error = null; });
