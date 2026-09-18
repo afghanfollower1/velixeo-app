@@ -1233,7 +1233,7 @@ class HomePage extends StatelessWidget {
                   child: Row(children: [
                     Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFF1686FF).withValues(alpha: .08), borderRadius: BorderRadius.circular(12)), child: Icon(catalogIcon(order.category), color: const Color(0xFF1686FF), size: 20)),
                     const SizedBox(width: 11),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(order.serviceTitleEn ?? order.serviceSlug ?? order.category, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(c.money(order.totalAmountAfn), style: const TextStyle(fontSize: 11.5, color: Color(0xFF7C8999)))])),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${order.serviceTitleEn ?? order.serviceSlug ?? order.category}${order.isDripRun ? ' · Run ${order.dripRunIndex}/${order.dripRunsAll}' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(c.money(order.totalAmountAfn), style: const TextStyle(fontSize: 11.5, color: Color(0xFF7C8999)))])),
                     Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: color.withValues(alpha: .10), borderRadius: BorderRadius.circular(999)), child: Text(order.status.replaceAll('_', ' '), style: TextStyle(fontSize: 9.5, color: color, fontWeight: FontWeight.w800))),
                   ]),
                 );
@@ -1746,7 +1746,7 @@ class OrdersPage extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                c.fa ? (order.serviceTitleFa ?? order.category) : (order.serviceTitleEn ?? order.category),
+                                '${c.fa ? (order.serviceTitleFa ?? order.category) : (order.serviceTitleEn ?? order.category)}${order.isDripRun ? ' · ${tr(c.fa, 'اجرای', 'Run')} ${order.dripRunIndex}/${order.dripRunsAll}' : ''}',
                                 style: const TextStyle(fontWeight: FontWeight.w900),
                               ),
                             ),
@@ -1760,7 +1760,10 @@ class OrdersPage extends StatelessWidget {
                         const SizedBox(height: 9),
                         Text(c.money(order.totalAmountAfn, showBase: true), style: const TextStyle(fontWeight: FontWeight.w900)),
                         const SizedBox(height: 4),
-                        Text('${order.createdAt.toLocal().toString().substring(0, 16)} • #${order.id.substring(0, 8)}', style: const TextStyle(fontSize: 12, color: Color(0xFF607487))),
+                        Text(
+                          '${order.createdAt.toLocal().toString().substring(0, 16)} • #${order.dripParentOrderId?.substring(0, 8) ?? order.id.substring(0, 8)}${order.isDripRun ? '-R${order.dripRunIndex}' : ''}',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF607487)),
+                        ),
                         if (order.failureReason?.isNotEmpty == true) ...[
                           const SizedBox(height: 7),
                           Text(order.failureReason!, style: const TextStyle(fontSize: 12, color: Color(0xFFE65454))),
