@@ -246,6 +246,9 @@ class AppOrder {
     this.serviceTitleFa,
     this.serviceTitleEn,
     this.failureReason,
+    this.dripParentOrderId,
+    this.dripRunIndex,
+    this.dripRunsAll,
   });
 
   final String id;
@@ -259,10 +262,18 @@ class AppOrder {
   final String? serviceTitleFa;
   final String? serviceTitleEn;
   final String? failureReason;
+  final String? dripParentOrderId;
+  final int? dripRunIndex;
+  final int? dripRunsAll;
+
+  bool get isDripRun => dripRunIndex != null && dripRunsAll != null;
 
   factory AppOrder.fromJson(Map<String, dynamic> json) {
     final service = json['service'] is Map
         ? Map<String, dynamic>.from(json['service'] as Map)
+        : const <String, dynamic>{};
+    final dripRun = json['dripRun'] is Map
+        ? Map<String, dynamic>.from(json['dripRun'] as Map)
         : const <String, dynamic>{};
     return AppOrder(
       id: json['id'] as String,
@@ -276,6 +287,9 @@ class AppOrder {
       serviceTitleFa: service['titleFa'] as String?,
       serviceTitleEn: service['titleEn'] as String?,
       failureReason: json['failureReason'] as String?,
+      dripParentOrderId: dripRun['parentOrderId'] as String?,
+      dripRunIndex: (dripRun['runIndex'] as num?)?.toInt(),
+      dripRunsAll: (dripRun['runsAll'] as num?)?.toInt(),
     );
   }
 }
