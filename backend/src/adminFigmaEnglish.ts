@@ -204,10 +204,13 @@ export function registerAdminV3(app:FastifyInstance,p:PrismaClient,resolve:Admin
   const returnSection=t(b,'returnSection');
   const returnQ=t(b,'returnQ');
   const destination=(ok:boolean,msg:string)=>{
+    const feedback=ok
+      ? `&msg=${encodeURIComponent(msg)}`
+      : `&err=1&msg=${encodeURIComponent(msg)}`;
     if(returnSection==='payments'){
-      return href('payments',`${returnQ?`&q=${encodeURIComponent(returnQ)}`:''}&${ok?'msg':'err'}=${ok?'':1}&msg=${encodeURIComponent(msg)}`);
+      return href('payments',`${returnQ?`&q=${encodeURIComponent(returnQ)}`:''}${feedback}`);
     }
-    return href('users',`&edit=${id}&${ok?'msg':'err'}=${ok?'':1}&msg=${encodeURIComponent(msg)}`);
+    return href('users',`&edit=${id}${feedback}`);
   };
   let amount:bigint;
   try{
