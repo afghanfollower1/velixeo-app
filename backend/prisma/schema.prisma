@@ -98,6 +98,24 @@ enum NotificationAudience {
   USER
 }
 
+enum NotificationType {
+  SYSTEM
+  ORDER
+  PAYMENT
+  WALLET
+  REFILL
+  DRIPFEED
+  SUPPORT
+  PROMOTION
+  ACCOUNT
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+}
+
 enum SupportStatus {
   OPEN
   PENDING_USER
@@ -386,24 +404,39 @@ model Coupon {
 }
 
 model Notification {
-  id        String               @id @default(uuid())
-  userId    String?
-  audience  NotificationAudience @default(ALL)
-  titleFa   String
-  titleEn   String
-  bodyFa    String
-  bodyEn    String
-  enabled   Boolean              @default(true)
-  publishAt DateTime             @default(now())
-  expiresAt DateTime?
-  createdAt DateTime             @default(now())
-  updatedAt DateTime             @updatedAt
+  id                 String               @id @default(uuid())
+  userId             String?
+  audience           NotificationAudience @default(ALL)
+  type               NotificationType     @default(SYSTEM)
+  priority           NotificationPriority @default(NORMAL)
+  titleFa            String
+  titleEn            String
+  bodyFa             String
+  bodyEn             String
+  actionRoute        String?
+  actionEntityId     String?
+  actionLabelFa      String?
+  actionLabelEn      String?
+  imageUrl           String?
+  metadata           Json?
+  enabled            Boolean              @default(true)
+  publishAt          DateTime             @default(now())
+  expiresAt          DateTime?
+  pushTotal          Int                  @default(0)
+  pushSent           Int                  @default(0)
+  pushFailed         Int                  @default(0)
+  pushDisabledTokens Int                  @default(0)
+  lastPushAt         DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 
   user  User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
   reads NotificationRead[]
 
   @@index([audience, enabled, publishAt])
   @@index([userId, publishAt])
+  @@index([type, publishAt])
+  @@index([enabled, publishAt, lastPushAt])
 }
 
 model NotificationRead {
