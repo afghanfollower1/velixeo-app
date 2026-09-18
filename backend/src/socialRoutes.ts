@@ -625,6 +625,8 @@ async function syncProviderServices(prisma: PrismaClient, providerId: string) {
           source: 'provider_sync',
           providerType: row.type,
           providerCategory: row.category,
+          rawCatalog: true,
+          pricingMode: 'AUTO_MARKUP',
         },
         routes: {
           create: {
@@ -663,6 +665,13 @@ export function registerSocialRoutes(
 
     const rows = [];
     for (const service of services) {
+      const meta = service.metadata && typeof service.metadata === 'object' && !Array.isArray(service.metadata)
+        ? service.metadata as Record<string, unknown>
+        : {};
+      const addedToVelixeo = meta.addedToVelixeo === true
+        || typeof meta.publishedAt === 'string'
+        || typeof meta.publishedFromProviderId === 'string';
+      if (!addedToVelixeo) continue;
       const route = service.routes[0];
       if (!route) continue;
       const rateAfn = await customerRateAfn(prisma, service, route);
