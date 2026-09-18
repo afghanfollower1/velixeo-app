@@ -844,6 +844,7 @@ async function syncSocialOrderRecord(prisma: PrismaClient, order: any) {
           return parsed?.toISOString() ?? currentOutput.refillAvailableAt ?? null;
         })(),
         lastStatusSyncAt: new Date().toISOString(),
+        lastStatusSyncSource: 'PROVIDER_API',
       },
     },
   });
