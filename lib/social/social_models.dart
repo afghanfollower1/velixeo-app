@@ -303,6 +303,7 @@ class SocialOrder {
     required this.updatedAt,
     required this.output,
     required this.input,
+    required this.dripFeed,
     required this.actions,
     this.quantity,
     this.failureReason,
@@ -341,6 +342,7 @@ class SocialOrder {
   final int? refillDays;
   final Map<String, dynamic> output;
   final Map<String, dynamic> input;
+  final Map<String, dynamic> dripFeed;
   final List<SocialOrderAction> actions;
 
   bool get refillSupported => output['refillSupported'] == true;
@@ -360,6 +362,14 @@ class SocialOrder {
   int get totalQuantity => (input['totalQuantity'] as num?)?.toInt() ?? quantity ?? 0;
   int get unitQuantity => (input['unitQuantity'] as num?)?.toInt() ?? (runs > 1 && totalQuantity > 0 ? (totalQuantity ~/ runs) : (quantity ?? 0));
   bool get isDripFeed => input['dripFeed'] == true || runs > 1;
+  String get dripFeedStatus => (dripFeed['status']?.toString().trim().isNotEmpty == true)
+      ? dripFeed['status'].toString()
+      : status;
+  int get dripFeedRunsCurrent => (dripFeed['runsCurrent'] as num?)?.toInt() ?? 0;
+  int get dripFeedRunsAll => (dripFeed['runsAll'] as num?)?.toInt() ?? runs;
+  int get dripFeedInterval => (dripFeed['interval'] as num?)?.toInt() ?? (intervalMinutes ?? 0);
+  int get dripFeedTotalQuantity => (dripFeed['totalQuantity'] as num?)?.toInt() ?? totalQuantity;
+  int get dripFeedUnitQuantity => (dripFeed['unitQuantity'] as num?)?.toInt() ?? unitQuantity;
   String? get orderLink {
     final parameters = input['parameters'];
     if (parameters is Map) {
@@ -380,6 +390,9 @@ class SocialOrder {
         : <String, dynamic>{};
     final input = json['input'] is Map
         ? Map<String, dynamic>.from(json['input'] as Map)
+        : <String, dynamic>{};
+    final dripFeed = json['dripFeed'] is Map
+        ? Map<String, dynamic>.from(json['dripFeed'] as Map)
         : <String, dynamic>{};
     return SocialOrder(
       id: json['id'] as String,
@@ -404,6 +417,7 @@ class SocialOrder {
       refillDays: (service['refillDays'] as num?)?.toInt(),
       output: output,
       input: input,
+      dripFeed: dripFeed,
       actions: ((json['actions'] as List<dynamic>?) ?? const [])
           .map((item) => SocialOrderAction.fromJson(Map<String, dynamic>.from(item as Map)))
           .toList(growable: false),
