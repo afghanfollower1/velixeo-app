@@ -16,6 +16,8 @@ class PushService {
   Future<void> configure(
     ApiService api, {
     required Future<void> Function() onNotification,
+    Future<void> Function(Map<String, String> data)? onNotificationOpened,
+    Future<void> Function(String title, String body, Map<String, String> data)? onForegroundNotification,
   }) async {
     if (!Platform.isAndroid) return;
 
@@ -68,10 +70,17 @@ class PushService {
       } catch (_) {}
     });
 
-    _foregroundMessages ??= FirebaseMessaging.onMessage.listen((_) async {
+    _foregroundMessages ??= FirebaseMessaging.onMessage.listen((message) async {
       try {
         await onNotification();
       } catch (_) {}
+      final title = message.notification?.title?.trim() ?? '';
+      final body = message.notification?.body?.trim() ?? '';
+      if (onForegroundNotification != null && (title.isNotEmpty || body.isNotEmpty)) {
+        try {
+          await onForegroundNotification(title, body, Map<String, String>.from(message.data));
+        } catch (_) {}
+      }
     });
 
     Future<void> markOpened(RemoteMessage message) async {
@@ -84,6 +93,11 @@ class PushService {
       try {
         await onNotification();
       } catch (_) {}
+      if (onNotificationOpened != null) {
+        try {
+          await onNotificationOpened(Map<String, String>.from(message.data));
+        } catch (_) {}
+      }
     }
 
     _openedMessages ??= FirebaseMessaging.onMessageOpenedApp.listen(markOpened);
