@@ -1,2 +1,9 @@
-Trigger signed Android build for VELIXEO social order workflow update — 2026-09-18.
-Includes customer Order ID copy, provider ETA, terms acceptance, in-place success receipt, smart cancel, automatic provider refill capability and 24-hour post-completion refill window.
+Trigger signed Android build — VELIXEO social live-order update — 2026-09-18.
+Includes:
+- drip-feed billing as quantity × runs
+- provider-driven refill readiness and countdown memory
+- one-minute automatic order/refill sync
+- refill and drip-feed customer tabs
+- distinct status colors
+- aligned in-place order receipt
+- admin refill/drip-feed views and persistent status overrides
