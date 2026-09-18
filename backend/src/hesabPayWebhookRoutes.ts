@@ -9,6 +9,8 @@ import { z } from 'zod';
 import { NotificationPriority, NotificationType } from '@prisma/client';
 import { publishUserNotification } from './pushNotifications.js';
 
+// Payment webhooks publish one typed in-app + FCM notification only on the first verified state transition.
+
 type AuthenticateHook = (
   request: FastifyRequest,
   reply: FastifyReply,
