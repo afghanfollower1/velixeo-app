@@ -213,17 +213,17 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk dist/VELIXEO-v0.6.1-release.apk
+          cp build/app/outputs/flutter-apk/app-release.apk dist/VELIXEO-v0.6.2-release.apk
           cp /tmp/ANDROID_SIGNING_SHA1.txt dist/ANDROID_SIGNING_SHA1.txt
-          ls -lh dist/VELIXEO-v0.6.1-release.apk
-          sha256sum dist/VELIXEO-v0.6.1-release.apk | tee dist/SHA256SUMS.txt
+          ls -lh dist/VELIXEO-v0.6.2-release.apk
+          sha256sum dist/VELIXEO-v0.6.2-release.apk | tee dist/SHA256SUMS.txt
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VELIXEO-v0.6.1-Android-APK
+          name: VELIXEO-v0.6.2-Android-APK
           path: |
-            dist/VELIXEO-v0.6.1-release.apk
+            dist/VELIXEO-v0.6.2-release.apk
             dist/SHA256SUMS.txt
             dist/ANDROID_SIGNING_SHA1.txt
           if-no-files-found: error
