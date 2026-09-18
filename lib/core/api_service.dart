@@ -414,6 +414,12 @@ class ApiService {
   }
 
 
+  Future<SocialOrderConfig> socialOrderConfig() async {
+    final response = await _send('GET', '/api/v1/social/order-config');
+    if (response.statusCode != 200) _throwResponse(response);
+    return SocialOrderConfig.fromJson(_decodeObject(response));
+  }
+
   Future<SocialCatalog> socialCatalog() async {
     final response = await _send('GET', '/api/v1/social/catalog');
     if (response.statusCode != 200) _throwResponse(response);
@@ -432,6 +438,7 @@ class ApiService {
   Future<SocialQuote> socialQuote({
     required String serviceId,
     required Map<String, dynamic> parameters,
+    required bool termsAccepted,
     String? couponCode,
   }) async {
     final response = await _send(
@@ -460,7 +467,9 @@ class ApiService {
       body: {
         'serviceId': serviceId,
         'clientRequestId': clientRequestId,
+        'termsAccepted': termsAccepted,
         'parameters': parameters,
+        if (couponCode?.trim().isNotEmpty == true) 'couponCode': couponCode!.trim(),
       },
       auth: true,
     );
