@@ -280,7 +280,7 @@ model Order {
   totalAmountAfn       BigInt
   providerCostAfn      BigInt?
   providerOrderId      String?
-  publicOrderNumber    BigInt?         @unique
+  publicOrderNumber    BigInt?
   clientRequestId      String?         @unique
   input                Json?
   output               Json?
@@ -298,6 +298,7 @@ model Order {
   @@index([userId, createdAt])
   @@index([status, createdAt])
   @@index([providerId, providerOrderId])
+  @@index([publicOrderNumber])
 }
 
 model OrderActionLog {
