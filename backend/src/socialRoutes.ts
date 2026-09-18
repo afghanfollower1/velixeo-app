@@ -400,6 +400,16 @@ function pricingQuantity(providerType: string, parameters: Record<string, string
   }
 }
 
+function dripFeedRuns(parameters: Record<string, string | number>) {
+  return Math.max(1, positiveInt(parameters.runs) ?? 1);
+}
+
+function billedQuantity(providerType: string, parameters: Record<string, string | number>) {
+  const unitQuantity = pricingQuantity(providerType, parameters);
+  const runs = parameters.runs != null ? dripFeedRuns(parameters) : 1;
+  return { unitQuantity, runs, totalQuantity: unitQuantity * runs };
+}
+
 function ceilDiv(numerator: bigint, denominator: bigint) {
   return (numerator + denominator - 1n) / denominator;
 }
@@ -835,15 +845,15 @@ export function registerSocialRoutes(
     } catch (error) {
       return reply.code(400).send({ error: error instanceof Error ? error.message : 'invalid_parameters' });
     }
-    const quantity = pricingQuantity(providerType, parameters);
+    const { unitQuantity, runs, totalQuantity } = billedQuantity(providerType, parameters);
     const minQty = service.minQty ?? route.providerMinQty ?? 1;
     const maxQty = service.maxQty ?? route.providerMaxQty ?? Number.MAX_SAFE_INTEGER;
-    if (quantity < minQty || quantity > maxQty) {
+    if (unitQuantity < minQty || unitQuantity > maxQty) {
       return reply.code(400).send({ error: 'quantity_out_of_range', minQty, maxQty });
     }
     const rateAfn = await customerRateAfn(prisma, service, route);
     if (rateAfn == null) return reply.code(409).send({ error: 'service_price_unavailable' });
-    const subtotalAmountAfn = ceilDiv(rateAfn * BigInt(quantity), BigInt(Math.max(1, service.priceUnit)));
+    const subtotalAmountAfn = ceilDiv(rateAfn * BigInt(totalQuantity), BigInt(Math.max(1, service.priceUnit)));
     let couponPrice;
     try {
       couponPrice = await quoteCoupon(prisma, parsed.data.couponCode, subtotalAmountAfn);
@@ -852,7 +862,9 @@ export function registerSocialRoutes(
       return reply.code(409).send({ error: code });
     }
     return {
-      quantity,
+      quantity: unitQuantity,
+      runs,
+      totalQuantity,
       rateAfn: rateAfn.toString(),
       priceUnit: service.priceUnit,
       subtotalAmountAfn: couponPrice.subtotalAfn.toString(),
@@ -908,16 +920,16 @@ export function registerSocialRoutes(
     } catch (error) {
       return reply.code(400).send({ error: error instanceof Error ? error.message : 'invalid_parameters' });
     }
-    const quantity = pricingQuantity(providerType, parameters);
+    const { unitQuantity, runs, totalQuantity } = billedQuantity(providerType, parameters);
     const minQty = service.minQty ?? firstRoute.providerMinQty ?? 1;
     const maxQty = service.maxQty ?? firstRoute.providerMaxQty ?? Number.MAX_SAFE_INTEGER;
-    if (quantity < minQty || quantity > maxQty) {
+    if (unitQuantity < minQty || unitQuantity > maxQty) {
       return reply.code(400).send({ error: 'quantity_out_of_range', minQty, maxQty });
     }
     const customerRate = await customerRateAfn(prisma, service, firstRoute);
     if (customerRate == null) return reply.code(409).send({ error: 'service_price_unavailable' });
     const subtotalAmountAfn = ceilDiv(
-      customerRate * BigInt(quantity),
+      customerRate * BigInt(totalQuantity),
       BigInt(Math.max(1, service.priceUnit)),
     );
     if (subtotalAmountAfn <= 0n) return reply.code(409).send({ error: 'service_price_invalid' });
@@ -959,7 +971,7 @@ export function registerSocialRoutes(
               serviceId: service.id,
               category: ServiceCategory.SOCIAL,
               status: OrderStatus.PENDING,
-              quantity,
+              quantity: totalQuantity,
               baseAmountAfn: customerRate,
               totalAmountAfn,
               publicOrderNumber,
@@ -969,6 +981,11 @@ export function registerSocialRoutes(
                 providerType,
                 customerRateAfn: customerRate.toString(),
                 priceUnit: service.priceUnit,
+                unitQuantity,
+                runs,
+                intervalMinutes: positiveInt(parameters.interval),
+                totalQuantity,
+                dripFeed: runs > 1,
                 refillDays: service.refillDays,
                 termsAccepted: true,
                 termsAcceptedAt: new Date().toISOString(),
@@ -1016,7 +1033,7 @@ export function registerSocialRoutes(
     for (const route of service.routes) {
       const candidateType = route.providerType || providerType;
       if (candidateType.toLowerCase() !== providerType.toLowerCase()) continue;
-      const expectedCost = await providerCostAfn(prisma, route, quantity, service.priceUnit);
+      const expectedCost = await providerCostAfn(prisma, route, totalQuantity, service.priceUnit);
       if (expectedCost != null && expectedCost > subtotalAmountAfn && service.routes.length > 1) continue;
       try {
         const client = smmClientForProvider(route.provider);
