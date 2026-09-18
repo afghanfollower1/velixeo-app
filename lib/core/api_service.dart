@@ -438,7 +438,6 @@ class ApiService {
   Future<SocialQuote> socialQuote({
     required String serviceId,
     required Map<String, dynamic> parameters,
-    required bool termsAccepted,
     String? couponCode,
   }) async {
     final response = await _send(
@@ -459,6 +458,7 @@ class ApiService {
     required String serviceId,
     required String clientRequestId,
     required Map<String, dynamic> parameters,
+    required bool termsAccepted,
     String? couponCode,
   }) async {
     final response = await _send(
