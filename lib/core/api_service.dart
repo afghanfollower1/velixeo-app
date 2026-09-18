@@ -331,6 +331,24 @@ class ApiService {
         .toList(growable: false);
   }
 
+  Future<void> markNotificationRead(String notificationId) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/content/notifications/$notificationId/read',
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+  }
+
+  Future<void> markAllNotificationsRead() async {
+    final response = await _send(
+      'POST',
+      '/api/v1/content/notifications/read-all',
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+  }
+
   Future<List<AppOrder>> orders() async {
     final response = await _send('GET', '/api/v1/orders', auth: true);
     if (response.statusCode != 200) _throwResponse(response);
