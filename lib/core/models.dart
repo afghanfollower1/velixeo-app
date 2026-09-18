@@ -197,6 +197,8 @@ class AppNotification {
     required this.bodyFa,
     required this.bodyEn,
     required this.publishAt,
+    this.isRead = false,
+    this.readAt,
   });
 
   final String id;
@@ -205,6 +207,19 @@ class AppNotification {
   final String bodyFa;
   final String bodyEn;
   final DateTime publishAt;
+  final bool isRead;
+  final DateTime? readAt;
+
+  AppNotification copyWith({bool? isRead, DateTime? readAt}) => AppNotification(
+        id: id,
+        titleFa: titleFa,
+        titleEn: titleEn,
+        bodyFa: bodyFa,
+        bodyEn: bodyEn,
+        publishAt: publishAt,
+        isRead: isRead ?? this.isRead,
+        readAt: readAt ?? this.readAt,
+      );
 
   factory AppNotification.fromJson(Map<String, dynamic> json) => AppNotification(
         id: json['id'] as String,
@@ -213,6 +228,8 @@ class AppNotification {
         bodyFa: (json['bodyFa'] as String?) ?? '',
         bodyEn: (json['bodyEn'] as String?) ?? '',
         publishAt: DateTime.tryParse('${json['publishAt']}') ?? DateTime.now(),
+        isRead: (json['isRead'] as bool?) ?? false,
+        readAt: json['readAt'] == null ? null : DateTime.tryParse('${json['readAt']}'),
       );
 }
 
