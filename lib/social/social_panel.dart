@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../core/api_service.dart';
 import '../core/models.dart';
@@ -27,14 +28,17 @@ class SocialPanelPage extends StatefulWidget {
 
 class _SocialPanelPageState extends State<SocialPanelPage> {
   SocialCatalog catalog = const SocialCatalog();
+  SocialOrderConfig orderConfig = const SocialOrderConfig();
   List<SocialOrder> orders = const [];
   bool loading = true;
   bool submitting = false;
   bool dripFeedEnabled = false;
+  bool termsAccepted = false;
   bool showAllBrands = false;
   String? selectedPlatform;
   String? selectedGroup;
   SocialService? selectedService;
+  SocialOrder? lastCreatedOrder;
   SocialQuote? quote;
   String? error;
   int tab = 0;
@@ -70,9 +74,11 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
       final results = await Future.wait([
         host.api.socialCatalog(),
         host.api.socialOrders(),
+        host.api.socialOrderConfig(),
       ]);
       catalog = results[0] as SocialCatalog;
       orders = results[1] as List<SocialOrder>;
+      orderConfig = results[2] as SocialOrderConfig;
       final brands = availableBrands;
       final brandKeys = brands.map((brand) => brand.key).toList(growable: false);
       selectedPlatform ??= brandKeys.isEmpty ? null : brandKeys.first;
@@ -173,6 +179,8 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     setState(() {
       selectedService = service;
       dripFeedEnabled = false;
+      termsAccepted = false;
+      lastCreatedOrder = null;
       quote = null;
     });
     scheduleQuote();
@@ -194,6 +202,8 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     setState(() {
       selectedService = null;
       dripFeedEnabled = false;
+      termsAccepted = false;
+      lastCreatedOrder = null;
       quote = null;
     });
   }
@@ -219,6 +229,12 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
   Future<void> submitOrder() async {
     final service = selectedService;
     if (service == null || submitting) return;
+    if (!termsAccepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(t('ابتدا قوانین و مقررات را مطالعه و تأیید کنید.', 'Please read and accept the terms before placing the order.'))),
+      );
+      return;
+    }
     FocusScope.of(context).unfocus();
     setState(() => submitting = true);
     try {
@@ -238,13 +254,15 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
         serviceId: service.id,
         clientRequestId: _uuidV4(),
         parameters: currentParameters(),
+        termsAccepted: true,
+        couponCode: coupon.text.trim().isEmpty ? null : coupon.text.trim(),
       );
       await host.refreshAccount();
       orders = await host.api.socialOrders();
       if (!mounted) return;
       setState(() {
         quote = latestQuote;
-        tab = 1;
+        lastCreatedOrder = result.order;
       });
       final warning = result.warning == 'provider_submission_uncertain'
           ? t('سفارش ثبت شد و وضعیت Provider در حال بررسی است.', 'Order saved; provider submission is being reviewed.')
@@ -267,6 +285,9 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     if (error.code == 'service_unavailable') return t('این سرویس فعلاً در دسترس نیست.', 'This service is currently unavailable.');
     if (error.code == 'provider_rejected') return t('Provider سفارش را نپذیرفت و مبلغ برگشت داده شد.', 'Provider rejected the order and the amount was refunded.');
     if (error.code == 'refill_not_supported') return t('این سفارش جبران ریزش ندارد.', 'Refill is not available for this order.');
+    if (error.code == 'refill_not_available') return t('جبران فقط بعد از تکمیل سفارش در دسترس است.', 'Refill becomes available only after completion.');
+    if (error.code == 'refill_window_expired') return t('مهلت جبران این سفارش تمام شده است.', 'The refill window has expired.');
+    if (error.code == 'order_not_cancellable') return t('این سفارش دیگر قابل لغو نیست.', 'This order can no longer be cancelled.');
     if (error.code == 'cancel_not_supported') return t('لغو این سفارش از سمت Provider پشتیبانی نمی‌شود.', 'Provider does not support cancelling this order.');
     if (error.code == 'coupon_invalid') return t('کد تخفیف معتبر نیست.', 'Coupon code is invalid.');
     if (error.code == 'coupon_expired') return t('اعتبار این کد تخفیف تمام شده است.', 'This coupon has expired.');
