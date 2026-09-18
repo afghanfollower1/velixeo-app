@@ -364,6 +364,101 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     }
   }
 
+  Future<void> showTerms() async {
+    final terms = fa ? orderConfig.termsFa : orderConfig.termsEn;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(t('قوانین و مقررات سفارش', 'Order terms & conditions')),
+        content: SingleChildScrollView(
+          child: Text(
+            terms.isEmpty
+                ? t('قوانین این بخش هنوز توسط مدیر ثبت نشده است.', 'Terms have not been configured yet.')
+                : terms,
+            style: const TextStyle(height: 1.6),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(t('بستن', 'Close'))),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              if (mounted) setState(() => termsAccepted = true);
+            },
+            child: Text(t('می‌پذیرم', 'I agree')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildOrderSuccess(SocialOrder order) {
+    Future<void> copyId() async {
+      await Clipboard.setData(ClipboardData(text: order.displayOrderId));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(t('شناسه سفارش کپی شد.', 'Order ID copied.'))),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF8F2),
+        border: Border.all(color: const Color(0xFFBFE8D6)),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.check_circle_rounded, color: Color(0xFF0A8B5B), size: 28),
+            const SizedBox(width: 9),
+            Expanded(child: Text(t('سفارش شما با موفقیت ثبت شد', 'Your order was placed successfully'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Color(0xFF086343)))),
+          ]),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+            child: Row(children: [
+              Text(t('شناسه سفارش', 'Order ID'), style: const TextStyle(color: Color(0xFF607487))),
+              const Spacer(),
+              SelectableText(order.displayOrderId, style: const TextStyle(fontWeight: FontWeight.w900)),
+              IconButton(onPressed: copyId, tooltip: t('کپی شناسه', 'Copy Order ID'), icon: const Icon(Icons.copy_rounded, size: 19, color: Color(0xFF1686FF))),
+            ]),
+          ),
+          const SizedBox(height: 10),
+          if (order.orderLink?.isNotEmpty == true) ...[
+            _InfoRow(label: t('لینک سفارش', 'Order link'), value: order.orderLink!),
+            const SizedBox(height: 8),
+          ],
+          _InfoRow(label: t('تعداد', 'Quantity'), value: '${order.quantity ?? '—'}'),
+          const SizedBox(height: 8),
+          _InfoRow(label: t('کسر از کیف پول', 'Wallet deduction'), value: host.money(order.totalAmountAfn, showBase: true), strong: true),
+          const SizedBox(height: 8),
+          _InfoRow(label: t('موجودی فعلی', 'Current balance'), value: host.money(host.balanceAfn, showBase: true), strong: true),
+          if (order.providerEta?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 8),
+            _InfoRow(label: t('زمان تقریبی', 'Estimated completion'), value: order.providerEta!),
+          ],
+          const SizedBox(height: 8),
+          _InfoRow(label: t('وضعیت', 'Status'), value: statusLabel(order.status)),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => setState(() {
+                lastCreatedOrder = null;
+                termsAccepted = false;
+              }),
+              icon: const Icon(Icons.add_shopping_cart_rounded),
+              label: Text(t('ثبت سفارش دیگر', 'Place another order')),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
