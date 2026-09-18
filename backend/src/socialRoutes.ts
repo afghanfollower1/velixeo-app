@@ -730,8 +730,12 @@ function socialOrderJson(order: any) {
     canRefill,
     dripFeed,
     dripRuns: dripFeedRunSnapshots(order),
-    canCancel: output.cancelSupported === true
-      && ![OrderStatus.COMPLETED, OrderStatus.PARTIAL, OrderStatus.CANCELLED, OrderStatus.FAILED, OrderStatus.REFUNDED].includes(order.status),
+    canCancel: output.cancelSupported === true && (
+      dripFeed != null
+        ? !['finished', 'completed', 'stopped', 'cancelled', 'canceled', 'failed', 'refunded']
+            .includes(String(dripFeed.status ?? '').trim().toLowerCase())
+        : ![OrderStatus.COMPLETED, OrderStatus.PARTIAL, OrderStatus.CANCELLED, OrderStatus.FAILED, OrderStatus.REFUNDED].includes(order.status)
+    ),
     input: order.input,
     output,
     service: order.service
