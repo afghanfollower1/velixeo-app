@@ -385,10 +385,41 @@ export function registerExtendedAdminRoutes(
     if (!admin) return;
     const query = (request.query ?? {}) as Record<string, unknown>;
     const filter = String(query.status ?? '');
-    const where: Prisma.OrderWhereInput = Object.values(OrderStatus).includes(filter as OrderStatus) ? { status: filter as OrderStatus } : {};
-    const orders = await prisma.order.findMany({ where, include: { user: true, service: true, provider: true }, orderBy: { createdAt: 'desc' }, take: 200 });
+    const view = String(query.view ?? 'all');
+    const where: Prisma.OrderWhereInput = {
+      ...(Object.values(OrderStatus).includes(filter as OrderStatus) ? { status: filter as OrderStatus } : {}),
+      ...(view === 'social' || view === 'refill' || view === 'dripfeed' ? { category: ServiceCategory.SOCIAL } : {}),
+    };
+    const rawOrders = await prisma.order.findMany({
+      where,
+      include: { user: true, service: true, provider: true, actions: { orderBy: { createdAt: 'desc' } } },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    });
+    const orders = rawOrders.filter((order) => {
+      if (view === 'refill') return order.actions.some((action) => action.action === 'REFILL');
+      if (view === 'dripfeed') {
+        const input = order.input && typeof order.input === 'object' && !Array.isArray(order.input)
+          ? order.input as Record<string, unknown>
+          : {};
+        const params = input.parameters && typeof input.parameters === 'object' && !Array.isArray(input.parameters)
+          ? input.parameters as Record<string, unknown>
+          : {};
+        const runs = Number(input.runs ?? params.runs ?? 1);
+        return input.dripFeed === true || runs > 1;
+      }
+      return true;
+    }).slice(0, 200);
     const [message, error] = messageFromQuery(request.query);
-    const body = `<div class="card"><div class="row"><b>آخرین Orders</b><span class="muted">Wallet-only purchase foundation</span><form method="get" action="/admin/orders" class="row" style="margin-right:auto"><select name="status"><option value="">همه Status‌ها</option>${selectOptions(Object.values(OrderStatus), filter)}</select><button class="ghost" type="submit">فیلتر</button></form></div><div class="warn" style="margin-top:12px">REFUNDED فقط باید همراه Ledger Refund اجرا شود؛ این صفحه فعلاً برای Status Actionsی سفارش است.</div><div class="table"><table><thead><tr><th>ID</th><th>User</th><th>خدمت</th><th>Amount</th><th>Provider</th><th>Status</th><th>زمان</th></tr></thead><tbody>${orders.length ? orders.map((o) => `<tr><td class="code">${esc(o.id.slice(0, 8))}</td><td>${esc(o.user.fullName || o.user.email || o.user.phone || '—')}</td><td>${esc(o.service?.titleFa || o.category)}</td><td>${fmtAfn(o.totalAmountAfn)}</td><td>${esc(o.provider?.name || '—')}</td><td><form method="post" action="/admin/orders/status" class="row"><input type="hidden" name="id" value="${esc(o.id)}"><select name="status">${selectOptions(Object.values(OrderStatus).filter((x) => x !== 'REFUNDED'), o.status)}</select><button class="ghost" type="submit">ثبت Override</button></form>${o.output && typeof o.output === 'object' && !Array.isArray(o.output) && (o.output as Record<string, unknown>).adminStatusOverride === true ? `<div style="margin-top:6px"><span class="badge warn">Admin Override</span><form method="post" action="/admin/orders/status-provider" style="display:inline;margin-left:6px"><input type="hidden" name="id" value="${esc(o.id)}"><button class="ghost" type="submit">بازگشت به Provider</button></form></div>` : ''}${o.status !== OrderStatus.REFUNDED ? `<form method="post" action="/admin/orders/refund" style="margin-top:6px"><input type="hidden" name="id" value="${esc(o.id)}"><button class="danger" type="submit">Refund کامل</button></form>` : '<span class="badge okbadge">Refunded</span>'}</td><td>${faDate(o.createdAt)}</td></tr>`).join('') : '<tr><td colspan="7" class="muted">هنوز سفارشی ثبت نشده است.</td></tr>'}</tbody></table></div></div>`;
+    const body = `<div class="card"><div class="row"><b>آخرین Orders</b><span class="muted">Statusها هر دقیقه از Provider همگام می‌شوند مگر اینکه Admin Override فعال باشد.</span><div class="row" style="margin-left:auto"><a class="ghost" href="/admin/orders">همه</a><a class="ghost" href="/admin/orders?view=social">Social</a><a class="ghost" href="/admin/orders?view=refill">Refill</a><a class="ghost" href="/admin/orders?view=dripfeed">Drip-feed</a></div><form method="get" action="/admin/orders" class="row"><input type="hidden" name="view" value="${esc(view)}"><select name="status"><option value="">همه Status‌ها</option>${selectOptions(Object.values(OrderStatus), filter)}</select><button class="ghost" type="submit">فیلتر</button></form></div><div class="warn" style="margin-top:12px">REFUNDED فقط باید همراه Ledger Refund اجرا شود؛ این صفحه فعلاً برای Status Actionsی سفارش است.</div><div class="table"><table><thead><tr><th>ID</th><th>User</th><th>خدمت</th><th>Amount</th><th>Provider</th><th>Status</th><th>زمان</th></tr></thead><tbody>${orders.length ? orders.map((o) => `<tr><td class="code">${esc(o.id.slice(0, 8))}</td><td>${esc(o.user.fullName || o.user.email || o.user.phone || '—')}</td><td>${esc(o.service?.titleFa || o.category)}${(() => {
+  const input = o.input && typeof o.input === 'object' && !Array.isArray(o.input) ? o.input as Record<string, unknown> : {};
+  const params = input.parameters && typeof input.parameters === 'object' && !Array.isArray(input.parameters) ? input.parameters as Record<string, unknown> : {};
+  const runs = Number(input.runs ?? params.runs ?? 1);
+  const interval = input.intervalMinutes ?? params.interval;
+  const total = input.totalQuantity ?? o.quantity;
+  const refill = o.actions.find((action) => action.action === 'REFILL');
+  return `${runs > 1 ? `<br><span class="badge">Drip-feed: ${esc(input.unitQuantity ?? params.quantity ?? '—')} × ${esc(runs)} = ${esc(total)} · ${esc(interval ?? '—')} min</span>` : ''}${refill ? `<br><span class="badge">Refill: ${esc(refill.status)}</span>` : ''}`;
+})()}</td><td>${fmtAfn(o.totalAmountAfn)}</td><td>${esc(o.provider?.name || '—')}</td><td><form method="post" action="/admin/orders/status" class="row"><input type="hidden" name="id" value="${esc(o.id)}"><select name="status">${selectOptions(Object.values(OrderStatus).filter((x) => x !== 'REFUNDED'), o.status)}</select><button class="ghost" type="submit">ثبت Override</button></form>${o.output && typeof o.output === 'object' && !Array.isArray(o.output) && (o.output as Record<string, unknown>).adminStatusOverride === true ? `<div style="margin-top:6px"><span class="badge warn">Admin Override</span><form method="post" action="/admin/orders/status-provider" style="display:inline;margin-left:6px"><input type="hidden" name="id" value="${esc(o.id)}"><button class="ghost" type="submit">بازگشت به Provider</button></form></div>` : ''}${o.status !== OrderStatus.REFUNDED ? `<form method="post" action="/admin/orders/refund" style="margin-top:6px"><input type="hidden" name="id" value="${esc(o.id)}"><button class="danger" type="submit">Refund کامل</button></form>` : '<span class="badge okbadge">Refunded</span>'}</td><td>${faDate(o.createdAt)}</td></tr>`).join('') : '<tr><td colspan="7" class="muted">هنوز سفارشی ثبت نشده است.</td></tr>'}</tbody></table></div></div>`;
     return reply.type('text/html; charset=utf-8').send(adminShell({ title: 'Orders', admin, active: 'orders', body, message, error }));
   });
 
