@@ -1,3 +1,4 @@
-Trigger signed Android build — VELIXEO v0.6.2 — 2026-09-18.
-Firebase Android client configuration is now wired from the official google-services config.
-Includes background/terminated notification channel support, token registration, drip-feed/cancel/order improvements, and signed production build.
+Trigger signed Android build — VELIXEO v0.7.0 — 2026-09-18.
+Notification Center V2: typed channels, scheduled delivery, deep links, branded cards, push stats, automatic wallet/payment/order/support notifications.
+VELIXEO brand refresh: launcher icon, notification status icon, in-app mark, and Admin identity.
+Firebase production push is configured and verified.
