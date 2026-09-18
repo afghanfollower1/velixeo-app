@@ -312,6 +312,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     if (error.code == 'provider_rejected') return t('Provider سفارش را نپذیرفت و مبلغ برگشت داده شد.', 'Provider rejected the order and the amount was refunded.');
     if (error.code == 'refill_not_supported') return t('این سفارش جبران ریزش ندارد.', 'Refill is not available for this order.');
     if (error.code == 'refill_not_available') return t('جبران فقط بعد از تکمیل سفارش در دسترس است.', 'Refill becomes available only after completion.');
+    if (error.code == 'refill_not_ready') return t('جبران هنوز از طرف ارائه‌دهنده فعال نشده است.', 'Refill is not available from the provider yet.');
     if (error.code == 'refill_window_expired') return t('مهلت جبران این سفارش تمام شده است.', 'The refill window has expired.');
     if (error.code == 'order_not_cancellable') return t('این سفارش دیگر قابل لغو نیست.', 'This order can no longer be cancelled.');
     if (error.code == 'cancel_not_supported') return t('لغو این سفارش از سمت Provider پشتیبانی نمی‌شود.', 'Provider does not support cancelling this order.');
@@ -335,14 +336,27 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
   }
 
   Future<void> requestRefill(SocialOrder order) async {
+    final availableAt = order.refillAvailableAt;
+    if (availableAt != null && availableAt.isAfter(DateTime.now())) {
+      final remaining = availableAt.difference(DateTime.now());
+      final hours = remaining.inHours;
+      final minutes = remaining.inMinutes.remainder(60);
+      final message = t(
+        'جبران این سفارش هنوز از طرف ارائه‌دهنده فعال نشده است. حدود $hours ساعت و $minutes دقیقه دیگر فعال می‌شود.',
+        'Refill is not available from the provider yet. It should become available in about $hours hours and $minutes minutes.',
+      );
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(t('درخواست جبران ریزش', 'Request refill')),
-        content: Text(t('درخواست جبران برای این سفارش به Provider ارسال شود؟', 'Send a refill request for this order to the provider?')),
+        content: Text(t('وضعیت جبران از خود ارائه‌دهنده بررسی می‌شود. اگر آماده باشد درخواست فوراً ثبت می‌شود.', 'Refill availability is checked with the provider. If it is ready, the request is submitted immediately.')),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: Text(t('نه', 'No'))),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(t('ارسال', 'Send'))),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(t('بررسی و ارسال', 'Check & send'))),
         ],
       ),
     );
@@ -351,11 +365,21 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
       await host.api.refillSocialOrder(order.id);
       orders = await host.api.socialOrders();
       if (mounted) {
-        setState(() {});
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t('درخواست جبران ثبت شد.', 'Refill request created.'))));
+        setState(() => tab = 2);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t('درخواست جبران در ارائه‌دهنده ثبت شد.', 'Refill request was accepted by the provider.'))));
       }
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiError(e))));
+      try { orders = await host.api.socialOrders(); } catch (_) {}
+      if (!mounted) return;
+      setState(() {});
+      final detail = e.details?.toString().trim();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          e.code == 'refill_not_ready' && detail?.isNotEmpty == true
+              ? detail!
+              : apiError(e),
+        )),
+      );
     }
   }
 
@@ -765,6 +789,14 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
             child: Column(
               children: [
                 _InfoRow(label: t('نرخ', 'Rate'), value: '${host.money(service.priceRateAfn, showBase: true)} / ${service.priceUnit}'),
+                if (quote != null && quote!.runs > 1) ...[
+                  const SizedBox(height: 8),
+                  _InfoRow(
+                    label: t('تعداد کل', 'Total quantity'),
+                    value: '${quote!.quantity} × ${quote!.runs} = ${quote!.totalQuantity}',
+                    strong: true,
+                  ),
+                ],
                 if (quote != null && quote!.discountAmountAfn > 0) ...[
                   const SizedBox(height: 8),
                   _InfoRow(label: t('جمع قبل از تخفیف', 'Subtotal'), value: host.money(quote!.subtotalAmountAfn, showBase: true)),
