@@ -18,6 +18,7 @@ import {
   socialRouteSaleRateAfn,
   syncSocialProviderCatalog,
 } from './socialSync.js';
+import { brandSettingKey, defaultBrandIcons, loadSocialBrands, normalizeBrandKey, parseBrand, validateBrandIcon, type SocialBrand } from './socialBrands.js';
 
 type AdminIdentity = {
   id: string;
@@ -194,6 +195,7 @@ function socialTabs(active: string) {
   const items = [
     ['/admin/v3?section=social&tab=overview', 'Overview', 'overview'],
     ['/admin/v3/social/providers', 'Providers', 'providers'],
+    ['/admin/v3/social/brands', 'Brands', 'brands'],
     ['/admin/v3/social/categories', 'Categories', 'categories'],
     ['/admin/v3/social/my-services', 'My Services', 'services'],
     ['/admin/v3?section=social&tab=routing', 'Routing', 'routing'],
@@ -218,6 +220,7 @@ function shell(input: {
   const navItems = [
     ['/admin/v3?section=social&tab=overview', 'Overview', 'service', 'overview'],
     ['/admin/v3/social/providers', 'Providers', 'provider', 'providers'],
+    ['/admin/v3/social/brands', 'Brands', 'category', 'brands'],
     ['/admin/v3/social/categories', 'Categories', 'category', 'categories'],
     ['/admin/v3/social/my-services', 'My Services', 'service', 'services'],
     ['/admin/v3?section=social&tab=routing', 'Routing', 'sync', 'routing'],
@@ -532,6 +535,7 @@ export function registerAdminSocialProviderManager(
     const redirects: Record<string, string> = {
       providers: '/admin/v3/social/providers',
       catalog: '/admin/v3/social/provider-services',
+      brands: '/admin/v3/social/brands',
       categories: '/admin/v3/social/categories',
       services: '/admin/v3/social/my-services',
     };
