@@ -135,6 +135,66 @@ jobs:
               img.save(out / 'ic_launcher_round.png')
           PY
 
+      - name: Configure native Firebase push resources
+        shell: bash
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_ANDROID_API_KEY: ${{ secrets.FIREBASE_ANDROID_API_KEY }}
+          FIREBASE_ANDROID_APP_ID: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
+          FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+        run: |
+          set -euo pipefail
+          PROJECT_ID="${FIREBASE_PROJECT_ID:-}"
+          API_KEY="${FIREBASE_ANDROID_API_KEY:-}"
+          APP_ID="${FIREBASE_ANDROID_APP_ID:-}"
+          SENDER_ID="${FIREBASE_MESSAGING_SENDER_ID:-}"
+
+          if [ -z "$PROJECT_ID" ] || [ -z "$API_KEY" ] || [ -z "$APP_ID" ] || [ -z "$SENDER_ID" ]; then
+            echo "Firebase GitHub secrets are incomplete; trying production push-config."
+            CONFIG=$(curl --fail --silent --show-error --max-time 15 https://velixeo-api-production.up.railway.app/api/v1/content/push-config || true)
+            if [ -n "$CONFIG" ]; then
+              eval "$(python3 - "$CONFIG" <<'PY'
+import json, shlex, sys
+try:
+    x=json.loads(sys.argv[1])
+except Exception:
+    x={}
+for env,key in [
+    ("PROJECT_ID","projectId"),
+    ("API_KEY","apiKey"),
+    ("APP_ID","appId"),
+    ("SENDER_ID","messagingSenderId"),
+]:
+    value=x.get(key) or ""
+    print(f"{env}={shlex.quote(str(value))}")
+PY
+)"
+            fi
+          fi
+
+          if [ -n "$PROJECT_ID" ] && [ -n "$API_KEY" ] && [ -n "$APP_ID" ] && [ -n "$SENDER_ID" ]; then
+            mkdir -p android/app/src/main/res/values
+            python3 - "$PROJECT_ID" "$API_KEY" "$APP_ID" "$SENDER_ID" <<'PY'
+from pathlib import Path
+from xml.sax.saxutils import escape
+import sys
+project_id, api_key, app_id, sender_id = sys.argv[1:]
+xml = f"""<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="google_app_id" translatable="false">{escape(app_id)}</string>
+    <string name="gcm_defaultSenderId" translatable="false">{escape(sender_id)}</string>
+    <string name="google_api_key" translatable="false">{escape(api_key)}</string>
+    <string name="google_storage_bucket" translatable="false">{escape(project_id)}.appspot.com</string>
+    <string name="project_id" translatable="false">{escape(project_id)}</string>
+</resources>
+"""
+Path("android/app/src/main/res/values/velixeo_firebase.xml").write_text(xml, encoding="utf-8")
+PY
+            echo "Native Firebase resources embedded for terminated-state push."
+          else
+            echo "::warning::Firebase production credentials are not configured yet. APK will build, but remote push cannot activate until Firebase is configured on the backend."
+          fi
+
       - name: Get Flutter packages
         run: flutter pub get
 
@@ -148,17 +208,17 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk dist/VELIXEO-v0.6.0-release.apk
+          cp build/app/outputs/flutter-apk/app-release.apk dist/VELIXEO-v0.6.1-release.apk
           cp /tmp/ANDROID_SIGNING_SHA1.txt dist/ANDROID_SIGNING_SHA1.txt
-          ls -lh dist/VELIXEO-v0.6.0-release.apk
-          sha256sum dist/VELIXEO-v0.6.0-release.apk | tee dist/SHA256SUMS.txt
+          ls -lh dist/VELIXEO-v0.6.1-release.apk
+          sha256sum dist/VELIXEO-v0.6.1-release.apk | tee dist/SHA256SUMS.txt
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VELIXEO-v0.6.0-Android-APK
+          name: VELIXEO-v0.6.1-Android-APK
           path: |
-            dist/VELIXEO-v0.6.0-release.apk
+            dist/VELIXEO-v0.6.1-release.apk
             dist/SHA256SUMS.txt
             dist/ANDROID_SIGNING_SHA1.txt
           if-no-files-found: error
