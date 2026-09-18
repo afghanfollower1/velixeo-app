@@ -136,7 +136,6 @@ export async function sendNotificationPush(
               android: {
                 priority: 'high',
                 notification: {
-                  channel_id: 'velixeo_general',
                   sound: 'default',
                 },
               },
