@@ -426,6 +426,15 @@ class ApiService {
     return SocialCatalog.fromJson(_decodeObject(response));
   }
 
+  Future<List<SocialOrder>> syncSocialOrders() async {
+    final response = await _send('POST', '/api/v1/social/orders/sync', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    final rows = (_decodeObject(response)['orders'] as List<dynamic>?) ?? const [];
+    return rows
+        .map((item) => SocialOrder.fromJson(Map<String, dynamic>.from(item as Map)))
+        .toList(growable: false);
+  }
+
   Future<List<SocialOrder>> socialOrders() async {
     final response = await _send('GET', '/api/v1/social/orders', auth: true);
     if (response.statusCode != 200) _throwResponse(response);
