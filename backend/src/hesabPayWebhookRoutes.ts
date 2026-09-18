@@ -6,6 +6,8 @@ import {
   WalletEntryType,
 } from '@prisma/client';
 import { z } from 'zod';
+import { NotificationPriority, NotificationType } from '@prisma/client';
+import { publishUserNotification } from './pushNotifications.js';
 
 type AuthenticateHook = (
   request: FastifyRequest,
@@ -346,6 +348,15 @@ export function registerHesabPayWebhookRoutes(
           amountAfn,
           transactionId,
         });
+        if (!result.idempotent) {
+          await publishUserNotification(prisma,result.payment.userId,{
+            type:NotificationType.PAYMENT,priority:NotificationPriority.HIGH,
+            titleEn:'Payment successful',titleFa:'پرداخت موفق بود',
+            bodyEn:`${amountAfn.toLocaleString('en-US')} AFN was added to your VELIXEO wallet.`,
+            bodyFa:`${amountAfn.toLocaleString('en-US')} افغانی با موفقیت به کیف پول VELIXEO شما اضافه شد.`,
+            actionRoute:'wallet',actionEntityId:result.payment.id,actionLabelEn:'Open wallet',actionLabelFa:'مشاهده کیف پول',
+          });
+        }
         return reply.code(200).send({
           ok: true,
           paymentId: result.payment.id,
@@ -359,6 +370,15 @@ export function registerHesabPayWebhookRoutes(
         paymentId,
         parsed.data.message || 'HesabPay reported payment failure',
       );
+      if (!result.idempotent) {
+        await publishUserNotification(prisma,result.payment.userId,{
+          type:NotificationType.PAYMENT,priority:NotificationPriority.HIGH,
+          titleEn:'Payment was not completed',titleFa:'پرداخت تکمیل نشد',
+          bodyEn:'Your HesabPay payment could not be completed. Your wallet was not charged.',
+          bodyFa:'پرداخت حساب‌پی تکمیل نشد و مبلغی به کیف پول شما اضافه نگردید.',
+          actionRoute:'wallet',actionEntityId:result.payment.id,actionLabelEn:'View payments',actionLabelFa:'مشاهده پرداخت‌ها',
+        });
+      }
       return reply.code(200).send({
         ok: true,
         paymentId: result.payment.id,
