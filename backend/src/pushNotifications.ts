@@ -34,8 +34,15 @@ export function firebasePushConfigured() {
 
 export function firebaseClientConfig() {
   const projectId = firebaseProjectId();
-  const apiKey = process.env.FIREBASE_WEB_API_KEY?.trim() || '';
-  const appId = process.env.FIREBASE_APP_ID?.trim() || '';
+  const apiKey =
+    process.env.FIREBASE_ANDROID_API_KEY?.trim()
+    || process.env.FIREBASE_API_KEY?.trim()
+    || process.env.FIREBASE_WEB_API_KEY?.trim()
+    || '';
+  const appId =
+    process.env.FIREBASE_ANDROID_APP_ID?.trim()
+    || process.env.FIREBASE_APP_ID?.trim()
+    || '';
   const messagingSenderId = process.env.FIREBASE_MESSAGING_SENDER_ID?.trim() || '';
   const enabled = Boolean(
     firebasePushConfigured()
