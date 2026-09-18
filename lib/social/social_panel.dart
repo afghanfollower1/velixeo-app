@@ -525,7 +525,10 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
             ),
           ),
           const SizedBox(height: 10),
-          buildOrderForm(service),
+          if (lastCreatedOrder != null)
+            buildOrderSuccess(lastCreatedOrder!)
+          else
+            buildOrderForm(service),
           const SizedBox(height: 24),
         ],
       );
