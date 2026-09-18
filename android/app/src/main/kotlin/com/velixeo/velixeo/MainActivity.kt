@@ -11,16 +11,61 @@ class MainActivity : FlutterActivity() {
         super.onCreate(savedInstanceState)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = getSystemService(NotificationManager::class.java)
-            val channel = NotificationChannel(
-                "velixeo_alerts",
-                "VELIXEO Alerts",
-                NotificationManager.IMPORTANCE_HIGH,
-            ).apply {
-                description = "Order, wallet, support and account notifications"
-                enableVibration(true)
+
+            fun channel(
+                id: String,
+                name: String,
+                description: String,
+                importance: Int,
+                vibration: Boolean = true,
+            ) = NotificationChannel(id, name, importance).apply {
+                this.description = description
+                enableVibration(vibration)
                 setShowBadge(true)
             }
-            manager.createNotificationChannel(channel)
+
+            manager.createNotificationChannels(
+                listOf(
+                    channel(
+                        "velixeo_orders",
+                        "Orders & Delivery",
+                        "Order progress, refill and drip-feed updates",
+                        NotificationManager.IMPORTANCE_HIGH,
+                    ),
+                    channel(
+                        "velixeo_wallet",
+                        "Wallet & Payments",
+                        "Wallet balance, payment and refund updates",
+                        NotificationManager.IMPORTANCE_HIGH,
+                    ),
+                    channel(
+                        "velixeo_support",
+                        "Support",
+                        "Support replies and ticket updates",
+                        NotificationManager.IMPORTANCE_HIGH,
+                    ),
+                    channel(
+                        "velixeo_promotions",
+                        "Offers & Promotions",
+                        "VELIXEO offers, campaigns and promotional updates",
+                        NotificationManager.IMPORTANCE_DEFAULT,
+                        vibration = false,
+                    ),
+                    channel(
+                        "velixeo_system",
+                        "System & Account",
+                        "Account, security and general VELIXEO updates",
+                        NotificationManager.IMPORTANCE_DEFAULT,
+                    ),
+                    // Keep the original channel for notifications from older app builds.
+                    channel(
+                        "velixeo_alerts",
+                        "VELIXEO Alerts",
+                        "Legacy VELIXEO notification channel",
+                        NotificationManager.IMPORTANCE_HIGH,
+                    ),
+                ),
+            )
         }
     }
 }
