@@ -109,13 +109,16 @@ function notificationChannel(type: NotificationType) {
 
 function isUrgent(priority: NotificationPriority, type: NotificationType) {
   if (priority === NotificationPriority.HIGH) return true;
-  return [
-    NotificationType.ORDER,
-    NotificationType.PAYMENT,
-    NotificationType.WALLET,
-    NotificationType.SUPPORT,
-    NotificationType.ACCOUNT,
-  ].includes(type);
+  switch (type) {
+    case NotificationType.ORDER:
+    case NotificationType.PAYMENT:
+    case NotificationType.WALLET:
+    case NotificationType.SUPPORT:
+    case NotificationType.ACCOUNT:
+      return true;
+    default:
+      return false;
+  }
 }
 
 export async function sendNotificationPush(
