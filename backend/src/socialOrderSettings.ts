@@ -13,7 +13,7 @@ export type SocialOrderSettings = {
 export const SOCIAL_ORDER_SETTINGS_KEY = 'social.order.settings';
 
 export const DEFAULT_SOCIAL_ORDER_SETTINGS: SocialOrderSettings = {
-  orderIdMode: 'SEQUENTIAL',
+  orderIdMode: 'PROVIDER',
   startNumber: 100063,
   refillWindowHours: 24,
   termsFa: 'با ثبت سفارش تأیید می‌کنم لینک و تعداد را درست وارد کرده‌ام، از شرایط سرویس آگاه هستم و می‌دانم زمان انجام و قابلیت جبران یا لغو به شرایط همان سرویس و ارائه‌دهنده وابسته است.',
