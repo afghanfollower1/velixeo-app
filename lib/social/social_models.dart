@@ -236,6 +236,8 @@ class SocialQuote {
     required this.priceUnit,
     required this.totalAmountAfn,
     required this.subtotalAmountAfn,
+    required this.runs,
+    required this.totalQuantity,
     required this.discountAmountAfn,
     this.couponCode,
   });
@@ -244,6 +246,8 @@ class SocialQuote {
   final int rateAfn;
   final int priceUnit;
   final int subtotalAmountAfn;
+  final int runs;
+  final int totalQuantity;
   final int discountAmountAfn;
   final int totalAmountAfn;
   final String? couponCode;
@@ -253,6 +257,8 @@ class SocialQuote {
         rateAfn: int.tryParse('${json['rateAfn']}') ?? 0,
         priceUnit: (json['priceUnit'] as num?)?.toInt() ?? 1000,
         subtotalAmountAfn: int.tryParse('${json['subtotalAmountAfn'] ?? json['totalAmountAfn']}') ?? 0,
+        runs: (json['runs'] as num?)?.toInt() ?? 1,
+        totalQuantity: (json['totalQuantity'] as num?)?.toInt() ?? ((json['quantity'] as num?)?.toInt() ?? 0),
         discountAmountAfn: int.tryParse('${json['discountAmountAfn']}') ?? 0,
         totalAmountAfn: int.tryParse('${json['totalAmountAfn']}') ?? 0,
         couponCode: json['couponCode'] as String?,
@@ -301,7 +307,9 @@ class SocialOrder {
     this.quantity,
     this.failureReason,
     this.completedAt,
-    this.refillAvailableUntil,
+    this.refillAvailableAt,
+    this.refillAvailabilityMessage,
+    this.refillCheckable = false,
     this.canRefill = false,
     this.canCancel = false,
     this.serviceTitleFa,
@@ -321,7 +329,9 @@ class SocialOrder {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? completedAt;
-  final DateTime? refillAvailableUntil;
+  final DateTime? refillAvailableAt;
+  final String? refillAvailabilityMessage;
+  final bool refillCheckable;
   final bool canRefill;
   final bool canCancel;
   final String? serviceTitleFa;
@@ -339,6 +349,17 @@ class SocialOrder {
   String? get remains => output['remains']?.toString();
   String? get startCount => output['startCount']?.toString();
   String? get providerEta => output['providerEta']?.toString();
+  int get runs {
+    final v = input['runs'];
+    return v is num ? v.toInt() : int.tryParse('${v ?? ''}') ?? 1;
+  }
+  int? get intervalMinutes {
+    final v = input['intervalMinutes'] ?? (input['parameters'] is Map ? (input['parameters'] as Map)['interval'] : null);
+    return v is num ? v.toInt() : int.tryParse('${v ?? ''}');
+  }
+  int get totalQuantity => (input['totalQuantity'] as num?)?.toInt() ?? quantity ?? 0;
+  int get unitQuantity => (input['unitQuantity'] as num?)?.toInt() ?? (runs > 1 && totalQuantity > 0 ? (totalQuantity ~/ runs) : (quantity ?? 0));
+  bool get isDripFeed => input['dripFeed'] == true || runs > 1;
   String? get orderLink {
     final parameters = input['parameters'];
     if (parameters is Map) {
@@ -371,7 +392,9 @@ class SocialOrder {
       createdAt: DateTime.tryParse('${json['createdAt']}') ?? DateTime.now(),
       updatedAt: DateTime.tryParse('${json['updatedAt']}') ?? DateTime.now(),
       completedAt: json['completedAt'] == null ? null : DateTime.tryParse('${json['completedAt']}'),
-      refillAvailableUntil: json['refillAvailableUntil'] == null ? null : DateTime.tryParse('${json['refillAvailableUntil']}'),
+      refillAvailableAt: json['refillAvailableAt'] == null ? null : DateTime.tryParse('${json['refillAvailableAt']}'),
+      refillAvailabilityMessage: json['refillAvailabilityMessage']?.toString(),
+      refillCheckable: (json['refillCheckable'] as bool?) ?? false,
       canRefill: (json['canRefill'] as bool?) ?? false,
       canCancel: (json['canCancel'] as bool?) ?? false,
       serviceTitleFa: service['titleFa'] as String?,
