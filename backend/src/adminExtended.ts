@@ -388,7 +388,7 @@ export function registerExtendedAdminRoutes(
     const where: Prisma.OrderWhereInput = Object.values(OrderStatus).includes(filter as OrderStatus) ? { status: filter as OrderStatus } : {};
     const orders = await prisma.order.findMany({ where, include: { user: true, service: true, provider: true }, orderBy: { createdAt: 'desc' }, take: 200 });
     const [message, error] = messageFromQuery(request.query);
-    const body = `<div class="card"><div class="row"><b>آخرین Orders</b><span class="muted">Wallet-only purchase foundation</span><form method="get" action="/admin/orders" class="row" style="margin-right:auto"><select name="status"><option value="">همه Status‌ها</option>${selectOptions(Object.values(OrderStatus), filter)}</select><button class="ghost" type="submit">فیلتر</button></form></div><div class="warn" style="margin-top:12px">REFUNDED فقط باید همراه Ledger Refund اجرا شود؛ این صفحه فعلاً برای Status Actionsی سفارش است.</div><div class="table"><table><thead><tr><th>ID</th><th>User</th><th>خدمت</th><th>Amount</th><th>Provider</th><th>Status</th><th>زمان</th></tr></thead><tbody>${orders.length ? orders.map((o) => `<tr><td class="code">${esc(o.id.slice(0, 8))}</td><td>${esc(o.user.fullName || o.user.email || o.user.phone || '—')}</td><td>${esc(o.service?.titleFa || o.category)}</td><td>${fmtAfn(o.totalAmountAfn)}</td><td>${esc(o.provider?.name || '—')}</td><td><form method="post" action="/admin/orders/status" class="row"><input type="hidden" name="id" value="${esc(o.id)}"><select name="status">${selectOptions(Object.values(OrderStatus).filter((x) => x !== 'REFUNDED'), o.status)}</select><button class="ghost" type="submit">ثبت</button></form>${o.status !== OrderStatus.REFUNDED ? `<form method="post" action="/admin/orders/refund" style="margin-top:6px"><input type="hidden" name="id" value="${esc(o.id)}"><button class="danger" type="submit">Refund کامل</button></form>` : '<span class="badge okbadge">Refunded</span>'}</td><td>${faDate(o.createdAt)}</td></tr>`).join('') : '<tr><td colspan="7" class="muted">هنوز سفارشی ثبت نشده است.</td></tr>'}</tbody></table></div></div>`;
+    const body = `<div class="card"><div class="row"><b>آخرین Orders</b><span class="muted">Wallet-only purchase foundation</span><form method="get" action="/admin/orders" class="row" style="margin-right:auto"><select name="status"><option value="">همه Status‌ها</option>${selectOptions(Object.values(OrderStatus), filter)}</select><button class="ghost" type="submit">فیلتر</button></form></div><div class="warn" style="margin-top:12px">REFUNDED فقط باید همراه Ledger Refund اجرا شود؛ این صفحه فعلاً برای Status Actionsی سفارش است.</div><div class="table"><table><thead><tr><th>ID</th><th>User</th><th>خدمت</th><th>Amount</th><th>Provider</th><th>Status</th><th>زمان</th></tr></thead><tbody>${orders.length ? orders.map((o) => `<tr><td class="code">${esc(o.id.slice(0, 8))}</td><td>${esc(o.user.fullName || o.user.email || o.user.phone || '—')}</td><td>${esc(o.service?.titleFa || o.category)}</td><td>${fmtAfn(o.totalAmountAfn)}</td><td>${esc(o.provider?.name || '—')}</td><td><form method="post" action="/admin/orders/status" class="row"><input type="hidden" name="id" value="${esc(o.id)}"><select name="status">${selectOptions(Object.values(OrderStatus).filter((x) => x !== 'REFUNDED'), o.status)}</select><button class="ghost" type="submit">ثبت Override</button></form>${o.output && typeof o.output === 'object' && !Array.isArray(o.output) && (o.output as Record<string, unknown>).adminStatusOverride === true ? `<div style="margin-top:6px"><span class="badge warn">Admin Override</span><form method="post" action="/admin/orders/status-provider" style="display:inline;margin-left:6px"><input type="hidden" name="id" value="${esc(o.id)}"><button class="ghost" type="submit">بازگشت به Provider</button></form></div>` : ''}${o.status !== OrderStatus.REFUNDED ? `<form method="post" action="/admin/orders/refund" style="margin-top:6px"><input type="hidden" name="id" value="${esc(o.id)}"><button class="danger" type="submit">Refund کامل</button></form>` : '<span class="badge okbadge">Refunded</span>'}</td><td>${faDate(o.createdAt)}</td></tr>`).join('') : '<tr><td colspan="7" class="muted">هنوز سفارشی ثبت نشده است.</td></tr>'}</tbody></table></div></div>`;
     return reply.type('text/html; charset=utf-8').send(adminShell({ title: 'Orders', admin, active: 'orders', body, message, error }));
   });
 
@@ -399,8 +399,57 @@ export function registerExtendedAdminRoutes(
     const id = text(body, 'id');
     const status = text(body, 'status') as OrderStatus;
     if (!id || !Object.values(OrderStatus).includes(status) || status === OrderStatus.REFUNDED) return reply.code(303).redirect('/admin/orders?msg=invalid');
-    const order = await prisma.order.update({ where: { id }, data: { status, completedAt: status === OrderStatus.COMPLETED ? new Date() : undefined } });
-    await audit(prisma, admin.id, 'ORDER_STATUS_UPDATE', 'Order', id, `Order status changed to ${status}`, { previousUpdatedAt: order.updatedAt.toISOString() });
+    const current = await prisma.order.findUnique({ where: { id } });
+    if (!current) return reply.code(303).redirect('/admin/orders?msg=not_found');
+    const currentOutput = current.output && typeof current.output === 'object' && !Array.isArray(current.output)
+      ? current.output as Record<string, unknown>
+      : {};
+    const order = await prisma.order.update({
+      where: { id },
+      data: {
+        status,
+        completedAt: status === OrderStatus.COMPLETED ? (current.completedAt ?? new Date()) : current.completedAt,
+        output: {
+          ...currentOutput,
+          adminStatusOverride: true,
+          adminStatusOverrideValue: status,
+          adminStatusOverrideAt: new Date().toISOString(),
+          adminStatusOverrideBy: admin.id,
+        },
+      },
+    });
+    await audit(prisma, admin.id, 'ORDER_STATUS_OVERRIDE', 'Order', id, `Admin override changed order status to ${status}`, { previousStatus: current.status, previousUpdatedAt: current.updatedAt.toISOString() });
+    return reply.code(303).redirect('/admin/orders?msg=saved');
+  });
+
+  app.post('/admin/orders/status-provider', async (request, reply) => {
+    const admin = await requireAdmin(request, reply, resolveAdmin);
+    if (!admin) return;
+    const id = text(request.body as AnyBody, 'id');
+    if (!id) return reply.code(303).redirect('/admin/orders?msg=invalid');
+    const current = await prisma.order.findUnique({ where: { id } });
+    if (!current) return reply.code(303).redirect('/admin/orders?msg=not_found');
+    const currentOutput = current.output && typeof current.output === 'object' && !Array.isArray(current.output)
+      ? current.output as Record<string, unknown>
+      : {};
+    const providerMapped = String(currentOutput.providerMappedStatus ?? '');
+    const providerStatus = Object.values(OrderStatus).includes(providerMapped as OrderStatus)
+      ? providerMapped as OrderStatus
+      : current.status;
+    const updated = await prisma.order.update({
+      where: { id },
+      data: {
+        status: providerStatus,
+        output: {
+          ...currentOutput,
+          adminStatusOverride: false,
+          adminStatusOverrideValue: null,
+          adminStatusOverrideClearedAt: new Date().toISOString(),
+          adminStatusOverrideClearedBy: admin.id,
+        },
+      },
+    });
+    await audit(prisma, admin.id, 'ORDER_STATUS_PROVIDER_SYNC', 'Order', id, `Order returned to provider status ${updated.status}`);
     return reply.code(303).redirect('/admin/orders?msg=saved');
   });
 
