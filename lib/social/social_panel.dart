@@ -418,7 +418,13 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
       await host.api.cancelSocialOrder(order.id);
       await refreshOrder(order);
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiError(e))));
+      if (!mounted) return;
+      final detail = e.details?.toString().trim();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(detail?.isNotEmpty == true ? detail! : apiError(e)),
+        ),
+      );
     }
   }
 
