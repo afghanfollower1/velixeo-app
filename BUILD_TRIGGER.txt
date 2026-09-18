@@ -1,2 +1,3 @@
 Trigger signed Android build — VELIXEO v0.6.1 — 2026-09-18.
 Includes all v0.6.0 drip-feed/cancel/order improvements plus high-priority FCM notification delivery for background and terminated Android states, notification channel support, background handler registration, hardened token registration, and Firebase-ready native build resources.
+Retry signed Android build after workflow YAML fix — 2026-09-18 20:36 +04:30.
