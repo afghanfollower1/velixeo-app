@@ -100,6 +100,7 @@ class SocialService {
     this.estimatedMinMinutes,
     this.estimatedMaxMinutes,
     this.refillDays,
+    this.providerEta,
   });
 
   final String id;
@@ -120,6 +121,7 @@ class SocialService {
   final bool refillSupported;
   final bool cancelSupported;
   final int? refillDays;
+  final String? providerEta;
   final String providerType;
   final List<SocialOrderField> orderFields;
 
@@ -142,6 +144,7 @@ class SocialService {
         refillSupported: (json['refillSupported'] as bool?) ?? false,
         cancelSupported: (json['cancelSupported'] as bool?) ?? false,
         refillDays: (json['refillDays'] as num?)?.toInt(),
+        providerEta: json['providerEta']?.toString(),
         providerType: (json['providerType'] as String?) ?? 'Default',
         orderFields: ((json['orderFields'] as List<dynamic>?) ?? const [])
             .map((item) => SocialOrderField.fromJson(Map<String, dynamic>.from(item as Map)))
@@ -205,6 +208,27 @@ class SocialCatalog {
       );
 }
 
+class SocialOrderConfig {
+  const SocialOrderConfig({
+    this.orderIdMode = 'PROVIDER',
+    this.termsFa = '',
+    this.termsEn = '',
+    this.refillWindowHours = 24,
+  });
+
+  final String orderIdMode;
+  final String termsFa;
+  final String termsEn;
+  final int refillWindowHours;
+
+  factory SocialOrderConfig.fromJson(Map<String, dynamic> json) => SocialOrderConfig(
+        orderIdMode: (json['orderIdMode'] as String?) ?? 'PROVIDER',
+        termsFa: (json['termsFa'] as String?) ?? '',
+        termsEn: (json['termsEn'] as String?) ?? '',
+        refillWindowHours: (json['refillWindowHours'] as num?)?.toInt() ?? 24,
+      );
+}
+
 class SocialQuote {
   const SocialQuote({
     required this.quantity,
@@ -265,16 +289,21 @@ class SocialOrderAction {
 class SocialOrder {
   const SocialOrder({
     required this.id,
+    required this.displayOrderId,
     required this.status,
     required this.totalAmountAfn,
     required this.baseAmountAfn,
     required this.createdAt,
     required this.updatedAt,
     required this.output,
+    required this.input,
     required this.actions,
     this.quantity,
     this.failureReason,
     this.completedAt,
+    this.refillAvailableUntil,
+    this.canRefill = false,
+    this.canCancel = false,
     this.serviceTitleFa,
     this.serviceTitleEn,
     this.platform,
@@ -283,6 +312,7 @@ class SocialOrder {
   });
 
   final String id;
+  final String displayOrderId;
   final String status;
   final int? quantity;
   final int totalAmountAfn;
@@ -291,12 +321,16 @@ class SocialOrder {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? completedAt;
+  final DateTime? refillAvailableUntil;
+  final bool canRefill;
+  final bool canCancel;
   final String? serviceTitleFa;
   final String? serviceTitleEn;
   final String? platform;
   final String? group;
   final int? refillDays;
   final Map<String, dynamic> output;
+  final Map<String, dynamic> input;
   final List<SocialOrderAction> actions;
 
   bool get refillSupported => output['refillSupported'] == true;
@@ -304,6 +338,17 @@ class SocialOrder {
   String? get providerStatus => output['providerStatus'] as String?;
   String? get remains => output['remains']?.toString();
   String? get startCount => output['startCount']?.toString();
+  String? get providerEta => output['providerEta']?.toString();
+  String? get orderLink {
+    final parameters = input['parameters'];
+    if (parameters is Map) {
+      for (final key in const ['link', 'username', 'url', 'media']) {
+        final value = parameters[key];
+        if (value != null && value.toString().trim().isNotEmpty) return value.toString().trim();
+      }
+    }
+    return null;
+  }
 
   factory SocialOrder.fromJson(Map<String, dynamic> json) {
     final service = json['service'] is Map
@@ -312,8 +357,12 @@ class SocialOrder {
     final output = json['output'] is Map
         ? Map<String, dynamic>.from(json['output'] as Map)
         : <String, dynamic>{};
+    final input = json['input'] is Map
+        ? Map<String, dynamic>.from(json['input'] as Map)
+        : <String, dynamic>{};
     return SocialOrder(
       id: json['id'] as String,
+      displayOrderId: (json['displayOrderId'] as String?) ?? (json['id'] as String).substring(0, 8),
       status: (json['status'] as String?) ?? 'PENDING',
       quantity: (json['quantity'] as num?)?.toInt(),
       totalAmountAfn: int.tryParse('${json['totalAmountAfn']}') ?? 0,
@@ -322,12 +371,16 @@ class SocialOrder {
       createdAt: DateTime.tryParse('${json['createdAt']}') ?? DateTime.now(),
       updatedAt: DateTime.tryParse('${json['updatedAt']}') ?? DateTime.now(),
       completedAt: json['completedAt'] == null ? null : DateTime.tryParse('${json['completedAt']}'),
+      refillAvailableUntil: json['refillAvailableUntil'] == null ? null : DateTime.tryParse('${json['refillAvailableUntil']}'),
+      canRefill: (json['canRefill'] as bool?) ?? false,
+      canCancel: (json['canCancel'] as bool?) ?? false,
       serviceTitleFa: service['titleFa'] as String?,
       serviceTitleEn: service['titleEn'] as String?,
       platform: service['socialPlatform'] as String?,
       group: service['socialGroup'] as String?,
       refillDays: (service['refillDays'] as num?)?.toInt(),
       output: output,
+      input: input,
       actions: ((json['actions'] as List<dynamic>?) ?? const [])
           .map((item) => SocialOrderAction.fromJson(Map<String, dynamic>.from(item as Map)))
           .toList(growable: false),
