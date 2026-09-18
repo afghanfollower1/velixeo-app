@@ -512,11 +512,11 @@ async function categoriesPage(prisma: PrismaClient, admin: AdminIdentity, reques
   return shell({
     admin,
     title: 'Categories',
-    subtitle: 'Create the platform/category structure customers see before choosing a service.',
+    subtitle: 'Create the brand/category structure customers see before choosing a service.',
     active: 'categories',
     message: q.msg,
     error: q.error,
-    body: `<div class="card"><div class="cardhead"><div><h2>Social Categories</h2><span class="muted">${categories.length} categories</span></div><a class="btn" href="/admin/v3/social/categories?mode=new">${icon('plus')} Add Category</a></div><div class="tablewrap"><table class="table"><thead><tr><th>Category</th><th>Platform</th><th>Services</th><th>Sort</th><th>App Status</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="6" class="empty">No categories yet.</td></tr>'}</tbody></table></div></div>${form}`,
+    body: `<div class="card"><div class="cardhead"><div><h2>Social Categories</h2><span class="muted">${categories.length} categories</span></div><a class="btn" href="/admin/v3/social/categories?mode=new">${icon('plus')} Add Category</a></div><div class="tablewrap"><table class="table"><thead><tr><th>Category</th><th>Brand</th><th>Services</th><th>Sort</th><th>App Status</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="6" class="empty">No categories yet.</td></tr>'}</tbody></table></div></div>${form}`,
   });
 }
 
@@ -554,7 +554,7 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
     active: 'services',
     message: q.msg,
     error: q.error,
-    body: `<div class="card"><div class="cardhead"><form method="get" action="/admin/v3/social/my-services" class="searchbar"><input name="q" value="${esc(q.q)}" placeholder="Search service, slug or category"><button class="btn ghost">Search</button></form><a class="btn" href="/admin/v3/social/providers">${icon('plus')} Choose Provider</a></div><div class="tablewrap"><table class="table"><thead><tr><th>VELIXEO Service</th><th>Platform / Category</th><th>Provider</th><th>Pricing</th><th>Min / Max</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="empty">No VELIXEO social services yet.</td></tr>'}</tbody></table></div></div>`,
+    body: `<div class="card"><div class="cardhead"><form method="get" action="/admin/v3/social/my-services" class="searchbar"><input name="q" value="${esc(q.q)}" placeholder="Search service, slug or category"><button class="btn ghost">Search</button></form><a class="btn" href="/admin/v3/social/providers">${icon('plus')} Choose Provider</a></div><div class="tablewrap"><table class="table"><thead><tr><th>VELIXEO Service</th><th>Brand / Category</th><th>Provider</th><th>Pricing</th><th>Min / Max</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="empty">No VELIXEO social services yet.</td></tr>'}</tbody></table></div></div>`,
   });
 }
 
