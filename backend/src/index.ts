@@ -25,6 +25,7 @@ import { registerSocialRoutes } from './socialRoutes.js';
 import { startSocialAutoSync } from './socialSync.js';
 import { registerVirtualNumberRoutes } from './virtualNumberRoutes.js';
 import { registerAdminV3 } from './adminV3.js';
+import { startNotificationPushScheduler } from './pushNotifications.js';
 
 const env = z
   .object({
@@ -1003,6 +1004,7 @@ registerHesabPayWebhookRoutes(app, prisma, authenticate);
 registerSocialRoutes(app, prisma, authenticate, adminWebUser);
 registerVirtualNumberRoutes(app, prisma, authenticate, adminWebUser);
 startSocialAutoSync(prisma, app.log as any);
+startNotificationPushScheduler(prisma, app.log as any);
 
 app.setErrorHandler((error: unknown, request, reply) => {
   request.log.error(error);
