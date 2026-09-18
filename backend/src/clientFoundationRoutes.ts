@@ -19,6 +19,7 @@ const ticketMessageSchema = z.object({
 });
 
 const ticketParamsSchema = z.object({ id: z.string().uuid() });
+const notificationParamsSchema = z.object({ id: z.string().uuid() });
 
 export function registerClientFoundationRoutes(
   app: FastifyInstance,
@@ -89,12 +90,87 @@ export function registerClientFoundationRoutes(
             },
           ],
         },
+        include: {
+          reads: {
+            where: { userId: claims.sub },
+            select: { readAt: true },
+            take: 1,
+          },
+        },
         orderBy: { publishAt: 'desc' },
         take: 100,
       });
-      return { notifications };
+      return {
+        notifications: notifications.map(({ reads, ...notification }) => ({
+          ...notification,
+          isRead: reads.length > 0,
+          readAt: reads[0]?.readAt ?? null,
+        })),
+        unreadCount: notifications.reduce((count, notification) => count + (notification.reads.length === 0 ? 1 : 0), 0),
+      };
     },
   );
+
+  app.post('/api/v1/content/notifications/:id/read', { preHandler: authenticate }, async (request, reply) => {
+    const params = notificationParamsSchema.safeParse(request.params);
+    if (!params.success) return reply.code(400).send({ error: 'invalid_request' });
+    const claims = request.user as JwtClaims;
+    const now = new Date();
+    const notification = await prisma.notification.findFirst({
+      where: {
+        id: params.data.id,
+        enabled: true,
+        publishAt: { lte: now },
+        AND: [
+          { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+          {
+            OR: [
+              { audience: NotificationAudience.ALL },
+              { audience: NotificationAudience.USER, userId: claims.sub },
+            ],
+          },
+        ],
+      },
+      select: { id: true },
+    });
+    if (!notification) return reply.code(404).send({ error: 'notification_not_found' });
+    const read = await prisma.notificationRead.upsert({
+      where: { notificationId_userId: { notificationId: notification.id, userId: claims.sub } },
+      create: { notificationId: notification.id, userId: claims.sub, readAt: now },
+      update: { readAt: now },
+    });
+    return { id: notification.id, isRead: true, readAt: read.readAt };
+  });
+
+  app.post('/api/v1/content/notifications/read-all', { preHandler: authenticate }, async (request) => {
+    const claims = request.user as JwtClaims;
+    const now = new Date();
+    const visible = await prisma.notification.findMany({
+      where: {
+        enabled: true,
+        publishAt: { lte: now },
+        AND: [
+          { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+          {
+            OR: [
+              { audience: NotificationAudience.ALL },
+              { audience: NotificationAudience.USER, userId: claims.sub },
+            ],
+          },
+        ],
+      },
+      select: { id: true },
+      take: 100,
+    });
+    await prisma.$transaction(
+      visible.map((notification) => prisma.notificationRead.upsert({
+        where: { notificationId_userId: { notificationId: notification.id, userId: claims.sub } },
+        create: { notificationId: notification.id, userId: claims.sub, readAt: now },
+        update: { readAt: now },
+      })),
+    );
+    return { markedRead: visible.length, readAt: now };
+  });
 
   app.get('/api/v1/orders', { preHandler: authenticate }, async (request) => {
     const claims = request.user as JwtClaims;
