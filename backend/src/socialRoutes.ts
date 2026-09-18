@@ -728,6 +728,66 @@ async function syncProviderServices(prisma: PrismaClient, providerId: string) {
   return { created, updated, total: services.length, balance };
 }
 
+async function syncSocialOrderRecord(prisma: PrismaClient, order: any) {
+  if (!order?.provider || !order.providerOrderId) return null;
+  const status = await smmClientForProvider(order.provider).status(order.providerOrderId);
+  const providerMappedStatus = mapProviderStatus(status.status);
+  let actualCostAfn: bigint | undefined;
+  if (status.charge && status.currency) {
+    const rate = await prisma.exchangeRate.findUnique({ where: { code: status.currency } });
+    if (status.currency === 'AFN') {
+      actualCostAfn = BigInt(Math.ceil(Number(status.charge)));
+    } else if (rate) {
+      actualCostAfn = BigInt(Math.ceil(Number(status.charge) * Number(rate.afnPerUnit.toString())));
+    }
+  }
+  const currentOutput = order.output && typeof order.output === 'object' && !Array.isArray(order.output)
+    ? order.output as Record<string, unknown>
+    : {};
+  const adminOverride = currentOutput.adminStatusOverride === true;
+  const effectiveStatus = adminOverride ? order.status : providerMappedStatus;
+  await prisma.order.update({
+    where: { id: order.id },
+    data: {
+      status: effectiveStatus,
+      providerCostAfn: actualCostAfn ?? order.providerCostAfn,
+      completedAt: !adminOverride && providerMappedStatus === OrderStatus.COMPLETED
+        ? (order.completedAt ?? new Date())
+        : order.completedAt,
+      failureReason: !adminOverride && providerMappedStatus === OrderStatus.FAILED ? status.status : order.failureReason,
+      output: {
+        ...currentOutput,
+        providerStatus: status.status,
+        providerMappedStatus,
+        charge: status.charge ?? null,
+        startCount: status.startCount ?? null,
+        remains: status.remains ?? null,
+        providerCurrency: status.currency ?? null,
+        lastStatusSyncAt: new Date().toISOString(),
+      },
+    },
+  });
+  if (!adminOverride) {
+    await maybeApplyTerminalRefund(prisma, order, providerMappedStatus, status.remains);
+  }
+  return prisma.order.findUnique({
+    where: { id: order.id },
+    include: { service: true, provider: true, actions: { orderBy: { createdAt: 'desc' } } },
+  });
+}
+
+async function syncRefillActionRecord(prisma: PrismaClient, action: any) {
+  if (!action?.providerReference || !action.order?.provider) return null;
+  const result = await smmClientForProvider(action.order.provider).refillStatus(action.providerReference);
+  return prisma.orderActionLog.update({
+    where: { id: action.id },
+    data: {
+      status: result.status.toUpperCase(),
+      response: result.raw as Prisma.InputJsonValue,
+    },
+  });
+}
+
 export function registerSocialRoutes(
   app: FastifyInstance,
   prisma: PrismaClient,
@@ -1169,43 +1229,7 @@ export function registerSocialRoutes(
       return reply.code(409).send({ error: 'provider_order_not_available' });
     }
     try {
-      const status = await smmClientForProvider(order.provider).status(order.providerOrderId);
-      const nextStatus = mapProviderStatus(status.status);
-      let actualCostAfn: bigint | undefined;
-      if (status.charge && status.currency) {
-        const rate = await prisma.exchangeRate.findUnique({ where: { code: status.currency } });
-        if (status.currency === 'AFN') {
-          actualCostAfn = BigInt(Math.ceil(Number(status.charge)));
-        } else if (rate) {
-          actualCostAfn = BigInt(Math.ceil(Number(status.charge) * Number(rate.afnPerUnit.toString())));
-        }
-      }
-      const currentOutput = order.output && typeof order.output === 'object'
-        ? order.output as Record<string, unknown>
-        : {};
-      await prisma.order.update({
-        where: { id: order.id },
-        data: {
-          status: nextStatus,
-          providerCostAfn: actualCostAfn ?? order.providerCostAfn,
-          completedAt: nextStatus === OrderStatus.COMPLETED ? (order.completedAt ?? new Date()) : order.completedAt,
-          failureReason: nextStatus === OrderStatus.FAILED ? status.status : null,
-          output: {
-            ...currentOutput,
-            providerStatus: status.status,
-            charge: status.charge ?? null,
-            startCount: status.startCount ?? null,
-            remains: status.remains ?? null,
-            providerCurrency: status.currency ?? null,
-            lastStatusSyncAt: new Date().toISOString(),
-          },
-        },
-      });
-      await maybeApplyTerminalRefund(prisma, order, nextStatus, status.remains);
-      const hydrated = await prisma.order.findUnique({
-        where: { id: order.id },
-        include: { service: true, actions: { orderBy: { createdAt: 'desc' } } },
-      });
+      const hydrated = await syncSocialOrderRecord(prisma, order);
       return { order: socialOrderJson(hydrated) };
     } catch (error) {
       if (error instanceof SmmProviderError) {
@@ -1213,6 +1237,44 @@ export function registerSocialRoutes(
       }
       throw error;
     }
+  });
+
+  app.post('/api/v1/social/orders/sync', { preHandler: authenticate }, async (request) => {
+    const userId = (request.user as JwtClaims).sub;
+    const active = await prisma.order.findMany({
+      where: {
+        userId,
+        category: ServiceCategory.SOCIAL,
+        providerOrderId: { not: null },
+        status: { in: [OrderStatus.PENDING, OrderStatus.PROCESSING] },
+      },
+      include: { provider: true, service: true, actions: { orderBy: { createdAt: 'desc' } } },
+      orderBy: { createdAt: 'desc' },
+      take: 25,
+    });
+    for (const order of active) {
+      try { await syncSocialOrderRecord(prisma, order); } catch { /* next order */ }
+    }
+    const refillActions = await prisma.orderActionLog.findMany({
+      where: {
+        action: 'REFILL',
+        status: { notIn: ['COMPLETED', 'REJECTED', 'FAILED', 'CANCELLED'] },
+        order: { userId, category: ServiceCategory.SOCIAL },
+      },
+      include: { order: { include: { provider: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 25,
+    });
+    for (const action of refillActions) {
+      try { await syncRefillActionRecord(prisma, action); } catch { /* next action */ }
+    }
+    const orders = await prisma.order.findMany({
+      where: { userId, category: ServiceCategory.SOCIAL },
+      include: { service: true, actions: { orderBy: { createdAt: 'desc' } } },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    return { orders: orders.map(socialOrderJson), syncedAt: new Date() };
   });
 
   app.post('/api/v1/social/orders/:id/refill', { preHandler: authenticate }, async (request, reply) => {
@@ -1376,6 +1438,44 @@ export function registerSocialRoutes(
       throw error;
     }
   });
+
+  let backgroundSyncRunning = false;
+  const socialSyncTimer = setInterval(async () => {
+    if (backgroundSyncRunning) return;
+    backgroundSyncRunning = true;
+    try {
+      const activeOrders = await prisma.order.findMany({
+        where: {
+          category: ServiceCategory.SOCIAL,
+          providerOrderId: { not: null },
+          status: { in: [OrderStatus.PENDING, OrderStatus.PROCESSING] },
+        },
+        include: { provider: true, service: true, actions: { orderBy: { createdAt: 'desc' } } },
+        orderBy: { updatedAt: 'asc' },
+        take: 60,
+      });
+      for (const order of activeOrders) {
+        try { await syncSocialOrderRecord(prisma, order); } catch { /* provider failure retries next minute */ }
+      }
+
+      const refillActions = await prisma.orderActionLog.findMany({
+        where: {
+          action: 'REFILL',
+          status: { notIn: ['COMPLETED', 'REJECTED', 'FAILED', 'CANCELLED'] },
+          order: { category: ServiceCategory.SOCIAL },
+        },
+        include: { order: { include: { provider: true } } },
+        orderBy: { updatedAt: 'asc' },
+        take: 60,
+      });
+      for (const action of refillActions) {
+        try { await syncRefillActionRecord(prisma, action); } catch { /* retry later */ }
+      }
+    } finally {
+      backgroundSyncRunning = false;
+    }
+  }, 60_000);
+  socialSyncTimer.unref?.();
 
   app.get('/admin/social-services', async (request, reply) => {
     const admin = await resolveAdmin(request);
