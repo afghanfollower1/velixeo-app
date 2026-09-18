@@ -45,14 +45,14 @@ export function firebaseClientConfig() {
     || '';
   const messagingSenderId = process.env.FIREBASE_MESSAGING_SENDER_ID?.trim() || '';
   const enabled = Boolean(
-    firebasePushConfigured()
-      && projectId
+    projectId
       && apiKey
       && appId
       && messagingSenderId,
   );
   return {
     enabled,
+    serverPushEnabled: firebasePushConfigured(),
     projectId: enabled ? projectId : null,
     apiKey: enabled ? apiKey : null,
     appId: enabled ? appId : null,
