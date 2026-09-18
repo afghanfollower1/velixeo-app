@@ -66,17 +66,23 @@ class PushService {
       } catch (_) {}
     });
 
-    _openedMessages ??= FirebaseMessaging.onMessageOpenedApp.listen((_) async {
+    Future<void> markOpened(RemoteMessage message) async {
+      final notificationId = message.data['notificationId']?.trim();
+      if (notificationId?.isNotEmpty == true) {
+        try {
+          await api.markNotificationRead(notificationId!);
+        } catch (_) {}
+      }
       try {
         await onNotification();
       } catch (_) {}
-    });
+    }
+
+    _openedMessages ??= FirebaseMessaging.onMessageOpenedApp.listen(markOpened);
 
     final initial = await messaging.getInitialMessage();
     if (initial != null) {
-      try {
-        await onNotification();
-      } catch (_) {}
+      await markOpened(initial);
     }
   }
 
