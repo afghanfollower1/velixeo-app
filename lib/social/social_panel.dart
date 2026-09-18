@@ -482,7 +482,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
             _InfoRow(label: t('لینک سفارش', 'Order link'), value: order.orderLink!),
             const SizedBox(height: 8),
           ],
-          _InfoRow(label: t('تعداد', 'Quantity'), value: '${order.quantity ?? '—'}'),
+          _InfoRow(label: t('تعداد', 'Quantity'), value: order.isDripFeed ? '${order.unitQuantity} × ${order.runs} = ${order.totalQuantity}' : '${order.quantity ?? '—'}'),
           const SizedBox(height: 8),
           _InfoRow(label: t('کسر از کیف پول', 'Wallet deduction'), value: host.money(order.totalAmountAfn, showBase: true), strong: true),
           const SizedBox(height: 8),
@@ -1529,8 +1529,19 @@ class _OrderCard extends StatelessWidget {
               runSpacing: 8,
               children: [
                 OutlinedButton.icon(onPressed: () => onRefresh(order), icon: const Icon(Icons.sync_rounded, size: 17), label: Text(fa ? 'بروزرسانی وضعیت' : 'Refresh status')),
-                if (order.canRefill)
-                  OutlinedButton.icon(onPressed: () => onRefill(order), icon: const Icon(Icons.restart_alt_rounded, size: 17), label: Text(fa ? 'جبران ریزش' : 'Refill')),
+                if (order.refillCheckable)
+                  OutlinedButton.icon(
+                    onPressed: () => onRefill(order),
+                    style: order.canRefill
+                        ? null
+                        : OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF7D92A4),
+                            side: const BorderSide(color: Color(0xFFDCE8F1)),
+                            backgroundColor: const Color(0xFFF4F7FA),
+                          ),
+                    icon: Icon(order.canRefill ? Icons.restart_alt_rounded : Icons.schedule_rounded, size: 17),
+                    label: Text(order.canRefill ? (fa ? 'جبران ریزش' : 'Refill') : (fa ? 'بررسی جبران' : 'Check refill')),
+                  ),
                 if (order.canCancel && !terminal)
                   OutlinedButton.icon(onPressed: () => onCancel(order), icon: const Icon(Icons.cancel_outlined, size: 17), label: Text(fa ? 'لغو' : 'Cancel')),
               ],
@@ -1547,10 +1558,28 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final good = status == 'COMPLETED';
-    final bad = ['FAILED','CANCELLED'].contains(status);
-    final color = good ? const Color(0xFF0A8B5B) : bad ? const Color(0xFFB33737) : const Color(0xFF0D78C8);
-    final bg = good ? const Color(0xFFE7F8F1) : bad ? const Color(0xFFFFF0F0) : const Color(0xFFEAF6FF);
+    final normalized = status.toUpperCase().replaceAll('_', ' ');
+    late final Color color;
+    late final Color bg;
+    if (normalized == 'COMPLETED') {
+      color = const Color(0xFF0A8B5B);
+      bg = const Color(0xFFE7F8F1);
+    } else if (['FAILED','CANCELLED','REJECTED'].contains(normalized)) {
+      color = const Color(0xFFB33737);
+      bg = const Color(0xFFFFF0F0);
+    } else if (normalized == 'PENDING') {
+      color = const Color(0xFFB86A00);
+      bg = const Color(0xFFFFF3E0);
+    } else if (normalized == 'PARTIAL') {
+      color = const Color(0xFF7655C7);
+      bg = const Color(0xFFF1ECFF);
+    } else if (normalized == 'REFUNDED') {
+      color = const Color(0xFF177B8D);
+      bg = const Color(0xFFE6F7FA);
+    } else {
+      color = const Color(0xFF0D78C8);
+      bg = const Color(0xFFEAF6FF);
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
@@ -1567,10 +1596,26 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: Color(0xFF607487))),
-          const Spacer(),
-          Flexible(child: Text(value, textAlign: TextAlign.end, style: TextStyle(fontWeight: strong ? FontWeight.w900 : FontWeight.w700))),
+          Expanded(
+            flex: 4,
+            child: Text(label, style: const TextStyle(color: Color(0xFF607487))),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            flex: 6,
+            child: strong
+                ? Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: Text(value, textAlign: TextAlign.end, maxLines: 1, style: const TextStyle(fontWeight: FontWeight.w900)),
+                    ),
+                  )
+                : Text(value, textAlign: TextAlign.end, style: const TextStyle(fontWeight: FontWeight.w700)),
+          ),
         ],
       );
 }
@@ -1588,7 +1633,7 @@ class _TabButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(13),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 11),
+          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 2),
           decoration: BoxDecoration(
             color: selected ? Colors.white : Colors.transparent,
             borderRadius: BorderRadius.circular(13),
@@ -1596,7 +1641,7 @@ class _TabButton extends StatelessWidget {
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [Icon(icon, size: 18, color: selected ? const Color(0xFF0D78C8) : const Color(0xFF607487)), const SizedBox(width: 6), Text(label, style: TextStyle(fontWeight: FontWeight.w800, color: selected ? const Color(0xFF102235) : const Color(0xFF607487)))],
+            children: [Icon(icon, size: 15, color: selected ? const Color(0xFF0D78C8) : const Color(0xFF607487)), const SizedBox(width: 3), Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: selected ? const Color(0xFF102235) : const Color(0xFF607487))))],
           ),
         ),
       );
