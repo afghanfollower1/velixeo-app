@@ -444,6 +444,43 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
   });
 }
 
+function brandPreview(brand: SocialBrand) {
+  if (brand.iconType === 'URL' || brand.iconType === 'UPLOAD') {
+    return `<img src='${esc(brand.iconValue)}' alt='' style='width:30px;height:30px;object-fit:contain;border-radius:8px'>`;
+  }
+  return `<span style='width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:#edf6ff;color:#147bd6;font-weight:900;font-size:10px'>${esc((brand.iconValue || brand.key).slice(0,2).toUpperCase())}</span>`;
+}
+
+async function brandsPage(prisma: PrismaClient, admin: AdminIdentity, request: FastifyRequest) {
+  const q = query(request);
+  const brands = await loadSocialBrands(prisma);
+  const categories = await loadCategories(prisma);
+  const services = await prisma.service.findMany({ where: { category: ServiceCategory.SOCIAL }, select: { socialPlatform: true, metadata: true } });
+  const selected = q.edit ? brands.find(item => item.key === normalizeBrandKey(q.edit)) ?? null : null;
+  const showForm = q.mode === 'new' || Boolean(selected);
+  const rows = brands.map(item => {
+    const categoryCount = categories.filter(cat => normalizeBrandKey(cat.platform) === item.key).length;
+    const serviceCount = services.filter(service => {
+      const meta = jsonObject(service.metadata);
+      const added = meta.addedToVelixeo === true || typeof meta.publishedAt === 'string' || typeof meta.publishedFromProviderId === 'string';
+      return added && normalizeBrandKey(service.socialPlatform || '') === item.key;
+    }).length;
+    return `<tr><td><div class='provider-name'>${brandPreview(item)}<div><b>${esc(item.titleEn)}</b><br><span class='mono muted'>${esc(item.key)}</span></div></div></td><td>${esc(item.titleFa)}</td><td>${categoryCount}</td><td>${serviceCount}</td><td>${item.sortOrder}</td><td>${item.enabled?pill('Visible','ok'):pill('Hidden','bad')}</td><td><div class='actions'><a class='iconbtn' href='/admin/v3/social/brands?edit=${encodeURIComponent(item.key)}' title='Edit brand'>${icon('edit')}</a><form method='post' action='/admin/v3/social/brands/toggle'><input type='hidden' name='key' value='${esc(item.key)}'><button class='iconbtn ${item.enabled?'orange':'green'}' title='${item.enabled?'Hide brand from app':'Show brand in app'}'>${icon('eye')}</button></form><form method='post' action='/admin/v3/social/brands/delete' onsubmit="return confirm('Delete this unused brand?');"><input type='hidden' name='key' value='${esc(item.key)}'><button class='iconbtn red' title='Delete brand'>${icon('trash')}</button></form></div></td></tr>`;
+  }).join('');
+  const iconOptions = defaultBrandIcons.map(name => `<option value='${name}' ${selected?.iconType==='DEFAULT'&&selected.iconValue===name?'selected':''}>${name}</option>`).join('');
+  const form = showForm ? `<div class='card'><div class='cardhead'><h2>${selected?'Edit Brand':'Add Brand'}</h2><a class='btn ghost' href='/admin/v3/social/brands'>Cancel</a></div><form id='brand-form' method='post' action='/admin/v3/social/brands/save'><input type='hidden' name='originalKey' value='${esc(selected?.key || '')}'><input type='hidden' id='iconUploadData' name='iconUploadData' value=''><div class='forms'><div class='field'><label>Brand Key</label><input class='mono' name='key' value='${esc(selected?.key || '')}' placeholder='INSTAGRAM' required><span class='tiny'>Stable key used by categories and services.</span></div><div class='field'><label>Sort Order</label><input type='number' name='sortOrder' value='${esc(selected?.sortOrder ?? 100)}'></div><div class='field'><label>English Brand Name</label><input name='titleEn' value='${esc(selected?.titleEn || '')}' placeholder='Instagram' required></div><div class='field'><label>Persian Brand Name</label><input name='titleFa' value='${esc(selected?.titleFa || '')}' placeholder='اینستاگرام'></div></div><div class='field'><label>Icon Source</label><select id='iconType' name='iconType'><option value='DEFAULT' ${selected?.iconType!=='URL'&&selected?.iconType!=='UPLOAD'?'selected':''}>VELIXEO default icon library</option><option value='URL' ${selected?.iconType==='URL'?'selected':''}>Image URL</option><option value='UPLOAD' ${selected?.iconType==='UPLOAD'?'selected':''}>Upload PNG / JPG / WebP</option></select></div><div id='icon-default' class='field'><label>Default Icon</label><select name='defaultIcon'>${iconOptions}</select></div><div id='icon-url' class='field'><label>Icon URL</label><input class='mono' name='iconUrl' value='${selected?.iconType==='URL'?esc(selected.iconValue):''}' placeholder='https://.../instagram.png'></div><div id='icon-upload' class='field'><label>Upload Icon</label><input id='iconFile' type='file' accept='image/png,image/jpeg,image/webp'><span class='tiny'>Square icon recommended. Maximum about 400 KB.</span>${selected?.iconType==='UPLOAD'?'<div class="tiny">An uploaded icon is already saved. Choose a file only to replace it.</div>':''}</div><div class='field'><label>Preview</label><div id='brandIconPreview' style='width:64px;height:64px;border:1px solid var(--line);border-radius:14px;display:grid;place-items:center;background:#fff'>${selected?brandPreview(selected):'ICON'}</div></div><label class='check'><input type='checkbox' name='enabled' ${selected?.enabled===false?'':'checked'}> Visible in the customer app</label><button class='btn'>Save Brand</button></form></div>` : `<div class='card'><div class='cardhead'><h2>Brand Structure</h2><span class='muted'>Brand → Category → Service</span></div><div class='notice'>Brands are customer-facing networks such as Instagram, TikTok, Telegram and WhatsApp. Names, icons, order and visibility are server-driven.</div></div>`;
+  return shell({
+    admin, title: 'Brands', subtitle: 'Manage the social networks customers see before choosing a category.', active: 'brands',
+    message: q.msg, error: q.error,
+    body: `<div class='card'><div class='cardhead'><div><h2>Social Brands</h2><span class='muted'>${brands.length} brands</span></div><a class='btn' href='/admin/v3/social/brands?mode=new'>${icon('plus')} Add Brand</a></div><div class='tablewrap'><table class='table'><thead><tr><th>Brand</th><th>Persian Name</th><th>Categories</th><th>Services</th><th>Sort</th><th>App Status</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="empty">No brands yet.</td></tr>'}</tbody></table></div></div>${form}`,
+    script: showForm ? `
+      const type=document.getElementById('iconType'); const def=document.getElementById('icon-default'); const url=document.getElementById('icon-url'); const upload=document.getElementById('icon-upload'); const file=document.getElementById('iconFile'); const hidden=document.getElementById('iconUploadData'); const preview=document.getElementById('brandIconPreview');
+      function syncIconFields(){ const value=type.value; def.style.display=value==='DEFAULT'?'block':'none'; url.style.display=value==='URL'?'block':'none'; upload.style.display=value==='UPLOAD'?'block':'none'; }
+      type.addEventListener('change',syncIconFields); syncIconFields();
+      file?.addEventListener('change',()=>{ const selected=file.files&&file.files[0]; if(!selected)return; if(selected.size>400000){alert('Icon is too large. Keep it below about 400 KB.');file.value='';return;} const reader=new FileReader(); reader.onload=()=>{hidden.value=String(reader.result||''); preview.innerHTML='<img src="'+hidden.value+'" style="width:54px;height:54px;object-fit:contain;border-radius:10px">';}; reader.readAsDataURL(selected); });
+    ` : undefined,
+  });
+}
 async function categoriesPage(prisma: PrismaClient, admin: AdminIdentity, request: FastifyRequest) {
   const q = query(request);
   const categories = await loadCategories(prisma);
