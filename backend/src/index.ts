@@ -16,14 +16,12 @@ import {
   WalletEntryType,
 } from '@prisma/client';
 import { z } from 'zod';
-import { adminDashboardHtml, adminLoginHtml } from './adminPage.js';
-import { registerExtendedAdminRoutes } from './adminExtended.js';
+import { adminLoginHtml } from './adminPage.js';
 import { registerClientFoundationRoutes } from './clientFoundationRoutes.js';
 import { registerPaymentRoutes } from './paymentRoutes.js';
 import { registerHesabPayWebhookRoutes } from './hesabPayWebhookRoutes.js';
 import { registerAdminCsrfGuard } from './adminSecurity.js';
 import { registerSocialRoutes } from './socialRoutes.js';
-import { registerSocialAdminV2 } from './socialAdminV2.js';
 import { startSocialAutoSync } from './socialSync.js';
 import { registerVirtualNumberRoutes } from './virtualNumberRoutes.js';
 import { registerAdminV3 } from './adminV3.js';
@@ -361,9 +359,54 @@ function adminCookie(token: string, maxAge = 8 * 60 * 60) {
 }
 
 app.get('/admin', async (request, reply) => {
+  const url = new URL(request.raw.url || '/admin', 'http://velixeo.local');
+  const view = url.searchParams.get('view');
+  const section = view === 'users' ? 'users'
+    : view === 'rates' ? 'settings'
+    : view === 'providers' ? 'social'
+    : '';
+  return reply.code(303).redirect(section ? '/admin/v3?section=' + section : '/admin/v3');
+});
+
+app.get('/admin/login', async (request, reply) => {
   const admin = await adminWebUser(request);
-  if (!admin) return reply.type('text/html; charset=utf-8').send(adminLoginHtml());
-  return reply.code(303).redirect('/admin/v3');
+  if (admin) return reply.code(303).redirect('/admin/v3');
+  return reply.type('text/html; charset=utf-8').send(adminLoginHtml());
+});
+
+const legacyAdminGetRedirects: Record<string, string> = {
+  '/admin/v2': '/admin/v3',
+  '/admin/overview': '/admin/v3',
+  '/admin/users-control': '/admin/v3?section=users',
+  '/admin/social': '/admin/v3?section=social',
+  '/admin/providers': '/admin/v3?section=social',
+  '/admin/virtual-numbers': '/admin/v3?section=virtual',
+  '/admin/orders': '/admin/v3?section=orders',
+  '/admin/payments': '/admin/v3?section=payments',
+  '/admin/coupons': '/admin/v3?section=coupons',
+  '/admin/banners': '/admin/v3?section=banners',
+  '/admin/notifications': '/admin/v3?section=notifications',
+  '/admin/support': '/admin/v3?section=support',
+  '/admin/settings': '/admin/v3?section=settings',
+  '/admin/readiness': '/admin/v3?section=settings',
+  '/admin/reports': '/admin/v3',
+  '/admin/audit': '/admin/v3?section=audit',
+};
+
+app.addHook('onRequest', async (request, reply) => {
+  if (request.method !== 'GET') return;
+  const url = new URL(request.raw.url || '/', 'http://velixeo.local');
+  if (url.pathname === '/admin/services') {
+    const category = url.searchParams.get('category');
+    const section = category === 'PREMIUM' ? 'premium'
+      : category === 'MOBILE_TOPUP' ? 'topup'
+      : category === 'DIGITAL_ACCOUNT' ? 'accounts'
+      : category === 'PROMOTION' ? 'promotions'
+      : 'social';
+    return reply.code(303).redirect('/admin/v3?section=' + section);
+  }
+  const target = legacyAdminGetRedirects[url.pathname];
+  if (target) return reply.code(303).redirect(target);
 });
 
 app.post('/admin/login', async (request, reply) => {
@@ -393,7 +436,7 @@ app.post('/admin/login', async (request, reply) => {
 
 app.post('/admin/logout', async (_request, reply) => {
   reply.header('Set-Cookie', adminCookie('', 0));
-  return reply.code(303).redirect('/admin');
+  return reply.code(303).redirect('/admin/login');
 });
 
 app.post('/admin/wallet-adjust', async (request, reply) => {
@@ -954,12 +997,10 @@ app.post(
 );
 
 registerAdminV3(app, prisma, adminWebUser);
-registerExtendedAdminRoutes(app, prisma, adminWebUser);
 registerClientFoundationRoutes(app, prisma, authenticate);
 registerPaymentRoutes(app, prisma, authenticate);
 registerHesabPayWebhookRoutes(app, prisma, authenticate);
 registerSocialRoutes(app, prisma, authenticate, adminWebUser);
-registerSocialAdminV2(app, prisma, adminWebUser);
 registerVirtualNumberRoutes(app, prisma, authenticate, adminWebUser);
 startSocialAutoSync(prisma, app.log as any);
 
