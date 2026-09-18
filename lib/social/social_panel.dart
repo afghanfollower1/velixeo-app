@@ -954,6 +954,132 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     );
   }
 
+  Widget buildRefills() {
+    final rows = <({SocialOrder order, SocialOrderAction action})>[];
+    for (final order in orders) {
+      for (final action in order.actions) {
+        if (action.action == 'REFILL') rows.add((order: order, action: action));
+      }
+    }
+    if (rows.isEmpty) {
+      return _EmptyState(
+        icon: Icons.restart_alt_rounded,
+        title: t('هنوز درخواست جبران ندارید', 'No refill requests yet'),
+        subtitle: t('درخواست‌های جبران ریزش و وضعیت واقعی آن‌ها از ارائه‌دهنده در این بخش نمایش داده می‌شود.', 'Refill requests and their live provider status appear here.'),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: autoSyncOrders,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: rows.length,
+        itemBuilder: (context, index) {
+          final row = rows[index];
+          final action = row.action;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: const Color(0xFFDCE8F1)),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Expanded(child: Text(fa ? (row.order.serviceTitleFa ?? 'سرویس') : (row.order.serviceTitleEn ?? 'Service'), style: const TextStyle(fontWeight: FontWeight.w900))),
+                  _StatusBadge(label: refillStatusLabel(action.status), status: action.status),
+                ]),
+                const SizedBox(height: 10),
+                _InfoRow(label: t('شناسه سفارش', 'Order ID'), value: row.order.displayOrderId),
+                if (action.providerReference?.isNotEmpty == true) ...[
+                  const SizedBox(height: 7),
+                  _InfoRow(label: t('شناسه جبران', 'Refill ID'), value: action.providerReference!),
+                ],
+                const SizedBox(height: 7),
+                _InfoRow(label: t('تاریخ درخواست', 'Requested'), value: action.createdAt.toLocal().toString().substring(0, 16)),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget buildDripFeed() {
+    final rows = orders.where((order) => order.isDripFeed).toList(growable: false);
+    if (rows.isEmpty) {
+      return _EmptyState(
+        icon: Icons.schedule_send_rounded,
+        title: t('هنوز سفارش Drip-feed ندارید', 'No drip-feed orders yet'),
+        subtitle: t('سفارش‌های مرحله‌ای، تعداد هر اجرا، Runs، Interval و وضعیت زنده Provider در این بخش نمایش داده می‌شود.', 'Scheduled orders, per-run quantity, runs, interval and live provider status appear here.'),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: autoSyncOrders,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: rows.length,
+        itemBuilder: (context, index) {
+          final order = rows[index];
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: const Color(0xFFDCE8F1)),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Expanded(child: Text(fa ? (order.serviceTitleFa ?? 'سرویس') : (order.serviceTitleEn ?? 'Service'), style: const TextStyle(fontWeight: FontWeight.w900))),
+                  _StatusBadge(label: statusLabel(order.status), status: order.status),
+                ]),
+                const SizedBox(height: 10),
+                _InfoRow(label: t('شناسه سفارش', 'Order ID'), value: order.displayOrderId),
+                const SizedBox(height: 7),
+                _InfoRow(label: t('تعداد هر اجرا', 'Per run'), value: '${order.unitQuantity}'),
+                const SizedBox(height: 7),
+                _InfoRow(label: t('تعداد اجرا', 'Runs'), value: '${order.runs}'),
+                const SizedBox(height: 7),
+                _InfoRow(label: t('فاصله زمانی', 'Interval'), value: '${order.intervalMinutes ?? 0} ${t('دقیقه', 'min')}'),
+                const SizedBox(height: 7),
+                _InfoRow(label: t('تعداد کل', 'Total quantity'), value: '${order.unitQuantity} × ${order.runs} = ${order.totalQuantity}', strong: true),
+                if (order.startCount != null || order.remains != null) ...[
+                  const Divider(height: 22),
+                  Wrap(
+                    spacing: 18,
+                    children: [
+                      if (order.startCount != null) Text('${t('شروع', 'Start')}: ${order.startCount}'),
+                      if (order.remains != null) Text('${t('باقی‌مانده', 'Remains')}: ${order.remains}'),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String refillStatusLabel(String status) {
+    switch (status.toUpperCase()) {
+      case 'COMPLETED': return t('موفق', 'Completed');
+      case 'REJECTED': return t('رد شده', 'Rejected');
+      case 'FAILED': return t('ناموفق', 'Failed');
+      case 'CANCELLED': return t('لغو شده', 'Cancelled');
+      case 'PROCESSING':
+      case 'IN PROGRESS':
+      case 'IN_PROGRESS': return t('در حال انجام', 'In progress');
+      default: return t('در انتظار', 'Pending');
+    }
+  }
   String statusLabel(String status) {
     switch (status) {
       case 'PROCESSING': return t('در حال انجام', 'In progress');
