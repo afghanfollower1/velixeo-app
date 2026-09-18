@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'core/api_service.dart';
 import 'core/google_auth_service.dart';
 import 'core/models.dart';
+import 'core/push_service.dart';
 import 'social/social_panel.dart';
 import 'support/support_page.dart';
 import 'virtual_numbers/virtual_number_panel.dart';
@@ -17,6 +18,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
 
   final ApiService api;
   final GoogleAuthService googleAuth;
+  final PushService pushService = PushService();
 
   AppLang language = AppLang.en;
   DisplayCurrency currency = DisplayCurrency.afn;
@@ -54,6 +56,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
         languageConfirmed = true;
         _applyUserPreferences(user!);
         await _loadSecondaryData();
+        await _configurePush();
       } catch (_) {
         await api.clearSession();
       }
@@ -82,6 +85,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
       user = result.$1;
       balanceAfn = result.$2;
       await _loadSecondaryData();
+      await _configurePush();
       return true;
     } on ApiException catch (error) {
       authError = error.code;
@@ -111,6 +115,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
       balanceAfn = 0;
       _applyUserPreferences(session.user);
       await _loadSecondaryData();
+      await _configurePush();
       return true;
     } on ApiException catch (error) {
       authError = error.code;
@@ -139,6 +144,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
       user = result.$1;
       balanceAfn = result.$2;
       await _loadSecondaryData();
+      await _configurePush();
       return true;
     } on GoogleAuthException catch (error) {
       authError = error.code;
@@ -238,6 +244,25 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
         notifications = await api.notifications();
       } catch (_) {}
       notifyListeners();
+    }
+  }
+
+  Future<void> _configurePush() async {
+    if (!authenticated) return;
+    try {
+      await pushService.configure(
+        api,
+        onNotification: () async {
+          if (!authenticated) return;
+          try {
+            notifications = await api.notifications();
+            notifyListeners();
+          } catch (_) {}
+        },
+      );
+    } catch (_) {
+      // Push is optional at runtime. In-app notifications keep working if
+      // Firebase credentials have not been configured yet.
     }
   }
 
@@ -353,6 +378,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
   }
 
   Future<void> logout() async {
+    await pushService.unregister(api);
     await api.logout();
     await googleAuth.signOut();
     authenticated = false;
