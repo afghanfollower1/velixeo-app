@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -69,10 +70,11 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
       ]);
       catalog = results[0] as SocialCatalog;
       orders = results[1] as List<SocialOrder>;
-      final platforms = availablePlatforms;
-      selectedPlatform ??= platforms.isEmpty ? null : platforms.first;
-      if (selectedPlatform != null && !platforms.contains(selectedPlatform)) {
-        selectedPlatform = platforms.isEmpty ? null : platforms.first;
+      final brands = availableBrands;
+      final brandKeys = brands.map((brand) => brand.key).toList(growable: false);
+      selectedPlatform ??= brandKeys.isEmpty ? null : brandKeys.first;
+      if (selectedPlatform != null && !brandKeys.contains(selectedPlatform)) {
+        selectedPlatform = brandKeys.isEmpty ? null : brandKeys.first;
       }
       final groups = availableGroups;
       if (selectedGroup != null && !groups.contains(selectedGroup)) selectedGroup = null;
@@ -85,18 +87,23 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     }
   }
 
-  List<String> get availablePlatforms {
-    final values = catalog.services.map((e) => e.platform).toSet().toList();
-    const preferred = [
-      'INSTAGRAM','TIKTOK','YOUTUBE','FACEBOOK','TELEGRAM','WHATSAPP','X','THREADS',
-      'SNAPCHAT','LINKEDIN','PINTEREST','SPOTIFY','SOUNDCLOUD','DISCORD','OTHER',
-    ];
-    values.sort((a, b) {
-      final ia = preferred.indexOf(a);
-      final ib = preferred.indexOf(b);
-      return (ia < 0 ? 999 : ia).compareTo(ib < 0 ? 999 : ib);
-    });
-    return values;
+  List<SocialBrand> get availableBrands {
+    if (catalog.brands.isNotEmpty) {
+      final rows = [...catalog.brands];
+      rows.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+      return rows;
+    }
+    final keys = catalog.services.map((e) => e.platform).toSet().toList()..sort();
+    return keys
+        .map((key) => SocialBrand(
+              key: key,
+              titleFa: key,
+              titleEn: key,
+              iconType: 'DEFAULT',
+              iconValue: key.toLowerCase(),
+              sortOrder: 100,
+            ))
+        .toList(growable: false);
   }
 
   List<String> get availableGroups {
@@ -396,22 +403,22 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
       children: [
         _WalletStrip(host: host, fa: fa),
         const SizedBox(height: 18),
-        Text(t('پلتفرم', 'Platform'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+        Text(t('برند', 'Brand'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
         const SizedBox(height: 10),
         SizedBox(
-          height: 86,
+          height: 96,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            itemCount: availablePlatforms.length,
+            itemCount: availableBrands.length,
             separatorBuilder: (_, __) => const SizedBox(width: 9),
             itemBuilder: (context, index) {
-              final platform = availablePlatforms[index];
-              return _PlatformCard(
-                platform: platform,
+              final brand = availableBrands[index];
+              return _BrandCard(
+                brand: brand,
                 fa: fa,
-                selected: platform == selectedPlatform,
+                selected: brand.key == selectedPlatform,
                 onTap: () => setState(() {
-                  selectedPlatform = platform;
+                  selectedPlatform = brand.key;
                   selectedGroup = null;
                   selectedService = null;
                   quote = null;
@@ -739,54 +746,61 @@ class _WalletStrip extends StatelessWidget {
       );
 }
 
-class _PlatformCard extends StatelessWidget {
-  const _PlatformCard({required this.platform, required this.fa, required this.selected, required this.onTap});
-  final String platform;
+class _BrandCard extends StatelessWidget {
+  const _BrandCard({
+    required this.brand,
+    required this.fa,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final SocialBrand brand;
   final bool fa;
   final bool selected;
   final VoidCallback onTap;
 
-  IconData get icon {
-    switch (platform) {
-      case 'YOUTUBE': return Icons.play_circle_fill_rounded;
-      case 'TELEGRAM': return Icons.send_rounded;
-      case 'WHATSAPP': return Icons.chat_rounded;
-      case 'FACEBOOK': return Icons.facebook_rounded;
-      case 'TIKTOK': return Icons.music_note_rounded;
-      case 'X': return Icons.alternate_email_rounded;
-      case 'LINKEDIN': return Icons.business_center_rounded;
-      case 'SNAPCHAT': return Icons.camera_alt_rounded;
-      case 'SPOTIFY': return Icons.headphones_rounded;
+  IconData get fallbackIcon {
+    switch (brand.iconValue.toLowerCase()) {
+      case 'youtube': return Icons.play_circle_fill_rounded;
+      case 'telegram': return Icons.send_rounded;
+      case 'whatsapp': return Icons.chat_rounded;
+      case 'facebook': return Icons.facebook_rounded;
+      case 'tiktok': return Icons.music_note_rounded;
+      case 'x': return Icons.alternate_email_rounded;
+      case 'linkedin': return Icons.business_center_rounded;
+      case 'snapchat': return Icons.camera_alt_rounded;
+      case 'spotify': return Icons.headphones_rounded;
+      case 'discord': return Icons.forum_rounded;
+      case 'pinterest': return Icons.push_pin_rounded;
       default: return Icons.photo_camera_rounded;
     }
   }
 
-  String get label {
-    switch (platform) {
-      case 'INSTAGRAM': return 'Instagram';
-      case 'TIKTOK': return 'TikTok';
-      case 'YOUTUBE': return 'YouTube';
-      case 'FACEBOOK': return 'Facebook';
-      case 'TELEGRAM': return 'Telegram';
-      case 'WHATSAPP': return 'WhatsApp';
-      case 'X': return 'X';
-      case 'THREADS': return 'Threads';
-      case 'SNAPCHAT': return 'Snapchat';
-      case 'LINKEDIN': return 'LinkedIn';
-      case 'PINTEREST': return 'Pinterest';
-      case 'SPOTIFY': return 'Spotify';
-      case 'SOUNDCLOUD': return 'SoundCloud';
-      case 'DISCORD': return 'Discord';
-      default:
-        final readable = platform
-            .split('_')
-            .where((part) => part.isNotEmpty)
-            .map((part) => part.length == 1
-                ? part.toUpperCase()
-                : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}')
-            .join(' ');
-        return readable.isEmpty ? (fa ? 'سایر' : 'Other') : readable;
+  Widget iconWidget() {
+    final type = brand.iconType.toUpperCase();
+    final value = brand.iconValue.trim();
+    if (type == 'UPLOAD' && value.startsWith('data:image/')) {
+      try {
+        final bytes = base64Decode(value.split(',').last);
+        return Image.memory(
+          bytes,
+          width: 30,
+          height: 30,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => Icon(fallbackIcon, size: 28),
+        );
+      } catch (_) {}
     }
+    if (type == 'URL' && (value.startsWith('https://') || value.startsWith('http://'))) {
+      return Image.network(
+        value,
+        width: 30,
+        height: 30,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => Icon(fallbackIcon, size: 28),
+      );
+    }
+    return Icon(fallbackIcon, size: 28);
   }
 
   @override
@@ -795,7 +809,7 @@ class _PlatformCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          width: 94,
+          width: 100,
           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 10),
           decoration: BoxDecoration(
             color: selected ? const Color(0xFF0D78C8) : Colors.white,
@@ -805,9 +819,17 @@ class _PlatformCard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: selected ? Colors.white : const Color(0xFF0D78C8), size: 26),
-              const SizedBox(height: 6),
-              Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: selected ? Colors.white : const Color(0xFF102235))),
+              IconTheme(
+                data: IconThemeData(color: selected ? Colors.white : const Color(0xFF0D78C8)),
+                child: iconWidget(),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                fa ? brand.titleFa : brand.titleEn,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: selected ? Colors.white : const Color(0xFF102235)),
+              ),
             ],
           ),
         ),
