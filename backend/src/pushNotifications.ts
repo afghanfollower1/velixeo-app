@@ -1,5 +1,7 @@
 import {
   NotificationAudience,
+  NotificationPriority,
+  NotificationType,
   type Notification,
   type PrismaClient,
 } from '@prisma/client';
@@ -87,9 +89,38 @@ type PushSummary = {
   disabledTokens: number;
 };
 
+function notificationChannel(type: NotificationType) {
+  switch (type) {
+    case NotificationType.ORDER:
+    case NotificationType.REFILL:
+    case NotificationType.DRIPFEED:
+      return 'velixeo_orders';
+    case NotificationType.PAYMENT:
+    case NotificationType.WALLET:
+      return 'velixeo_wallet';
+    case NotificationType.SUPPORT:
+      return 'velixeo_support';
+    case NotificationType.PROMOTION:
+      return 'velixeo_promotions';
+    default:
+      return 'velixeo_system';
+  }
+}
+
+function isUrgent(priority: NotificationPriority, type: NotificationType) {
+  if (priority === NotificationPriority.HIGH) return true;
+  return [
+    NotificationType.ORDER,
+    NotificationType.PAYMENT,
+    NotificationType.WALLET,
+    NotificationType.SUPPORT,
+    NotificationType.ACCOUNT,
+  ].includes(type);
+}
+
 export async function sendNotificationPush(
   prisma: PrismaClient,
-  notification: Pick<Notification, 'id' | 'audience' | 'userId' | 'titleFa' | 'titleEn' | 'bodyFa' | 'bodyEn'>,
+  notification: Pick<Notification, 'id' | 'audience' | 'userId' | 'type' | 'priority' | 'titleFa' | 'titleEn' | 'bodyFa' | 'bodyEn' | 'actionRoute' | 'actionEntityId' | 'imageUrl'>,
 ): Promise<PushSummary> {
   if (!firebasePushConfigured()) {
     return { configured: false, total: 0, sent: 0, failed: 0, disabledTokens: 0 };
@@ -135,22 +166,27 @@ export async function sendNotificationPush(
               notification: {
                 title: useFa ? notification.titleFa : notification.titleEn,
                 body: useFa ? notification.bodyFa : notification.bodyEn,
+                ...(notification.imageUrl ? { image: notification.imageUrl } : {}),
               },
               data: {
-                type: 'notification',
-                route: 'notifications',
+                kind: 'notification',
                 notificationId: notification.id,
+                type: notification.type,
+                route: notification.actionRoute || 'notifications',
+                entityId: notification.actionEntityId || '',
               },
               android: {
-                priority: 'high',
+                priority: isUrgent(notification.priority, notification.type) ? 'high' : 'normal',
                 ttl: '86400s',
                 collapse_key: `velixeo-notification-${notification.id}`,
                 notification: {
-                  sound: 'default',
-                  channel_id: 'velixeo_alerts',
+                  sound: notification.type === NotificationType.PROMOTION ? undefined : 'default',
+                  channel_id: notificationChannel(notification.type),
                   tag: `velixeo-${notification.id}`,
-                  notification_priority: 'PRIORITY_HIGH',
-                  default_vibrate_timings: true,
+                  notification_priority: isUrgent(notification.priority, notification.type)
+                    ? 'PRIORITY_HIGH'
+                    : 'PRIORITY_DEFAULT',
+                  default_vibrate_timings: notification.type !== NotificationType.PROMOTION,
                   visibility: 'PUBLIC',
                 },
               },
@@ -191,4 +227,62 @@ export async function sendNotificationPush(
     failed,
     disabledTokens,
   };
+}
+
+export async function dispatchNotificationPush(
+  prisma: PrismaClient,
+  notification: Notification,
+) {
+  const push = await sendNotificationPush(prisma, notification);
+  if (push.configured) {
+    await prisma.notification.update({
+      where: { id: notification.id },
+      data: {
+        pushTotal: push.total,
+        pushSent: push.sent,
+        pushFailed: push.failed,
+        pushDisabledTokens: push.disabledTokens,
+        lastPushAt: new Date(),
+      },
+    });
+  }
+  return push;
+}
+
+export async function dispatchDueNotificationPushes(
+  prisma: PrismaClient,
+  logger?: { error?: (value: unknown, message?: string) => void },
+) {
+  const now = new Date();
+  const due = await prisma.notification.findMany({
+    where: {
+      enabled: true,
+      publishAt: { lte: now },
+      lastPushAt: null,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+    },
+    orderBy: { publishAt: 'asc' },
+    take: 60,
+  });
+  for (const notification of due) {
+    try {
+      await dispatchNotificationPush(prisma, notification);
+    } catch (error) {
+      logger?.error?.(error, 'scheduled notification push failed');
+    }
+  }
+  return due.length;
+}
+
+export function startNotificationPushScheduler(
+  prisma: PrismaClient,
+  logger?: { error?: (value: unknown, message?: string) => void },
+) {
+  const run = () => void dispatchDueNotificationPushes(prisma, logger).catch((error) => {
+    logger?.error?.(error, 'notification push scheduler failed');
+  });
+  run();
+  const timer = setInterval(run, 60_000);
+  timer.unref?.();
+  return () => clearInterval(timer);
 }
