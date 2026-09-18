@@ -1,3 +1,30 @@
+class SocialBrand {
+  const SocialBrand({
+    required this.key,
+    required this.titleFa,
+    required this.titleEn,
+    required this.iconType,
+    required this.iconValue,
+    required this.sortOrder,
+  });
+
+  final String key;
+  final String titleFa;
+  final String titleEn;
+  final String iconType;
+  final String iconValue;
+  final int sortOrder;
+
+  factory SocialBrand.fromJson(Map<String, dynamic> json) => SocialBrand(
+        key: (json['key'] as String?) ?? 'OTHER',
+        titleFa: (json['titleFa'] as String?) ?? (json['titleEn'] as String? ?? 'Other'),
+        titleEn: (json['titleEn'] as String?) ?? (json['key'] as String? ?? 'Other'),
+        iconType: (json['iconType'] as String?) ?? 'DEFAULT',
+        iconValue: (json['iconValue'] as String?) ?? 'generic',
+        sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 100,
+      );
+}
+
 class SocialOrderField {
   const SocialOrderField({
     required this.key,
@@ -153,11 +180,21 @@ class SocialCategory {
 }
 
 class SocialCatalog {
-  const SocialCatalog({this.services = const [], this.categories = const []});
+  const SocialCatalog({
+    this.brands = const [],
+    this.services = const [],
+    this.categories = const [],
+  });
+
+  final List<SocialBrand> brands;
   final List<SocialService> services;
   final List<SocialCategory> categories;
 
   factory SocialCatalog.fromJson(Map<String, dynamic> json) => SocialCatalog(
+        brands: ((json['brands'] as List<dynamic>?) ?? const [])
+            .map((item) => SocialBrand.fromJson(Map<String, dynamic>.from(item as Map)))
+            .where((item) => item.key.isNotEmpty)
+            .toList(growable: false),
         services: ((json['services'] as List<dynamic>?) ?? const [])
             .map((item) => SocialService.fromJson(Map<String, dynamic>.from(item as Map)))
             .toList(growable: false),
