@@ -13,6 +13,15 @@ class AppUser {
     this.fullName,
     this.email,
     this.phone,
+    this.websiteUrl,
+    this.countryCode,
+    this.avatarPreset = 'avatar_01',
+    this.avatarUrl,
+    this.avatarData,
+    this.emailVerified = false,
+    this.phoneVerified = false,
+    this.twoFactorEnabled = false,
+    this.twoFactorMethod,
   });
 
   final String id;
@@ -24,6 +33,15 @@ class AppUser {
   final String locale;
   final String displayCurrency;
   final bool hasPassword;
+  final String? websiteUrl;
+  final String? countryCode;
+  final String avatarPreset;
+  final String? avatarUrl;
+  final String? avatarData;
+  final bool emailVerified;
+  final bool phoneVerified;
+  final bool twoFactorEnabled;
+  final String? twoFactorMethod;
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
         id: json['id'] as String,
@@ -35,6 +53,104 @@ class AppUser {
         locale: (json['locale'] as String?) ?? 'FA',
         displayCurrency: (json['displayCurrency'] as String?) ?? 'AFN',
         hasPassword: (json['hasPassword'] as bool?) ?? true,
+        websiteUrl: json['websiteUrl'] as String?,
+        countryCode: json['countryCode'] as String?,
+        avatarPreset: (json['avatarPreset'] as String?) ?? 'avatar_01',
+        avatarUrl: json['avatarUrl'] as String?,
+        avatarData: json['avatarData'] as String?,
+        emailVerified: (json['emailVerified'] as bool?) ?? false,
+        phoneVerified: (json['phoneVerified'] as bool?) ?? false,
+        twoFactorEnabled: (json['twoFactorEnabled'] as bool?) ?? false,
+        twoFactorMethod: json['twoFactorMethod'] as String?,
+      );
+}
+
+class VerificationCapabilities {
+  const VerificationCapabilities({
+    this.email = false,
+    this.sms = false,
+    this.whatsapp = false,
+    this.registrationVerificationRequired = false,
+    this.resendCooldownSeconds = 60,
+    this.expiresInSeconds = 600,
+  });
+
+  final bool email;
+  final bool sms;
+  final bool whatsapp;
+  final bool registrationVerificationRequired;
+  final int resendCooldownSeconds;
+  final int expiresInSeconds;
+
+  factory VerificationCapabilities.fromJson(Map<String, dynamic> json) => VerificationCapabilities(
+        email: (json['email'] as bool?) ?? false,
+        sms: (json['sms'] as bool?) ?? false,
+        whatsapp: (json['whatsapp'] as bool?) ?? false,
+        registrationVerificationRequired: (json['registrationVerificationRequired'] as bool?) ?? false,
+        resendCooldownSeconds: (json['resendCooldownSeconds'] as num?)?.toInt() ?? 60,
+        expiresInSeconds: (json['expiresInSeconds'] as num?)?.toInt() ?? 600,
+      );
+}
+
+class VerificationChallenge {
+  const VerificationChallenge({
+    required this.challengeId,
+    required this.maskedTarget,
+    required this.channel,
+    required this.purpose,
+    required this.expiresInSeconds,
+    required this.resendAfterSeconds,
+  });
+
+  final String challengeId;
+  final String maskedTarget;
+  final String channel;
+  final String purpose;
+  final int expiresInSeconds;
+  final int resendAfterSeconds;
+
+  factory VerificationChallenge.fromJson(Map<String, dynamic> json) => VerificationChallenge(
+        challengeId: json['challengeId'] as String,
+        maskedTarget: (json['maskedTarget'] as String?) ?? '',
+        channel: (json['channel'] as String?) ?? 'EMAIL',
+        purpose: (json['purpose'] as String?) ?? '',
+        expiresInSeconds: (json['expiresInSeconds'] as num?)?.toInt() ?? 600,
+        resendAfterSeconds: (json['resendAfterSeconds'] as num?)?.toInt() ?? 60,
+      );
+}
+
+class SecurityState {
+  const SecurityState({
+    this.hasPassword = true,
+    this.email,
+    this.phone,
+    this.emailVerified = false,
+    this.phoneVerified = false,
+    this.twoFactorEnabled = false,
+    this.twoFactorMethod,
+    this.verification = const VerificationCapabilities(),
+  });
+
+  final bool hasPassword;
+  final String? email;
+  final String? phone;
+  final bool emailVerified;
+  final bool phoneVerified;
+  final bool twoFactorEnabled;
+  final String? twoFactorMethod;
+  final VerificationCapabilities verification;
+
+  factory SecurityState.fromJson(Map<String, dynamic> json) => SecurityState(
+        hasPassword: (json['hasPassword'] as bool?) ?? true,
+        email: json['email'] as String?,
+        phone: json['phone'] as String?,
+        emailVerified: (json['emailVerified'] as bool?) ?? false,
+        phoneVerified: (json['phoneVerified'] as bool?) ?? false,
+        twoFactorEnabled: (json['twoFactorEnabled'] as bool?) ?? false,
+        twoFactorMethod: json['twoFactorMethod'] as String?,
+        verification: VerificationCapabilities.fromJson(
+          Map<String, dynamic>.from((json['verification'] as Map?) ?? const {}),
+        ),
       );
 }
 
