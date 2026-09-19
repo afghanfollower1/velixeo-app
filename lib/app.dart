@@ -3712,11 +3712,24 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late final TextEditingController email;
   late final TextEditingController phone;
   late final TextEditingController website;
+  final emailOtp = TextEditingController();
+  final phoneOtp = TextEditingController();
+
   String? countryCode;
   String avatarPreset = 'avatar_01';
   String? avatarData;
   String? avatarUrl;
+
+  VerificationChallenge? emailChallenge;
+  VerificationChallenge? phoneChallenge;
+  String? emailVerificationToken;
+  String? phoneVerificationToken;
+
   bool busy = false;
+  bool emailSending = false;
+  bool emailVerifying = false;
+  bool phoneSending = false;
+  bool phoneVerifying = false;
 
   AppController get c => widget.controller;
 
