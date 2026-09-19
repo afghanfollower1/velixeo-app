@@ -4512,6 +4512,79 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 }
 
+class _InlineOtpPanel extends StatelessWidget {
+  const _InlineOtpPanel({
+    required this.controller,
+    required this.maskedTarget,
+    required this.loading,
+    required this.onVerify,
+    required this.fa,
+  });
+
+  final TextEditingController controller;
+  final String maskedTarget;
+  final bool loading;
+  final VoidCallback onVerify;
+  final bool fa;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEFF7FF),
+          border: Border.all(color: const Color(0xFFB8DDFC)),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              tr(fa, 'کد ارسال شد به ' + maskedTarget, 'Code sent to ' + maskedTarget),
+              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF4D6E8D)),
+            ),
+            const SizedBox(height: 9),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: controller,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 5),
+                    decoration: InputDecoration(
+                      counterText: '',
+                      hintText: '••••••',
+                      isDense: true,
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(11)),
+                    ),
+                    onSubmitted: (_) => onVerify(),
+                  ),
+                ),
+                const SizedBox(width: 9),
+                FilledButton(
+                  onPressed: loading ? null : onVerify,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(92, 48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+                  ),
+                  child: loading
+                      ? const SizedBox.square(
+                          dimension: 17,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(tr(fa, 'تأیید کد', 'Confirm')),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+}
+
 Future<String?> showOtpDialog(
   BuildContext context,
   VerificationChallenge challenge,
