@@ -1,2 +1,2 @@
-Trigger signed Android build — VELIXEO v0.8.3 — 2026-09-19.
-Bootstrap release for the permanent in-app updater. From this version onward, VELIXEO checks GitHub Releases, downloads the signed APK inside the app, and opens the Android installer automatically.
+Trigger signed Android build — VELIXEO v0.8.4 — 2026-09-19.
+OTP relay maintenance release: clearer relay/auth/mail errors while keeping the in-app updater enabled.
