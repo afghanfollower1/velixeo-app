@@ -895,6 +895,200 @@ class _LogoPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
+class UserAvatar extends StatelessWidget {
+  const UserAvatar({
+    super.key,
+    required this.user,
+    this.size = 52,
+    this.onTap,
+    this.showEditBadge = false,
+  });
+
+  final AppUser? user;
+  final double size;
+  final VoidCallback? onTap;
+  final bool showEditBadge;
+
+  @override
+  Widget build(BuildContext context) {
+    final avatar = _avatarContent();
+    final child = Stack(
+      clipBehavior: Clip.none,
+      children: [
+        ClipOval(
+          child: Container(
+            width: size,
+            height: size,
+            color: const Color(0xFFEAF5FF),
+            child: avatar,
+          ),
+        ),
+        if (showEditBadge)
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: Container(
+              width: size * .34,
+              height: size * .34,
+              decoration: BoxDecoration(
+                color: const Color(0xFF1686FF),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: Icon(Icons.edit_rounded, color: Colors.white, size: size * .17),
+            ),
+          ),
+      ],
+    );
+    if (onTap == null) return child;
+    return InkWell(onTap: onTap, customBorder: const CircleBorder(), child: child);
+  }
+
+  Widget _avatarContent() {
+    final data = user?.avatarData?.trim();
+    if (data?.startsWith('data:image/') == true) {
+      final comma = data!.indexOf(',');
+      if (comma > 0) {
+        try {
+          return Image.memory(base64Decode(data.substring(comma + 1)), fit: BoxFit.cover, width: size, height: size);
+        } catch (_) {}
+      }
+    }
+    final url = user?.avatarUrl?.trim();
+    if (url?.isNotEmpty == true) {
+      return Image.network(
+        url!,
+        fit: BoxFit.cover,
+        width: size,
+        height: size,
+        errorBuilder: (_, __, ___) => _PresetAvatar(preset: user?.avatarPreset ?? 'avatar_01'),
+      );
+    }
+    return _PresetAvatar(preset: user?.avatarPreset ?? 'avatar_01');
+  }
+}
+
+class _PresetAvatar extends StatelessWidget {
+  const _PresetAvatar({required this.preset});
+  final String preset;
+
+  @override
+  Widget build(BuildContext context) {
+    final index = (int.tryParse(preset.split('_').last) ?? 1).clamp(1, 16) - 1;
+    const backgrounds = [
+      Color(0xFFE4F4FF), Color(0xFFF2ECFF), Color(0xFFE9FBF4), Color(0xFFFFF2E2),
+      Color(0xFFFFEAF1), Color(0xFFEAF0FF), Color(0xFFE9FAF8), Color(0xFFFFF7D9),
+    ];
+    return ColoredBox(
+      color: backgrounds[index % backgrounds.length],
+      child: CustomPaint(painter: _AvatarPainter(index)),
+    );
+  }
+}
+
+class _AvatarPainter extends CustomPainter {
+  const _AvatarPainter(this.index);
+  final int index;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const skins = [
+      Color(0xFFF7D7C4), Color(0xFFE9B997), Color(0xFFD99A72), Color(0xFFB97855),
+      Color(0xFF8C5A43), Color(0xFFF1C7A8),
+    ];
+    const hairs = [
+      Color(0xFF1D2D42), Color(0xFF4A3126), Color(0xFF6D4C3D), Color(0xFF161A23),
+      Color(0xFF874E25), Color(0xFF2C2C2C),
+    ];
+    const shirts = [
+      Color(0xFF1686FF), Color(0xFF7457E8), Color(0xFF14A57A), Color(0xFFF29A2E),
+      Color(0xFFE9508B), Color(0xFF4667E8), Color(0xFF0FA7A0), Color(0xFF58708E),
+    ];
+
+    final skin = skins[index % skins.length];
+    final hair = hairs[(index * 2 + 1) % hairs.length];
+    final shirt = shirts[index % shirts.length];
+    final center = Offset(size.width / 2, size.height / 2);
+
+    final shoulderRect = Rect.fromCenter(
+      center: Offset(center.dx, size.height * .88),
+      width: size.width * .82,
+      height: size.height * .56,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(shoulderRect, Radius.circular(size.width * .28)),
+      Paint()..color = shirt,
+    );
+
+    final headCenter = Offset(center.dx, size.height * .43);
+    final headRadius = size.width * .22;
+    canvas.drawCircle(headCenter, headRadius, Paint()..color = skin);
+
+    final hairPath = Path()
+      ..moveTo(headCenter.dx - headRadius, headCenter.dy - headRadius * .05)
+      ..quadraticBezierTo(
+        headCenter.dx - headRadius * .72,
+        headCenter.dy - headRadius * 1.25,
+        headCenter.dx + headRadius * .15,
+        headCenter.dy - headRadius * 1.05,
+      )
+      ..quadraticBezierTo(
+        headCenter.dx + headRadius * .95,
+        headCenter.dy - headRadius * .75,
+        headCenter.dx + headRadius,
+        headCenter.dy - headRadius * .05,
+      )
+      ..quadraticBezierTo(
+        headCenter.dx + headRadius * .45,
+        headCenter.dy - headRadius * .45,
+        headCenter.dx - headRadius,
+        headCenter.dy - headRadius * .05,
+      )
+      ..close();
+    canvas.drawPath(hairPath, Paint()..color = hair);
+
+    final eyeY = headCenter.dy + headRadius * .05;
+    final eyeDx = headRadius * .38;
+    final eyePaint = Paint()..color = const Color(0xFF263747);
+    canvas.drawCircle(Offset(headCenter.dx - eyeDx, eyeY), size.width * .018, eyePaint);
+    canvas.drawCircle(Offset(headCenter.dx + eyeDx, eyeY), size.width * .018, eyePaint);
+
+    final mouthPaint = Paint()
+      ..color = const Color(0xFF9B5C58)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = size.width * .018
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(
+      Rect.fromCenter(
+        center: Offset(headCenter.dx, headCenter.dy + headRadius * .35),
+        width: headRadius * .65,
+        height: headRadius * .36,
+      ),
+      .15,
+      2.84,
+      false,
+      mouthPaint,
+    );
+
+    if (index % 4 == 1) {
+      final glass = Paint()
+        ..color = const Color(0xFF3C5871)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = size.width * .018;
+      canvas.drawCircle(Offset(headCenter.dx - eyeDx, eyeY), size.width * .07, glass);
+      canvas.drawCircle(Offset(headCenter.dx + eyeDx, eyeY), size.width * .07, glass);
+      canvas.drawLine(
+        Offset(headCenter.dx - size.width * .055, eyeY),
+        Offset(headCenter.dx + size.width * .055, eyeY),
+        glass,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _AvatarPainter oldDelegate) => oldDelegate.index != index;
+}
+
 class LanguagePage extends StatelessWidget {
   const LanguagePage({super.key, required this.controller});
   final AppController controller;
