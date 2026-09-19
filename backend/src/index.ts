@@ -26,7 +26,12 @@ import { startSocialAutoSync } from './socialSync.js';
 import { registerVirtualNumberRoutes } from './virtualNumberRoutes.js';
 import { registerAdminV3 } from './adminV3.js';
 import { startNotificationPushScheduler } from './pushNotifications.js';
-import { registerVerificationRoutes, verificationCapabilities } from './verification.js';
+import {
+  issueVerificationChallenge,
+  registerVerificationRoutes,
+  verificationCapabilities,
+  verifyVerificationChallenge,
+} from './verification.js';
 
 const env = z
   .object({
@@ -92,6 +97,12 @@ const registerSchema = z
 const loginSchema = z.object({
   identifier: z.string().trim().min(3).max(254),
   password: z.string().min(1).max(128),
+});
+
+const loginTwoFactorSchema = z.object({
+  loginToken: z.string().trim().min(20),
+  challengeId: z.string().uuid(),
+  code: z.string().regex(/^\d{6}$/),
 });
 
 const refreshSchema = z.object({
@@ -635,8 +646,74 @@ app.post('/api/v1/auth/login', async (request, reply) => {
     return reply.code(403).send({ error: 'account_suspended' });
   }
 
+  if (user.twoFactorEnabled) {
+    const method = String(user.twoFactorMethod || '');
+    const channel = method === 'EMAIL' ? 'EMAIL' : method === 'SMS' ? 'SMS' : method === 'WHATSAPP' ? 'WHATSAPP' : null;
+    if (!channel) return reply.code(503).send({ error: 'two_factor_method_unavailable' });
+    const target = channel === 'EMAIL' ? user.email : user.phone;
+    const verified = channel === 'EMAIL' ? user.emailVerifiedAt : user.phoneVerifiedAt;
+    if (!target || !verified) return reply.code(503).send({ error: 'two_factor_contact_unavailable' });
+    try {
+      const challenge = await issueVerificationChallenge(prisma, {
+        userId: user.id,
+        target,
+        channel,
+        purpose: 'LOGIN_2FA',
+      });
+      const loginToken = app.jwt.sign(
+        { kind: 'two_factor_login', userId: user.id, challengeId: challenge.challengeId },
+        { expiresIn: '10m' },
+      );
+      return reply.code(202).send({
+        requiresTwoFactor: true,
+        loginToken,
+        ...challenge,
+      });
+    } catch (error) {
+      const code = error instanceof Error ? error.message : 'two_factor_send_failed';
+      const status = code.endsWith('_not_configured') ? 503 : code === 'otp_provider_failed' ? 502 : code === 'otp_rate_limited' || code === 'otp_resend_too_soon' ? 429 : 400;
+      return reply.code(status).send({ error: code });
+    }
+  }
+
   const session = await createSession(user);
   return { user: publicUser(user), ...session };
+});
+
+app.post('/api/v1/auth/login/2fa', async (request, reply) => {
+  const parsed = loginTwoFactorSchema.safeParse(request.body);
+  if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+  let loginClaims: { kind?: string; userId?: string; challengeId?: string };
+  try {
+    loginClaims = app.jwt.verify(parsed.data.loginToken);
+  } catch {
+    return reply.code(401).send({ error: 'invalid_two_factor_login_token' });
+  }
+  if (
+    loginClaims.kind !== 'two_factor_login'
+    || !loginClaims.userId
+    || loginClaims.challengeId !== parsed.data.challengeId
+  ) {
+    return reply.code(401).send({ error: 'invalid_two_factor_login_token' });
+  }
+  try {
+    const verified = await verifyVerificationChallenge(
+      app,
+      prisma,
+      parsed.data.challengeId,
+      parsed.data.code,
+      loginClaims.userId,
+    );
+    if (verified.purpose !== 'LOGIN_2FA') {
+      return reply.code(400).send({ error: 'invalid_two_factor_challenge' });
+    }
+    const user = await prisma.user.findUnique({ where: { id: loginClaims.userId } });
+    if (!user || user.status !== UserStatus.ACTIVE) return reply.code(401).send({ error: 'invalid_credentials' });
+    const session = await createSession(user);
+    return { user: publicUser(user), ...session };
+  } catch (error) {
+    return reply.code(400).send({ error: error instanceof Error ? error.message : 'two_factor_verification_failed' });
+  }
 });
 
 app.post('/api/v1/auth/google', async (request, reply) => {
