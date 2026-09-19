@@ -221,7 +221,10 @@ class ApiService {
   }
 
 
-  Future<AppSession> loginWithGoogle({required String idToken, required AppLang language}) async {
+  Future<({AppSession? session, TwoFactorLoginChallenge? challenge})> loginWithGoogle({
+    required String idToken,
+    required AppLang language,
+  }) async {
     final response = await _send(
       'POST',
       '/api/v1/auth/google',
@@ -230,10 +233,13 @@ class ApiService {
         'locale': language == AppLang.fa ? 'FA' : 'EN',
       },
     );
+    if (response.statusCode == 202) {
+      return (session: null, challenge: TwoFactorLoginChallenge.fromJson(_decodeObject(response)));
+    }
     if (response.statusCode != 200) _throwResponse(response);
     final session = _sessionFromJson(_decodeObject(response));
     await _saveSession(session);
-    return session;
+    return (session: session, challenge: null);
   }
 
   Future<bool> refreshSession() {
