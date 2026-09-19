@@ -32,6 +32,8 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
   List<AppOrder> orders = const [];
   PaymentCapabilities paymentCapabilities = const PaymentCapabilities();
   List<AppPayment> payments = const [];
+  VerificationCapabilities verificationCapabilities = const VerificationCapabilities();
+  TwoFactorLoginChallenge? pendingTwoFactor;
   bool booting = true;
   bool authenticated = false;
   bool authBusy = false;
@@ -48,6 +50,9 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
   Future<void> boot() async {
     language = await api.restoreLanguage();
     currency = await api.restoreCurrency();
+    try {
+      verificationCapabilities = await api.verificationCapabilities();
+    } catch (_) {}
     await api.restoreTokens();
     if (api.hasRefreshToken) {
       try {
@@ -79,7 +84,15 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
     authError = null;
     notifyListeners();
     try {
-      final session = await api.login(identifier: identifier, password: password);
+      final attempt = await api.login(identifier: identifier, password: password);
+      if (attempt.challenge != null) {
+        pendingTwoFactor = attempt.challenge;
+        authenticated = false;
+        authError = null;
+        return false;
+      }
+      final session = attempt.session!;
+      pendingTwoFactor = null;
       user = session.user;
       authenticated = true;
       _applyUserPreferences(session.user);
@@ -101,7 +114,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
     }
   }
 
-  Future<bool> register(String fullName, String identifier, String password) async {
+  Future<bool> register(String fullName, String identifier, String password, {String? verificationToken}) async {
     authBusy = true;
     authError = null;
     notifyListeners();
@@ -111,6 +124,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
         identifier: identifier,
         password: password,
         language: language,
+        verificationToken: verificationToken,
       );
       user = session.user;
       authenticated = true;
@@ -131,6 +145,44 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
     }
   }
 
+
+  Future<bool> completeTwoFactorLogin(String code) async {
+    final challenge = pendingTwoFactor;
+    if (challenge == null) {
+      authError = 'two_factor_session_missing';
+      notifyListeners();
+      return false;
+    }
+    authBusy = true;
+    authError = null;
+    notifyListeners();
+    try {
+      final session = await api.completeTwoFactorLogin(
+        loginToken: challenge.loginToken,
+        challengeId: challenge.challengeId,
+        code: code,
+      );
+      pendingTwoFactor = null;
+      user = session.user;
+      authenticated = true;
+      _applyUserPreferences(session.user);
+      final result = await api.me();
+      user = result.$1;
+      balanceAfn = result.$2;
+      await _loadSecondaryData();
+      await _configurePush();
+      return true;
+    } on ApiException catch (error) {
+      authError = error.code;
+      return false;
+    } catch (_) {
+      authError = 'network_error';
+      return false;
+    } finally {
+      authBusy = false;
+      notifyListeners();
+    }
+  }
 
   Future<bool> loginWithGoogle() async {
     authBusy = true;
@@ -327,11 +379,33 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
   }
 
 
-  Future<String?> updateFullName(String fullName) async {
+  Future<String?> updateProfile({
+    required String fullName,
+    String? websiteUrl,
+    String? countryCode,
+    String? avatarPreset,
+    String? avatarUrl,
+    String? avatarData,
+    String? email,
+    String? phone,
+    String? emailVerificationToken,
+    String? phoneVerificationToken,
+  }) async {
     final value = fullName.trim();
     if (value.length < 2) return 'invalid_name';
     try {
-      user = await api.updateProfile(fullName: value);
+      user = await api.updateProfile(
+        fullName: value,
+        websiteUrl: websiteUrl,
+        countryCode: countryCode,
+        avatarPreset: avatarPreset,
+        avatarUrl: avatarUrl,
+        avatarData: avatarData,
+        email: email,
+        phone: phone,
+        emailVerificationToken: emailVerificationToken,
+        phoneVerificationToken: phoneVerificationToken,
+      );
       notifyListeners();
       return null;
     } on ApiException catch (error) {
@@ -346,6 +420,8 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
     }
   }
 
+  Future<String?> updateFullName(String fullName) => updateProfile(fullName: fullName);
+
   Future<String?> changePassword(String currentPassword, String newPassword) async {
     if (newPassword.length < 8) return 'weak_password';
     try {
@@ -357,6 +433,93 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
         authenticated = false;
         notifyListeners();
       }
+      return error.code;
+    } catch (_) {
+      return 'network_error';
+    }
+  }
+
+  Future<SecurityState?> loadSecurityState() async {
+    try {
+      return await api.securityState();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<VerificationChallenge?> requestAccountOtp(String channel, String purpose) async {
+    try {
+      return await api.requestAccountOtp(channel: channel, purpose: purpose);
+    } on ApiException catch (error) {
+      authError = error.code;
+      notifyListeners();
+      return null;
+    } catch (_) {
+      authError = 'network_error';
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<String?> verifyAccountOtp(String challengeId, String code) async {
+    try {
+      return await api.verifyAccountOtp(challengeId: challengeId, code: code);
+    } on ApiException catch (error) {
+      authError = error.code;
+      notifyListeners();
+      return null;
+    } catch (_) {
+      authError = 'network_error';
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<String?> verifyContact(String verificationToken) async {
+    try {
+      user = await api.verifyContact(verificationToken);
+      notifyListeners();
+      return null;
+    } on ApiException catch (error) {
+      return error.code;
+    } catch (_) {
+      return 'network_error';
+    }
+  }
+
+  Future<String?> enableTwoFactor(String method, String verificationToken) async {
+    try {
+      user = await api.enableTwoFactor(method: method, verificationToken: verificationToken);
+      notifyListeners();
+      return null;
+    } on ApiException catch (error) {
+      return error.code;
+    } catch (_) {
+      return 'network_error';
+    }
+  }
+
+  Future<String?> disableTwoFactor({String? password}) async {
+    try {
+      user = await api.disableTwoFactor(password: password);
+      notifyListeners();
+      return null;
+    } on ApiException catch (error) {
+      return error.code;
+    } catch (_) {
+      return 'network_error';
+    }
+  }
+
+  Future<String?> setPassword(String newPassword) async {
+    if (newPassword.length < 8) return 'weak_password';
+    try {
+      await api.setPassword(newPassword: newPassword);
+      final result = await api.me();
+      user = result.$1;
+      notifyListeners();
+      return null;
+    } on ApiException catch (error) {
       return error.code;
     } catch (_) {
       return 'network_error';
@@ -414,6 +577,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
     paymentCapabilities = const PaymentCapabilities();
     payments = const [];
     authError = null;
+    pendingTwoFactor = null;
     languageConfirmed = true;
     notifyListeners();
   }
