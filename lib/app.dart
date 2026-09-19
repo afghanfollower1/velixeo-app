@@ -83,6 +83,14 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
     notifyListeners();
   }
 
+  Future<VerificationCapabilities> refreshVerificationCapabilities() async {
+    try {
+      verificationCapabilities = await api.verificationCapabilities();
+      notifyListeners();
+    } catch (_) {}
+    return verificationCapabilities;
+  }
+
   Future<bool> login(String identifier, String password) async {
     authBusy = true;
     authError = null;
