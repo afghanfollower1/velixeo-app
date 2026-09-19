@@ -494,6 +494,21 @@ class ApiService {
     return SecurityState.fromJson(_decodeObject(response));
   }
 
+  Future<VerificationChallenge> requestContactChangeOtp({
+    required String type,
+    required String target,
+    required String channel,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/me/contact-change/request',
+      body: {'type': type, 'target': target.trim(), 'channel': channel},
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+    return VerificationChallenge.fromJson(_decodeObject(response));
+  }
+
   Future<VerificationChallenge> requestAccountOtp({
     required String channel,
     required String purpose,
