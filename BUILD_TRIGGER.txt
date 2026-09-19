@@ -1,2 +1,2 @@
-Trigger signed Android build — VELIXEO v0.8.2 — 2026-09-19.
-Final profile/security patch: crop-adjust profile photos, inline email/mobile verification in Edit Profile, explicit OTP send/confirm controls in Security Center, runtime SMTP capability refresh.
+Trigger signed Android build — VELIXEO v0.8.3 — 2026-09-19.
+Bootstrap release for the permanent in-app updater. From this version onward, VELIXEO checks GitHub Releases, downloads the signed APK inside the app, and opens the Android installer automatically.
