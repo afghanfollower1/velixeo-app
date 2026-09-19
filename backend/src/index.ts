@@ -26,6 +26,7 @@ import { startSocialAutoSync } from './socialSync.js';
 import { registerVirtualNumberRoutes } from './virtualNumberRoutes.js';
 import { registerAdminV3 } from './adminV3.js';
 import { startNotificationPushScheduler } from './pushNotifications.js';
+import { registerVerificationRoutes, verificationCapabilities } from './verification.js';
 
 const env = z
   .object({
@@ -82,6 +83,7 @@ const registerSchema = z
     phone: z.string().trim().min(7).max(32).optional(),
     password: z.string().min(8).max(128),
     locale: z.enum(['FA', 'EN']).default('FA'),
+    verificationToken: z.string().trim().min(20).optional(),
   })
   .refine((data) => Boolean(data.email || data.phone), {
     message: 'email_or_phone_required',
@@ -112,11 +114,32 @@ const preferenceSchema = z
 
 const profileSchema = z.object({
   fullName: z.string().trim().min(2).max(120),
+  websiteUrl: z.string().trim().url().max(300).nullable().optional(),
+  countryCode: z.string().trim().regex(/^[A-Z]{2}$/).nullable().optional(),
+  avatarPreset: z.string().trim().regex(/^avatar_(0[1-9]|1[0-6])$/).nullable().optional(),
+  avatarUrl: z.string().trim().url().max(1000).nullable().optional(),
+  email: z.string().trim().email().nullable().optional(),
+  phone: z.string().trim().min(7).max(32).nullable().optional(),
+  emailVerificationToken: z.string().trim().min(20).optional(),
+  phoneVerificationToken: z.string().trim().min(20).optional(),
 });
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1).max(128),
   newPassword: z.string().min(8).max(128),
+});
+
+const setPasswordSchema = z.object({
+  newPassword: z.string().min(8).max(128),
+});
+
+const twoFactorEnableSchema = z.object({
+  method: z.enum(['EMAIL', 'SMS', 'WHATSAPP']),
+  verificationToken: z.string().trim().min(20),
+});
+
+const twoFactorDisableSchema = z.object({
+  password: z.string().min(1).max(128).optional(),
 });
 
 const adminAdjustmentSchema = z.object({
@@ -229,6 +252,15 @@ function publicUser(user: {
   status: UserStatus;
   locale: AppLocale;
   displayCurrency: DisplayCurrency;
+  websiteUrl?: string | null;
+  countryCode?: string | null;
+  avatarPreset?: string | null;
+  avatarUrl?: string | null;
+  emailVerifiedAt?: Date | null;
+  phoneVerifiedAt?: Date | null;
+  twoFactorEnabled?: boolean;
+  twoFactorMethod?: string | null;
+  twoFactorVerifiedAt?: Date | null;
   createdAt: Date;
   passwordHash?: string | null;
 }) {
@@ -241,9 +273,35 @@ function publicUser(user: {
     status: user.status,
     locale: user.locale,
     displayCurrency: user.displayCurrency,
+    websiteUrl: user.websiteUrl ?? null,
+    countryCode: user.countryCode ?? null,
+    avatarPreset: user.avatarPreset ?? 'avatar_01',
+    avatarUrl: user.avatarUrl ?? null,
+    emailVerified: Boolean(user.emailVerifiedAt),
+    phoneVerified: Boolean(user.phoneVerifiedAt),
+    twoFactorEnabled: Boolean(user.twoFactorEnabled),
+    twoFactorMethod: user.twoFactorMethod ?? null,
+    twoFactorVerifiedAt: user.twoFactorVerifiedAt ?? null,
     hasPassword: Boolean(user.passwordHash),
     createdAt: user.createdAt,
   };
+}
+
+function verificationClaims(token?: string) {
+  if (!token) return null;
+  try {
+    const claims = app.jwt.verify<{
+      kind?: string;
+      challengeId?: string;
+      userId?: string | null;
+      target?: string;
+      channel?: string;
+      purpose?: string;
+    }>(token);
+    return claims.kind === 'verification' ? claims : null;
+  } catch {
+    return null;
+  }
 }
 
 async function applyWalletDelta(input: {
@@ -506,6 +564,20 @@ app.post('/api/v1/auth/register', async (request, reply) => {
 
   const email = normalizeEmail(parsed.data.email);
   const phone = normalizePhone(parsed.data.phone);
+  const verified = verificationClaims(parsed.data.verificationToken);
+  const requireRegistrationVerification = process.env.AUTH_REQUIRE_REGISTRATION_VERIFICATION === 'true';
+  if (requireRegistrationVerification && !verified) {
+    return reply.code(403).send({ error: 'verification_required' });
+  }
+  if (verified) {
+    if (verified.purpose !== 'REGISTER') return reply.code(400).send({ error: 'invalid_verification_token' });
+    if (verified.channel === 'EMAIL' && verified.target !== email) {
+      return reply.code(400).send({ error: 'verification_target_mismatch' });
+    }
+    if ((verified.channel === 'SMS' || verified.channel === 'WHATSAPP') && verified.target !== phone) {
+      return reply.code(400).send({ error: 'verification_target_mismatch' });
+    }
+  }
 
   if (email) {
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -524,6 +596,8 @@ app.post('/api/v1/auth/register', async (request, reply) => {
       phone: phone ?? null,
       passwordHash,
       locale: parsed.data.locale as AppLocale,
+      emailVerifiedAt: verified?.channel === 'EMAIL' && verified.target === email ? new Date() : null,
+      phoneVerifiedAt: (verified?.channel === 'SMS' || verified?.channel === 'WHATSAPP') && verified.target === phone ? new Date() : null,
       wallet: { create: {} },
     },
   });
@@ -595,6 +669,7 @@ app.post('/api/v1/auth/google', async (request, reply) => {
           data: {
             googleSubject,
             fullName: existing.fullName?.trim() ? existing.fullName : payload?.name?.trim() || null,
+            emailVerifiedAt: existing.emailVerifiedAt ?? new Date(),
           },
         });
       } else {
@@ -603,6 +678,7 @@ app.post('/api/v1/auth/google', async (request, reply) => {
             fullName: payload?.name?.trim() || email.split('@')[0],
             email,
             googleSubject,
+            emailVerifiedAt: new Date(),
             passwordHash: null,
             locale: parsed.data.locale as AppLocale,
             wallet: { create: {} },
@@ -722,9 +798,55 @@ app.patch(
     if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
 
     const claims = request.user as JwtClaims;
+    const current = await prisma.user.findUnique({ where: { id: claims.sub } });
+    if (!current) return reply.code(404).send({ error: 'user_not_found' });
+
+    const nextEmail = parsed.data.email === undefined ? current.email : normalizeEmail(parsed.data.email ?? undefined) ?? null;
+    const nextPhone = parsed.data.phone === undefined ? current.phone : normalizePhone(parsed.data.phone ?? undefined) ?? null;
+    let emailVerifiedAt = current.emailVerifiedAt;
+    let phoneVerifiedAt = current.phoneVerifiedAt;
+
+    if (nextEmail !== current.email) {
+      if (nextEmail) {
+        const token = verificationClaims(parsed.data.emailVerificationToken);
+        if (!token || token.userId !== current.id || token.target !== nextEmail || token.purpose !== 'VERIFY_EMAIL' || token.channel !== 'EMAIL') {
+          return reply.code(403).send({ error: 'email_verification_required' });
+        }
+        const taken = await prisma.user.findFirst({ where: { email: nextEmail, id: { not: current.id } } });
+        if (taken) return reply.code(409).send({ error: 'email_already_registered' });
+        emailVerifiedAt = new Date();
+      } else {
+        emailVerifiedAt = null;
+      }
+    }
+
+    if (nextPhone !== current.phone) {
+      if (nextPhone) {
+        const token = verificationClaims(parsed.data.phoneVerificationToken);
+        if (!token || token.userId !== current.id || token.target !== nextPhone || token.purpose !== 'VERIFY_PHONE' || !['SMS','WHATSAPP'].includes(String(token.channel))) {
+          return reply.code(403).send({ error: 'phone_verification_required' });
+        }
+        const taken = await prisma.user.findFirst({ where: { phone: nextPhone, id: { not: current.id } } });
+        if (taken) return reply.code(409).send({ error: 'phone_already_registered' });
+        phoneVerifiedAt = new Date();
+      } else {
+        phoneVerifiedAt = null;
+      }
+    }
+
     const user = await prisma.user.update({
       where: { id: claims.sub },
-      data: { fullName: parsed.data.fullName },
+      data: {
+        fullName: parsed.data.fullName,
+        websiteUrl: parsed.data.websiteUrl === undefined ? undefined : parsed.data.websiteUrl,
+        countryCode: parsed.data.countryCode === undefined ? undefined : parsed.data.countryCode,
+        avatarPreset: parsed.data.avatarPreset === undefined ? undefined : parsed.data.avatarPreset,
+        avatarUrl: parsed.data.avatarUrl === undefined ? undefined : parsed.data.avatarUrl,
+        email: nextEmail,
+        phone: nextPhone,
+        emailVerifiedAt,
+        phoneVerifiedAt,
+      },
     });
     return { user: publicUser(user) };
   },
@@ -765,6 +887,95 @@ app.post(
     return { ok: true, user: publicUser(updated), ...session };
   },
 );
+
+app.get('/api/v1/me/security', { preHandler: authenticate }, async (request, reply) => {
+  const claims = request.user as JwtClaims;
+  const user = await prisma.user.findUnique({ where: { id: claims.sub } });
+  if (!user) return reply.code(404).send({ error: 'user_not_found' });
+  return {
+    hasPassword: Boolean(user.passwordHash),
+    email: user.email,
+    phone: user.phone,
+    emailVerified: Boolean(user.emailVerifiedAt),
+    phoneVerified: Boolean(user.phoneVerifiedAt),
+    twoFactorEnabled: user.twoFactorEnabled,
+    twoFactorMethod: user.twoFactorMethod,
+    verification: verificationCapabilities(),
+  };
+});
+
+app.post('/api/v1/me/security/verify-contact', { preHandler: authenticate }, async (request, reply) => {
+  const parsed = z.object({ verificationToken: z.string().trim().min(20) }).safeParse(request.body);
+  if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+  const claims = request.user as JwtClaims;
+  const token = verificationClaims(parsed.data.verificationToken);
+  if (!token || token.userId !== claims.sub) return reply.code(400).send({ error: 'invalid_verification_token' });
+  const user = await prisma.user.findUnique({ where: { id: claims.sub } });
+  if (!user) return reply.code(404).send({ error: 'user_not_found' });
+
+  if (token.purpose === 'VERIFY_EMAIL' && token.channel === 'EMAIL' && token.target === user.email) {
+    const updated = await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
+    return { user: publicUser(updated) };
+  }
+  if (token.purpose === 'VERIFY_PHONE' && ['SMS','WHATSAPP'].includes(String(token.channel)) && token.target === user.phone) {
+    const updated = await prisma.user.update({ where: { id: user.id }, data: { phoneVerifiedAt: new Date() } });
+    return { user: publicUser(updated) };
+  }
+  return reply.code(400).send({ error: 'verification_target_mismatch' });
+});
+
+app.post('/api/v1/me/security/2fa/enable', { preHandler: authenticate }, async (request, reply) => {
+  const parsed = twoFactorEnableSchema.safeParse(request.body);
+  if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+  const claims = request.user as JwtClaims;
+  const user = await prisma.user.findUnique({ where: { id: claims.sub } });
+  if (!user) return reply.code(404).send({ error: 'user_not_found' });
+  const token = verificationClaims(parsed.data.verificationToken);
+  if (!token || token.userId !== user.id || token.purpose !== 'ENABLE_2FA' || token.channel !== parsed.data.method) {
+    return reply.code(400).send({ error: 'invalid_verification_token' });
+  }
+  const expectedTarget = parsed.data.method === 'EMAIL' ? user.email : user.phone;
+  const verifiedContact = parsed.data.method === 'EMAIL' ? user.emailVerifiedAt : user.phoneVerifiedAt;
+  if (!expectedTarget || !verifiedContact || token.target !== expectedTarget) {
+    return reply.code(400).send({ error: 'verified_contact_required' });
+  }
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: { twoFactorEnabled: true, twoFactorMethod: parsed.data.method, twoFactorVerifiedAt: new Date() },
+  });
+  return { user: publicUser(updated) };
+});
+
+app.post('/api/v1/me/security/2fa/disable', { preHandler: authenticate }, async (request, reply) => {
+  const parsed = twoFactorDisableSchema.safeParse(request.body);
+  if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+  const claims = request.user as JwtClaims;
+  const user = await prisma.user.findUnique({ where: { id: claims.sub } });
+  if (!user) return reply.code(404).send({ error: 'user_not_found' });
+  if (user.passwordHash) {
+    if (!parsed.data.password || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
+      return reply.code(400).send({ error: 'incorrect_current_password' });
+    }
+  }
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: { twoFactorEnabled: false, twoFactorMethod: null, twoFactorVerifiedAt: null },
+  });
+  return { user: publicUser(updated) };
+});
+
+app.post('/api/v1/me/set-password', { preHandler: authenticate }, async (request, reply) => {
+  const parsed = setPasswordSchema.safeParse(request.body);
+  if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+  const claims = request.user as JwtClaims;
+  const user = await prisma.user.findUnique({ where: { id: claims.sub } });
+  if (!user) return reply.code(404).send({ error: 'user_not_found' });
+  if (user.passwordHash) return reply.code(409).send({ error: 'password_already_set' });
+  const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
+  const updated = await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+  const session = await createSession(updated);
+  return { ok: true, user: publicUser(updated), ...session };
+});
 
 app.get('/api/v1/wallet', { preHandler: authenticate }, async (request, reply) => {
   const claims = request.user as JwtClaims;
@@ -998,6 +1209,7 @@ app.post(
 );
 
 registerAdminV3(app, prisma, adminWebUser);
+registerVerificationRoutes(app, prisma, authenticate);
 registerClientFoundationRoutes(app, prisma, authenticate);
 registerPaymentRoutes(app, prisma, authenticate);
 registerHesabPayWebhookRoutes(app, prisma, authenticate);
