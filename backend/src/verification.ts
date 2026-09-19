@@ -114,7 +114,7 @@ async function sendWebhookOtp(channel: 'SMS' | 'WHATSAPP', target: string, code:
   if (!response.ok) throw new Error('otp_provider_failed');
 }
 
-async function issueChallenge(
+export async function issueVerificationChallenge(
   prisma: PrismaClient,
   input: {
     userId?: string | null;
@@ -172,7 +172,7 @@ async function issueChallenge(
   };
 }
 
-async function verifyChallenge(
+export async function verifyVerificationChallenge(
   app: FastifyInstance,
   prisma: PrismaClient,
   challengeId: string,
@@ -245,7 +245,7 @@ export function registerVerificationRoutes(
       return reply.code(400).send({ error: 'invalid_phone' });
     }
     try {
-      return await issueChallenge(prisma, parsed.data);
+      return await issueVerificationChallenge(prisma, parsed.data);
     } catch (error) {
       return errorReply(reply, error);
     }
@@ -255,7 +255,7 @@ export function registerVerificationRoutes(
     const parsed = verifySchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
     try {
-      return await verifyChallenge(app, prisma, parsed.data.challengeId, parsed.data.code);
+      return await verifyVerificationChallenge(app, prisma, parsed.data.challengeId, parsed.data.code);
     } catch (error) {
       return errorReply(reply, error);
     }
@@ -280,7 +280,7 @@ export function registerVerificationRoutes(
       return reply.code(400).send({ error: 'invalid_channel' });
     }
     try {
-      return await issueChallenge(prisma, {
+      return await issueVerificationChallenge(prisma, {
         userId: user.id,
         target,
         channel: parsed.data.channel,
@@ -296,7 +296,7 @@ export function registerVerificationRoutes(
     if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
     const claims = request.user as { sub: string };
     try {
-      return await verifyChallenge(app, prisma, parsed.data.challengeId, parsed.data.code, claims.sub);
+      return await verifyVerificationChallenge(app, prisma, parsed.data.challengeId, parsed.data.code, claims.sub);
     } catch (error) {
       return errorReply(reply, error);
     }
