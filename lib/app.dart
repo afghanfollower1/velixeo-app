@@ -4137,9 +4137,27 @@ class _EditProfilePageState extends State<EditProfilePage> {
           : await c.requestContactChangeOtp('PHONE', target, channel);
       if (!mounted) return;
       if (challenge == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr(c.fa, 'ارسال کد انجام نشد.', 'Could not send the verification code.'))),
-        );
+        final code = c.authError ?? 'otp_provider_failed';
+        final message = code == 'whatsapp_test_recipient_not_allowed'
+            ? tr(
+                c.fa,
+                'در حالت تست Meta فقط شماره‌هایی که در Recipient list تأیید شده‌اند می‌توانند کد بگیرند.',
+                'In Meta test mode, only phone numbers verified in the Recipient list can receive the code.',
+              )
+            : code == 'whatsapp_session_required'
+                ? tr(
+                    c.fa,
+                    'ابتدا از همین شماره یک پیام WhatsApp به شماره تست Velixeo بفرستید و دوباره Verify را بزنید.',
+                    'First send a WhatsApp message from this number to the Velixeo test number, then tap Verify again.',
+                  )
+                : code == 'whatsapp_token_invalid'
+                    ? tr(
+                        c.fa,
+                        'توکن WhatsApp Meta نامعتبر یا منقضی شده است.',
+                        'The Meta WhatsApp token is invalid or expired.',
+                      )
+                    : tr(c.fa, 'ارسال کد انجام نشد.', 'Could not send the verification code.');
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
         return;
       }
       setState(() {
@@ -4766,9 +4784,21 @@ class _SecurityPageState extends State<SecurityPage> {
       final challenge = await c.requestAccountOtp(channel, 'VERIFY_PHONE');
       if (!mounted) return;
       if (challenge == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr(c.fa, 'ارسال کد تأیید انجام نشد.', 'Could not send the verification code.'))),
-        );
+        final code = c.authError ?? 'otp_provider_failed';
+        final message = code == 'whatsapp_test_recipient_not_allowed'
+            ? tr(
+                c.fa,
+                'این شماره در فهرست شماره‌های تست Meta تأیید نشده است.',
+                'This phone number is not verified in the Meta test recipient list.',
+              )
+            : code == 'whatsapp_session_required'
+                ? tr(
+                    c.fa,
+                    'ابتدا از این شماره به WhatsApp تست Velixeo پیام بدهید و دوباره تلاش کنید.',
+                    'Send a message from this number to the Velixeo test WhatsApp first, then try again.',
+                  )
+                : tr(c.fa, 'ارسال کد تأیید انجام نشد.', 'Could not send the verification code.');
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
         return;
       }
       setState(() {
