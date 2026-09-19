@@ -3814,8 +3814,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       avatarPreset: avatarPreset,
       avatarData: avatarData,
       avatarUrl: avatarUrl,
-      emailVerified: user?.emailVerified ?? false,
-      phoneVerified: user?.phoneVerified ?? false,
+      emailVerified: emailVerifiedNow,
+      phoneVerified: phoneVerifiedNow,
       twoFactorEnabled: user?.twoFactorEnabled ?? false,
       twoFactorMethod: user?.twoFactorMethod,
     );
