@@ -35,12 +35,16 @@ const smtpConfigured = () => Boolean(
   && process.env.SMTP_FROM,
 );
 
+const emailWebhookConfigured = () =>
+  Boolean(process.env.OTP_EMAIL_WEBHOOK_URL && process.env.OTP_WEBHOOK_SECRET);
+
 const webhookConfigured = (channel: 'SMS' | 'WHATSAPP') =>
   Boolean(process.env[channel === 'SMS' ? 'OTP_SMS_WEBHOOK_URL' : 'OTP_WHATSAPP_WEBHOOK_URL']);
 
 function capabilities() {
   return {
-    email: smtpConfigured(),
+    email: emailWebhookConfigured() || smtpConfigured(),
+    emailMode: emailWebhookConfigured() ? 'HTTPS_RELAY' : smtpConfigured() ? 'SMTP' : null,
     sms: webhookConfigured('SMS'),
     whatsapp: webhookConfigured('WHATSAPP'),
     registrationVerificationRequired: process.env.AUTH_REQUIRE_REGISTRATION_VERIFICATION === 'true',
@@ -69,7 +73,46 @@ function maskTarget(target: string, channel: 'EMAIL' | 'SMS' | 'WHATSAPP') {
   return `${target.slice(0, 3)}***${target.slice(-3)}`;
 }
 
+async function sendEmailViaHttpsRelay(target: string, code: string) {
+  const url = process.env.OTP_EMAIL_WEBHOOK_URL;
+  const secret = process.env.OTP_WEBHOOK_SECRET;
+  if (!url || !secret) throw new Error('email_otp_not_configured');
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${secret}`,
+      },
+      body: JSON.stringify({
+        target,
+        code,
+        channel: 'EMAIL',
+        app: 'VELIXEO',
+        expiresInSeconds: 600,
+      }),
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error('email_otp_provider_failed');
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('email_otp_timeout');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function sendEmailOtp(target: string, code: string) {
+  if (emailWebhookConfigured()) {
+    await sendEmailViaHttpsRelay(target, code);
+    return;
+  }
+
   if (!smtpConfigured()) throw new Error('email_otp_not_configured');
   const port = Number(process.env.SMTP_PORT || 587);
   const secure = String(process.env.SMTP_SECURE || '').toLowerCase() === 'true' || port === 465;
@@ -77,27 +120,37 @@ async function sendEmailOtp(target: string, code: string) {
     host: process.env.SMTP_HOST,
     port,
     secure,
+    connectionTimeout: 8_000,
+    greetingTimeout: 8_000,
+    socketTimeout: 12_000,
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
   });
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM,
-    to: target,
-    subject: 'VELIXEO verification code',
-    text: `Your VELIXEO verification code is ${code}. It expires in 10 minutes. Do not share this code.`,
-    html: `
-      <div style="font-family:Arial,sans-serif;background:#f4f8fc;padding:28px">
-        <div style="max-width:520px;margin:auto;background:#fff;border:1px solid #e2eaf2;border-radius:22px;padding:26px">
-          <div style="font-weight:900;color:#0b315d;font-size:23px;letter-spacing:1px">VELIXEO</div>
-          <h2 style="color:#17263a;margin:24px 0 8px">Verification code</h2>
-          <p style="color:#617489;line-height:1.6">Use this code to continue. It expires in 10 minutes.</p>
-          <div style="background:linear-gradient(135deg,#0f71d9,#23aaff);color:#fff;font-weight:900;font-size:34px;letter-spacing:8px;text-align:center;padding:18px;border-radius:16px;margin:22px 0">${code}</div>
-          <p style="color:#8b99a8;font-size:12px">If you did not request this code, you can ignore this email.</p>
-        </div>
-      </div>`,
-  });
+  try {
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM,
+      to: target,
+      subject: 'VELIXEO verification code',
+      text: `Your VELIXEO verification code is ${code}. It expires in 10 minutes. Do not share this code.`,
+      html: `
+        <div style="font-family:Arial,sans-serif;background:#f4f8fc;padding:28px">
+          <div style="max-width:520px;margin:auto;background:#fff;border:1px solid #e2eaf2;border-radius:22px;padding:26px">
+            <div style="font-weight:900;color:#0b315d;font-size:23px;letter-spacing:1px">VELIXEO</div>
+            <h2 style="color:#17263a;margin:24px 0 8px">Verification code</h2>
+            <p style="color:#617489;line-height:1.6">Use this code to continue. It expires in 10 minutes.</p>
+            <div style="background:linear-gradient(135deg,#0f71d9,#23aaff);color:#fff;font-weight:900;font-size:34px;letter-spacing:8px;text-align:center;padding:18px;border-radius:16px;margin:22px 0">${code}</div>
+            <p style="color:#8b99a8;font-size:12px">If you did not request this code, you can ignore this email.</p>
+          </div>
+        </div>`,
+    });
+  } catch (error) {
+    if (error instanceof Error && /timeout/i.test(error.message)) {
+      throw new Error('email_otp_timeout');
+    }
+    throw new Error('email_otp_provider_failed');
+  }
 }
 
 async function sendWebhookOtp(channel: 'SMS' | 'WHATSAPP', target: string, code: string) {
@@ -228,7 +281,8 @@ function errorReply(reply: FastifyReply, error: unknown) {
   const code = error instanceof Error ? error.message : 'otp_failed';
   const status = code === 'otp_resend_too_soon' || code === 'otp_rate_limited' ? 429
     : code.endsWith('_not_configured') ? 503
-    : code === 'otp_provider_failed' ? 502
+    : code === 'otp_provider_failed' || code === 'email_otp_provider_failed' ? 502
+    : code === 'email_otp_timeout' ? 504
     : 400;
   return reply.code(status).send({ error: code });
 }
