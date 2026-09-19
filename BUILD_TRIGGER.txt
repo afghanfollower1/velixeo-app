@@ -1,3 +1,2 @@
-Trigger signed Android build — VELIXEO v0.8.1 — 2026-09-19.
-Profile polish: crop and reposition profile photos before upload; inline Verify buttons for email/mobile; OTP code entry directly under each contact field; runtime refresh of SMTP/SMS/WhatsApp channel availability.
-Email OTP uses the configured cPanel SMTP channel. SMS/WhatsApp remain disabled unless a legitimate no-cost gateway is connected.
+Trigger signed Android build — VELIXEO v0.8.2 — 2026-09-19.
+Final profile/security patch: crop-adjust profile photos, inline email/mobile verification in Edit Profile, explicit OTP send/confirm controls in Security Center, runtime SMTP capability refresh.
