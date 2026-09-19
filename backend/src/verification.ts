@@ -41,6 +41,12 @@ const emailWebhookConfigured = () =>
 const webhookConfigured = (channel: 'SMS' | 'WHATSAPP') =>
   Boolean(process.env[channel === 'SMS' ? 'OTP_SMS_WEBHOOK_URL' : 'OTP_WHATSAPP_WEBHOOK_URL']);
 
+const metaWhatsAppConfigured = () => Boolean(
+  String(process.env.META_WHATSAPP_ENABLED || '').toLowerCase() === 'true'
+  && process.env.META_WHATSAPP_ACCESS_TOKEN
+  && process.env.META_WHATSAPP_PHONE_NUMBER_ID,
+);
+
 const twilioVerifyConfigured = () => Boolean(
   process.env.TWILIO_ACCOUNT_SID
   && process.env.TWILIO_AUTH_TOKEN
@@ -56,13 +62,14 @@ const twilioChannelEnabled = (channel: 'SMS' | 'WHATSAPP') => {
 function capabilities() {
   const smsTwilio = twilioChannelEnabled('SMS');
   const whatsappTwilio = twilioChannelEnabled('WHATSAPP');
+  const whatsappMeta = metaWhatsAppConfigured();
   return {
     email: emailWebhookConfigured() || smtpConfigured(),
     emailMode: emailWebhookConfigured() ? 'HTTPS_RELAY' : smtpConfigured() ? 'SMTP' : null,
     sms: smsTwilio || webhookConfigured('SMS'),
     smsMode: smsTwilio ? 'TWILIO_VERIFY' : webhookConfigured('SMS') ? 'WEBHOOK' : null,
-    whatsapp: whatsappTwilio || webhookConfigured('WHATSAPP'),
-    whatsappMode: whatsappTwilio ? 'TWILIO_VERIFY' : webhookConfigured('WHATSAPP') ? 'WEBHOOK' : null,
+    whatsapp: whatsappMeta || whatsappTwilio || webhookConfigured('WHATSAPP'),
+    whatsappMode: whatsappMeta ? 'META_CLOUD_API' : whatsappTwilio ? 'TWILIO_VERIFY' : webhookConfigured('WHATSAPP') ? 'WEBHOOK' : null,
     registrationVerificationRequired: process.env.AUTH_REQUIRE_REGISTRATION_VERIFICATION === 'true',
     resendCooldownSeconds: 60,
     expiresInSeconds: 600,
@@ -286,7 +293,86 @@ async function reportTwilioVerification(
   }
 }
 
+async function sendMetaWhatsAppOtp(target: string, code: string) {
+  const accessToken = process.env.META_WHATSAPP_ACCESS_TOKEN;
+  const phoneNumberId = process.env.META_WHATSAPP_PHONE_NUMBER_ID;
+  const version = process.env.META_WHATSAPP_GRAPH_API_VERSION || 'v25.0';
+  if (!accessToken || !phoneNumberId || !metaWhatsAppConfigured()) {
+    throw new Error('whatsapp_otp_not_configured');
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12_000);
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/${version}/${encodeURIComponent(phoneNumberId)}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+          'content-type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: target.replace(/^\\+/, ''),
+          type: 'text',
+          text: {
+            preview_url: false,
+            body: `VELIXEO verification code: ${code}\n\nThis code expires in 10 minutes. Do not share it with anyone.`,
+          },
+        }),
+        signal: controller.signal,
+      },
+    );
+
+    if (!response.ok) {
+      let providerCode: string | number | undefined;
+      let providerMessage = '';
+      try {
+        const body = await response.json() as {
+          error?: { code?: string | number; message?: string };
+        };
+        providerCode = body.error?.code;
+        providerMessage = String(body.error?.message || '');
+      } catch {
+        // Ignore non-JSON provider responses.
+      }
+
+      console.warn('[otp-meta-whatsapp] send failed', {
+        status: response.status,
+        code: providerCode,
+        message: providerMessage || undefined,
+      });
+
+      if (
+        /24.?hour|conversation|session|outside/i.test(providerMessage)
+        || providerCode === 131047
+      ) {
+        throw new Error('whatsapp_session_required');
+      }
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('whatsapp_token_invalid');
+      }
+      throw new Error('otp_provider_failed');
+    }
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('otp_provider_failed');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function sendWebhookOtp(channel: 'SMS' | 'WHATSAPP', target: string, code: string) {
+  if (channel === 'WHATSAPP' && metaWhatsAppConfigured()) {
+    await sendMetaWhatsAppOtp(target, code);
+    return;
+  }
+
   if (twilioChannelEnabled(channel)) {
     await sendTwilioVerifyOtp(channel, target, code);
     return;
@@ -428,6 +514,8 @@ function errorReply(reply: FastifyReply, error: unknown) {
     : code === 'email_otp_mail_failed' ? 502
     : code === 'otp_provider_failed' || code === 'email_otp_provider_failed' ? 502
     : code === 'email_otp_timeout' ? 504
+    : code === 'whatsapp_session_required' ? 409
+    : code === 'whatsapp_token_invalid' ? 502
     : 400;
   return reply.code(status).send({ error: code });
 }
