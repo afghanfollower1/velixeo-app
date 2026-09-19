@@ -4345,7 +4345,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
           Center(
             child: Column(
               children: [
-                UserAvatar(user: previewUser(), size: 96, showEditBadge: true, onTap: chooseAvatar),
+                UserAvatar(user: previewUser(), size: 96, showEditBadge: true, onTap: pickProfilePhoto),
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
@@ -4353,8 +4353,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   children: [
                     OutlinedButton.icon(
                       onPressed: busy ? null : pickProfilePhoto,
-                      icon: const Icon(Icons.photo_library_outlined, size: 18),
-                      label: Text(tr(c.fa, 'انتخاب تصویر', 'Upload photo')),
+                      icon: const Icon(Icons.crop_rounded, size: 18),
+                      label: Text(tr(c.fa, 'انتخاب و تنظیم تصویر', 'Choose & adjust photo')),
                     ),
                     OutlinedButton.icon(
                       onPressed: busy ? null : chooseAvatar,
@@ -4365,7 +4365,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  tr(c.fa, 'تصویر برای سرعت و حریم خصوصی فشرده می‌شود.', 'Profile photos are compressed for speed and privacy.'),
+                  tr(
+                    c.fa,
+                    'قبل از ذخیره می‌توانید تصویر را جابه‌جا، زوم و دقیقاً وسط کادر تنظیم کنید.',
+                    'Before saving, move and zoom the photo to center your face inside the crop.',
+                  ),
+                  textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 10.5, color: Color(0xFF8291A1)),
                 ),
               ],
