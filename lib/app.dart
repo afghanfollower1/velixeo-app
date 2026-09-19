@@ -447,6 +447,20 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
     }
   }
 
+  Future<VerificationChallenge?> requestContactChangeOtp(String type, String target, String channel) async {
+    try {
+      return await api.requestContactChangeOtp(type: type, target: target, channel: channel);
+    } on ApiException catch (error) {
+      authError = error.code;
+      notifyListeners();
+      return null;
+    } catch (_) {
+      authError = 'network_error';
+      notifyListeners();
+      return null;
+    }
+  }
+
   Future<VerificationChallenge?> requestAccountOtp(String channel, String purpose) async {
     try {
       return await api.requestAccountOtp(channel: channel, purpose: purpose);
