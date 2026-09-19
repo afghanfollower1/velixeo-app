@@ -154,6 +154,30 @@ class SecurityState {
       );
 }
 
+class TwoFactorLoginChallenge {
+  const TwoFactorLoginChallenge({
+    required this.loginToken,
+    required this.challengeId,
+    required this.maskedTarget,
+    required this.channel,
+    required this.expiresInSeconds,
+  });
+
+  final String loginToken;
+  final String challengeId;
+  final String maskedTarget;
+  final String channel;
+  final int expiresInSeconds;
+
+  factory TwoFactorLoginChallenge.fromJson(Map<String, dynamic> json) => TwoFactorLoginChallenge(
+        loginToken: json['loginToken'] as String,
+        challengeId: json['challengeId'] as String,
+        maskedTarget: (json['maskedTarget'] as String?) ?? '',
+        channel: (json['channel'] as String?) ?? 'EMAIL',
+        expiresInSeconds: (json['expiresInSeconds'] as num?)?.toInt() ?? 600,
+      );
+}
+
 class AppSession {
   const AppSession({
     required this.user,
