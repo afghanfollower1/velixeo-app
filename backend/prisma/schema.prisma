@@ -125,29 +125,39 @@ enum SupportStatus {
 }
 
 model User {
-  id              String          @id @default(uuid())
-  fullName        String?
-  email           String?         @unique
-  phone           String?         @unique
-  passwordHash    String?
-  googleSubject   String?         @unique
-  role            UserRole        @default(USER)
-  status          UserStatus      @default(ACTIVE)
-  locale          AppLocale       @default(FA)
-  displayCurrency DisplayCurrency @default(AFN)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id                  String          @id @default(uuid())
+  fullName            String?
+  email               String?         @unique
+  phone               String?         @unique
+  passwordHash        String?
+  googleSubject       String?         @unique
+  role                UserRole        @default(USER)
+  status              UserStatus      @default(ACTIVE)
+  locale              AppLocale       @default(FA)
+  displayCurrency     DisplayCurrency @default(AFN)
+  websiteUrl          String?
+  countryCode         String?
+  avatarPreset        String?         @default("avatar_01")
+  avatarUrl           String?
+  emailVerifiedAt     DateTime?
+  phoneVerifiedAt     DateTime?
+  twoFactorEnabled    Boolean         @default(false)
+  twoFactorMethod     String?
+  twoFactorVerifiedAt DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 
-  wallet                Wallet?
-  refreshTokens         RefreshToken[]
-  orders                Order[]
-  payments              PaymentTransaction[]
-  supportTickets        SupportTicket[]
-  supportMessages       SupportMessage[]       @relation("SupportSender")
-  notifications         Notification[]
-  notificationReads     NotificationRead[]
-  pushDevices           PushDevice[]
-  auditLogs             AdminAuditLog[]        @relation("AdminAuditLogs")
+  wallet                 Wallet?
+  refreshTokens          RefreshToken[]
+  orders                 Order[]
+  payments               PaymentTransaction[]
+  supportTickets         SupportTicket[]
+  supportMessages        SupportMessage[]       @relation("SupportSender")
+  notifications          Notification[]
+  notificationReads      NotificationRead[]
+  pushDevices            PushDevice[]
+  verificationChallenges VerificationChallenge[]
+  auditLogs              AdminAuditLog[]        @relation("AdminAuditLogs")
 }
 
 model Wallet {
@@ -468,6 +478,28 @@ model PushDevice {
 
   @@index([userId, enabled])
   @@index([enabled, lastSeenAt])
+}
+
+model VerificationChallenge {
+  id         String    @id @default(uuid())
+  userId     String?
+  target     String
+  channel    String
+  purpose    String
+  codeHash   String
+  attempts   Int       @default(0)
+  maxAttempts Int      @default(5)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  metadata   Json?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([target, purpose, createdAt])
+  @@index([userId, purpose, createdAt])
+  @@index([expiresAt, consumedAt])
 }
 
 model SupportTicket {
