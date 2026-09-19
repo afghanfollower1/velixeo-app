@@ -86,6 +86,7 @@ async function sendEmailViaHttpsRelay(target: string, code: string) {
       headers: {
         'content-type': 'application/json',
         authorization: `Bearer ${secret}`,
+        'x-velixeo-otp-secret': secret,
       },
       body: JSON.stringify({
         target,
@@ -93,10 +94,27 @@ async function sendEmailViaHttpsRelay(target: string, code: string) {
         channel: 'EMAIL',
         app: 'VELIXEO',
         expiresInSeconds: 600,
+        secret,
       }),
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error('email_otp_provider_failed');
+    if (!response.ok) {
+      let relayCode = '';
+      try {
+        const body = await response.json() as { code?: string };
+        relayCode = String(body?.code || '');
+      } catch {
+        // Ignore non-JSON relay responses.
+      }
+      console.warn('[otp-email-relay] request failed', {
+        status: response.status,
+        code: relayCode || undefined,
+      });
+      if (response.status === 401 || response.status === 403) throw new Error('email_otp_auth_failed');
+      if (response.status === 404) throw new Error('email_otp_route_missing');
+      if (response.status === 502 && relayCode === 'velixeo_mail_failed') throw new Error('email_otp_mail_failed');
+      throw new Error('email_otp_provider_failed');
+    }
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error('email_otp_timeout');
@@ -281,6 +299,9 @@ function errorReply(reply: FastifyReply, error: unknown) {
   const code = error instanceof Error ? error.message : 'otp_failed';
   const status = code === 'otp_resend_too_soon' || code === 'otp_rate_limited' ? 429
     : code.endsWith('_not_configured') ? 503
+    : code === 'email_otp_auth_failed' ? 502
+    : code === 'email_otp_route_missing' ? 502
+    : code === 'email_otp_mail_failed' ? 502
     : code === 'otp_provider_failed' || code === 'email_otp_provider_failed' ? 502
     : code === 'email_otp_timeout' ? 504
     : 400;
