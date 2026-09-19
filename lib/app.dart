@@ -4055,16 +4055,24 @@ class _EditProfilePageState extends State<EditProfilePage> {
       return;
     }
 
+    final currentEmail = (c.user?.email ?? '').trim().toLowerCase();
+    final currentPhone = (c.user?.phone ?? '').replaceAll(RegExp(r'[\s()-]'), '');
+
+    if (nextEmail != currentEmail && nextEmail.isNotEmpty && emailVerificationToken == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(c.fa, 'ابتدا ایمیل جدید را با کد OTP تأیید کنید.', 'Verify the new email with OTP before saving.'))),
+      );
+      return;
+    }
+    if (nextPhone != currentPhone && nextPhone.isNotEmpty && phoneVerificationToken == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(c.fa, 'ابتدا شماره جدید را با کد OTP تأیید کنید.', 'Verify the new mobile number with OTP before saving.'))),
+      );
+      return;
+    }
+
     setState(() => busy = true);
     try {
-      final emailToken = await verifyChangedEmail(nextEmail);
-      if (emailToken == '__blocked__') return;
-      if (nextEmail != (c.user?.email ?? '') && emailToken == null) return;
-
-      final phoneToken = await verifyChangedPhone(nextPhone);
-      if (phoneToken == '__blocked__') return;
-      if (nextPhone != (c.user?.phone ?? '') && phoneToken == null) return;
-
       final error = await c.updateProfile(
         fullName: name,
         websiteUrl: website.text.trim(),
@@ -4074,8 +4082,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
         avatarUrl: avatarUrl,
         email: nextEmail,
         phone: nextPhone,
-        emailVerificationToken: emailToken,
-        phoneVerificationToken: phoneToken,
+        emailVerificationToken: emailVerificationToken,
+        phoneVerificationToken: phoneVerificationToken,
       );
       if (!mounted) return;
       if (error == null) {
