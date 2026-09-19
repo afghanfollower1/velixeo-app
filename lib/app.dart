@@ -4423,13 +4423,26 @@ class _EditProfilePageState extends State<EditProfilePage> {
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.alternate_email),
               labelText: tr(c.fa, 'ایمیل', 'Email'),
-              suffixIcon: Icon(
-                user?.emailVerified == true ? Icons.verified_rounded : Icons.warning_amber_rounded,
-                color: user?.emailVerified == true ? const Color(0xFF18A875) : const Color(0xFFEFAF38),
+              suffixIcon: verificationSuffix(
+                verified: emailVerifiedNow,
+                loading: emailSending,
+                onPressed: normalizedEmail.isEmpty ? null : sendEmailVerification,
               ),
-              helperText: tr(c.fa, 'تغییر ایمیل با OTP تأیید می‌شود.', 'Changing email requires OTP verification.'),
+              helperText: emailVerifiedNow
+                  ? tr(c.fa, 'ایمیل تأیید شده است.', 'Email verified.')
+                  : tr(c.fa, 'روی Verify بزنید تا کد ۶ رقمی ارسال شود.', 'Tap Verify to receive a 6-digit code.'),
             ),
           ),
+          if (emailChallenge != null) ...[
+            const SizedBox(height: 8),
+            _InlineOtpPanel(
+              controller: emailOtp,
+              maskedTarget: emailChallenge!.maskedTarget,
+              loading: emailVerifying,
+              onVerify: verifyEmailCode,
+              fa: c.fa,
+            ),
+          ],
           const SizedBox(height: 12),
           TextField(
             controller: phone,
@@ -4438,13 +4451,26 @@ class _EditProfilePageState extends State<EditProfilePage> {
               prefixIcon: const Icon(Icons.phone_iphone_rounded),
               labelText: tr(c.fa, 'شماره موبایل', 'Mobile number'),
               hintText: '+937XXXXXXXX',
-              suffixIcon: Icon(
-                user?.phoneVerified == true ? Icons.verified_rounded : Icons.warning_amber_rounded,
-                color: user?.phoneVerified == true ? const Color(0xFF18A875) : const Color(0xFFEFAF38),
+              suffixIcon: verificationSuffix(
+                verified: phoneVerifiedNow,
+                loading: phoneSending,
+                onPressed: normalizedPhone.isEmpty ? null : sendPhoneVerification,
               ),
-              helperText: tr(c.fa, 'شماره باید همراه کد کشور باشد.', 'Use international format with country code.'),
+              helperText: phoneVerifiedNow
+                  ? tr(c.fa, 'شماره موبایل تأیید شده است.', 'Mobile number verified.')
+                  : tr(c.fa, 'شماره را با کد کشور وارد کنید و Verify را بزنید.', 'Enter the number with country code, then tap Verify.'),
             ),
           ),
+          if (phoneChallenge != null) ...[
+            const SizedBox(height: 8),
+            _InlineOtpPanel(
+              controller: phoneOtp,
+              maskedTarget: phoneChallenge!.maskedTarget,
+              loading: phoneVerifying,
+              onVerify: verifyPhoneCode,
+              fa: c.fa,
+            ),
+          ],
           const SizedBox(height: 12),
           InkWell(
             borderRadius: BorderRadius.circular(14),
