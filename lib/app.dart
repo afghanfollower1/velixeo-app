@@ -4334,6 +4334,34 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+  Widget verificationSuffix({
+    required bool verified,
+    required bool loading,
+    required VoidCallback? onPressed,
+  }) {
+    if (verified) {
+      return const Padding(
+        padding: EdgeInsets.only(right: 10),
+        child: Icon(Icons.verified_rounded, color: Color(0xFF18A875)),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: TextButton(
+        onPressed: loading ? null : onPressed,
+        child: loading
+            ? const SizedBox.square(
+                dimension: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Text(
+                tr(c.fa, 'تأیید', 'Verify'),
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = c.user;
