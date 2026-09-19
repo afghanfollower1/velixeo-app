@@ -9,6 +9,7 @@ import 'core/api_service.dart';
 import 'core/google_auth_service.dart';
 import 'core/models.dart';
 import 'core/push_service.dart';
+import 'core/update_service.dart';
 import 'social/social_panel.dart';
 import 'support/support_page.dart';
 import 'virtual_numbers/virtual_number_panel.dart';
@@ -782,13 +783,15 @@ class _VelixeoAppState extends State<VelixeoApp> {
             textDirection: controller.fa ? TextDirection.rtl : TextDirection.ltr,
             child: child ?? const SizedBox.shrink(),
           ),
-          home: controller.booting
-              ? const SplashPage()
-              : controller.authenticated
-                  ? MainShell(controller: controller)
-                  : controller.languageConfirmed
-                      ? AuthPage(controller: controller)
-                      : LanguagePage(controller: controller),
+          home: AppUpdateGate(
+            child: controller.booting
+                ? const SplashPage()
+                : controller.authenticated
+                    ? MainShell(controller: controller)
+                    : controller.languageConfirmed
+                        ? AuthPage(controller: controller)
+                        : LanguagePage(controller: controller),
+          ),
         );
       },
     );
