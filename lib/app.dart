@@ -4031,11 +4031,245 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   Future<void> sendEmailVerification() async {
     final target = normalizedEmail;
-    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(target)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(c.fa, 'ابتدا یک ایمیل معتبر وارد کنید.', 'Enter a valid email address first.'))),
+      );
+      return;
+    }
+
+    setState(() => emailSending = true);
+    try {
+      final caps = await c.refreshVerificationCapabilities();
+      if (!caps.email) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(c.fa, 'ارسال OTP ایمیل هنوز روی سرور فعال نیست.', 'Email OTP is not active on the server yet.'))),
+        );
+        return;
+      }
+      final current = (c.user?.email ?? '').trim().toLowerCase();
+      final challenge = target == current
+          ? await c.requestAccountOtp('EMAIL', 'VERIFY_EMAIL')
+          : await c.requestContactChangeOtp('EMAIL', target, 'EMAIL');
+      if (!mounted) return;
+      if (challenge == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(c.fa, 'ارسال کد انجام نشد.', 'Could not send the verification code.'))),
+        );
+        return;
+      }
+      setState(() {
+        emailChallenge = challenge;
+        emailOtp.clear();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(c.fa, 'کد ۶ رقمی به ایمیل ارسال شد.', 'A 6-digit code was sent to your email.'))),
+      );
+    } finally {
+      if (mounted) setState(() => emailSending = false);
+    }
+  }
+
+  Future<void> verifyEmailCode() async {
+    final challenge = emailChallenge;
+    final code = emailOtp.text.trim();
+    if (challenge == null || !RegExp(r'^\d{6}$').hasMatch(code)) return;
+    setState(() => emailVerifying = true);
+    try {
+      final token = await c.verifyAccountOtp(challenge.challengeId, code);
+      if (token == null || !mounted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(tr(c.fa, 'کد تأیید درست نیست یا منقضی شده است.', 'The code is invalid or expired.'))),
+          );
+        }
+        return;
+      }
+
+      final current = (c.user?.email ?? '').trim().toLowerCase();
+      if (normalizedEmail == current) {
+        final error = await c.verifyContact(token);
+        if (!mounted) return;
+        if (error != null) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+          return;
+        }
+        setState(() {
+          emailVerificationToken = null;
+          emailChallenge = null;
+          emailOtp.clear();
+        });
+      } else {
+        setState(() {
+          emailVerificationToken = token;
+          emailChallenge = null;
+          emailOtp.clear();
+        });
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            normalizedEmail == current
+                ? tr(c.fa, 'ایمیل با موفقیت تأیید شد.', 'Email verified successfully.')
+                : tr(c.fa, 'ایمیل تأیید شد؛ برای اعمال تغییرات ذخیره را بزنید.', 'Email verified. Tap Save changes to apply it.'),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => emailVerifying = false);
+    }
+  }
+
+  Future<String?> choosePhoneVerificationChannel() async {
+    final caps = await c.refreshVerificationCapabilities();
+    final available = <String>[];
+    if (caps.whatsapp) available.add('WHATSAPP');
+    if (caps.sms) available.add('SMS');
+    if (available.isEmpty) return null;
+    if (available.length == 1) return available.first;
+    if (!mounted) return null;
+    return showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.chat_rounded, color: Color(0xFF20A76F)),
+              title: const Text('WhatsApp'),
+              subtitle: Text(tr(c.fa, 'ارسال کد با واتساپ', 'Send code with WhatsApp')),
+              onTap: () => Navigator.pop(context, 'WHATSAPP'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.sms_rounded, color: Color(0xFF1686FF)),
+              title: const Text('SMS'),
+              subtitle: Text(tr(c.fa, 'ارسال کد پیامکی', 'Send code by SMS')),
+              onTap: () => Navigator.pop(context, 'SMS'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> sendPhoneVerification() async {
+    final target = normalizedPhone;
+    if (!RegExp(r'^\+[1-9]\d{6,14}$').hasMatch(target)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(c.fa, 'شماره را با کد کشور وارد کنید.', 'Enter the number with country code first.'))),
+      );
+      return;
+    }
+
+    setState(() => phoneSending = true);
+    try {
+      final channel = await choosePhoneVerificationChannel();
+      if (channel == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              tr(
+                c.fa,
+                'فعلاً سرویس رایگان SMS/WhatsApp به سرور وصل نشده است.',
+                'A free SMS/WhatsApp OTP gateway is not connected yet.',
+              ),
+            ),
+          ),
+        );
+        return;
+      }
+
+      final current = (c.user?.phone ?? '').replaceAll(RegExp(r'[\s()-]'), '');
+      final challenge = target == current
+          ? await c.requestAccountOtp(channel, 'VERIFY_PHONE')
+          : await c.requestContactChangeOtp('PHONE', target, channel);
+      if (!mounted) return;
+      if (challenge == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(c.fa, 'ارسال کد انجام نشد.', 'Could not send the verification code.'))),
+        );
+        return;
+      }
+      setState(() {
+        phoneChallenge = challenge;
+        phoneOtp.clear();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            channel == 'WHATSAPP'
+                ? tr(c.fa, 'کد به واتساپ ارسال شد.', 'A verification code was sent to WhatsApp.')
+                : tr(c.fa, 'کد پیامکی ارسال شد.', 'A verification code was sent by SMS.'),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => phoneSending = false);
+    }
+  }
+
+  Future<void> verifyPhoneCode() async {
+    final challenge = phoneChallenge;
+    final code = phoneOtp.text.trim();
+    if (challenge == null || !RegExp(r'^\d{6}$').hasMatch(code)) return;
+    setState(() => phoneVerifying = true);
+    try {
+      final token = await c.verifyAccountOtp(challenge.challengeId, code);
+      if (token == null || !mounted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(tr(c.fa, 'کد تأیید درست نیست یا منقضی شده است.', 'The code is invalid or expired.'))),
+          );
+        }
+        return;
+      }
+
+      final current = (c.user?.phone ?? '').replaceAll(RegExp(r'[\s()-]'), '');
+      if (normalizedPhone == current) {
+        final error = await c.verifyContact(token);
+        if (!mounted) return;
+        if (error != null) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+          return;
+        }
+        setState(() {
+          phoneVerificationToken = null;
+          phoneChallenge = null;
+          phoneOtp.clear();
+        });
+      } else {
+        setState(() {
+          phoneVerificationToken = token;
+          phoneChallenge = null;
+          phoneOtp.clear();
+        });
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            normalizedPhone == current
+                ? tr(c.fa, 'شماره موبایل با موفقیت تأیید شد.', 'Mobile number verified successfully.')
+                : tr(c.fa, 'شماره تأیید شد؛ برای اعمال تغییرات ذخیره را بزنید.', 'Number verified. Tap Save changes to apply it.'),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => phoneVerifying = false);
+    }
+  }
+
+  Future<void> save() async {
     FocusScope.of(context).unfocus();
     final name = fullName.text.trim();
-    final nextEmail = email.text.trim().toLowerCase();
-    final nextPhone = phone.text.replaceAll(RegExp(r'[\s()-]'), '');
+    final nextEmail = normalizedEmail;
+    final nextPhone = normalizedPhone;
     if (name.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(tr(c.fa, 'نام معتبر وارد کنید.', 'Enter a valid full name.'))),
@@ -4057,7 +4291,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     final currentEmail = (c.user?.email ?? '').trim().toLowerCase();
     final currentPhone = (c.user?.phone ?? '').replaceAll(RegExp(r'[\s()-]'), '');
-
     if (nextEmail != currentEmail && nextEmail.isNotEmpty && emailVerificationToken == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(tr(c.fa, 'ابتدا ایمیل جدید را با کد OTP تأیید کنید.', 'Verify the new email with OTP before saving.'))),
@@ -4093,7 +4326,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         Navigator.pop(context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr(c.fa, 'ذخیره پروفایل انجام نشد: $error', 'Could not update profile: $error'))),
+          SnackBar(content: Text('Could not update profile: ' + error)),
         );
       }
     } finally {
