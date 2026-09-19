@@ -770,6 +770,25 @@ app.post('/api/v1/auth/google', async (request, reply) => {
     if (user.status !== UserStatus.ACTIVE) {
       return reply.code(403).send({ error: 'account_suspended' });
     }
+    if (user.twoFactorEnabled) {
+      const method = String(user.twoFactorMethod || '');
+      const channel = method === 'EMAIL' ? 'EMAIL' : method === 'SMS' ? 'SMS' : method === 'WHATSAPP' ? 'WHATSAPP' : null;
+      if (!channel) return reply.code(503).send({ error: 'two_factor_method_unavailable' });
+      const target = channel === 'EMAIL' ? user.email : user.phone;
+      const verified = channel === 'EMAIL' ? user.emailVerifiedAt : user.phoneVerifiedAt;
+      if (!target || !verified) return reply.code(503).send({ error: 'two_factor_contact_unavailable' });
+      const challenge = await issueVerificationChallenge(prisma, {
+        userId: user.id,
+        target,
+        channel,
+        purpose: 'LOGIN_2FA',
+      });
+      const loginToken = app.jwt.sign(
+        { kind: 'two_factor_login', userId: user.id, challengeId: challenge.challengeId },
+        { expiresIn: '10m' },
+      );
+      return reply.code(202).send({ requiresTwoFactor: true, loginToken, ...challenge });
+    }
     const session = await createSession(user);
     return { user: publicUser(user), ...session };
   } catch (error) {
