@@ -3218,7 +3218,11 @@ class ProfilePage extends StatelessWidget {
           SoftCard(
             child: Row(
               children: [
-                UserAvatar(user: c.user, size: 60),
+                UserAvatar(
+                  user: c.user,
+                  size: 60,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EditProfilePage(controller: c))),
+                ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -3245,16 +3249,15 @@ class ProfilePage extends StatelessWidget {
               MaterialPageRoute(builder: (_) => EditProfilePage(controller: c)),
             ),
           ),
-          if (c.user?.hasPassword == true)
-            SettingsTile(
-              icon: Icons.password_rounded,
-              title: tr(c.fa, 'تغییر رمز عبور', 'Change password'),
-              value: '',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => ChangePasswordPage(controller: c)),
-              ),
+          SettingsTile(
+            icon: Icons.security_rounded,
+            title: tr(c.fa, 'امنیت و ورود', 'Security & login'),
+            value: c.user?.twoFactorEnabled == true ? '2FA ON' : '',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => SecurityPage(controller: c)),
             ),
+          ),
           SettingsTile(
             icon: Icons.language,
             title: tr(c.fa, 'زبان', 'Language'),
@@ -3367,53 +3370,334 @@ class EditProfilePage extends StatefulWidget {
 
 class _EditProfilePageState extends State<EditProfilePage> {
   late final TextEditingController fullName;
+  late final TextEditingController email;
+  late final TextEditingController phone;
+  late final TextEditingController website;
+  String? countryCode;
+  String avatarPreset = 'avatar_01';
+  String? avatarData;
+  String? avatarUrl;
   bool busy = false;
+
+  AppController get c => widget.controller;
 
   @override
   void initState() {
     super.initState();
-    fullName = TextEditingController(text: widget.controller.user?.fullName ?? '');
+    final user = c.user;
+    fullName = TextEditingController(text: user?.fullName ?? '');
+    email = TextEditingController(text: user?.email ?? '');
+    phone = TextEditingController(text: user?.phone ?? '');
+    website = TextEditingController(text: user?.websiteUrl ?? '');
+    countryCode = user?.countryCode;
+    avatarPreset = user?.avatarPreset ?? 'avatar_01';
+    avatarData = user?.avatarData;
+    avatarUrl = user?.avatarUrl;
   }
 
   @override
   void dispose() {
     fullName.dispose();
+    email.dispose();
+    phone.dispose();
+    website.dispose();
     super.dispose();
+  }
+
+  AppUser previewUser() {
+    final user = c.user;
+    return AppUser(
+      id: user?.id ?? 'preview',
+      role: user?.role ?? 'USER',
+      status: user?.status ?? 'ACTIVE',
+      locale: user?.locale ?? 'EN',
+      displayCurrency: user?.displayCurrency ?? 'AFN',
+      hasPassword: user?.hasPassword ?? true,
+      fullName: fullName.text,
+      email: email.text,
+      phone: phone.text,
+      websiteUrl: website.text,
+      countryCode: countryCode,
+      avatarPreset: avatarPreset,
+      avatarData: avatarData,
+      avatarUrl: avatarUrl,
+      emailVerified: user?.emailVerified ?? false,
+      phoneVerified: user?.phoneVerified ?? false,
+      twoFactorEnabled: user?.twoFactorEnabled ?? false,
+      twoFactorMethod: user?.twoFactorMethod,
+    );
+  }
+
+  Future<void> pickProfilePhoto() async {
+    try {
+      final file = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 72,
+        maxWidth: 512,
+        maxHeight: 512,
+      );
+      if (file == null) return;
+      final bytes = await file.readAsBytes();
+      if (bytes.length > 360000) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please choose a smaller profile photo.')),
+        );
+        return;
+      }
+      final mime = file.name.toLowerCase().endsWith('.png')
+          ? 'png'
+          : file.name.toLowerCase().endsWith('.webp')
+              ? 'webp'
+              : 'jpeg';
+      setState(() {
+        avatarData = 'data:image/$mime;base64,${base64Encode(bytes)}';
+        avatarUrl = null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(c.fa, 'انتخاب تصویر انجام نشد.', 'Could not select the photo.'))),
+      );
+    }
+  }
+
+  void chooseAvatar() {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(tr(c.fa, 'یک آواتار انتخاب کنید', 'Choose an avatar'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 14),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: 16,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 4,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                ),
+                itemBuilder: (_, i) {
+                  final preset = 'avatar_${(i + 1).toString().padLeft(2, '0')}';
+                  final selected = avatarData == null && avatarUrl == null && avatarPreset == preset;
+                  return InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () {
+                      setState(() {
+                        avatarPreset = preset;
+                        avatarData = null;
+                        avatarUrl = null;
+                      });
+                      Navigator.pop(sheetContext);
+                    },
+                    child: Stack(
+                      children: [
+                        Positioned.fill(child: ClipOval(child: _PresetAvatar(preset: preset))),
+                        if (selected)
+                          Positioned(
+                            right: 1,
+                            bottom: 1,
+                            child: Container(
+                              width: 25,
+                              height: 25,
+                              decoration: const BoxDecoration(color: Color(0xFF1686FF), shape: BoxShape.circle),
+                              child: const Icon(Icons.check_rounded, color: Colors.white, size: 17),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<String?> requestVerification({
+    required String type,
+    required String target,
+    required String channel,
+  }) async {
+    final challenge = await c.requestContactChangeOtp(type, target, channel);
+    if (challenge == null || !mounted) {
+      final code = c.authError ?? 'verification_unavailable';
+      final message = code.endsWith('_not_configured')
+          ? tr(c.fa, 'کانال OTP هنوز روی سرور تنظیم نشده است.', 'This OTP channel is not configured on the server yet.')
+          : tr(c.fa, 'ارسال کد تأیید انجام نشد.', 'Could not send the verification code.');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      return null;
+    }
+    final code = await showOtpDialog(context, challenge, c.fa);
+    if (code == null) return null;
+    return c.verifyAccountOtp(challenge.challengeId, code);
+  }
+
+  Future<String?> verifyChangedEmail(String value) async {
+    if (value == (c.user?.email ?? '')) return null;
+    if (!c.verificationCapabilities.email) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(c.fa, 'برای تغییر ایمیل ابتدا ارسال OTP ایمیل را فعال می‌کنیم.', 'Email OTP must be configured before changing your email.'))),
+      );
+      return '__blocked__';
+    }
+    return requestVerification(type: 'EMAIL', target: value, channel: 'EMAIL');
+  }
+
+  Future<String?> verifyChangedPhone(String value) async {
+    if (value == (c.user?.phone ?? '')) return null;
+    final caps = c.verificationCapabilities;
+    String? channel;
+    if (caps.whatsapp && caps.sms) {
+      channel = await showModalBottomSheet<String>(
+        context: context,
+        showDragHandle: true,
+        builder: (_) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.chat_rounded, color: Color(0xFF20A76F)),
+                title: const Text('WhatsApp'),
+                subtitle: Text(tr(c.fa, 'ارسال کد با واتساپ', 'Send code with WhatsApp')),
+                onTap: () => Navigator.pop(context, 'WHATSAPP'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.sms_rounded, color: Color(0xFF1686FF)),
+                title: const Text('SMS'),
+                subtitle: Text(tr(c.fa, 'ارسال کد پیامکی', 'Send code by SMS')),
+                onTap: () => Navigator.pop(context, 'SMS'),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else if (caps.whatsapp) {
+      channel = 'WHATSAPP';
+    } else if (caps.sms) {
+      channel = 'SMS';
+    }
+    if (channel == null) {
+      if (!mounted) return '__blocked__';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(c.fa, 'سرویس رایگان SMS/WhatsApp هنوز متصل نشده است.', 'A free SMS/WhatsApp OTP provider is not connected yet.'))),
+      );
+      return '__blocked__';
+    }
+    return requestVerification(type: 'PHONE', target: value, channel: channel);
   }
 
   Future<void> save() async {
     FocusScope.of(context).unfocus();
-    if (fullName.text.trim().length < 2) {
+    final name = fullName.text.trim();
+    final nextEmail = email.text.trim().toLowerCase();
+    final nextPhone = phone.text.replaceAll(RegExp(r'[\s()-]'), '');
+    if (name.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr(widget.controller.fa, 'نام معتبر وارد کنید.', 'Enter a valid full name.'))),
+        SnackBar(content: Text(tr(c.fa, 'نام معتبر وارد کنید.', 'Enter a valid full name.'))),
       );
       return;
     }
+    if (nextEmail.isNotEmpty && !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(nextEmail)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(c.fa, 'ایمیل معتبر وارد کنید.', 'Enter a valid email address.'))),
+      );
+      return;
+    }
+    if (nextPhone.isNotEmpty && !RegExp(r'^\+[1-9]\d{6,14}$').hasMatch(nextPhone)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(c.fa, 'شماره را با کد کشور وارد کنید.', 'Enter the mobile number with country code.'))),
+      );
+      return;
+    }
+
     setState(() => busy = true);
-    final error = await widget.controller.updateFullName(fullName.text);
-    if (!mounted) return;
-    setState(() => busy = false);
-    if (error == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr(widget.controller.fa, 'پروفایل ذخیره شد.', 'Profile updated.'))),
+    try {
+      final emailToken = await verifyChangedEmail(nextEmail);
+      if (emailToken == '__blocked__') return;
+      if (nextEmail != (c.user?.email ?? '') && emailToken == null) return;
+
+      final phoneToken = await verifyChangedPhone(nextPhone);
+      if (phoneToken == '__blocked__') return;
+      if (nextPhone != (c.user?.phone ?? '') && phoneToken == null) return;
+
+      final error = await c.updateProfile(
+        fullName: name,
+        websiteUrl: website.text.trim(),
+        countryCode: countryCode,
+        avatarPreset: avatarPreset,
+        avatarData: avatarData,
+        avatarUrl: avatarUrl,
+        email: nextEmail,
+        phone: nextPhone,
+        emailVerificationToken: emailToken,
+        phoneVerificationToken: phoneToken,
       );
-      Navigator.pop(context);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr(widget.controller.fa, 'ذخیره پروفایل انجام نشد.', 'Could not update profile.'))),
-      );
+      if (!mounted) return;
+      if (error == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(c.fa, 'پروفایل با موفقیت ذخیره شد.', 'Profile updated successfully.'))),
+        );
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(c.fa, 'ذخیره پروفایل انجام نشد: $error', 'Could not update profile: $error'))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final c = widget.controller;
-    final identity = c.user?.email ?? c.user?.phone ?? '—';
+    final user = c.user;
     return Scaffold(
       appBar: AppBar(title: Text(tr(c.fa, 'ویرایش پروفایل', 'Edit profile'))),
       body: ListView(
         padding: const EdgeInsets.all(18),
         children: [
+          Center(
+            child: Column(
+              children: [
+                UserAvatar(user: previewUser(), size: 96, showEditBadge: true, onTap: chooseAvatar),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: busy ? null : pickProfilePhoto,
+                      icon: const Icon(Icons.photo_library_outlined, size: 18),
+                      label: Text(tr(c.fa, 'انتخاب تصویر', 'Upload photo')),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: busy ? null : chooseAvatar,
+                      icon: const Icon(Icons.face_retouching_natural_rounded, size: 18),
+                      label: Text(tr(c.fa, 'انتخاب آواتار', 'Choose avatar')),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  tr(c.fa, 'تصویر برای سرعت و حریم خصوصی فشرده می‌شود.', 'Profile photos are compressed for speed and privacy.'),
+                  style: const TextStyle(fontSize: 10.5, color: Color(0xFF8291A1)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          const SectionTitle('Basic information'),
+          const SizedBox(height: 10),
           TextField(
             controller: fullName,
             textCapitalization: TextCapitalization.words,
@@ -3422,14 +3706,64 @@ class _EditProfilePageState extends State<EditProfilePage> {
               labelText: tr(c.fa, 'نام و نام خانوادگی', 'Full name'),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           TextField(
-            readOnly: true,
-            controller: TextEditingController(text: identity),
+            controller: email,
+            keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.alternate_email),
-              labelText: tr(c.fa, 'ایمیل / شماره', 'Email / phone'),
-              helperText: tr(c.fa, 'تغییر ایمیل یا شماره بعد از فعال‌شدن تأیید هویت اضافه می‌شود.', 'Email/phone changes will be enabled with identity verification.'),
+              labelText: tr(c.fa, 'ایمیل', 'Email'),
+              suffixIcon: Icon(
+                user?.emailVerified == true ? Icons.verified_rounded : Icons.warning_amber_rounded,
+                color: user?.emailVerified == true ? const Color(0xFF18A875) : const Color(0xFFEFAF38),
+              ),
+              helperText: tr(c.fa, 'تغییر ایمیل با OTP تأیید می‌شود.', 'Changing email requires OTP verification.'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: phone,
+            keyboardType: TextInputType.phone,
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.phone_iphone_rounded),
+              labelText: tr(c.fa, 'شماره موبایل', 'Mobile number'),
+              hintText: '+937XXXXXXXX',
+              suffixIcon: Icon(
+                user?.phoneVerified == true ? Icons.verified_rounded : Icons.warning_amber_rounded,
+                color: user?.phoneVerified == true ? const Color(0xFF18A875) : const Color(0xFFEFAF38),
+              ),
+              helperText: tr(c.fa, 'شماره باید همراه کد کشور باشد.', 'Use international format with country code.'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => showCountryPicker(
+              context: context,
+              showPhoneCode: true,
+              onSelect: (country) => setState(() {
+                countryCode = country.countryCode;
+                if (phone.text.trim().isEmpty) phone.text = '+${country.phoneCode}';
+              }),
+            ),
+            child: InputDecorator(
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.public_rounded),
+                labelText: tr(c.fa, 'کشور', 'Country'),
+              ),
+              child: Text(countryCode?.isNotEmpty == true ? countryCode! : tr(c.fa, 'انتخاب کشور', 'Choose country')),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: website,
+            keyboardType: TextInputType.url,
+            autocorrect: false,
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.language_rounded),
+              labelText: tr(c.fa, 'آدرس سایت شما', 'Your website'),
+              hintText: 'https://example.com',
             ),
           ),
           const SizedBox(height: 24),
@@ -3441,6 +3775,61 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ),
     );
   }
+}
+
+Future<String?> showOtpDialog(
+  BuildContext context,
+  VerificationChallenge challenge,
+  bool fa,
+) async {
+  final code = TextEditingController();
+  final result = await showDialog<String>(
+    context: context,
+    barrierDismissible: false,
+    builder: (dialogContext) => AlertDialog(
+      title: Text(tr(fa, 'کد تأیید', 'Verification code')),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(tr(
+            fa,
+            'کد ۶ رقمی به ${challenge.maskedTarget} ارسال شد.',
+            'A 6-digit code was sent to ${challenge.maskedTarget}.',
+          )),
+          const SizedBox(height: 16),
+          TextField(
+            controller: code,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 8),
+            decoration: const InputDecoration(counterText: '', hintText: '••••••'),
+            onSubmitted: (value) {
+              if (RegExp(r'^\d{6}$').hasMatch(value.trim())) Navigator.pop(dialogContext, value.trim());
+            },
+          ),
+          const SizedBox(height: 8),
+          Text(
+            tr(fa, 'این کد تا ۱۰ دقیقه معتبر است.', 'This code expires in 10 minutes.'),
+            style: const TextStyle(fontSize: 11, color: Color(0xFF7A8B9D)),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(tr(fa, 'لغو', 'Cancel'))),
+        FilledButton(
+          onPressed: () {
+            if (RegExp(r'^\d{6}$').hasMatch(code.text.trim())) Navigator.pop(dialogContext, code.text.trim());
+          },
+          child: Text(tr(fa, 'تأیید', 'Verify')),
+        ),
+      ],
+    ),
+  );
+  code.dispose();
+  return result;
 }
 
 class ChangePasswordPage extends StatefulWidget {
