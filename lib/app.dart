@@ -1540,7 +1540,7 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     final c = widget.controller;
     final pages = [
-      HomePage(controller: c),
+      HomePage(controller: c, onProfileTap: () => setState(() => index = 4)),
       ServicesPage(controller: c),
       OrdersPage(controller: c),
       WalletPage(controller: c),
@@ -1570,8 +1570,9 @@ class _MainShellState extends State<MainShell> {
 }
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key, required this.controller});
+  const HomePage({super.key, required this.controller, this.onProfileTap});
   final AppController controller;
+  final VoidCallback? onProfileTap;
 
   static const services = [
     ServiceItem('شبکه‌های اجتماعی', 'Social Media', Icons.favorite_rounded, Color(0xFF7857FF)),
@@ -1632,11 +1633,10 @@ class HomePage extends StatelessWidget {
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationsPage(controller: c))),
                 ),
                 const SizedBox(width: 9),
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: const BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: [Color(0xFF51BEFF), Color(0xFF1686FF)])),
-                  child: Center(child: Text(_firstName(identity).substring(0, 1).toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900))),
+                UserAvatar(
+                  user: c.user,
+                  size: 42,
+                  onTap: onProfileTap ?? () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage(controller: c))),
                 ),
               ],
             ),
@@ -3218,7 +3218,7 @@ class ProfilePage extends StatelessWidget {
           SoftCard(
             child: Row(
               children: [
-                const CircleAvatar(radius: 30, backgroundColor: Color(0xFFE4F4FF), child: Icon(Icons.person_outline, size: 30, color: Color(0xFF0D78C8))),
+                UserAvatar(user: c.user, size: 60),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
