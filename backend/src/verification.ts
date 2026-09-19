@@ -22,6 +22,12 @@ const verifySchema = z.object({
   code: z.string().regex(/^\d{6}$/),
 });
 
+const contactChangeSchema = z.object({
+  type: z.enum(['EMAIL', 'PHONE']),
+  target: z.string().trim().min(5).max(254),
+  channel: z.enum(['EMAIL', 'SMS', 'WHATSAPP']),
+});
+
 const smtpConfigured = () => Boolean(
   process.env.SMTP_HOST
   && process.env.SMTP_USER
@@ -256,6 +262,38 @@ export function registerVerificationRoutes(
     if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
     try {
       return await verifyVerificationChallenge(app, prisma, parsed.data.challengeId, parsed.data.code);
+    } catch (error) {
+      return errorReply(reply, error);
+    }
+  });
+
+  app.post('/api/v1/me/contact-change/request', { preHandler: authenticate }, async (request, reply) => {
+    const parsed = contactChangeSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+    const claims = request.user as { sub: string };
+    const user = await prisma.user.findUnique({ where: { id: claims.sub } });
+    if (!user) return reply.code(404).send({ error: 'user_not_found' });
+
+    const target = normalizeTarget(parsed.data.target, parsed.data.channel);
+    if (parsed.data.type === 'EMAIL') {
+      if (parsed.data.channel !== 'EMAIL') return reply.code(400).send({ error: 'invalid_channel' });
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target)) return reply.code(400).send({ error: 'invalid_email' });
+      const exists = await prisma.user.findFirst({ where: { email: target, id: { not: user.id } } });
+      if (exists) return reply.code(409).send({ error: 'email_already_registered' });
+    } else {
+      if (parsed.data.channel === 'EMAIL') return reply.code(400).send({ error: 'invalid_channel' });
+      if (!/^\+[1-9]\d{6,14}$/.test(target)) return reply.code(400).send({ error: 'invalid_phone' });
+      const exists = await prisma.user.findFirst({ where: { phone: target, id: { not: user.id } } });
+      if (exists) return reply.code(409).send({ error: 'phone_already_registered' });
+    }
+
+    try {
+      return await issueVerificationChallenge(prisma, {
+        userId: user.id,
+        target,
+        channel: parsed.data.channel,
+        purpose: parsed.data.type === 'EMAIL' ? 'VERIFY_EMAIL' : 'VERIFY_PHONE',
+      });
     } catch (error) {
       return errorReply(reply, error);
     }
