@@ -3956,79 +3956,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  Future<String?> requestVerification({
-    required String type,
-    required String target,
-    required String channel,
-  }) async {
-    final challenge = await c.requestContactChangeOtp(type, target, channel);
-    if (challenge == null || !mounted) {
-      final code = c.authError ?? 'verification_unavailable';
-      final message = code.endsWith('_not_configured')
-          ? tr(c.fa, 'کانال OTP هنوز روی سرور تنظیم نشده است.', 'This OTP channel is not configured on the server yet.')
-          : tr(c.fa, 'ارسال کد تأیید انجام نشد.', 'Could not send the verification code.');
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-      return null;
-    }
-    final code = await showOtpDialog(context, challenge, c.fa);
-    if (code == null) return null;
-    return c.verifyAccountOtp(challenge.challengeId, code);
-  }
-
-  Future<String?> verifyChangedEmail(String value) async {
-    if (value == (c.user?.email ?? '')) return null;
-    if (!c.verificationCapabilities.email) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr(c.fa, 'برای تغییر ایمیل ابتدا ارسال OTP ایمیل را فعال می‌کنیم.', 'Email OTP must be configured before changing your email.'))),
-      );
-      return '__blocked__';
-    }
-    return requestVerification(type: 'EMAIL', target: value, channel: 'EMAIL');
-  }
-
-  Future<String?> verifyChangedPhone(String value) async {
-    if (value == (c.user?.phone ?? '')) return null;
-    final caps = c.verificationCapabilities;
-    String? channel;
-    if (caps.whatsapp && caps.sms) {
-      channel = await showModalBottomSheet<String>(
-        context: context,
-        showDragHandle: true,
-        builder: (_) => SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.chat_rounded, color: Color(0xFF20A76F)),
-                title: const Text('WhatsApp'),
-                subtitle: Text(tr(c.fa, 'ارسال کد با واتساپ', 'Send code with WhatsApp')),
-                onTap: () => Navigator.pop(context, 'WHATSAPP'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.sms_rounded, color: Color(0xFF1686FF)),
-                title: const Text('SMS'),
-                subtitle: Text(tr(c.fa, 'ارسال کد پیامکی', 'Send code by SMS')),
-                onTap: () => Navigator.pop(context, 'SMS'),
-              ),
-            ],
-          ),
-        ),
-      );
-    } else if (caps.whatsapp) {
-      channel = 'WHATSAPP';
-    } else if (caps.sms) {
-      channel = 'SMS';
-    }
-    if (channel == null) {
-      if (!mounted) return '__blocked__';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr(c.fa, 'سرویس رایگان SMS/WhatsApp هنوز متصل نشده است.', 'A free SMS/WhatsApp OTP provider is not connected yet.'))),
-      );
-      return '__blocked__';
-    }
-    return requestVerification(type: 'PHONE', target: value, channel: channel);
-  }
-
   Future<void> sendEmailVerification() async {
     final target = normalizedEmail;
     if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(target)) {
@@ -4364,7 +4291,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final user = c.user;
     return Scaffold(
       appBar: AppBar(title: Text(tr(c.fa, 'ویرایش پروفایل', 'Edit profile'))),
       body: ListView(
