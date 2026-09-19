@@ -346,6 +346,9 @@ async function sendMetaWhatsAppOtp(target: string, code: string) {
         message: providerMessage || undefined,
       });
 
+      if (providerCode === 131030) {
+        throw new Error('whatsapp_test_recipient_not_allowed');
+      }
       if (
         /24.?hour|conversation|session|outside/i.test(providerMessage)
         || providerCode === 131047
@@ -515,6 +518,7 @@ function errorReply(reply: FastifyReply, error: unknown) {
     : code === 'otp_provider_failed' || code === 'email_otp_provider_failed' ? 502
     : code === 'email_otp_timeout' ? 504
     : code === 'whatsapp_session_required' ? 409
+    : code === 'whatsapp_test_recipient_not_allowed' ? 409
     : code === 'whatsapp_token_invalid' ? 502
     : 400;
   return reply.code(status).send({ error: code });
