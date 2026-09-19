@@ -4709,7 +4709,7 @@ class SettingsTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String value;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -4722,8 +4722,10 @@ class SettingsTile extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w800))),
               if (value.isNotEmpty) Text(value, style: const TextStyle(color: Color(0xFF607487))),
-              const SizedBox(width: 6),
-              const Icon(Icons.chevron_right, size: 20),
+              if (onTap != null) ...[
+                const SizedBox(width: 6),
+                const Icon(Icons.chevron_right, size: 20),
+              ],
             ],
           ),
         ),
