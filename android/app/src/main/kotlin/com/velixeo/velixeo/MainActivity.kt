@@ -1,23 +1,29 @@
 package com.velixeo.velixeo
 
+import android.app.DownloadManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.provider.Settings
-import androidx.core.content.FileProvider
+import androidx.core.app.NotificationCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
-import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 
 class MainActivity : FlutterActivity() {
     companion object {
         private const val UPDATE_CHANNEL = "com.velixeo.velixeo/updater"
+        private const val UPDATE_PREFS = "velixeo_update"
+        private const val PREF_DOWNLOAD_ID = "download_id"
+        private const val PREF_VERSION = "version"
+        private const val APK_MIME = "application/vnd.android.package-archive"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,6 +77,13 @@ class MainActivity : FlutterActivity() {
                         NotificationManager.IMPORTANCE_DEFAULT,
                     ),
                     channel(
+                        "velixeo_updates",
+                        "App updates",
+                        "VELIXEO app download and installation updates",
+                        NotificationManager.IMPORTANCE_DEFAULT,
+                        vibration = false,
+                    ),
+                    channel(
                         "velixeo_alerts",
                         "VELIXEO Alerts",
                         "Legacy VELIXEO notification channel",
@@ -88,7 +101,12 @@ class MainActivity : FlutterActivity() {
                 when (call.method) {
                     "getAppVersion" -> {
                         val info = packageManager.getPackageInfo(packageName, 0)
-                        result.success(info.versionName ?: "0.0.0")
+                        val current = info.versionName ?: "0.0.0"
+                        val prefs = getSharedPreferences(UPDATE_PREFS, Context.MODE_PRIVATE)
+                        if (prefs.getString(PREF_VERSION, null) == current) {
+                            prefs.edit().remove(PREF_DOWNLOAD_ID).remove(PREF_VERSION).apply()
+                        }
+                        result.success(current)
                     }
 
                     "canInstallPackages" -> {
@@ -112,14 +130,53 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
 
-                    "downloadAndInstallApk" -> {
+                    "startUpdateDownload", "downloadAndInstallApk" -> {
                         val url = call.argument<String>("url")
                         val version = call.argument<String>("version") ?: "latest"
                         if (url.isNullOrBlank()) {
                             result.error("invalid_url", "Update URL is missing.", null)
                             return@setMethodCallHandler
                         }
-                        downloadAndInstall(url, version, result)
+                        try {
+                            result.success(startUpdateDownload(url, version))
+                        } catch (error: Exception) {
+                            result.error("download_start_failed", error.message, null)
+                        }
+                    }
+
+                    "getUpdateDownloadStatus" -> {
+                        val requested = call.argument<Number>("downloadId")?.toLong()
+                        val id = requested ?: storedDownloadId()
+                        if (id == null) {
+                            result.success(null)
+                        } else {
+                            result.success(queryDownload(id))
+                        }
+                    }
+
+                    "openDownloadedUpdate" -> {
+                        val requested = call.argument<Number>("downloadId")?.toLong()
+                        val id = requested ?: storedDownloadId()
+                        if (id == null) {
+                            result.error("download_missing", "No downloaded update was found.", null)
+                            return@setMethodCallHandler
+                        }
+                        try {
+                            openDownloadedUpdate(id)
+                            result.success(null)
+                        } catch (error: Exception) {
+                            result.error("install_failed", error.message, null)
+                        }
+                    }
+
+                    "cancelUpdateDownload" -> {
+                        val requested = call.argument<Number>("downloadId")?.toLong()
+                        val id = requested ?: storedDownloadId()
+                        if (id != null) {
+                            downloadManager().remove(id)
+                            clearStoredDownload(id)
+                        }
+                        result.success(null)
                     }
 
                     else -> result.notImplemented()
@@ -127,76 +184,210 @@ class MainActivity : FlutterActivity() {
             }
     }
 
-    private fun downloadAndInstall(
-        sourceUrl: String,
-        version: String,
-        result: MethodChannel.Result,
-    ) {
-        Thread {
-            try {
-                val updateDir = File(cacheDir, "updates").apply { mkdirs() }
-                updateDir.listFiles()?.forEach { it.delete() }
-                val apk = File(updateDir, "VELIXEO-$version.apk")
+    private fun downloadManager(): DownloadManager =
+        getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
 
-                var currentUrl = URL(sourceUrl)
-                var connection: HttpURLConnection
-                var redirects = 0
-                while (true) {
-                    connection = (currentUrl.openConnection() as HttpURLConnection).apply {
-                        connectTimeout = 15_000
-                        readTimeout = 60_000
-                        instanceFollowRedirects = false
-                        requestMethod = "GET"
-                        setRequestProperty("User-Agent", "VELIXEO-Android-Updater")
-                        connect()
-                    }
-                    val status = connection.responseCode
-                    if (status in 300..399 && redirects < 6) {
-                        val location = connection.getHeaderField("Location")
-                            ?: throw IllegalStateException("Update redirect is missing a location.")
-                        connection.disconnect()
-                        currentUrl = URL(currentUrl, location)
-                        redirects += 1
-                        continue
-                    }
-                    if (status !in 200..299) {
-                        throw IllegalStateException("Update download failed with HTTP $status.")
-                    }
-                    break
-                }
+    private fun storedDownloadId(): Long? {
+        val value = getSharedPreferences(UPDATE_PREFS, Context.MODE_PRIVATE)
+            .getLong(PREF_DOWNLOAD_ID, -1L)
+        return value.takeIf { it > 0L }
+    }
 
-                connection.inputStream.use { input ->
-                    apk.outputStream().use { output -> input.copyTo(output) }
-                }
-                connection.disconnect()
+    private fun clearStoredDownload(id: Long) {
+        val prefs = getSharedPreferences(UPDATE_PREFS, Context.MODE_PRIVATE)
+        if (prefs.getLong(PREF_DOWNLOAD_ID, -1L) == id) {
+            prefs.edit().remove(PREF_DOWNLOAD_ID).remove(PREF_VERSION).apply()
+        }
+    }
 
-                if (!apk.exists() || apk.length() < 1_000_000) {
-                    throw IllegalStateException("Downloaded APK is invalid.")
-                }
-
-                runOnUiThread {
-                    try {
-                        val uri = FileProvider.getUriForFile(
-                            this,
-                            "$packageName.fileprovider",
-                            apk,
-                        )
-                        val intent = Intent(Intent.ACTION_VIEW).apply {
-                            setDataAndType(uri, "application/vnd.android.package-archive")
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        startActivity(intent)
-                        result.success(null)
-                    } catch (error: Exception) {
-                        result.error("install_failed", error.message, null)
-                    }
-                }
-            } catch (error: Exception) {
-                runOnUiThread {
-                    result.error("download_failed", error.message, null)
-                }
+    private fun startUpdateDownload(sourceUrl: String, version: String): Map<String, Any?> {
+        val prefs = getSharedPreferences(UPDATE_PREFS, Context.MODE_PRIVATE)
+        val existingId = prefs.getLong(PREF_DOWNLOAD_ID, -1L)
+        val existingVersion = prefs.getString(PREF_VERSION, null)
+        if (existingId > 0L && existingVersion == version) {
+            val existing = queryDownload(existingId)
+            val status = existing?.get("status") as? String
+            if (existing != null && status !in setOf("failed", "missing")) {
+                return existing
             }
-        }.start()
+            downloadManager().remove(existingId)
+        }
+
+        val request = DownloadManager.Request(Uri.parse(sourceUrl))
+            .setTitle("VELIXEO $version")
+            .setDescription("Downloading signed app update")
+            .setMimeType(APK_MIME)
+            .setAllowedOverMetered(true)
+            .setAllowedOverRoaming(false)
+            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setDestinationInExternalFilesDir(
+                this,
+                Environment.DIRECTORY_DOWNLOADS,
+                "VELIXEO-v$version-release.apk",
+            )
+            .addRequestHeader("User-Agent", "VELIXEO-Android-Updater")
+
+        val id = downloadManager().enqueue(request)
+        if (id <= 0L) {
+            throw IllegalStateException("Android DownloadManager could not start the update.")
+        }
+
+        prefs.edit()
+            .putLong(PREF_DOWNLOAD_ID, id)
+            .putString(PREF_VERSION, version)
+            .apply()
+
+        return queryDownload(id) ?: mapOf(
+            "downloadId" to id,
+            "version" to version,
+            "status" to "pending",
+            "downloadedBytes" to 0L,
+            "totalBytes" to -1L,
+            "progress" to -1.0,
+        )
+    }
+
+    private fun queryDownload(id: Long): Map<String, Any?>? {
+        val cursor = downloadManager().query(
+            DownloadManager.Query().setFilterById(id),
+        )
+        cursor.use {
+            if (!it.moveToFirst()) {
+                clearStoredDownload(id)
+                return mapOf(
+                    "downloadId" to id,
+                    "status" to "missing",
+                    "downloadedBytes" to 0L,
+                    "totalBytes" to -1L,
+                    "progress" to -1.0,
+                )
+            }
+
+            fun longColumn(name: String): Long {
+                val index = it.getColumnIndex(name)
+                return if (index >= 0) it.getLong(index) else -1L
+            }
+
+            val rawStatus = longColumn(DownloadManager.COLUMN_STATUS).toInt()
+            val downloaded = longColumn(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
+            val total = longColumn(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
+            val reason = longColumn(DownloadManager.COLUMN_REASON)
+            val progress = if (total > 0L && downloaded >= 0L) {
+                (downloaded.toDouble() / total.toDouble()).coerceIn(0.0, 1.0)
+            } else {
+                -1.0
+            }
+            val status = when (rawStatus) {
+                DownloadManager.STATUS_PENDING -> "pending"
+                DownloadManager.STATUS_RUNNING -> "running"
+                DownloadManager.STATUS_PAUSED -> "paused"
+                DownloadManager.STATUS_SUCCESSFUL -> "successful"
+                DownloadManager.STATUS_FAILED -> "failed"
+                else -> "unknown"
+            }
+            val prefs = getSharedPreferences(UPDATE_PREFS, Context.MODE_PRIVATE)
+            return mapOf(
+                "downloadId" to id,
+                "version" to prefs.getString(PREF_VERSION, null),
+                "status" to status,
+                "downloadedBytes" to downloaded,
+                "totalBytes" to total,
+                "progress" to progress,
+                "reason" to reason,
+            )
+        }
+    }
+
+    private fun openDownloadedUpdate(id: Long) {
+        val state = queryDownload(id)
+        if (state?.get("status") != "successful") {
+            throw IllegalStateException("The update has not finished downloading yet.")
+        }
+
+        val uri = downloadManager().getUriForDownloadedFile(id)
+            ?: throw IllegalStateException("The downloaded APK could not be opened.")
+
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, APK_MIME)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        startActivity(intent)
+    }
+}
+
+class UpdateDownloadReceiver : BroadcastReceiver() {
+    companion object {
+        private const val UPDATE_PREFS = "velixeo_update"
+        private const val PREF_DOWNLOAD_ID = "download_id"
+        private const val APK_MIME = "application/vnd.android.package-archive"
+        private const val UPDATE_NOTIFICATION_ID = 2085
+    }
+
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action != DownloadManager.ACTION_DOWNLOAD_COMPLETE) return
+
+        val completedId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
+        if (completedId <= 0L) return
+
+        val prefs = context.getSharedPreferences(UPDATE_PREFS, Context.MODE_PRIVATE)
+        if (prefs.getLong(PREF_DOWNLOAD_ID, -1L) != completedId) return
+
+        val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val cursor = manager.query(DownloadManager.Query().setFilterById(completedId))
+        val successful = cursor.use {
+            if (!it.moveToFirst()) {
+                false
+            } else {
+                val index = it.getColumnIndex(DownloadManager.COLUMN_STATUS)
+                index >= 0 && it.getInt(index) == DownloadManager.STATUS_SUCCESSFUL
+            }
+        }
+        if (!successful) return
+
+        val uri = manager.getUriForDownloadedFile(completedId) ?: return
+        val installIntent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, APK_MIME)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            UPDATE_NOTIFICATION_ID,
+            installIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notifications = context.getSystemService(NotificationManager::class.java)
+            if (notifications.getNotificationChannel("velixeo_updates") == null) {
+                notifications.createNotificationChannel(
+                    NotificationChannel(
+                        "velixeo_updates",
+                        "App updates",
+                        NotificationManager.IMPORTANCE_DEFAULT,
+                    ).apply {
+                        description = "VELIXEO app download and installation updates"
+                        enableVibration(false)
+                    },
+                )
+            }
+        }
+
+        try {
+            val notification = NotificationCompat.Builder(context, "velixeo_updates")
+                .setSmallIcon(R.drawable.ic_stat_velixeo)
+                .setContentTitle("VELIXEO update ready")
+                .setContentText("Download complete. Tap to install the update.")
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+                .build()
+            val notifications =
+                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notifications.notify(UPDATE_NOTIFICATION_ID, notification)
+        } catch (_: SecurityException) {
+            // Android DownloadManager still keeps its own completion notification.
+        }
     }
 }
