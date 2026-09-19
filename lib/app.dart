@@ -4576,7 +4576,15 @@ class SecurityPage extends StatefulWidget {
 
 class _SecurityPageState extends State<SecurityPage> {
   SecurityState? state;
+  final emailOtp = TextEditingController();
+  final phoneOtp = TextEditingController();
+  VerificationChallenge? emailChallenge;
+  VerificationChallenge? phoneChallenge;
   bool busy = false;
+  bool emailSending = false;
+  bool emailVerifying = false;
+  bool phoneSending = false;
+  bool phoneVerifying = false;
 
   AppController get c => widget.controller;
 
@@ -4584,6 +4592,13 @@ class _SecurityPageState extends State<SecurityPage> {
   void initState() {
     super.initState();
     load();
+  }
+
+  @override
+  void dispose() {
+    emailOtp.dispose();
+    phoneOtp.dispose();
+    super.dispose();
   }
 
   Future<void> load() async {
@@ -4603,31 +4618,73 @@ class _SecurityPageState extends State<SecurityPage> {
     return c.verifyAccountOtp(challenge.challengeId, code);
   }
 
-  Future<void> verifyEmail() async {
+  Future<void> sendSecurityEmailCode() async {
     final s = state;
     if (s == null || s.email?.isNotEmpty != true) return;
-    if (!s.verification.email) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr(c.fa, 'ارسال رایگان OTP ایمیل هنوز به SMTP دامنه متصل نشده است.', 'Free email OTP is waiting for your domain SMTP configuration.'))),
-      );
-      return;
-    }
-    setState(() => busy = true);
+    setState(() => emailSending = true);
     try {
-      final token = await verifyChallenge(await c.requestAccountOtp('EMAIL', 'VERIFY_EMAIL'));
-      if (token == null) return;
+      final fresh = await c.loadSecurityState();
+      if (fresh != null && mounted) setState(() => state = fresh);
+      final current = state;
+      if (current == null || !current.verification.email) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(c.fa, 'ارسال OTP ایمیل هنوز روی سرور فعال نیست.', 'Email OTP is not active on the server yet.'))),
+        );
+        return;
+      }
+      final challenge = await c.requestAccountOtp('EMAIL', 'VERIFY_EMAIL');
+      if (!mounted) return;
+      if (challenge == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(c.fa, 'ارسال کد تأیید انجام نشد.', 'Could not send the verification code.'))),
+        );
+        return;
+      }
+      setState(() {
+        emailChallenge = challenge;
+        emailOtp.clear();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(c.fa, 'کد ۶ رقمی به ایمیل شما ارسال شد.', 'A 6-digit code was sent to your email.'))),
+      );
+    } finally {
+      if (mounted) setState(() => emailSending = false);
+    }
+  }
+
+  Future<void> confirmSecurityEmailCode() async {
+    final challenge = emailChallenge;
+    final code = emailOtp.text.trim();
+    if (challenge == null || !RegExp(r'^\d{6}$').hasMatch(code)) return;
+    setState(() => emailVerifying = true);
+    try {
+      final token = await c.verifyAccountOtp(challenge.challengeId, code);
+      if (token == null || !mounted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(tr(c.fa, 'کد نادرست است یا منقضی شده.', 'The code is invalid or expired.'))),
+          );
+        }
+        return;
+      }
       final error = await c.verifyContact(token);
       if (!mounted) return;
-      if (error == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr(c.fa, 'ایمیل با موفقیت تأیید شد.', 'Email verified successfully.'))),
-        );
-        await load();
-      } else {
+      if (error != null) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+        return;
       }
+      setState(() {
+        emailChallenge = null;
+        emailOtp.clear();
+      });
+      await load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(c.fa, 'ایمیل با موفقیت تأیید شد.', 'Email verified successfully.'))),
+      );
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) setState(() => emailVerifying = false);
     }
   }
 
@@ -4665,33 +4722,73 @@ class _SecurityPageState extends State<SecurityPage> {
     );
   }
 
-  Future<void> verifyPhone() async {
+  Future<void> sendSecurityPhoneCode() async {
     final s = state;
     if (s == null || s.phone?.isNotEmpty != true) return;
-    final channel = await choosePhoneChannel();
-    if (channel == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr(c.fa, 'سرویس رایگان SMS/WhatsApp هنوز متصل نشده است.', 'A free SMS/WhatsApp OTP provider is not connected yet.'))),
-      );
-      return;
-    }
-    setState(() => busy = true);
+    setState(() => phoneSending = true);
     try {
-      final token = await verifyChallenge(await c.requestAccountOtp(channel, 'VERIFY_PHONE'));
-      if (token == null) return;
+      final channel = await choosePhoneChannel();
+      if (channel == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(c.fa, 'فعلاً کانال رایگان SMS/WhatsApp متصل نشده است.', 'A free SMS/WhatsApp OTP channel is not connected yet.'))),
+        );
+        return;
+      }
+      final challenge = await c.requestAccountOtp(channel, 'VERIFY_PHONE');
+      if (!mounted) return;
+      if (challenge == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(c.fa, 'ارسال کد تأیید انجام نشد.', 'Could not send the verification code.'))),
+        );
+        return;
+      }
+      setState(() {
+        phoneChallenge = challenge;
+        phoneOtp.clear();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(channel == 'WHATSAPP'
+            ? tr(c.fa, 'کد به واتساپ ارسال شد.', 'A code was sent to WhatsApp.')
+            : tr(c.fa, 'کد پیامکی ارسال شد.', 'A code was sent by SMS.'))),
+      );
+    } finally {
+      if (mounted) setState(() => phoneSending = false);
+    }
+  }
+
+  Future<void> confirmSecurityPhoneCode() async {
+    final challenge = phoneChallenge;
+    final code = phoneOtp.text.trim();
+    if (challenge == null || !RegExp(r'^\d{6}$').hasMatch(code)) return;
+    setState(() => phoneVerifying = true);
+    try {
+      final token = await c.verifyAccountOtp(challenge.challengeId, code);
+      if (token == null || !mounted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(tr(c.fa, 'کد نادرست است یا منقضی شده.', 'The code is invalid or expired.'))),
+          );
+        }
+        return;
+      }
       final error = await c.verifyContact(token);
       if (!mounted) return;
-      if (error == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr(c.fa, 'شماره موبایل با موفقیت تأیید شد.', 'Mobile number verified successfully.'))),
-        );
-        await load();
-      } else {
+      if (error != null) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+        return;
       }
+      setState(() {
+        phoneChallenge = null;
+        phoneOtp.clear();
+      });
+      await load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(c.fa, 'شماره موبایل با موفقیت تأیید شد.', 'Mobile number verified successfully.'))),
+      );
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) setState(() => phoneVerifying = false);
     }
   }
 
@@ -4865,17 +4962,34 @@ class _SecurityPageState extends State<SecurityPage> {
                     await load();
                   },
                 ),
-                SettingsTile(
+                _SecurityVerificationCard(
                   icon: Icons.alternate_email_rounded,
                   title: tr(c.fa, 'تأیید ایمیل', 'Email verification'),
-                  value: verificationLabel(s.emailVerified),
-                  onTap: busy || s.emailVerified || s.email?.isNotEmpty != true ? null : verifyEmail,
+                  subtitle: s.email ?? tr(c.fa, 'ایمیلی ثبت نشده است', 'No email registered'),
+                  verified: s.emailVerified,
+                  channelReady: s.verification.email,
+                  sending: emailSending,
+                  onSend: busy || s.emailVerified || s.email?.isNotEmpty != true ? null : sendSecurityEmailCode,
+                  challenge: emailChallenge,
+                  otpController: emailOtp,
+                  verifying: emailVerifying,
+                  onConfirm: confirmSecurityEmailCode,
+                  fa: c.fa,
                 ),
-                SettingsTile(
+                const SizedBox(height: 10),
+                _SecurityVerificationCard(
                   icon: Icons.phone_iphone_rounded,
                   title: tr(c.fa, 'تأیید شماره موبایل', 'Mobile verification'),
-                  value: verificationLabel(s.phoneVerified),
-                  onTap: busy || s.phoneVerified || s.phone?.isNotEmpty != true ? null : verifyPhone,
+                  subtitle: s.phone ?? tr(c.fa, 'شماره‌ای ثبت نشده است', 'No mobile number registered'),
+                  verified: s.phoneVerified,
+                  channelReady: s.verification.sms || s.verification.whatsapp,
+                  sending: phoneSending,
+                  onSend: busy || s.phoneVerified || s.phone?.isNotEmpty != true ? null : sendSecurityPhoneCode,
+                  challenge: phoneChallenge,
+                  otpController: phoneOtp,
+                  verifying: phoneVerifying,
+                  onConfirm: confirmSecurityPhoneCode,
+                  fa: c.fa,
                 ),
                 SettingsTile(
                   icon: Icons.phonelink_lock_rounded,
@@ -4909,6 +5023,114 @@ class _SecurityPageState extends State<SecurityPage> {
             ),
     );
   }
+}
+
+class _SecurityVerificationCard extends StatelessWidget {
+  const _SecurityVerificationCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.verified,
+    required this.channelReady,
+    required this.sending,
+    required this.onSend,
+    required this.challenge,
+    required this.otpController,
+    required this.verifying,
+    required this.onConfirm,
+    required this.fa,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool verified;
+  final bool channelReady;
+  final bool sending;
+  final VoidCallback? onSend;
+  final VerificationChallenge? challenge;
+  final TextEditingController otpController;
+  final bool verifying;
+  final VoidCallback onConfirm;
+  final bool fa;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: verified ? const Color(0xFFBFECDD) : const Color(0xFFE0E8F0)),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 43,
+                  height: 43,
+                  decoration: BoxDecoration(
+                    color: verified ? const Color(0xFFE9F9F2) : const Color(0xFFEAF5FF),
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: Icon(icon, color: verified ? const Color(0xFF18A875) : const Color(0xFF1686FF)),
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+                      const SizedBox(height: 2),
+                      Text(subtitle, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10.5, color: Color(0xFF7A8B9D))),
+                    ],
+                  ),
+                ),
+                if (verified)
+                  const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.verified_rounded, color: Color(0xFF18A875), size: 19),
+                      SizedBox(width: 5),
+                      Text('VERIFIED', style: TextStyle(color: Color(0xFF18A875), fontSize: 9.5, fontWeight: FontWeight.w900)),
+                    ],
+                  )
+                else
+                  FilledButton(
+                    onPressed: sending ? null : onSend,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(84, 38),
+                      padding: const EdgeInsets.symmetric(horizontal: 13),
+                    ),
+                    child: sending
+                        ? const SizedBox.square(dimension: 15, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : Text(channelReady ? tr(fa, 'ارسال کد', 'Verify') : tr(fa, 'غیرفعال', 'Unavailable'), style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900)),
+                  ),
+              ],
+            ),
+            if (!verified && !channelReady) ...[
+              const SizedBox(height: 9),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  tr(fa, 'کانال OTP این بخش هنوز روی سرور فعال نشده است.', 'The OTP channel for this contact is not active yet.'),
+                  style: const TextStyle(fontSize: 10, color: Color(0xFFE09A22)),
+                ),
+              ),
+            ],
+            if (challenge != null) ...[
+              const SizedBox(height: 11),
+              _InlineOtpPanel(
+                controller: otpController,
+                maskedTarget: challenge!.maskedTarget,
+                loading: verifying,
+                onVerify: onConfirm,
+                fa: fa,
+              ),
+            ],
+          ],
+        ),
+      );
 }
 
 class _SecurityChannelRow extends StatelessWidget {
