@@ -1212,6 +1212,10 @@ class _AuthPageState extends State<AuthPage> {
   final confirm = TextEditingController();
   bool registerMode = false;
   bool hidden = true;
+  String registerMethod = 'EMAIL';
+  String countryCode = 'AF';
+  String phoneCode = '93';
+  String countryFlag = '🇦🇫';
 
   @override
   void dispose() {
@@ -1231,6 +1235,14 @@ class _AuthPageState extends State<AuthPage> {
         return tr(fa, 'این ایمیل قبلاً ثبت شده است.', 'This email is already registered.');
       case 'phone_already_registered':
         return tr(fa, 'این شماره قبلاً ثبت شده است.', 'This phone number is already registered.');
+      case 'verification_required':
+        return tr(fa, 'ابتدا کد تأیید را وارد کنید.', 'Verification is required before registration.');
+      case 'otp_invalid':
+        return tr(fa, 'کد تأیید نادرست است.', 'The verification code is incorrect.');
+      case 'otp_expired':
+        return tr(fa, 'کد تأیید منقضی شده است.', 'The verification code has expired.');
+      case 'otp_resend_too_soon':
+        return tr(fa, 'برای ارسال دوباره کمی صبر کنید.', 'Please wait before requesting another code.');
       case 'invalid_request':
         return tr(fa, 'اطلاعات واردشده معتبر نیست.', 'Please check the entered information.');
       case 'network_error':
@@ -1250,37 +1262,178 @@ class _AuthPageState extends State<AuthPage> {
     }
   }
 
+  String registrationTarget() {
+    if (registerMethod == 'EMAIL') return identifier.text.trim().toLowerCase();
+    var local = identifier.text.replaceAll(RegExp(r'\D'), '');
+    if (local.startsWith('0')) local = local.substring(1);
+    return '+$phoneCode$local';
+  }
+
+  Future<String?> registrationVerificationToken(String target) async {
+    final c = widget.controller;
+    final caps = c.verificationCapabilities;
+    String? channel;
+    if (registerMethod == 'EMAIL') {
+      if (caps.email) channel = 'EMAIL';
+    } else {
+      if (caps.whatsapp && caps.sms) {
+        channel = await showModalBottomSheet<String>(
+          context: context,
+          showDragHandle: true,
+          builder: (_) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.chat_rounded, color: Color(0xFF20A76F)),
+                  title: const Text('WhatsApp'),
+                  subtitle: Text(tr(c.fa, 'ارسال کد با واتساپ', 'Send code with WhatsApp')),
+                  onTap: () => Navigator.pop(context, 'WHATSAPP'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.sms_rounded, color: Color(0xFF1686FF)),
+                  title: const Text('SMS'),
+                  subtitle: Text(tr(c.fa, 'ارسال کد پیامکی', 'Send code by SMS')),
+                  onTap: () => Navigator.pop(context, 'SMS'),
+                ),
+              ],
+            ),
+          ),
+        );
+        if (channel == null) return '__cancelled__';
+      } else if (caps.whatsapp) {
+        channel = 'WHATSAPP';
+      } else if (caps.sms) {
+        channel = 'SMS';
+      }
+    }
+
+    if (channel == null) {
+      if (caps.registrationVerificationRequired) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(registerMethod == 'EMAIL'
+                ? tr(c.fa, 'ارسال OTP ایمیل هنوز تنظیم نشده است.', 'Email OTP is not configured yet.')
+                : tr(c.fa, 'سرویس رایگان SMS/WhatsApp هنوز متصل نشده است.', 'A free SMS/WhatsApp OTP provider is not connected yet.')),
+          ),
+        );
+        return '__cancelled__';
+      }
+      return null;
+    }
+
+    try {
+      final challenge = await c.api.requestRegistrationOtp(target: target, channel: channel);
+      if (!mounted) return '__cancelled__';
+      final code = await showOtpDialog(context, challenge, c.fa);
+      if (code == null) return '__cancelled__';
+      return await c.api.verifyRegistrationOtp(challengeId: challenge.challengeId, code: code);
+    } on ApiException catch (error) {
+      if (!mounted) return '__cancelled__';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage(error.code))));
+      return '__cancelled__';
+    } catch (_) {
+      if (!mounted) return '__cancelled__';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage('network_error'))));
+      return '__cancelled__';
+    }
+  }
+
   Future<void> submit() async {
     FocusScope.of(context).unfocus();
+    final c = widget.controller;
     if (registerMode && fullName.text.trim().length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr(widget.controller.fa, 'نام و نام خانوادگی را وارد کنید.', 'Enter your full name.'))),
+        SnackBar(content: Text(tr(c.fa, 'نام و نام خانوادگی را وارد کنید.', 'Enter your full name.'))),
       );
       return;
     }
-    final rawIdentifier = identifier.text.trim();
+
+    final rawIdentifier = registerMode ? registrationTarget() : identifier.text.trim();
     final looksLikeEmail = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(rawIdentifier);
-    final looksLikePhone = RegExp(r'^\+?[0-9][0-9\s-]{6,31}$').hasMatch(rawIdentifier);
+    final looksLikePhone = RegExp(r'^\+[1-9]\d{6,14}$').hasMatch(rawIdentifier);
     if ((!looksLikeEmail && !looksLikePhone) || password.text.length < 8) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr(widget.controller.fa, 'ایمیل یا شماره معتبر و رمز حداقل ۸ کاراکتری وارد کنید.', 'Enter a valid email or phone number and a password of at least 8 characters.'))),
+        SnackBar(content: Text(tr(c.fa, 'ایمیل یا شماره معتبر و رمز حداقل ۸ کاراکتری وارد کنید.', 'Enter a valid email or phone number and a password of at least 8 characters.'))),
       );
       return;
     }
     if (registerMode && password.text != confirm.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr(widget.controller.fa, 'دو رمز عبور یکسان نیست.', 'Passwords do not match.'))),
+        SnackBar(content: Text(tr(c.fa, 'دو رمز عبور یکسان نیست.', 'Passwords do not match.'))),
       );
       return;
     }
-    final ok = registerMode
-        ? await widget.controller.register(fullName.text, identifier.text, password.text)
-        : await widget.controller.login(identifier.text, password.text);
-    if (!ok && mounted) {
+
+    if (registerMode) {
+      final token = await registrationVerificationToken(rawIdentifier);
+      if (token == '__cancelled__') return;
+      final ok = await c.register(fullName.text, rawIdentifier, password.text, verificationToken: token);
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage(c.authError ?? 'unknown'))));
+      }
+      return;
+    }
+
+    final ok = await c.login(rawIdentifier, password.text);
+    if (!mounted) return;
+    if (!ok && c.pendingTwoFactor != null) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => TwoFactorLoginPage(controller: c)),
+      );
+      return;
+    }
+    if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage(widget.controller.authError ?? 'unknown'))),
+        SnackBar(content: Text(errorMessage(c.authError ?? 'unknown'))),
       );
     }
+  }
+
+  Widget registrationIdentifier(bool fa) {
+    if (registerMethod == 'EMAIL') {
+      return TextField(
+        controller: identifier,
+        keyboardType: TextInputType.emailAddress,
+        autocorrect: false,
+        decoration: InputDecoration(
+          prefixIcon: const Icon(Icons.alternate_email),
+          hintText: tr(fa, 'ایمیل شما', 'Email address'),
+        ),
+      );
+    }
+    return TextField(
+      controller: identifier,
+      keyboardType: TextInputType.phone,
+      decoration: InputDecoration(
+        prefixIcon: InkWell(
+          onTap: () => showCountryPicker(
+            context: context,
+            showPhoneCode: true,
+            onSelect: (country) => setState(() {
+              countryCode = country.countryCode;
+              phoneCode = country.phoneCode;
+              countryFlag = country.flagEmoji;
+            }),
+          ),
+          child: Container(
+            margin: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(color: const Color(0xFFF1F6FB), borderRadius: BorderRadius.circular(10)),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(countryFlag),
+                const SizedBox(width: 4),
+                Text('+$phoneCode', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+              ],
+            ),
+          ),
+        ),
+        hintText: tr(fa, 'شماره موبایل', 'Mobile number'),
+      ),
+    );
   }
 
   @override
@@ -1301,7 +1454,9 @@ class _AuthPageState extends State<AuthPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              registerMode ? tr(fa, 'حساب واقعی شما روی سرور امن VELIXEO ساخته می‌شود.', 'Your account is created on the secure VELIXEO backend.') : tr(fa, 'برای ادامه وارد حساب خود شوید.', 'Sign in to continue.'),
+              registerMode
+                  ? tr(fa, 'با ایمیل یا شماره موبایل ثبت‌نام کنید.', 'Register with email or mobile number.')
+                  : tr(fa, 'برای ادامه وارد حساب خود شوید.', 'Sign in to continue.'),
               style: const TextStyle(color: Color(0xFF607487)),
             ),
             const SizedBox(height: 28),
@@ -1315,16 +1470,49 @@ class _AuthPageState extends State<AuthPage> {
                 ),
               ),
               const SizedBox(height: 14),
-            ],
-            TextField(
-              controller: identifier,
-              keyboardType: TextInputType.emailAddress,
-              autocorrect: false,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.alternate_email),
-                hintText: tr(fa, 'ایمیل یا شماره موبایل', 'Email or phone number'),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(color: const Color(0xFFF0F5FA), borderRadius: BorderRadius.circular(14)),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _AuthMethodButton(
+                        selected: registerMethod == 'EMAIL',
+                        icon: Icons.alternate_email_rounded,
+                        label: tr(fa, 'ایمیل', 'Email'),
+                        onTap: () => setState(() {
+                          registerMethod = 'EMAIL';
+                          identifier.clear();
+                        }),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: _AuthMethodButton(
+                        selected: registerMethod == 'PHONE',
+                        icon: Icons.phone_iphone_rounded,
+                        label: tr(fa, 'موبایل', 'Mobile'),
+                        onTap: () => setState(() {
+                          registerMethod = 'PHONE';
+                          identifier.clear();
+                        }),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+              const SizedBox(height: 14),
+              registrationIdentifier(fa),
+            ] else
+              TextField(
+                controller: identifier,
+                keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.alternate_email),
+                  hintText: tr(fa, 'ایمیل یا شماره موبایل', 'Email or phone number'),
+                ),
+              ),
             const SizedBox(height: 14),
             TextField(
               controller: password,
@@ -1342,11 +1530,32 @@ class _AuthPageState extends State<AuthPage> {
               const SizedBox(height: 14),
               TextField(
                 controller: confirm,
-                obscureText: true,
+                obscureText: hidden,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.lock_reset_outlined),
                   hintText: tr(fa, 'تکرار رمز عبور', 'Confirm password'),
                 ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(
+                    registerMethod == 'EMAIL'
+                        ? (c.verificationCapabilities.email ? Icons.verified_user_rounded : Icons.info_outline_rounded)
+                        : ((c.verificationCapabilities.sms || c.verificationCapabilities.whatsapp) ? Icons.verified_user_rounded : Icons.info_outline_rounded),
+                    size: 17,
+                    color: const Color(0xFF1686FF),
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      registerMethod == 'EMAIL'
+                          ? tr(fa, 'در صورت فعال بودن SMTP، کد OTP به ایمیل ارسال می‌شود.', 'OTP will be sent by email when SMTP is configured.')
+                          : tr(fa, 'در صورت اتصال سرویس رایگان، SMS یا WhatsApp برای OTP نمایش داده می‌شود.', 'SMS or WhatsApp OTP appears when a free provider is connected.'),
+                      style: const TextStyle(fontSize: 10.5, color: Color(0xFF6E8194)),
+                    ),
+                  ),
+                ],
               ),
             ],
             const SizedBox(height: 22),
@@ -1363,10 +1572,7 @@ class _AuthPageState extends State<AuthPage> {
               Row(
                 children: [
                   const Expanded(child: Divider()),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(tr(fa, 'یا', 'or')),
-                  ),
+                  Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text(tr(fa, 'یا', 'or'))),
                   const Expanded(child: Divider()),
                 ],
               ),
@@ -1385,19 +1591,8 @@ class _AuthPageState extends State<AuthPage> {
                             );
                           }
                         },
-                  icon: const Text(
-                    'G',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 18,
-                      color: Color(0xFF4285F4),
-                    ),
-                  ),
-                  label: Text(
-                    c.googleConfigured
-                        ? tr(fa, 'ادامه با Google', 'Continue with Google')
-                        : tr(fa, 'Google — در انتظار تنظیم OAuth', 'Google — OAuth setup pending'),
-                  ),
+                  icon: const Text('G', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Color(0xFF4285F4))),
+                  label: Text(c.googleConfigured ? tr(fa, 'ادامه با Google', 'Continue with Google') : tr(fa, 'Google — در انتظار تنظیم OAuth', 'Google — OAuth setup pending')),
                 ),
               ),
             ],
@@ -1408,12 +1603,9 @@ class _AuthPageState extends State<AuthPage> {
                   : () => setState(() {
                         registerMode = !registerMode;
                         confirm.clear();
+                        identifier.clear();
                       }),
-              child: Text(
-                registerMode
-                    ? tr(fa, 'حساب دارید؟ وارد شوید', 'Already have an account? Sign in')
-                    : tr(fa, 'حساب ندارید؟ ثبت‌نام کنید', 'New here? Create account'),
-              ),
+              child: Text(registerMode ? tr(fa, 'حساب دارید؟ وارد شوید', 'Already have an account? Sign in') : tr(fa, 'حساب ندارید؟ ثبت‌نام کنید', 'New here? Create account')),
             ),
             const SizedBox(height: 18),
             Center(
@@ -1425,6 +1617,133 @@ class _AuthPageState extends State<AuthPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AuthMethodButton extends StatelessWidget {
+  const _AuthMethodButton({
+    required this.selected,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final bool selected;
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: selected ? Colors.white : Colors.transparent,
+        borderRadius: BorderRadius.circular(11),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(11),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 11),
+            decoration: selected
+                ? BoxDecoration(
+                    borderRadius: BorderRadius.circular(11),
+                    boxShadow: const [BoxShadow(color: Color(0x0D153F68), blurRadius: 12)],
+                  )
+                : null,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 18, color: selected ? const Color(0xFF1686FF) : const Color(0xFF7B8B9C)),
+                const SizedBox(width: 7),
+                Text(label, style: TextStyle(fontWeight: FontWeight.w900, color: selected ? const Color(0xFF1686FF) : const Color(0xFF7B8B9C))),
+              ],
+            ),
+          ),
+        ),
+      );
+}
+
+class TwoFactorLoginPage extends StatefulWidget {
+  const TwoFactorLoginPage({super.key, required this.controller});
+  final AppController controller;
+
+  @override
+  State<TwoFactorLoginPage> createState() => _TwoFactorLoginPageState();
+}
+
+class _TwoFactorLoginPageState extends State<TwoFactorLoginPage> {
+  final code = TextEditingController();
+
+  @override
+  void dispose() {
+    code.dispose();
+    super.dispose();
+  }
+
+  Future<void> verify() async {
+    if (!RegExp(r'^\d{6}$').hasMatch(code.text.trim())) return;
+    final ok = await widget.controller.completeTwoFactorLogin(code.text.trim());
+    if (!mounted) return;
+    if (ok) {
+      Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(widget.controller.authError ?? 'Verification failed')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.controller;
+    final challenge = c.pendingTwoFactor;
+    return Scaffold(
+      appBar: AppBar(title: Text(tr(c.fa, 'تأیید ورود', 'Verify sign-in'))),
+      body: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          const SizedBox(height: 28),
+          Center(
+            child: Container(
+              width: 78,
+              height: 78,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F4FF),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: const Icon(Icons.phonelink_lock_rounded, color: Color(0xFF1686FF), size: 39),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            tr(c.fa, 'احراز هویت دو مرحله‌ای', 'Two-step verification'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            challenge == null
+                ? tr(c.fa, 'جلسه تأیید در دسترس نیست.', 'Verification session is unavailable.')
+                : tr(c.fa, 'کد ۶ رقمی به ${challenge.maskedTarget} ارسال شد.', 'A 6-digit code was sent to ${challenge.maskedTarget}.'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFF6E8194), height: 1.5),
+          ),
+          const SizedBox(height: 24),
+          TextField(
+            controller: code,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 10),
+            decoration: const InputDecoration(counterText: '', hintText: '••••••'),
+            onSubmitted: (_) => verify(),
+          ),
+          const SizedBox(height: 18),
+          PrimaryButton(
+            label: c.authBusy ? tr(c.fa, 'درحال بررسی...', 'Verifying...') : tr(c.fa, 'تأیید و ورود', 'Verify and sign in'),
+            onPressed: c.authBusy || challenge == null ? null : verify,
+          ),
+        ],
       ),
     );
   }
