@@ -3832,6 +3832,450 @@ Future<String?> showOtpDialog(
   return result;
 }
 
+class SecurityPage extends StatefulWidget {
+  const SecurityPage({super.key, required this.controller});
+  final AppController controller;
+
+  @override
+  State<SecurityPage> createState() => _SecurityPageState();
+}
+
+class _SecurityPageState extends State<SecurityPage> {
+  SecurityState? state;
+  bool busy = false;
+
+  AppController get c => widget.controller;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    final value = await c.loadSecurityState();
+    if (!mounted) return;
+    setState(() => state = value);
+  }
+
+  String verificationLabel(bool verified) => verified
+      ? tr(c.fa, 'تأیید شده', 'Verified')
+      : tr(c.fa, 'تأیید نشده', 'Not verified');
+
+  Future<String?> verifyChallenge(VerificationChallenge? challenge) async {
+    if (challenge == null || !mounted) return null;
+    final code = await showOtpDialog(context, challenge, c.fa);
+    if (code == null) return null;
+    return c.verifyAccountOtp(challenge.challengeId, code);
+  }
+
+  Future<void> verifyEmail() async {
+    final s = state;
+    if (s == null || s.email?.isNotEmpty != true) return;
+    if (!s.verification.email) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(c.fa, 'ارسال رایگان OTP ایمیل هنوز به SMTP دامنه متصل نشده است.', 'Free email OTP is waiting for your domain SMTP configuration.'))),
+      );
+      return;
+    }
+    setState(() => busy = true);
+    try {
+      final token = await verifyChallenge(await c.requestAccountOtp('EMAIL', 'VERIFY_EMAIL'));
+      if (token == null) return;
+      final error = await c.verifyContact(token);
+      if (!mounted) return;
+      if (error == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(c.fa, 'ایمیل با موفقیت تأیید شد.', 'Email verified successfully.'))),
+        );
+        await load();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<String?> choosePhoneChannel() async {
+    final s = state;
+    if (s == null) return null;
+    final choices = <String>[];
+    if (s.verification.whatsapp) choices.add('WHATSAPP');
+    if (s.verification.sms) choices.add('SMS');
+    if (choices.isEmpty) return null;
+    if (choices.length == 1) return choices.first;
+    if (!mounted) return null;
+    return showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.chat_rounded, color: Color(0xFF20A76F)),
+              title: const Text('WhatsApp'),
+              subtitle: Text(tr(c.fa, 'دریافت کد از واتساپ', 'Receive code on WhatsApp')),
+              onTap: () => Navigator.pop(context, 'WHATSAPP'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.sms_rounded, color: Color(0xFF1686FF)),
+              title: const Text('SMS'),
+              subtitle: Text(tr(c.fa, 'دریافت کد پیامکی', 'Receive code by SMS')),
+              onTap: () => Navigator.pop(context, 'SMS'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> verifyPhone() async {
+    final s = state;
+    if (s == null || s.phone?.isNotEmpty != true) return;
+    final channel = await choosePhoneChannel();
+    if (channel == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(c.fa, 'سرویس رایگان SMS/WhatsApp هنوز متصل نشده است.', 'A free SMS/WhatsApp OTP provider is not connected yet.'))),
+      );
+      return;
+    }
+    setState(() => busy = true);
+    try {
+      final token = await verifyChallenge(await c.requestAccountOtp(channel, 'VERIFY_PHONE'));
+      if (token == null) return;
+      final error = await c.verifyContact(token);
+      if (!mounted) return;
+      if (error == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(c.fa, 'شماره موبایل با موفقیت تأیید شد.', 'Mobile number verified successfully.'))),
+        );
+        await load();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<String?> chooseTwoFactorMethod() async {
+    final s = state;
+    if (s == null) return null;
+    final choices = <String>[];
+    if (s.emailVerified && s.verification.email) choices.add('EMAIL');
+    if (s.phoneVerified && s.verification.whatsapp) choices.add('WHATSAPP');
+    if (s.phoneVerified && s.verification.sms) choices.add('SMS');
+    if (choices.isEmpty) return null;
+    if (choices.length == 1) return choices.first;
+    if (!mounted) return null;
+    return showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: choices.map((method) {
+            final icon = method == 'EMAIL'
+                ? Icons.email_outlined
+                : method == 'WHATSAPP'
+                    ? Icons.chat_rounded
+                    : Icons.sms_rounded;
+            return ListTile(
+              leading: Icon(icon, color: const Color(0xFF1686FF)),
+              title: Text(method == 'EMAIL' ? 'Email' : method == 'WHATSAPP' ? 'WhatsApp' : 'SMS'),
+              subtitle: Text(tr(c.fa, 'روش دریافت کد ورود', 'Login verification method')),
+              onTap: () => Navigator.pop(context, method),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Future<void> enableTwoFactor() async {
+    final method = await chooseTwoFactorMethod();
+    if (method == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(tr(
+            c.fa,
+            'برای فعال‌سازی ابتدا یک ایمیل یا شماره موبایل تأییدشده با کانال OTP فعال لازم است.',
+            'Verify at least one email or mobile OTP channel before enabling two-step verification.',
+          )),
+        ),
+      );
+      return;
+    }
+    setState(() => busy = true);
+    try {
+      final token = await verifyChallenge(await c.requestAccountOtp(method, 'ENABLE_2FA'));
+      if (token == null) return;
+      final error = await c.enableTwoFactor(method, token);
+      if (!mounted) return;
+      if (error == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(c.fa, 'احراز هویت دو مرحله‌ای فعال شد.', 'Two-step verification is now enabled.'))),
+        );
+        await load();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> disableTwoFactor() async {
+    final s = state;
+    if (s == null) return;
+    String? password;
+    if (s.hasPassword) {
+      final controller = TextEditingController();
+      password = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(tr(c.fa, 'غیرفعال‌سازی 2FA', 'Disable two-step verification')),
+          content: TextField(
+            controller: controller,
+            obscureText: true,
+            autofocus: true,
+            decoration: InputDecoration(labelText: tr(c.fa, 'رمز عبور فعلی', 'Current password')),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(tr(c.fa, 'لغو', 'Cancel'))),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, controller.text), child: Text(tr(c.fa, 'ادامه', 'Continue'))),
+          ],
+        ),
+      );
+      controller.dispose();
+      if (password == null) return;
+    }
+    setState(() => busy = true);
+    try {
+      final error = await c.disableTwoFactor(password: password);
+      if (!mounted) return;
+      if (error == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(c.fa, 'احراز هویت دو مرحله‌ای غیرفعال شد.', 'Two-step verification has been disabled.'))),
+        );
+        await load();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = state;
+    return Scaffold(
+      appBar: AppBar(title: Text(tr(c.fa, 'امنیت و ورود', 'Security & login'))),
+      body: s == null
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.all(18),
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [Color(0xFF082D58), Color(0xFF1686FF)]),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 54,
+                        height: 54,
+                        decoration: BoxDecoration(color: Colors.white.withValues(alpha: .14), borderRadius: BorderRadius.circular(17)),
+                        child: const Icon(Icons.shield_rounded, color: Colors.white, size: 29),
+                      ),
+                      const SizedBox(width: 13),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(tr(c.fa, 'حفاظت از حساب VELIXEO', 'Protect your VELIXEO account'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
+                            const SizedBox(height: 4),
+                            Text(
+                              s.twoFactorEnabled
+                                  ? tr(c.fa, 'احراز دو مرحله‌ای فعال است.', 'Two-step verification is enabled.')
+                                  : tr(c.fa, 'با فعال‌کردن 2FA یک لایه امنیتی دیگر اضافه کنید.', 'Add another layer of protection with 2FA.'),
+                              style: const TextStyle(color: Color(0xFFD8ECFF), fontSize: 11.5, height: 1.4),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SettingsTile(
+                  icon: Icons.password_rounded,
+                  title: s.hasPassword ? tr(c.fa, 'رمز عبور', 'Password') : tr(c.fa, 'تنظیم رمز عبور', 'Set password'),
+                  value: s.hasPassword ? tr(c.fa, 'فعال', 'Active') : tr(c.fa, 'تنظیم نشده', 'Not set'),
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => s.hasPassword
+                            ? ChangePasswordPage(controller: c)
+                            : SetPasswordPage(controller: c),
+                      ),
+                    );
+                    await load();
+                  },
+                ),
+                SettingsTile(
+                  icon: Icons.alternate_email_rounded,
+                  title: tr(c.fa, 'تأیید ایمیل', 'Email verification'),
+                  value: verificationLabel(s.emailVerified),
+                  onTap: busy || s.emailVerified || s.email?.isNotEmpty != true ? null : verifyEmail,
+                ),
+                SettingsTile(
+                  icon: Icons.phone_iphone_rounded,
+                  title: tr(c.fa, 'تأیید شماره موبایل', 'Mobile verification'),
+                  value: verificationLabel(s.phoneVerified),
+                  onTap: busy || s.phoneVerified || s.phone?.isNotEmpty != true ? null : verifyPhone,
+                ),
+                SettingsTile(
+                  icon: Icons.phonelink_lock_rounded,
+                  title: tr(c.fa, 'احراز هویت دو مرحله‌ای', 'Two-step verification'),
+                  value: s.twoFactorEnabled ? (s.twoFactorMethod ?? 'ON') : 'OFF',
+                  onTap: busy ? null : (s.twoFactorEnabled ? disableTwoFactor : enableTwoFactor),
+                ),
+                const SizedBox(height: 16),
+                SoftCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(tr(c.fa, 'کانال‌های OTP', 'OTP channels'), style: const TextStyle(fontWeight: FontWeight.w900)),
+                      const SizedBox(height: 10),
+                      _SecurityChannelRow(label: 'Email', enabled: s.verification.email, free: true),
+                      _SecurityChannelRow(label: 'SMS', enabled: s.verification.sms, free: true),
+                      _SecurityChannelRow(label: 'WhatsApp', enabled: s.verification.whatsapp, free: true),
+                      const SizedBox(height: 8),
+                      Text(
+                        tr(
+                          c.fa,
+                          'فقط کانال‌هایی که روی سرور تنظیم شده‌اند قابل انتخاب هستند.',
+                          'Only channels configured on the backend can be selected.',
+                        ),
+                        style: const TextStyle(fontSize: 10.5, color: Color(0xFF7D8D9E), height: 1.45),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class _SecurityChannelRow extends StatelessWidget {
+  const _SecurityChannelRow({required this.label, required this.enabled, required this.free});
+  final String label;
+  final bool enabled;
+  final bool free;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          children: [
+            Icon(enabled ? Icons.check_circle_rounded : Icons.schedule_rounded, color: enabled ? const Color(0xFF18A875) : const Color(0xFFEFAF38), size: 18),
+            const SizedBox(width: 8),
+            Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700))),
+            Text(enabled ? 'READY' : 'PENDING', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: enabled ? const Color(0xFF18A875) : const Color(0xFFEFAF38))),
+          ],
+        ),
+      );
+}
+
+class SetPasswordPage extends StatefulWidget {
+  const SetPasswordPage({super.key, required this.controller});
+  final AppController controller;
+
+  @override
+  State<SetPasswordPage> createState() => _SetPasswordPageState();
+}
+
+class _SetPasswordPageState extends State<SetPasswordPage> {
+  final password = TextEditingController();
+  final confirm = TextEditingController();
+  bool hidden = true;
+  bool busy = false;
+
+  @override
+  void dispose() {
+    password.dispose();
+    confirm.dispose();
+    super.dispose();
+  }
+
+  Future<void> submit() async {
+    if (password.text.length < 8 || password.text != confirm.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(widget.controller.fa, 'رمز حداقل ۸ کاراکتری و تکرار یکسان وارد کنید.', 'Use at least 8 characters and matching passwords.'))),
+      );
+      return;
+    }
+    setState(() => busy = true);
+    final error = await widget.controller.setPassword(password.text);
+    if (!mounted) return;
+    setState(() => busy = false);
+    if (error == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(widget.controller.fa, 'رمز عبور تنظیم شد.', 'Password has been set.'))),
+      );
+      Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.controller;
+    return Scaffold(
+      appBar: AppBar(title: Text(tr(c.fa, 'تنظیم رمز عبور', 'Set password'))),
+      body: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          TextField(
+            controller: password,
+            obscureText: hidden,
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.lock_outline_rounded),
+              labelText: tr(c.fa, 'رمز عبور جدید', 'New password'),
+            ),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: confirm,
+            obscureText: hidden,
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.lock_reset_rounded),
+              labelText: tr(c.fa, 'تکرار رمز عبور', 'Confirm password'),
+              suffixIcon: IconButton(
+                onPressed: () => setState(() => hidden = !hidden),
+                icon: Icon(hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          PrimaryButton(label: busy ? 'Saving...' : tr(c.fa, 'تنظیم رمز عبور', 'Set password'), onPressed: busy ? null : submit),
+        ],
+      ),
+    );
+  }
+}
+
 class ChangePasswordPage extends StatefulWidget {
   const ChangePasswordPage({super.key, required this.controller});
   final AppController controller;
