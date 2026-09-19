@@ -181,11 +181,38 @@ class ApiService {
     return session;
   }
 
-  Future<AppSession> login({required String identifier, required String password}) async {
+  Future<({AppSession? session, TwoFactorLoginChallenge? challenge})> login({
+    required String identifier,
+    required String password,
+  }) async {
     final response = await _send(
       'POST',
       '/api/v1/auth/login',
       body: {'identifier': identifier.trim(), 'password': password},
+    );
+    if (response.statusCode == 202) {
+      final challenge = TwoFactorLoginChallenge.fromJson(_decodeObject(response));
+      return (session: null, challenge: challenge);
+    }
+    if (response.statusCode != 200) _throwResponse(response);
+    final session = _sessionFromJson(_decodeObject(response));
+    await _saveSession(session);
+    return (session: session, challenge: null);
+  }
+
+  Future<AppSession> completeTwoFactorLogin({
+    required String loginToken,
+    required String challengeId,
+    required String code,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/auth/login/2fa',
+      body: {
+        'loginToken': loginToken,
+        'challengeId': challengeId,
+        'code': code.trim(),
+      },
     );
     if (response.statusCode != 200) _throwResponse(response);
     final session = _sessionFromJson(_decodeObject(response));
