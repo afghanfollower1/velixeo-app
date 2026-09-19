@@ -118,6 +118,7 @@ const profileSchema = z.object({
   countryCode: z.string().trim().regex(/^[A-Z]{2}$/).nullable().optional(),
   avatarPreset: z.string().trim().regex(/^avatar_(0[1-9]|1[0-6])$/).nullable().optional(),
   avatarUrl: z.string().trim().url().max(1000).nullable().optional(),
+  avatarData: z.string().trim().max(500000).regex(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/).nullable().optional(),
   email: z.string().trim().email().nullable().optional(),
   phone: z.string().trim().min(7).max(32).nullable().optional(),
   emailVerificationToken: z.string().trim().min(20).optional(),
@@ -256,6 +257,7 @@ function publicUser(user: {
   countryCode?: string | null;
   avatarPreset?: string | null;
   avatarUrl?: string | null;
+  avatarData?: string | null;
   emailVerifiedAt?: Date | null;
   phoneVerifiedAt?: Date | null;
   twoFactorEnabled?: boolean;
@@ -277,6 +279,7 @@ function publicUser(user: {
     countryCode: user.countryCode ?? null,
     avatarPreset: user.avatarPreset ?? 'avatar_01',
     avatarUrl: user.avatarUrl ?? null,
+    avatarData: user.avatarData ?? null,
     emailVerified: Boolean(user.emailVerifiedAt),
     phoneVerified: Boolean(user.phoneVerifiedAt),
     twoFactorEnabled: Boolean(user.twoFactorEnabled),
@@ -842,6 +845,7 @@ app.patch(
         countryCode: parsed.data.countryCode === undefined ? undefined : parsed.data.countryCode,
         avatarPreset: parsed.data.avatarPreset === undefined ? undefined : parsed.data.avatarPreset,
         avatarUrl: parsed.data.avatarUrl === undefined ? undefined : parsed.data.avatarUrl,
+        avatarData: parsed.data.avatarData === undefined ? undefined : parsed.data.avatarData,
         email: nextEmail,
         phone: nextPhone,
         emailVerifiedAt,
