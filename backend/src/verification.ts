@@ -41,12 +41,28 @@ const emailWebhookConfigured = () =>
 const webhookConfigured = (channel: 'SMS' | 'WHATSAPP') =>
   Boolean(process.env[channel === 'SMS' ? 'OTP_SMS_WEBHOOK_URL' : 'OTP_WHATSAPP_WEBHOOK_URL']);
 
+const twilioVerifyConfigured = () => Boolean(
+  process.env.TWILIO_ACCOUNT_SID
+  && process.env.TWILIO_AUTH_TOKEN
+  && process.env.TWILIO_VERIFY_SERVICE_SID,
+);
+
+const twilioChannelEnabled = (channel: 'SMS' | 'WHATSAPP') => {
+  if (!twilioVerifyConfigured()) return false;
+  const key = channel === 'SMS' ? 'TWILIO_VERIFY_SMS_ENABLED' : 'TWILIO_VERIFY_WHATSAPP_ENABLED';
+  return String(process.env[key] || '').toLowerCase() === 'true';
+};
+
 function capabilities() {
+  const smsTwilio = twilioChannelEnabled('SMS');
+  const whatsappTwilio = twilioChannelEnabled('WHATSAPP');
   return {
     email: emailWebhookConfigured() || smtpConfigured(),
     emailMode: emailWebhookConfigured() ? 'HTTPS_RELAY' : smtpConfigured() ? 'SMTP' : null,
-    sms: webhookConfigured('SMS'),
-    whatsapp: webhookConfigured('WHATSAPP'),
+    sms: smsTwilio || webhookConfigured('SMS'),
+    smsMode: smsTwilio ? 'TWILIO_VERIFY' : webhookConfigured('SMS') ? 'WEBHOOK' : null,
+    whatsapp: whatsappTwilio || webhookConfigured('WHATSAPP'),
+    whatsappMode: whatsappTwilio ? 'TWILIO_VERIFY' : webhookConfigured('WHATSAPP') ? 'WEBHOOK' : null,
     registrationVerificationRequired: process.env.AUTH_REQUIRE_REGISTRATION_VERIFICATION === 'true',
     resendCooldownSeconds: 60,
     expiresInSeconds: 600,
@@ -171,7 +187,111 @@ async function sendEmailOtp(target: string, code: string) {
   }
 }
 
+function twilioAuthorization() {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  if (!accountSid || !authToken) throw new Error('otp_provider_failed');
+  return `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`;
+}
+
+async function sendTwilioVerifyOtp(channel: 'SMS' | 'WHATSAPP', target: string, code: string) {
+  const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
+  if (!serviceSid || !twilioChannelEnabled(channel)) {
+    throw new Error(channel === 'SMS' ? 'sms_otp_not_configured' : 'whatsapp_otp_not_configured');
+  }
+
+  const form = new URLSearchParams();
+  form.set('To', target);
+  form.set('Channel', channel === 'SMS' ? 'sms' : 'whatsapp');
+  form.set('CustomCode', code);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12_000);
+  try {
+    const response = await fetch(
+      `https://verify.twilio.com/v2/Services/${encodeURIComponent(serviceSid)}/Verifications`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: twilioAuthorization(),
+          'content-type': 'application/x-www-form-urlencoded',
+          accept: 'application/json',
+        },
+        body: form.toString(),
+        signal: controller.signal,
+      },
+    );
+    if (!response.ok) {
+      let providerCode: string | number | undefined;
+      let providerMessage = '';
+      try {
+        const body = await response.json() as { code?: string | number; message?: string };
+        providerCode = body.code;
+        providerMessage = String(body.message || '');
+      } catch {
+        // Ignore provider bodies that are not JSON.
+      }
+      console.warn('[otp-twilio-verify] send failed', {
+        channel,
+        status: response.status,
+        code: providerCode,
+        message: providerMessage || undefined,
+      });
+      throw new Error('otp_provider_failed');
+    }
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') throw new Error('otp_provider_failed');
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function reportTwilioVerification(
+  channel: 'SMS' | 'WHATSAPP',
+  target: string,
+  code: string,
+) {
+  const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
+  if (!serviceSid || !twilioChannelEnabled(channel)) return;
+
+  const form = new URLSearchParams();
+  form.set('To', target);
+  form.set('Code', code);
+
+  try {
+    const response = await fetch(
+      `https://verify.twilio.com/v2/Services/${encodeURIComponent(serviceSid)}/VerificationCheck`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: twilioAuthorization(),
+          'content-type': 'application/x-www-form-urlencoded',
+          accept: 'application/json',
+        },
+        body: form.toString(),
+      },
+    );
+    if (!response.ok) {
+      console.warn('[otp-twilio-verify] verification feedback failed', {
+        channel,
+        status: response.status,
+      });
+    }
+  } catch (error) {
+    console.warn('[otp-twilio-verify] verification feedback error', {
+      channel,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 async function sendWebhookOtp(channel: 'SMS' | 'WHATSAPP', target: string, code: string) {
+  if (twilioChannelEnabled(channel)) {
+    await sendTwilioVerifyOtp(channel, target, code);
+    return;
+  }
+
   const url = process.env[channel === 'SMS' ? 'OTP_SMS_WEBHOOK_URL' : 'OTP_WHATSAPP_WEBHOOK_URL'];
   if (!url) throw new Error(channel === 'SMS' ? 'sms_otp_not_configured' : 'whatsapp_otp_not_configured');
   const response = await fetch(url, {
@@ -269,6 +389,10 @@ export async function verifyVerificationChallenge(
       data: { attempts: { increment: 1 } },
     });
     throw new Error('otp_invalid');
+  }
+
+  if (challenge.channel === 'SMS' || challenge.channel === 'WHATSAPP') {
+    await reportTwilioVerification(challenge.channel, challenge.target, code);
   }
 
   const consumed = await prisma.verificationChallenge.update({
