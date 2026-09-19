@@ -193,7 +193,15 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
     notifyListeners();
     try {
       final idToken = await googleAuth.authenticateIdToken();
-      final session = await api.loginWithGoogle(idToken: idToken, language: language);
+      final attempt = await api.loginWithGoogle(idToken: idToken, language: language);
+      if (attempt.challenge != null) {
+        pendingTwoFactor = attempt.challenge;
+        authenticated = false;
+        authError = null;
+        return false;
+      }
+      final session = attempt.session!;
+      pendingTwoFactor = null;
       user = session.user;
       authenticated = true;
       _applyUserPreferences(session.user);
@@ -1585,7 +1593,10 @@ class _AuthPageState extends State<AuthPage> {
                       ? null
                       : () async {
                           final ok = await c.loginWithGoogle();
-                          if (!ok && mounted) {
+                          if (!mounted) return;
+                          if (!ok && c.pendingTwoFactor != null) {
+                            await Navigator.push(context, MaterialPageRoute(builder: (_) => TwoFactorLoginPage(controller: c)));
+                          } else if (!ok) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text(errorMessage(c.authError ?? 'google_sign_in_failed'))),
                             );
