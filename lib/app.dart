@@ -3745,15 +3745,56 @@ class _EditProfilePageState extends State<EditProfilePage> {
     avatarPreset = user?.avatarPreset ?? 'avatar_01';
     avatarData = user?.avatarData;
     avatarUrl = user?.avatarUrl;
+    email.addListener(_emailChanged);
+    phone.addListener(_phoneChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await c.refreshVerificationCapabilities();
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
+    email.removeListener(_emailChanged);
+    phone.removeListener(_phoneChanged);
     fullName.dispose();
     email.dispose();
     phone.dispose();
     website.dispose();
+    emailOtp.dispose();
+    phoneOtp.dispose();
     super.dispose();
+  }
+
+  void _emailChanged() {
+    emailVerificationToken = null;
+    emailChallenge = null;
+    emailOtp.clear();
+    if (mounted) setState(() {});
+  }
+
+  void _phoneChanged() {
+    phoneVerificationToken = null;
+    phoneChallenge = null;
+    phoneOtp.clear();
+    if (mounted) setState(() {});
+  }
+
+  String get normalizedEmail => email.text.trim().toLowerCase();
+  String get normalizedPhone => phone.text.replaceAll(RegExp(r'[\s()-]'), '');
+
+  bool get emailVerifiedNow {
+    final current = (c.user?.email ?? '').trim().toLowerCase();
+    if (normalizedEmail.isEmpty) return false;
+    if (normalizedEmail == current) return c.user?.emailVerified == true;
+    return emailVerificationToken?.isNotEmpty == true;
+  }
+
+  bool get phoneVerifiedNow {
+    final current = (c.user?.phone ?? '').replaceAll(RegExp(r'[\s()-]'), '');
+    if (normalizedPhone.isEmpty) return false;
+    if (normalizedPhone == current) return c.user?.phoneVerified == true;
+    return phoneVerificationToken?.isNotEmpty == true;
   }
 
   AppUser previewUser() {
