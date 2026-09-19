@@ -1263,6 +1263,15 @@ class _AuthPageState extends State<AuthPage> {
         return tr(fa, 'کد تأیید منقضی شده است.', 'The verification code has expired.');
       case 'otp_resend_too_soon':
         return tr(fa, 'برای ارسال دوباره کمی صبر کنید.', 'Please wait before requesting another code.');
+      case 'email_otp_auth_failed':
+        return tr(fa, 'اتصال امن به افزونه OTP رد شد. افزونه وردپرس را بروزرسانی کنید.', 'The secure OTP relay was rejected. Update the WordPress relay plugin.');
+      case 'email_otp_route_missing':
+        return tr(fa, 'مسیر ارسال OTP روی سایت پیدا نشد.', 'The email OTP relay route is missing on the website.');
+      case 'email_otp_mail_failed':
+        return tr(fa, 'هاست نتوانست ایمیل OTP را ارسال کند.', 'The hosting mailer could not send the OTP email.');
+      case 'email_otp_provider_failed':
+      case 'email_otp_timeout':
+        return tr(fa, 'سرویس ارسال ایمیل OTP موقتاً در دسترس نیست.', 'The email OTP service is temporarily unavailable.');
       case 'invalid_request':
         return tr(fa, 'اطلاعات واردشده معتبر نیست.', 'Please check the entered information.');
       case 'network_error':
@@ -3984,9 +3993,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
           : await c.requestContactChangeOtp('EMAIL', target, 'EMAIL');
       if (!mounted) return;
       if (challenge == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr(c.fa, 'ارسال کد انجام نشد.', 'Could not send the verification code.'))),
-        );
+        final code = c.authError ?? 'email_otp_provider_failed';
+        final message = code == 'email_otp_auth_failed'
+            ? tr(c.fa, 'اتصال امن افزونه OTP رد شد؛ افزونه وردپرس را بروزرسانی کنید.', 'OTP relay authentication was rejected; update the WordPress relay plugin.')
+            : code == 'email_otp_route_missing'
+                ? tr(c.fa, 'مسیر OTP روی سایت پیدا نشد.', 'The OTP relay route is missing on the website.')
+                : code == 'email_otp_mail_failed'
+                    ? tr(c.fa, 'هاست نتوانست ایمیل را ارسال کند.', 'The hosting mailer could not send the email.')
+                    : code == 'otp_resend_too_soon'
+                        ? tr(c.fa, 'کمی صبر کنید و دوباره تلاش کنید.', 'Please wait a moment before requesting another code.')
+                        : tr(c.fa, 'ارسال کد انجام نشد.', 'Could not send the verification code.');
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
         return;
       }
       setState(() {
@@ -4639,9 +4656,17 @@ class _SecurityPageState extends State<SecurityPage> {
       final challenge = await c.requestAccountOtp('EMAIL', 'VERIFY_EMAIL');
       if (!mounted) return;
       if (challenge == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr(c.fa, 'ارسال کد تأیید انجام نشد.', 'Could not send the verification code.'))),
-        );
+        final code = c.authError ?? 'email_otp_provider_failed';
+        final message = code == 'email_otp_auth_failed'
+            ? tr(c.fa, 'اتصال امن افزونه OTP رد شد؛ افزونه وردپرس را بروزرسانی کنید.', 'OTP relay authentication was rejected; update the WordPress relay plugin.')
+            : code == 'email_otp_route_missing'
+                ? tr(c.fa, 'مسیر OTP روی سایت پیدا نشد.', 'The OTP relay route is missing on the website.')
+                : code == 'email_otp_mail_failed'
+                    ? tr(c.fa, 'هاست نتوانست ایمیل را ارسال کند.', 'The hosting mailer could not send the email.')
+                    : code == 'otp_resend_too_soon'
+                        ? tr(c.fa, 'کمی صبر کنید و دوباره تلاش کنید.', 'Please wait a moment before requesting another code.')
+                        : tr(c.fa, 'ارسال کد تأیید انجام نشد.', 'Could not send the verification code.');
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
         return;
       }
       setState(() {
