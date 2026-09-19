@@ -83,6 +83,8 @@ class AppUpdateService {
             headers: const {
               'Accept': 'application/vnd.github+json',
               'User-Agent': 'VELIXEO-Android',
+              'Cache-Control': 'no-cache, no-store, max-age=0',
+              'Pragma': 'no-cache',
             },
           )
           .timeout(const Duration(seconds: 8));
@@ -204,22 +206,56 @@ class AppUpdateGate extends StatefulWidget {
   State<AppUpdateGate> createState() => _AppUpdateGateState();
 }
 
-class _AppUpdateGateState extends State<AppUpdateGate> {
+class _AppUpdateGateState extends State<AppUpdateGate>
+    with WidgetsBindingObserver {
   final service = AppUpdateService();
-  bool checked = false;
+  bool _checking = false;
+  bool _dialogOpen = false;
+  DateTime? _lastCheck;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _check());
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _check(force: true));
   }
 
-  Future<void> _check() async {
-    if (checked) return;
-    checked = true;
-    final update = await service.checkForUpdate();
-    if (!mounted || update == null) return;
-    await _showUpdate(update);
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_check());
+    }
+  }
+
+  Future<void> _check({bool force = false}) async {
+    if (_checking || _dialogOpen) return;
+    final now = DateTime.now();
+    if (!force &&
+        _lastCheck != null &&
+        now.difference(_lastCheck!) < const Duration(seconds: 30)) {
+      return;
+    }
+
+    _checking = true;
+    _lastCheck = now;
+    try {
+      final update = await service.checkForUpdate();
+      if (!mounted || update == null || _dialogOpen) return;
+      _dialogOpen = true;
+      try {
+        await _showUpdate(update);
+      } finally {
+        _dialogOpen = false;
+      }
+    } finally {
+      _checking = false;
+    }
   }
 
   String _formatBytes(int bytes) {
