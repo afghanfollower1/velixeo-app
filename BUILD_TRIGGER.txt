@@ -1,2 +1,2 @@
-Trigger signed Android build — VELIXEO v0.8.4 — 2026-09-19.
-OTP relay maintenance release: clearer relay/auth/mail errors while keeping the in-app updater enabled.
+Trigger signed Android build - VELIXEO v0.8.5 - 2026-09-19.
+Background-resilient updater: Android DownloadManager keeps downloads running when the app is backgrounded or the screen is locked, with system notification progress and in-app percentage/bytes progress.
