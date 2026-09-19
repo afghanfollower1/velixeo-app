@@ -3825,36 +3825,76 @@ class _EditProfilePageState extends State<EditProfilePage> {
     try {
       final file = await ImagePicker().pickImage(
         source: ImageSource.gallery,
-        imageQuality: 72,
-        maxWidth: 512,
-        maxHeight: 512,
+        imageQuality: 92,
+        maxWidth: 1800,
+        maxHeight: 1800,
       );
       if (file == null) return;
-      final bytes = await file.readAsBytes();
+
+      final cropped = await ImageCropper().cropImage(
+        sourcePath: file.path,
+        maxWidth: 512,
+        maxHeight: 512,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        compressFormat: ImageCompressFormat.jpg,
+        compressQuality: 78,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: tr(c.fa, 'تنظیم تصویر پروفایل', 'Adjust profile photo'),
+            toolbarColor: const Color(0xFF0D6FD1),
+            toolbarWidgetColor: Colors.white,
+            activeControlsWidgetColor: const Color(0xFF1686FF),
+            cropFrameColor: Colors.white,
+            cropGridColor: Colors.white70,
+            dimmedLayerColor: const Color(0xB3000000),
+            showCropGrid: true,
+            lockAspectRatio: true,
+            initAspectRatio: CropAspectRatioPreset.square,
+            cropStyle: CropStyle.circle,
+            aspectRatioPresets: const [CropAspectRatioPreset.square],
+          ),
+          IOSUiSettings(
+            title: tr(c.fa, 'تنظیم تصویر پروفایل', 'Adjust profile photo'),
+            cropStyle: CropStyle.circle,
+            aspectRatioLockEnabled: true,
+            resetAspectRatioEnabled: false,
+            aspectRatioPickerButtonHidden: true,
+            doneButtonTitle: tr(c.fa, 'استفاده', 'Use photo'),
+            cancelButtonTitle: tr(c.fa, 'لغو', 'Cancel'),
+            aspectRatioPresets: const [CropAspectRatioPreset.square],
+          ),
+        ],
+      );
+      if (cropped == null) return;
+
+      final bytes = await cropped.readAsBytes();
       if (bytes.length > 360000) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please choose a smaller profile photo.')),
+          SnackBar(
+            content: Text(
+              tr(
+                c.fa,
+                'حجم تصویر بعد از برش زیاد است. لطفاً تصویر دیگری انتخاب کنید.',
+                'The cropped photo is still too large. Please choose another photo.',
+              ),
+            ),
+          ),
         );
         return;
       }
-      final mime = file.name.toLowerCase().endsWith('.png')
-          ? 'png'
-          : file.name.toLowerCase().endsWith('.webp')
-              ? 'webp'
-              : 'jpeg';
+      if (!mounted) return;
       setState(() {
-        avatarData = 'data:image/$mime;base64,${base64Encode(bytes)}';
+        avatarData = 'data:image/jpeg;base64,' + base64Encode(bytes);
         avatarUrl = null;
       });
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr(c.fa, 'انتخاب تصویر انجام نشد.', 'Could not select the photo.'))),
+        SnackBar(content: Text(tr(c.fa, 'تنظیم تصویر انجام نشد.', 'Could not prepare the profile photo.'))),
       );
     }
   }
-
   void chooseAvatar() {
     showModalBottomSheet(
       context: context,
