@@ -7,6 +7,9 @@ on:
     paths:
       - 'BUILD_TRIGGER.txt'
 
+permissions:
+  contents: write
+
 concurrency:
   group: velixeo-android-${{ github.ref }}
   cancel-in-progress: true
@@ -26,6 +29,20 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+
+      - name: Resolve app version
+        id: app_version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not resolve app version from pubspec.yaml"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved VELIXEO version: $VERSION"
+
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -205,21 +222,42 @@ jobs:
         run: flutter build apk --release --dart-define=GOOGLE_WEB_CLIENT_ID="$GOOGLE_WEB_CLIENT_ID"
 
       - name: Prepare artifact
+        shell: bash
+        env:
+          APP_VERSION: ${{ steps.app_version.outputs.version }}
         run: |
           set -euo pipefail
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk dist/VELIXEO-v0.8.2-release.apk
+          APK="dist/VELIXEO-v${APP_VERSION}-release.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$APK"
           cp /tmp/ANDROID_SIGNING_SHA1.txt dist/ANDROID_SIGNING_SHA1.txt
-          ls -lh dist/VELIXEO-v0.8.2-release.apk
-          sha256sum dist/VELIXEO-v0.8.2-release.apk | tee dist/SHA256SUMS.txt
+          ls -lh "$APK"
+          sha256sum "$APK" | tee dist/SHA256SUMS.txt
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VELIXEO-v0.8.2-Android-APK
+          name: VELIXEO-v${{ steps.app_version.outputs.version }}-Android-APK
           path: |
-            dist/VELIXEO-v0.8.2-release.apk
+            dist/VELIXEO-v${{ steps.app_version.outputs.version }}-release.apk
             dist/SHA256SUMS.txt
             dist/ANDROID_SIGNING_SHA1.txt
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish public signed APK release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ steps.app_version.outputs.version }}
+        run: |
+          set -euo pipefail
+          TAG="v${APP_VERSION}"
+          APK="dist/VELIXEO-v${APP_VERSION}-release.apk"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" dist/SHA256SUMS.txt --clobber
+          else
+            gh release create "$TAG" "$APK" dist/SHA256SUMS.txt \
+              --title "VELIXEO v${APP_VERSION}" \
+              --notes "Official signed VELIXEO Android release. Future app updates can be downloaded directly inside VELIXEO."
+          fi
