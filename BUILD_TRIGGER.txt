@@ -1,3 +1,3 @@
-Trigger signed Android build — VELIXEO v0.8.0 — 2026-09-19.
-Profile & Security release: clickable Home avatar, persistent profile photo/preset avatars, website/country/contact fields, country mobile registration, OTP architecture, Security & Login center, verified email/phone, two-step login for password and Google sign-in.
-Email OTP is ready for user-owned cPanel SMTP. SMS/WhatsApp remain provider-gated until a legitimate no-cost gateway is configured.
+Trigger signed Android build — VELIXEO v0.8.1 — 2026-09-19.
+Profile polish: crop and reposition profile photos before upload; inline Verify buttons for email/mobile; OTP code entry directly under each contact field; runtime refresh of SMTP/SMS/WhatsApp channel availability.
+Email OTP uses the configured cPanel SMTP channel. SMS/WhatsApp remain disabled unless a legitimate no-cost gateway is connected.
