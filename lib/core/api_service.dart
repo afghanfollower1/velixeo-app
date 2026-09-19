@@ -163,6 +163,7 @@ class ApiService {
     required String identifier,
     required String password,
     required AppLang language,
+    String? verificationToken,
   }) async {
     final trimmed = identifier.trim();
     final cleanName = fullName.trim();
@@ -171,6 +172,7 @@ class ApiService {
       if (trimmed.contains('@')) 'email': trimmed.toLowerCase() else 'phone': trimmed,
       'password': password,
       'locale': language == AppLang.fa ? 'FA' : 'EN',
+      if (verificationToken?.trim().isNotEmpty == true) 'verificationToken': verificationToken!.trim(),
     };
     final response = await _send('POST', '/api/v1/auth/register', body: body);
     if (response.statusCode != 201) _throwResponse(response);
@@ -394,15 +396,151 @@ class ApiService {
     return AppUser.fromJson(Map<String, dynamic>.from(_decodeObject(response)['user'] as Map));
   }
 
-  Future<AppUser> updateProfile({required String fullName}) async {
+  Future<AppUser> updateProfile({
+    required String fullName,
+    String? websiteUrl,
+    String? countryCode,
+    String? avatarPreset,
+    String? avatarUrl,
+    String? avatarData,
+    String? email,
+    String? phone,
+    String? emailVerificationToken,
+    String? phoneVerificationToken,
+  }) async {
     final response = await _send(
       'PATCH',
       '/api/v1/me/profile',
-      body: {'fullName': fullName.trim()},
+      body: {
+        'fullName': fullName.trim(),
+        'websiteUrl': websiteUrl?.trim().isEmpty == true ? null : websiteUrl?.trim(),
+        'countryCode': countryCode?.trim().isEmpty == true ? null : countryCode?.trim().toUpperCase(),
+        'avatarPreset': avatarPreset,
+        'avatarUrl': avatarUrl?.trim().isEmpty == true ? null : avatarUrl?.trim(),
+        'avatarData': avatarData,
+        if (email != null) 'email': email.trim().isEmpty ? null : email.trim().toLowerCase(),
+        if (phone != null) 'phone': phone.trim().isEmpty ? null : phone.trim(),
+        if (emailVerificationToken?.trim().isNotEmpty == true) 'emailVerificationToken': emailVerificationToken!.trim(),
+        if (phoneVerificationToken?.trim().isNotEmpty == true) 'phoneVerificationToken': phoneVerificationToken!.trim(),
+      },
       auth: true,
     );
     if (response.statusCode != 200) _throwResponse(response);
     return AppUser.fromJson(Map<String, dynamic>.from(_decodeObject(response)['user'] as Map));
+  }
+
+  Future<VerificationCapabilities> verificationCapabilities() async {
+    final response = await _send('GET', '/api/v1/auth/verification-capabilities');
+    if (response.statusCode != 200) _throwResponse(response);
+    return VerificationCapabilities.fromJson(_decodeObject(response));
+  }
+
+  Future<VerificationChallenge> requestRegistrationOtp({
+    required String target,
+    required String channel,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/auth/verification/request',
+      body: {'target': target.trim(), 'channel': channel, 'purpose': 'REGISTER'},
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+    return VerificationChallenge.fromJson(_decodeObject(response));
+  }
+
+  Future<String> verifyRegistrationOtp({
+    required String challengeId,
+    required String code,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/auth/verification/verify',
+      body: {'challengeId': challengeId, 'code': code.trim()},
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+    return (_decodeObject(response)['verificationToken'] as String?) ?? '';
+  }
+
+  Future<SecurityState> securityState() async {
+    final response = await _send('GET', '/api/v1/me/security', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    return SecurityState.fromJson(_decodeObject(response));
+  }
+
+  Future<VerificationChallenge> requestAccountOtp({
+    required String channel,
+    required String purpose,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/me/verification/request',
+      body: {'channel': channel, 'purpose': purpose},
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+    return VerificationChallenge.fromJson(_decodeObject(response));
+  }
+
+  Future<String> verifyAccountOtp({
+    required String challengeId,
+    required String code,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/me/verification/verify',
+      body: {'challengeId': challengeId, 'code': code.trim()},
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+    return (_decodeObject(response)['verificationToken'] as String?) ?? '';
+  }
+
+  Future<AppUser> verifyContact(String verificationToken) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/me/security/verify-contact',
+      body: {'verificationToken': verificationToken},
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+    return AppUser.fromJson(Map<String, dynamic>.from(_decodeObject(response)['user'] as Map));
+  }
+
+  Future<AppUser> enableTwoFactor({
+    required String method,
+    required String verificationToken,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/me/security/2fa/enable',
+      body: {'method': method, 'verificationToken': verificationToken},
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+    return AppUser.fromJson(Map<String, dynamic>.from(_decodeObject(response)['user'] as Map));
+  }
+
+  Future<AppUser> disableTwoFactor({String? password}) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/me/security/2fa/disable',
+      body: {if (password?.isNotEmpty == true) 'password': password},
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+    return AppUser.fromJson(Map<String, dynamic>.from(_decodeObject(response)['user'] as Map));
+  }
+
+  Future<void> setPassword({required String newPassword}) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/me/set-password',
+      body: {'newPassword': newPassword},
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+    final session = _sessionFromJson(_decodeObject(response));
+    await _saveSession(session);
   }
 
   Future<void> changePassword({required String currentPassword, required String newPassword}) async {
