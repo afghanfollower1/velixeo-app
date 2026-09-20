@@ -4886,15 +4886,15 @@ class _WhatsAppInboundDialogState extends State<_WhatsAppInboundDialog>
   bool checking = false;
   bool opening = false;
   String? error;
+  String? copiedNotice;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _openWhatsApp();
-      if (!mounted) return;
       await _checkNow();
+      if (!mounted) return;
       timer = Timer.periodic(const Duration(seconds: 2), (_) => _checkNow());
     });
   }
@@ -4913,6 +4913,47 @@ class _WhatsAppInboundDialogState extends State<_WhatsAppInboundDialog>
     }
   }
 
+  String _friendlyError(String code) {
+    switch (code) {
+      case 'whatsapp_number_mismatch':
+        return tr(
+          widget.fa,
+          'پیام از شماره دیگری ارسال شده است. برای تأیید، پیام باید دقیقاً از همان شماره‌ای ارسال شود که در VELIXEO وارد کرده‌اید.',
+          'The message came from a different WhatsApp number. Verification must be sent from the exact mobile number entered in VELIXEO.',
+        );
+      case 'otp_expired':
+        return tr(
+          widget.fa,
+          'هیچ تأیید معتبری از این شماره دریافت نشد. اگر این شماره حساب فعال WhatsApp ندارد، ثبت‌نام با آن امکان‌پذیر نیست.',
+          'No valid verification was received from this number. If this number does not have an active WhatsApp account, it cannot be used for mobile registration.',
+        );
+      case 'otp_attempts_exceeded':
+        return tr(
+          widget.fa,
+          'تلاش‌های نامعتبر زیاد بود. دوباره یک درخواست تأیید جدید ایجاد کنید.',
+          'Too many invalid attempts. Start a new verification request.',
+        );
+      case 'network_error':
+        return tr(
+          widget.fa,
+          'اتصال به سرور برقرار نشد. اینترنت را بررسی کنید.',
+          'Could not reach the server. Check your internet connection.',
+        );
+      default:
+        return code;
+    }
+  }
+
+  Future<void> _copy(String value, String label) async {
+    if (value.trim().isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!mounted) return;
+    setState(() {
+      copiedNotice = label;
+      error = null;
+    });
+  }
+
   Future<void> _openWhatsApp() async {
     final link = widget.challenge.whatsappLink;
     if (link == null || link.isEmpty || opening) return;
@@ -4926,8 +4967,8 @@ class _WhatsAppInboundDialogState extends State<_WhatsAppInboundDialog>
         setState(() {
           error = tr(
             widget.fa,
-            'واتساپ باز نشد. دوباره روی «باز کردن واتساپ» بزنید.',
-            'WhatsApp could not be opened. Tap Open WhatsApp and try again.',
+            'واتساپ باز نشد. اگر واتساپ روی گوشی دیگری است، شماره Velixeo و پیام تأیید را از پایین کپی کنید.',
+            'WhatsApp could not be opened. If WhatsApp is on another phone, copy the Velixeo number and verification message below.',
           );
         });
       }
@@ -4936,8 +4977,8 @@ class _WhatsAppInboundDialogState extends State<_WhatsAppInboundDialog>
         setState(() {
           error = tr(
             widget.fa,
-            'واتساپ باز نشد. دوباره تلاش کنید.',
-            'WhatsApp could not be opened. Please try again.',
+            'واتساپ باز نشد. از روش گوشی دیگر استفاده کنید.',
+            'WhatsApp could not be opened. Use the other-phone method below.',
           );
         });
       }
@@ -4957,26 +4998,74 @@ class _WhatsAppInboundDialogState extends State<_WhatsAppInboundDialog>
         Navigator.of(context).pop(token);
         return;
       }
-      if (error != null) setState(() => error = null);
+      if (error != null &&
+          !error!.contains('شماره دیگری') &&
+          !error!.contains('different WhatsApp number')) {
+        setState(() => error = null);
+      }
     } on ApiException catch (e) {
       if (!mounted) return;
-      setState(() => error = e.code);
+      setState(() => error = _friendlyError(e.code));
     } catch (_) {
       if (!mounted) return;
-      setState(() {
-        error = tr(
-          widget.fa,
-          'در حال انتظار برای تأیید واتساپ...',
-          'Waiting for WhatsApp verification...',
-        );
-      });
+      setState(() => error = _friendlyError('network_error'));
     } finally {
       checking = false;
     }
   }
 
+  Widget _copyBox({
+    required String title,
+    required String value,
+    required String buttonLabel,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F8FB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFDCE6EF)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Color(0xFF6E8194),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 7),
+          SelectableText(
+            value,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF17324D),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: value.trim().isEmpty ? null : () => _copy(value, buttonLabel),
+              icon: const Icon(Icons.copy_rounded, size: 17),
+              label: Text(buttonLabel),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final number = widget.challenge.whatsappNumber ?? '';
+    final message = widget.challenge.verificationMessage ?? '';
+
     return AlertDialog(
       title: Row(
         children: [
@@ -4989,39 +5078,119 @@ class _WhatsAppInboundDialogState extends State<_WhatsAppInboundDialog>
           ),
         ],
       ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            tr(
-              widget.fa,
-              'واتساپ با یک پیام آماده باز می‌شود. پیام را بدون تغییر ارسال کنید، سپس به VELIXEO برگردید. تأیید به‌صورت خودکار انجام می‌شود.',
-              'WhatsApp opens with a prepared verification message. Send it without editing, then return to VELIXEO. Verification completes automatically.',
-            ),
-            style: const TextStyle(height: 1.5),
-          ),
-          const SizedBox(height: 16),
-          const LinearProgressIndicator(),
-          const SizedBox(height: 10),
-          Text(
-            checking
-                ? tr(widget.fa, 'در حال بررسی...', 'Checking...')
-                : tr(widget.fa, 'منتظر پیام واتساپ شما هستیم...', 'Waiting for your WhatsApp message...'),
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF6E8194),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          if (error?.isNotEmpty == true) ...[
-            const SizedBox(height: 8),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Text(
-              error!,
-              style: const TextStyle(fontSize: 11, color: Colors.redAccent),
+              tr(
+                widget.fa,
+                'برای ادامه، پیام تأیید باید از همان شماره ${widget.challenge.maskedTarget} ارسال شود. تا زمانی که پیام از همین شماره نرسد، ثبت‌نام یا تأیید انجام نمی‌شود.',
+                'The verification message must be sent from the same number ${widget.challenge.maskedTarget}. Registration or verification will not continue until the message arrives from that exact number.',
+              ),
+              style: const TextStyle(height: 1.5),
             ),
+            const SizedBox(height: 16),
+            Text(
+              tr(widget.fa, 'واتساپ روی همین گوشی است', 'WhatsApp is on this phone'),
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: opening ? null : _openWhatsApp,
+                icon: const Icon(Icons.open_in_new_rounded),
+                label: Text(tr(widget.fa, 'باز کردن واتساپ', 'Open WhatsApp')),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                const Expanded(child: Divider()),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    tr(widget.fa, 'واتساپ روی گوشی دیگری است', 'WhatsApp is on another phone'),
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF6E8194)),
+                  ),
+                ),
+                const Expanded(child: Divider()),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              tr(
+                widget.fa,
+                'در گوشی دوم WhatsApp را باز کنید، یک چت جدید با شماره رسمی Velixeo زیر بسازید و سپس پیام تأیید را بدون هیچ تغییری ارسال کنید.',
+                'On the other phone, open WhatsApp, start a new chat with the official Velixeo number below, then send the verification message exactly as shown.',
+              ),
+              style: const TextStyle(fontSize: 11.5, height: 1.45, color: Color(0xFF607487)),
+            ),
+            const SizedBox(height: 10),
+            _copyBox(
+              title: tr(widget.fa, 'شماره رسمی WhatsApp Velixeo', 'Official Velixeo WhatsApp number'),
+              value: number,
+              buttonLabel: tr(widget.fa, 'کپی شماره', 'Copy number'),
+            ),
+            const SizedBox(height: 10),
+            _copyBox(
+              title: tr(widget.fa, 'پیام تأیید — بدون تغییر ارسال کنید', 'Verification message — send without editing'),
+              value: message,
+              buttonLabel: tr(widget.fa, 'کپی پیام تأیید', 'Copy verification message'),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF8E8),
+                borderRadius: BorderRadius.circular(11),
+                border: Border.all(color: const Color(0xFFF3D99B)),
+              ),
+              child: Text(
+                tr(
+                  widget.fa,
+                  'اگر شماره‌ای که وارد کرده‌اید حساب فعال WhatsApp نداشته باشد، ثبت‌نام با موبایل انجام نمی‌شود. اگر پیام را از شماره دیگری بفرستید نیز تأیید رد می‌شود.',
+                  'If the number you entered does not have an active WhatsApp account, mobile registration cannot complete. A message sent from a different number will also be rejected.',
+                ),
+                style: const TextStyle(fontSize: 10.5, height: 1.45, color: Color(0xFF8A650F)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const LinearProgressIndicator(),
+            const SizedBox(height: 10),
+            Text(
+              checking
+                  ? tr(widget.fa, 'در حال بررسی...', 'Checking...')
+                  : tr(widget.fa, 'منتظر پیام واتساپ شما هستیم...', 'Waiting for your WhatsApp message...'),
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF6E8194),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (copiedNotice?.isNotEmpty == true) ...[
+              const SizedBox(height: 7),
+              Text(
+                copiedNotice!,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  color: Color(0xFF18A875),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+            if (error?.isNotEmpty == true) ...[
+              const SizedBox(height: 8),
+              Text(
+                error!,
+                style: const TextStyle(fontSize: 11, color: Colors.redAccent),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
       actions: [
         TextButton(
@@ -5031,12 +5200,7 @@ class _WhatsAppInboundDialogState extends State<_WhatsAppInboundDialog>
         OutlinedButton.icon(
           onPressed: checking ? null : _checkNow,
           icon: const Icon(Icons.refresh_rounded),
-          label: Text(tr(widget.fa, 'بررسی', 'Check')),
-        ),
-        FilledButton.icon(
-          onPressed: opening ? null : _openWhatsApp,
-          icon: const Icon(Icons.open_in_new_rounded),
-          label: Text(tr(widget.fa, 'باز کردن واتساپ', 'Open WhatsApp')),
+          label: Text(tr(widget.fa, 'بررسی وضعیت', 'Check status')),
         ),
       ],
     );
