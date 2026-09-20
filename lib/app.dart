@@ -1535,6 +1535,58 @@ class _AuthPageState extends State<AuthPage> {
     );
   }
 
+  Widget loginIdentifier(bool fa) {
+    if (loginMethod == 'EMAIL') {
+      return TextField(
+        controller: identifier,
+        keyboardType: TextInputType.emailAddress,
+        autocorrect: false,
+        decoration: InputDecoration(
+          prefixIcon: const Icon(Icons.alternate_email),
+          hintText: tr(fa, 'ایمیل شما', 'Email address'),
+        ),
+      );
+    }
+
+    return TextField(
+      controller: identifier,
+      keyboardType: TextInputType.phone,
+      decoration: InputDecoration(
+        prefixIcon: InkWell(
+          onTap: () => showCountryPicker(
+            context: context,
+            showPhoneCode: true,
+            onSelect: (country) => setState(() {
+              countryCode = country.countryCode;
+              phoneCode = country.phoneCode;
+              countryFlag = country.flagEmoji;
+            }),
+          ),
+          child: Container(
+            margin: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F6FB),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(countryFlag),
+                const SizedBox(width: 4),
+                Text(
+                  '+$phoneCode',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+          ),
+        ),
+        hintText: tr(fa, 'شماره موبایل', 'Mobile number'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = widget.controller;
@@ -1602,16 +1654,44 @@ class _AuthPageState extends State<AuthPage> {
               ),
               const SizedBox(height: 14),
               registrationIdentifier(fa),
-            ] else
-              TextField(
-                controller: identifier,
-                keyboardType: TextInputType.emailAddress,
-                autocorrect: false,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.alternate_email),
-                  hintText: tr(fa, 'ایمیل یا شماره موبایل', 'Email or phone number'),
+            ] else ...[
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0F5FA),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _AuthMethodButton(
+                        selected: loginMethod == 'EMAIL',
+                        icon: Icons.alternate_email_rounded,
+                        label: tr(fa, 'ورود با ایمیل', 'Email'),
+                        onTap: () => setState(() {
+                          loginMethod = 'EMAIL';
+                          identifier.clear();
+                        }),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: _AuthMethodButton(
+                        selected: loginMethod == 'PHONE',
+                        icon: Icons.phone_iphone_rounded,
+                        label: tr(fa, 'ورود با موبایل', 'Mobile'),
+                        onTap: () => setState(() {
+                          loginMethod = 'PHONE';
+                          identifier.clear();
+                        }),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(height: 14),
+              loginIdentifier(fa),
+            ],
             const SizedBox(height: 14),
             TextField(
               controller: password,
