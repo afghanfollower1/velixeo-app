@@ -216,6 +216,8 @@ export async function issueInboundWhatsAppChallenge(
     resendAfterSeconds: 60,
     verificationMode: 'WHATSAPP_INBOUND',
     whatsappLink,
+    whatsappNumber: businessNumber,
+    verificationMessage: message,
   };
 }
 
@@ -234,13 +236,12 @@ async function markInboundWhatsAppChallenge(
 
   const candidates = await prisma.verificationChallenge.findMany({
     where: {
-      target,
       channel: 'WHATSAPP',
       consumedAt: null,
       expiresAt: { gt: new Date() },
     },
     orderBy: { createdAt: 'desc' },
-    take: 10,
+    take: 100,
   });
 
   const challenge = candidates.find((candidate) => {
@@ -248,23 +249,32 @@ async function markInboundWhatsAppChallenge(
     return metadata.mode === 'WHATSAPP_INBOUND' && candidate.codeHash === codeHash(token);
   });
 
-  if (!challenge) {
-    const active = candidates.find((candidate) => metadataObject(candidate.metadata).mode === 'WHATSAPP_INBOUND');
-    if (active && active.attempts < active.maxAttempts) {
-      await prisma.verificationChallenge.update({
-        where: { id: active.id },
-        data: { attempts: { increment: 1 } },
-      }).catch(() => undefined);
-    }
+  if (!challenge) return false;
+
+  const metadata = metadataObject(challenge.metadata);
+  if (challenge.target !== target) {
+    await prisma.verificationChallenge.update({
+      where: { id: challenge.id },
+      data: {
+        attempts: challenge.attempts < challenge.maxAttempts ? { increment: 1 } : undefined,
+        metadata: {
+          ...metadata,
+          inboundMismatchAt: new Date().toISOString(),
+          inboundMismatchFrom: target,
+          inboundMessageId: messageId || null,
+        },
+      },
+    }).catch(() => undefined);
     return false;
   }
 
-  const metadata = metadataObject(challenge.metadata);
   await prisma.verificationChallenge.update({
     where: { id: challenge.id },
     data: {
       metadata: {
         ...metadata,
+        inboundMismatchAt: null,
+        inboundMismatchFrom: null,
         inboundVerifiedAt: new Date().toISOString(),
         inboundMessageId: messageId || null,
       },
@@ -289,6 +299,7 @@ export async function completeInboundWhatsAppChallenge(
   if (metadata.mode !== 'WHATSAPP_INBOUND') throw new Error('invalid_verification_mode');
 
   if (!metadata.inboundVerifiedAt) {
+    if (metadata.inboundMismatchFrom) throw new Error('whatsapp_number_mismatch');
     if (challenge.attempts >= challenge.maxAttempts) throw new Error('otp_attempts_exceeded');
     return { ok: true, status: 'PENDING' as const };
   }
