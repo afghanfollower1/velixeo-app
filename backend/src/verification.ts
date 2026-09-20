@@ -771,7 +771,7 @@ function maskPhoneForLog(value: string) {
   return `${clean.slice(0, 3)}***${clean.slice(-3)}`;
 }
 
-function registerMetaWhatsAppWebhookRoutes(app: FastifyInstance) {
+function registerMetaWhatsAppWebhookRoutes(app: FastifyInstance, prisma: PrismaClient) {
   app.get('/api/v1/integrations/meta/whatsapp/webhook', async (request, reply) => {
     const query = (request.query || {}) as Record<string, string | undefined>;
     const mode = query['hub.mode'];
@@ -886,7 +886,7 @@ export function registerVerificationRoutes(
   prisma: PrismaClient,
   authenticate: AuthHandler,
 ) {
-  registerMetaWhatsAppWebhookRoutes(app);
+  registerMetaWhatsAppWebhookRoutes(app, prisma);
 
   app.get('/api/v1/auth/verification-capabilities', async () => capabilities());
 
