@@ -15,12 +15,13 @@ import 'core/update_service.dart';
 import 'social/social_panel.dart';
 import 'support/support_page.dart';
 import 'virtual_numbers/virtual_number_panel.dart';
+import 'referrals/referral_page.dart';
 
 // FIGMA_ENGLISH_V1 — UI implementation based on the approved English Figma file.
 
 String tr(bool fa, String faText, String enText) => fa ? faText : enText;
 
-class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNumberPanelHost, SupportPanelHost {
+class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNumberPanelHost, SupportPanelHost, ReferralPanelHost {
   AppController(this.api, this.googleAuth);
 
   final ApiService api;
@@ -129,7 +130,13 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
     }
   }
 
-  Future<bool> register(String fullName, String identifier, String password, {String? verificationToken}) async {
+  Future<bool> register(
+    String fullName,
+    String identifier,
+    String password, {
+    String? verificationToken,
+    String? referralCode,
+  }) async {
     authBusy = true;
     authError = null;
     notifyListeners();
@@ -140,6 +147,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
         password: password,
         language: language,
         verificationToken: verificationToken,
+        referralCode: referralCode,
       );
       user = session.user;
       authenticated = true;
@@ -1303,6 +1311,7 @@ class _AuthPageState extends State<AuthPage> {
   final identifier = TextEditingController();
   final password = TextEditingController();
   final confirm = TextEditingController();
+  final referralCode = TextEditingController();
   bool registerMode = false;
   bool hidden = true;
   String registerMethod = 'EMAIL';
@@ -1317,6 +1326,7 @@ class _AuthPageState extends State<AuthPage> {
     identifier.dispose();
     password.dispose();
     confirm.dispose();
+    referralCode.dispose();
     super.dispose();
   }
 
@@ -1480,7 +1490,13 @@ class _AuthPageState extends State<AuthPage> {
     if (registerMode) {
       final token = await registrationVerificationToken(rawIdentifier);
       if (token == '__cancelled__') return;
-      final ok = await c.register(fullName.text, rawIdentifier, password.text, verificationToken: token);
+      final ok = await c.register(
+        fullName.text,
+        rawIdentifier,
+        password.text,
+        verificationToken: token,
+        referralCode: referralCode.text.trim().isEmpty ? null : referralCode.text.trim(),
+      );
       if (!ok && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage(c.authError ?? 'unknown'))));
       }
@@ -1667,6 +1683,21 @@ class _AuthPageState extends State<AuthPage> {
               ),
               const SizedBox(height: 14),
               registrationIdentifier(fa),
+              const SizedBox(height: 14),
+              TextField(
+                controller: referralCode,
+                textCapitalization: TextCapitalization.characters,
+                autocorrect: false,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.redeem_rounded),
+                  hintText: tr(fa, 'کد دعوت (اختیاری)', 'Referral code (optional)'),
+                  helperText: tr(
+                    fa,
+                    'اگر دوستی شما را دعوت کرده، کد VXL او را اینجا وارد کنید.',
+                    'If a friend invited you, enter their VXL code here.',
+                  ),
+                ),
+              ),
             ] else ...[
               Container(
                 padding: const EdgeInsets.all(4),
@@ -4089,6 +4120,15 @@ class ProfilePage extends StatelessWidget {
                       .toList(),
                 ),
               ),
+            ),
+          ),
+          SettingsTile(
+            icon: Icons.group_add_rounded,
+            title: tr(c.fa, 'دعوت از دوستان', 'Invite friends'),
+            value: '',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => InviteFriendsPage(host: c)),
             ),
           ),
           SettingsTile(
