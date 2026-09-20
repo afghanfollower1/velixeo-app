@@ -70,6 +70,7 @@ class VerificationCapabilities {
     this.email = false,
     this.sms = false,
     this.whatsapp = false,
+    this.whatsappInbound = false,
     this.registrationVerificationRequired = false,
     this.resendCooldownSeconds = 60,
     this.expiresInSeconds = 600,
@@ -78,6 +79,7 @@ class VerificationCapabilities {
   final bool email;
   final bool sms;
   final bool whatsapp;
+  final bool whatsappInbound;
   final bool registrationVerificationRequired;
   final int resendCooldownSeconds;
   final int expiresInSeconds;
@@ -86,6 +88,7 @@ class VerificationCapabilities {
         email: (json['email'] as bool?) ?? false,
         sms: (json['sms'] as bool?) ?? false,
         whatsapp: (json['whatsapp'] as bool?) ?? false,
+        whatsappInbound: (json['whatsappInbound'] as bool?) ?? false,
         registrationVerificationRequired: (json['registrationVerificationRequired'] as bool?) ?? false,
         resendCooldownSeconds: (json['resendCooldownSeconds'] as num?)?.toInt() ?? 60,
         expiresInSeconds: (json['expiresInSeconds'] as num?)?.toInt() ?? 600,
@@ -100,6 +103,8 @@ class VerificationChallenge {
     required this.purpose,
     required this.expiresInSeconds,
     required this.resendAfterSeconds,
+    this.verificationMode,
+    this.whatsappLink,
   });
 
   final String challengeId;
@@ -108,6 +113,11 @@ class VerificationChallenge {
   final String purpose;
   final int expiresInSeconds;
   final int resendAfterSeconds;
+  final String? verificationMode;
+  final String? whatsappLink;
+
+  bool get isWhatsAppInbound =>
+      verificationMode == 'WHATSAPP_INBOUND' && whatsappLink?.isNotEmpty == true;
 
   factory VerificationChallenge.fromJson(Map<String, dynamic> json) => VerificationChallenge(
         challengeId: json['challengeId'] as String,
@@ -116,6 +126,8 @@ class VerificationChallenge {
         purpose: (json['purpose'] as String?) ?? '',
         expiresInSeconds: (json['expiresInSeconds'] as num?)?.toInt() ?? 600,
         resendAfterSeconds: (json['resendAfterSeconds'] as num?)?.toInt() ?? 60,
+        verificationMode: json['verificationMode'] as String?,
+        whatsappLink: json['whatsappLink'] as String?,
       );
 }
 
@@ -161,6 +173,8 @@ class TwoFactorLoginChallenge {
     required this.maskedTarget,
     required this.channel,
     required this.expiresInSeconds,
+    this.verificationMode,
+    this.whatsappLink,
   });
 
   final String loginToken;
@@ -168,6 +182,13 @@ class TwoFactorLoginChallenge {
   final String maskedTarget;
   final String channel;
   final int expiresInSeconds;
+  final String? verificationMode;
+  final String? whatsappLink;
+
+  bool get isWhatsAppInbound =>
+      channel == 'WHATSAPP' &&
+      verificationMode == 'WHATSAPP_INBOUND' &&
+      whatsappLink?.isNotEmpty == true;
 
   factory TwoFactorLoginChallenge.fromJson(Map<String, dynamic> json) => TwoFactorLoginChallenge(
         loginToken: json['loginToken'] as String,
@@ -175,6 +196,8 @@ class TwoFactorLoginChallenge {
         maskedTarget: (json['maskedTarget'] as String?) ?? '',
         channel: (json['channel'] as String?) ?? 'EMAIL',
         expiresInSeconds: (json['expiresInSeconds'] as num?)?.toInt() ?? 600,
+        verificationMode: json['verificationMode'] as String?,
+        whatsappLink: json['whatsappLink'] as String?,
       );
 }
 
