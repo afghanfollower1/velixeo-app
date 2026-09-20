@@ -1347,6 +1347,7 @@ class _AuthPageState extends State<AuthPage> {
   String _phoneTarget() {
     var local = identifier.text.replaceAll(RegExp(r'\D'), '');
     if (local.startsWith('0')) local = local.substring(1);
+    if (local.startsWith(phoneCode)) return '+$local';
     return '+$phoneCode$local';
   }
 
