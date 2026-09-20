@@ -2063,8 +2063,8 @@ class _TwoFactorLoginPageState extends State<TwoFactorLoginPage>
                 : whatsappInbound
                     ? tr(
                         c.fa,
-                        'پیام تأیید را از همان شماره WhatsApp تأییدشده حساب ارسال کنید. اگر WhatsApp روی گوشی دیگری است، شماره Velixeo و پیام را از پایین کپی کنید.',
-                        'Send the verification message from the verified WhatsApp number on this account. If WhatsApp is on another phone, copy the Velixeo number and message below.',
+                        'پیام تأیید را از همان شماره WhatsApp تأییدشده حساب ارسال کنید. اگر WhatsApp روی گوشی دیگری است، لینک وریفای و پیام را از پایین کپی کنید.',
+                        'Send the verification message from the verified WhatsApp number on this account. If WhatsApp is on another phone, copy the verification link and message below.',
                       )
                     : tr(
                         c.fa,
@@ -2089,16 +2089,24 @@ class _TwoFactorLoginPageState extends State<TwoFactorLoginPage>
             Text(
               tr(
                 c.fa,
-                'در گوشی دوم یک چت جدید با شماره رسمی Velixeo بسازید و پیام زیر را بدون تغییر ارسال کنید.',
-                'On the other phone, start a new chat with the official Velixeo number and send the message below without editing it.',
+                'لینک وریفای را به گوشی دوم منتقل کنید و همان‌جا باز کنید. چت Velixeo با پیام آماده باز می‌شود؛ پیام را بدون تغییر ارسال کنید.',
+                'Move the verification link to the other phone and open it there. The Velixeo chat opens with a prepared message; send it without editing.',
               ),
               style: const TextStyle(fontSize: 11.5, color: Color(0xFF607487), height: 1.45),
             ),
             const SizedBox(height: 10),
-            _twoFactorCopyBox(
-              title: tr(c.fa, 'شماره رسمی WhatsApp Velixeo', 'Official Velixeo WhatsApp number'),
-              value: challenge?.whatsappNumber ?? '',
-              buttonLabel: tr(c.fa, 'کپی شماره', 'Copy number'),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: challenge?.whatsappLink?.isNotEmpty == true
+                    ? () => _copyTwoFactorValue(
+                          challenge!.whatsappLink!,
+                          tr(c.fa, 'لینک وریفای کپی شد.', 'Verification link copied.'),
+                        )
+                    : null,
+                icon: const Icon(Icons.link_rounded),
+                label: Text(tr(c.fa, 'کپی لینک وریفای', 'Copy verification link')),
+              ),
             ),
             const SizedBox(height: 10),
             _twoFactorCopyBox(
@@ -5081,8 +5089,8 @@ class _WhatsAppInboundDialogState extends State<_WhatsAppInboundDialog>
         setState(() {
           error = tr(
             widget.fa,
-            'واتساپ باز نشد. اگر واتساپ روی گوشی دیگری است، شماره Velixeo و پیام تأیید را از پایین کپی کنید.',
-            'WhatsApp could not be opened. If WhatsApp is on another phone, copy the Velixeo number and verification message below.',
+            'واتساپ باز نشد. اگر واتساپ روی گوشی دیگری است، لینک وریفای و پیام تأیید را از پایین کپی کنید.',
+            'WhatsApp could not be opened. If WhatsApp is on another phone, copy the verification link and message below.',
           );
         });
       }
@@ -5177,7 +5185,7 @@ class _WhatsAppInboundDialogState extends State<_WhatsAppInboundDialog>
 
   @override
   Widget build(BuildContext context) {
-    final number = widget.challenge.whatsappNumber ?? '';
+    final link = widget.challenge.whatsappLink ?? '';
     final message = widget.challenge.verificationMessage ?? '';
 
     return AlertDialog(
@@ -5237,16 +5245,56 @@ class _WhatsAppInboundDialogState extends State<_WhatsAppInboundDialog>
             Text(
               tr(
                 widget.fa,
-                'در گوشی دوم WhatsApp را باز کنید، یک چت جدید با شماره رسمی Velixeo زیر بسازید و سپس پیام تأیید را بدون هیچ تغییری ارسال کنید.',
-                'On the other phone, open WhatsApp, start a new chat with the official Velixeo number below, then send the verification message exactly as shown.',
+                'لینک وریفای را کپی کرده و به گوشی‌ای که WhatsApp روی آن فعال است منتقل کنید. لینک را روی گوشی دوم باز کنید؛ چت رسمی Velixeo با پیام آماده باز می‌شود. پیام را بدون تغییر ارسال کنید.',
+                'Copy the verification link and move it to the phone that has WhatsApp. Open the link on that phone; the official Velixeo chat opens with the message prepared. Send it without editing.',
               ),
               style: const TextStyle(fontSize: 11.5, height: 1.45, color: Color(0xFF607487)),
             ),
             const SizedBox(height: 10),
-            _copyBox(
-              title: tr(widget.fa, 'شماره رسمی WhatsApp Velixeo', 'Official Velixeo WhatsApp number'),
-              value: number,
-              buttonLabel: tr(widget.fa, 'کپی شماره', 'Copy number'),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(11),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F8FB),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFDCE6EF)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tr(widget.fa, 'لینک امن وریفای', 'Secure verification link'),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF6E8194),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                    tr(
+                      widget.fa,
+                      'شماره رسمی داخل لینک قرار دارد و در این صفحه نمایش داده نمی‌شود.',
+                      'The official number is embedded in the link and is not displayed on this screen.',
+                    ),
+                    style: const TextStyle(fontSize: 10.5, color: Color(0xFF607487)),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: link.trim().isEmpty
+                          ? null
+                          : () => _copy(
+                                link,
+                                tr(widget.fa, 'لینک وریفای کپی شد.', 'Verification link copied.'),
+                              ),
+                      icon: const Icon(Icons.link_rounded, size: 18),
+                      label: Text(tr(widget.fa, 'کپی لینک وریفای', 'Copy verification link')),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 10),
             _copyBox(
