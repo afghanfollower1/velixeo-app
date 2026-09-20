@@ -1,2 +1,2 @@
-Trigger signed Android build - VELIXEO v0.8.8 - 2026-09-20.
-User-initiated WhatsApp verification: registration, profile verification and WhatsApp 2FA can now verify by sending a prepared message to the official Velixeo WhatsApp number, with automatic webhook polling and no outbound OTP required.
+Trigger signed Android build - VELIXEO v0.8.9 - 2026-09-20.
+Changes: separate email/mobile sign-in with country picker; mobile registration requires WhatsApp verification from the exact entered number; another-phone WhatsApp flow with copyable official Velixeo number and verification message; SMS verification removed from the app UI; user-initiated WhatsApp 2FA supports another device.
