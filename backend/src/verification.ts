@@ -3,6 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 import { createHmac, randomBytes, randomInt, randomUUID } from 'node:crypto';
 import nodemailer from 'nodemailer';
 import { z } from 'zod';
+import { isPhonePermanentlyBlocked } from './accountControl.js';
 
 type AuthHandler = (request: FastifyRequest, reply: FastifyReply) => Promise<unknown>;
 
@@ -162,6 +163,9 @@ export async function issueInboundWhatsAppChallenge(
 
   const target = normalizeTarget(input.target, 'WHATSAPP');
   if (!/^\+[1-9]\d{6,14}$/.test(target)) throw new Error('invalid_phone');
+  if (await isPhonePermanentlyBlocked(prisma, target)) {
+    throw new Error('phone_permanently_blocked');
+  }
 
   const now = new Date();
   const lastMinute = new Date(now.getTime() - 60_000);
