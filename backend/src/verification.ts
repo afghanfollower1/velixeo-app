@@ -746,4 +746,62 @@ export function registerVerificationRoutes(
   });
 }
 
+
+export async function ensureMetaWhatsAppSubscription(app: FastifyInstance) {
+  if (!metaWhatsAppConfigured()) return;
+
+  const accessToken = process.env.META_WHATSAPP_ACCESS_TOKEN;
+  const wabaId = process.env.META_WHATSAPP_BUSINESS_ACCOUNT_ID;
+  const version = process.env.META_WHATSAPP_GRAPH_API_VERSION || 'v26.0';
+  if (!accessToken || !wabaId) return;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12_000);
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/${version}/${encodeURIComponent(wabaId)}/subscribed_apps`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+          accept: 'application/json',
+        },
+        signal: controller.signal,
+      },
+    );
+
+    if (!response.ok) {
+      let providerCode: string | number | undefined;
+      let providerMessage = '';
+      try {
+        const body = await response.json() as {
+          error?: { code?: string | number; message?: string };
+        };
+        providerCode = body.error?.code;
+        providerMessage = String(body.error?.message || '');
+      } catch {
+        // Ignore non-JSON provider responses.
+      }
+      app.log.warn(
+        {
+          status: response.status,
+          code: providerCode,
+          message: providerMessage || undefined,
+        },
+        '[meta-whatsapp] failed to subscribe app to WABA',
+      );
+      return;
+    }
+
+    app.log.info({ wabaId }, '[meta-whatsapp] app subscribed to WABA');
+  } catch (error) {
+    app.log.warn(
+      { error: error instanceof Error ? error.message : String(error) },
+      '[meta-whatsapp] WABA subscription request failed',
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export { capabilities as verificationCapabilities };
