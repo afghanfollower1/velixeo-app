@@ -27,6 +27,7 @@ import { registerVirtualNumberRoutes } from './virtualNumberRoutes.js';
 import { registerAdminV3 } from './adminV3.js';
 import { startNotificationPushScheduler } from './pushNotifications.js';
 import {
+  ensureMetaWhatsAppSubscription,
   issueVerificationChallenge,
   registerVerificationRoutes,
   verificationCapabilities,
@@ -1310,6 +1311,7 @@ app.post(
 
 registerAdminV3(app, prisma, adminWebUser);
 registerVerificationRoutes(app, prisma, authenticate);
+void ensureMetaWhatsAppSubscription(app);
 registerClientFoundationRoutes(app, prisma, authenticate);
 registerPaymentRoutes(app, prisma, authenticate);
 registerHesabPayWebhookRoutes(app, prisma, authenticate);
