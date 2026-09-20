@@ -1,2 +1,7 @@
-Trigger signed Android build - VELIXEO v0.8.9 - 2026-09-20.
-Changes: separate email/mobile sign-in with country picker; mobile registration requires WhatsApp verification from the exact entered number; another-phone WhatsApp flow with copyable official Velixeo number and verification message; SMS verification removed from the app UI; user-initiated WhatsApp 2FA supports another device.
+Trigger signed Android build - VELIXEO v0.9.0 - 2026-09-20.
+Completed release scope:
+1) WhatsApp verification privacy: no visible official number, copyable secure verification link, same-device and second-device guidance.
+2) User/admin account controls: self-delete, temporary/permanent suspension, admin soft-delete, independent permanent phone blacklist.
+3) Invite Friends: referral codes/links, branded app page, WhatsApp/Telegram share, invite/reward tracking and admin controls.
+4) Virtual Numbers: isolated VIRTUAL_NUMBER/5SIM workspace, live catalog, Best Rate/Low Price/Any Operator, provider cost accounting, order action logs, sync/country/pricing/service controls.
+5) Regression: Social Media logic intentionally unchanged and backend/Flutter validation passed before release.
