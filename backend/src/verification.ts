@@ -593,7 +593,8 @@ function registerMetaWhatsAppWebhookRoutes(app: FastifyInstance) {
     const expectedPhoneNumberId = process.env.META_WHATSAPP_PHONE_NUMBER_ID;
 
     for (const entry of body.entry || []) {
-      if (expectedWabaId && entry.id && entry.id !== expectedWabaId) {
+      const dashboardSample = entry.id === '0';
+      if (!dashboardSample && expectedWabaId && entry.id && entry.id !== expectedWabaId) {
         app.log.warn({ wabaId: entry.id }, '[meta-whatsapp-webhook] ignored event for another WABA');
         continue;
       }
@@ -602,7 +603,12 @@ function registerMetaWhatsAppWebhookRoutes(app: FastifyInstance) {
         if (change.field !== 'messages') continue;
         const value = change.value || {};
         const phoneNumberId = value.metadata?.phone_number_id;
-        if (expectedPhoneNumberId && phoneNumberId && phoneNumberId !== expectedPhoneNumberId) {
+        if (
+          !dashboardSample
+          && expectedPhoneNumberId
+          && phoneNumberId
+          && phoneNumberId !== expectedPhoneNumberId
+        ) {
           app.log.warn({ phoneNumberId }, '[meta-whatsapp-webhook] ignored event for another phone number');
           continue;
         }
