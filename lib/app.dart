@@ -637,6 +637,39 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
     return result;
   }
 
+  Future<String?> deleteAccount({String? password, String? reason}) async {
+    authBusy = true;
+    authError = null;
+    notifyListeners();
+    try {
+      await pushService.unregister(api);
+      await api.deleteAccount(password: password, reason: reason);
+      await googleAuth.signOut();
+      authenticated = false;
+      user = null;
+      balanceAfn = 0;
+      walletEntries = const [];
+      catalogServices = const [];
+      banners = const [];
+      notifications = const [];
+      orders = const [];
+      paymentCapabilities = const PaymentCapabilities();
+      payments = const [];
+      pendingTwoFactor = null;
+      languageConfirmed = true;
+      return null;
+    } on ApiException catch (error) {
+      authError = error.code;
+      return error.code;
+    } catch (_) {
+      authError = 'network_error';
+      return 'network_error';
+    } finally {
+      authBusy = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> logout() async {
     await pushService.unregister(api);
     await api.logout();
@@ -4069,6 +4102,100 @@ class ProfilePage extends StatelessWidget {
             title: tr(c.fa, 'وضعیت سرور', 'Server status'),
             value: 'LIVE',
             onTap: () {},
+          ),
+          SettingsTile(
+            icon: Icons.person_remove_alt_1_rounded,
+            title: tr(c.fa, 'حذف حساب', 'Delete account'),
+            value: '',
+            onTap: () async {
+              final passwordController = TextEditingController();
+              final reasonController = TextEditingController();
+              var confirmDelete = false;
+              final confirmed = await showDialog<bool>(
+                context: context,
+                barrierDismissible: false,
+                builder: (dialogContext) => StatefulBuilder(
+                  builder: (context, setDialogState) => AlertDialog(
+                    title: Text(tr(c.fa, 'حذف حساب VELIXEO', 'Delete VELIXEO account')),
+                    content: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tr(
+                              c.fa,
+                              'حساب شما غیرفعال و اطلاعات شخصی پروفایل حذف می‌شود. سوابق مالی و سفارش‌ها برای امنیت و حسابداری نگهداری می‌شوند. حذف حساب به‌تنهایی شماره شما را بلاک نمی‌کند و در آینده می‌توانید دوباره ثبت‌نام کنید.',
+                              'Your account will be disabled and personal profile data removed. Financial and order records are retained for security and accounting. Deleting your account does not blacklist your phone number, so you may register again later.',
+                            ),
+                            style: const TextStyle(height: 1.5),
+                          ),
+                          if (c.user?.hasPassword == true) ...[
+                            const SizedBox(height: 14),
+                            TextField(
+                              controller: passwordController,
+                              obscureText: true,
+                              decoration: InputDecoration(
+                                labelText: tr(c.fa, 'رمز عبور فعلی', 'Current password'),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: reasonController,
+                            maxLength: 300,
+                            decoration: InputDecoration(
+                              labelText: tr(c.fa, 'دلیل (اختیاری)', 'Reason (optional)'),
+                            ),
+                          ),
+                          CheckboxListTile(
+                            contentPadding: EdgeInsets.zero,
+                            value: confirmDelete,
+                            onChanged: (value) => setDialogState(() => confirmDelete = value == true),
+                            title: Text(
+                              tr(
+                                c.fa,
+                                'می‌دانم این عمل حساب فعلی را حذف می‌کند.',
+                                'I understand this deletes my current account.',
+                              ),
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                        child: Text(tr(c.fa, 'لغو', 'Cancel')),
+                      ),
+                      FilledButton(
+                        style: FilledButton.styleFrom(backgroundColor: const Color(0xFFE65454)),
+                        onPressed: !confirmDelete ||
+                                (c.user?.hasPassword == true && passwordController.text.isEmpty)
+                            ? null
+                            : () => Navigator.pop(dialogContext, true),
+                        child: Text(tr(c.fa, 'حذف حساب', 'Delete account')),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+              final password = passwordController.text;
+              final reason = reasonController.text;
+              passwordController.dispose();
+              reasonController.dispose();
+              if (confirmed != true || !context.mounted) return;
+              final error = await c.deleteAccount(
+                password: password.isEmpty ? null : password,
+                reason: reason,
+              );
+              if (!context.mounted || error == null) return;
+              final message = error == 'incorrect_current_password'
+                  ? tr(c.fa, 'رمز عبور فعلی نادرست است.', 'The current password is incorrect.')
+                  : tr(c.fa, 'حذف حساب انجام نشد. دوباره تلاش کنید.', 'Account deletion failed. Please try again.');
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+            },
           ),
           SettingsTile(
             icon: Icons.logout_rounded,
