@@ -1757,13 +1757,40 @@ class TwoFactorLoginPage extends StatefulWidget {
   State<TwoFactorLoginPage> createState() => _TwoFactorLoginPageState();
 }
 
-class _TwoFactorLoginPageState extends State<TwoFactorLoginPage> {
+class _TwoFactorLoginPageState extends State<TwoFactorLoginPage>
+    with WidgetsBindingObserver {
   final code = TextEditingController();
+  Timer? whatsappTimer;
+  bool whatsappChecking = false;
+  bool whatsappOpening = false;
+  String? whatsappStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final challenge = widget.controller.pendingTwoFactor;
+      if (challenge?.isWhatsAppInbound == true) {
+        unawaited(_startWhatsAppVerification());
+      }
+    });
+  }
 
   @override
   void dispose() {
+    whatsappTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     code.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        widget.controller.pendingTwoFactor?.isWhatsAppInbound == true) {
+      unawaited(_pollWhatsApp());
+    }
   }
 
   Future<void> verify() async {
@@ -1779,10 +1806,79 @@ class _TwoFactorLoginPageState extends State<TwoFactorLoginPage> {
     }
   }
 
+  Future<void> _openWhatsApp() async {
+    final link = widget.controller.pendingTwoFactor?.whatsappLink;
+    if (link == null || link.isEmpty || whatsappOpening) return;
+    whatsappOpening = true;
+    try {
+      final opened = await launchUrl(
+        Uri.parse(link),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened && mounted) {
+        setState(() {
+          whatsappStatus = tr(
+            widget.controller.fa,
+            'واتساپ باز نشد. دوباره تلاش کنید.',
+            'WhatsApp could not be opened. Please try again.',
+          );
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          whatsappStatus = tr(
+            widget.controller.fa,
+            'واتساپ باز نشد. دوباره تلاش کنید.',
+            'WhatsApp could not be opened. Please try again.',
+          );
+        });
+      }
+    } finally {
+      whatsappOpening = false;
+    }
+  }
+
+  Future<void> _startWhatsAppVerification() async {
+    await _openWhatsApp();
+    if (!mounted) return;
+    await _pollWhatsApp();
+    whatsappTimer ??= Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => _pollWhatsApp(),
+    );
+  }
+
+  Future<void> _pollWhatsApp() async {
+    if (whatsappChecking || !mounted) return;
+    whatsappChecking = true;
+    try {
+      final result = await widget.controller.pollTwoFactorWhatsAppLogin();
+      if (!mounted) return;
+      if (result == true) {
+        whatsappTimer?.cancel();
+        Navigator.pop(context);
+        return;
+      }
+      if (result == false) {
+        setState(() {
+          whatsappStatus =
+              widget.controller.authError ?? 'WhatsApp verification failed';
+        });
+      } else if (whatsappStatus != null) {
+        setState(() => whatsappStatus = null);
+      }
+    } finally {
+      whatsappChecking = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = widget.controller;
     final challenge = c.pendingTwoFactor;
+    final whatsappInbound = challenge?.isWhatsAppInbound == true;
+
     return Scaffold(
       appBar: AppBar(title: Text(tr(c.fa, 'تأیید ورود', 'Verify sign-in'))),
       body: ListView(
@@ -1797,7 +1893,11 @@ class _TwoFactorLoginPageState extends State<TwoFactorLoginPage> {
                 color: const Color(0xFFE8F4FF),
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: const Icon(Icons.phonelink_lock_rounded, color: Color(0xFF1686FF), size: 39),
+              child: Icon(
+                whatsappInbound ? Icons.chat_rounded : Icons.phonelink_lock_rounded,
+                color: whatsappInbound ? const Color(0xFF20A76F) : const Color(0xFF1686FF),
+                size: 39,
+              ),
             ),
           ),
           const SizedBox(height: 24),
@@ -1810,26 +1910,76 @@ class _TwoFactorLoginPageState extends State<TwoFactorLoginPage> {
           Text(
             challenge == null
                 ? tr(c.fa, 'جلسه تأیید در دسترس نیست.', 'Verification session is unavailable.')
-                : tr(c.fa, 'کد ۶ رقمی به ${challenge.maskedTarget} ارسال شد.', 'A 6-digit code was sent to ${challenge.maskedTarget}.'),
+                : whatsappInbound
+                    ? tr(
+                        c.fa,
+                        'واتساپ باز می‌شود. پیام آماده VELIXEO را بدون تغییر ارسال کنید و به برنامه برگردید.',
+                        'WhatsApp will open. Send the prepared VELIXEO message without editing it, then return to the app.',
+                      )
+                    : tr(
+                        c.fa,
+                        'کد ۶ رقمی به ${challenge.maskedTarget} ارسال شد.',
+                        'A 6-digit code was sent to ${challenge.maskedTarget}.',
+                      ),
             textAlign: TextAlign.center,
             style: const TextStyle(color: Color(0xFF6E8194), height: 1.5),
           ),
           const SizedBox(height: 24),
-          TextField(
-            controller: code,
-            autofocus: true,
-            keyboardType: TextInputType.number,
-            maxLength: 6,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 10),
-            decoration: const InputDecoration(counterText: '', hintText: '••••••'),
-            onSubmitted: (_) => verify(),
-          ),
-          const SizedBox(height: 18),
-          PrimaryButton(
-            label: c.authBusy ? tr(c.fa, 'درحال بررسی...', 'Verifying...') : tr(c.fa, 'تأیید و ورود', 'Verify and sign in'),
-            onPressed: c.authBusy || challenge == null ? null : verify,
-          ),
+          if (whatsappInbound) ...[
+            const LinearProgressIndicator(),
+            const SizedBox(height: 12),
+            Text(
+              whatsappChecking
+                  ? tr(c.fa, 'در حال بررسی پیام واتساپ...', 'Checking your WhatsApp message...')
+                  : tr(c.fa, 'منتظر پیام واتساپ شما هستیم...', 'Waiting for your WhatsApp message...'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF6E8194),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (whatsappStatus?.isNotEmpty == true) ...[
+              const SizedBox(height: 10),
+              Text(
+                whatsappStatus!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+              ),
+            ],
+            const SizedBox(height: 18),
+            PrimaryButton(
+              label: tr(c.fa, 'باز کردن واتساپ', 'Open WhatsApp'),
+              onPressed: whatsappOpening ? null : _openWhatsApp,
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: whatsappChecking ? null : _pollWhatsApp,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(tr(c.fa, 'بررسی وضعیت', 'Check status')),
+            ),
+          ] else ...[
+            TextField(
+              controller: code,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 10,
+              ),
+              decoration: const InputDecoration(counterText: '', hintText: '••••••'),
+              onSubmitted: (_) => verify(),
+            ),
+            const SizedBox(height: 18),
+            PrimaryButton(
+              label: c.authBusy
+                  ? tr(c.fa, 'درحال بررسی...', 'Verifying...')
+                  : tr(c.fa, 'تأیید و ورود', 'Verify and sign in'),
+              onPressed: c.authBusy || challenge == null ? null : verify,
+            ),
+          ],
         ],
       ),
     );
