@@ -1355,40 +1355,7 @@ class _AuthPageState extends State<AuthPage> {
     if (registerMethod == 'EMAIL') {
       if (caps.email) channel = 'EMAIL';
     } else {
-      if (caps.whatsapp && caps.sms) {
-        channel = await showModalBottomSheet<String>(
-          context: context,
-          showDragHandle: true,
-          builder: (_) => SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.chat_rounded, color: Color(0xFF20A76F)),
-                  title: const Text('WhatsApp'),
-                  subtitle: Text(
-                    caps.whatsappInbound
-                        ? tr(c.fa, 'تأیید با ارسال پیام در واتساپ', 'Verify by sending a WhatsApp message')
-                        : tr(c.fa, 'ارسال کد با واتساپ', 'Send code with WhatsApp'),
-                  ),
-                  onTap: () => Navigator.pop(context, 'WHATSAPP'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.sms_rounded, color: Color(0xFF1686FF)),
-                  title: const Text('SMS'),
-                  subtitle: Text(tr(c.fa, 'ارسال کد پیامکی', 'Send code by SMS')),
-                  onTap: () => Navigator.pop(context, 'SMS'),
-                ),
-              ],
-            ),
-          ),
-        );
-        if (channel == null) return '__cancelled__';
-      } else if (caps.whatsapp) {
-        channel = 'WHATSAPP';
-      } else if (caps.sms) {
-        channel = 'SMS';
-      }
+      if (caps.whatsapp) channel = 'WHATSAPP';
     }
 
     if (channel == null) {
@@ -1397,7 +1364,7 @@ class _AuthPageState extends State<AuthPage> {
           SnackBar(
             content: Text(registerMethod == 'EMAIL'
                 ? tr(c.fa, 'ارسال OTP ایمیل هنوز تنظیم نشده است.', 'Email OTP is not configured yet.')
-                : tr(c.fa, 'سرویس رایگان SMS/WhatsApp هنوز متصل نشده است.', 'A free SMS/WhatsApp OTP provider is not connected yet.')),
+                : tr(c.fa, 'تأیید شماره با WhatsApp هنوز روی سرور فعال نیست.', 'WhatsApp phone verification is not active on the server yet.')),
           ),
         );
         return '__cancelled__';
@@ -1730,7 +1697,7 @@ class _AuthPageState extends State<AuthPage> {
                     child: Text(
                       registerMethod == 'EMAIL'
                           ? tr(fa, 'در صورت فعال بودن SMTP، کد OTP به ایمیل ارسال می‌شود.', 'OTP will be sent by email when SMTP is configured.')
-                          : tr(fa, 'در صورت اتصال سرویس رایگان، SMS یا WhatsApp برای OTP نمایش داده می‌شود.', 'SMS or WhatsApp OTP appears when a free provider is connected.'),
+                          : tr(fa, 'برای ثبت‌نام با موبایل، همین شماره باید یک حساب فعال WhatsApp داشته باشد.', 'To register with mobile, this exact number must have an active WhatsApp account.'),
                       style: const TextStyle(fontSize: 10.5, color: Color(0xFF6E8194)),
                     ),
                   ),
@@ -4372,39 +4339,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   Future<String?> choosePhoneVerificationChannel() async {
     final caps = await c.refreshVerificationCapabilities();
-    final available = <String>[];
-    if (caps.whatsapp) available.add('WHATSAPP');
-    if (caps.sms) available.add('SMS');
-    if (available.isEmpty) return null;
-    if (available.length == 1) return available.first;
-    if (!mounted) return null;
-    return showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.chat_rounded, color: Color(0xFF20A76F)),
-              title: const Text('WhatsApp'),
-              subtitle: Text(
-                caps.whatsappInbound
-                    ? tr(c.fa, 'تأیید با ارسال پیام در واتساپ', 'Verify by sending a WhatsApp message')
-                    : tr(c.fa, 'ارسال کد با واتساپ', 'Send code with WhatsApp'),
-              ),
-              onTap: () => Navigator.pop(context, 'WHATSAPP'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.sms_rounded, color: Color(0xFF1686FF)),
-              title: const Text('SMS'),
-              subtitle: Text(tr(c.fa, 'ارسال کد پیامکی', 'Send code by SMS')),
-              onTap: () => Navigator.pop(context, 'SMS'),
-            ),
-          ],
-        ),
-      ),
-    );
+    return caps.whatsapp ? 'WHATSAPP' : null;
   }
 
   Future<void> sendPhoneVerification() async {
@@ -4426,8 +4361,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
             content: Text(
               tr(
                 c.fa,
-                'فعلاً سرویس رایگان SMS/WhatsApp به سرور وصل نشده است.',
-                'A free SMS/WhatsApp OTP gateway is not connected yet.',
+                'تأیید شماره با WhatsApp فعلاً در دسترس نیست.',
+                'WhatsApp phone verification is currently unavailable.',
               ),
             ),
           ),
@@ -5296,39 +5231,7 @@ class _SecurityPageState extends State<SecurityPage> {
   Future<String?> choosePhoneChannel() async {
     final s = state;
     if (s == null) return null;
-    final choices = <String>[];
-    if (s.verification.whatsapp) choices.add('WHATSAPP');
-    if (s.verification.sms) choices.add('SMS');
-    if (choices.isEmpty) return null;
-    if (choices.length == 1) return choices.first;
-    if (!mounted) return null;
-    return showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.chat_rounded, color: Color(0xFF20A76F)),
-              title: const Text('WhatsApp'),
-              subtitle: Text(
-                s.verification.whatsappInbound
-                    ? tr(c.fa, 'تأیید با ارسال پیام در واتساپ', 'Verify by sending a WhatsApp message')
-                    : tr(c.fa, 'دریافت کد از واتساپ', 'Receive code on WhatsApp'),
-              ),
-              onTap: () => Navigator.pop(context, 'WHATSAPP'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.sms_rounded, color: Color(0xFF1686FF)),
-              title: const Text('SMS'),
-              subtitle: Text(tr(c.fa, 'دریافت کد پیامکی', 'Receive code by SMS')),
-              onTap: () => Navigator.pop(context, 'SMS'),
-            ),
-          ],
-        ),
-      ),
-    );
+    return s.verification.whatsapp ? 'WHATSAPP' : null;
   }
 
   Future<void> sendSecurityPhoneCode() async {
@@ -5340,7 +5243,7 @@ class _SecurityPageState extends State<SecurityPage> {
       if (channel == null) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr(c.fa, 'فعلاً کانال رایگان SMS/WhatsApp متصل نشده است.', 'A free SMS/WhatsApp OTP channel is not connected yet.'))),
+          SnackBar(content: Text(tr(c.fa, 'تأیید شماره با WhatsApp فعلاً در دسترس نیست.', 'WhatsApp phone verification is currently unavailable.'))),
         );
         return;
       }
@@ -5462,7 +5365,6 @@ class _SecurityPageState extends State<SecurityPage> {
     final choices = <String>[];
     if (s.emailVerified && s.verification.email) choices.add('EMAIL');
     if (s.phoneVerified && s.verification.whatsapp) choices.add('WHATSAPP');
-    if (s.phoneVerified && s.verification.sms) choices.add('SMS');
     if (choices.isEmpty) return null;
     if (choices.length == 1) return choices.first;
     if (!mounted) return null;
@@ -5475,9 +5377,7 @@ class _SecurityPageState extends State<SecurityPage> {
           children: choices.map((method) {
             final icon = method == 'EMAIL'
                 ? Icons.email_outlined
-                : method == 'WHATSAPP'
-                    ? Icons.chat_rounded
-                    : Icons.sms_rounded;
+                : Icons.chat_rounded;
             return ListTile(
               leading: Icon(icon, color: const Color(0xFF1686FF)),
               title: Text(method == 'EMAIL' ? 'Email' : method == 'WHATSAPP' ? 'WhatsApp' : 'SMS'),
@@ -5663,7 +5563,7 @@ class _SecurityPageState extends State<SecurityPage> {
                   title: tr(c.fa, 'تأیید شماره موبایل', 'Mobile verification'),
                   subtitle: s.phone ?? tr(c.fa, 'شماره‌ای ثبت نشده است', 'No mobile number registered'),
                   verified: s.phoneVerified,
-                  channelReady: s.verification.sms || s.verification.whatsapp,
+                  channelReady: s.verification.whatsapp,
                   sending: phoneSending,
                   onSend: busy || s.phoneVerified || s.phone?.isNotEmpty != true ? null : sendSecurityPhoneCode,
                   challenge: phoneChallenge,
@@ -5686,7 +5586,6 @@ class _SecurityPageState extends State<SecurityPage> {
                       Text(tr(c.fa, 'کانال‌های OTP', 'OTP channels'), style: const TextStyle(fontWeight: FontWeight.w900)),
                       const SizedBox(height: 10),
                       _SecurityChannelRow(label: 'Email', enabled: s.verification.email, free: true),
-                      _SecurityChannelRow(label: 'SMS', enabled: s.verification.sms, free: true),
                       _SecurityChannelRow(label: 'WhatsApp', enabled: s.verification.whatsapp, free: true),
                       const SizedBox(height: 8),
                       Text(
