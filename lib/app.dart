@@ -5091,6 +5091,49 @@ class _SecurityPageState extends State<SecurityPage> {
         );
         return;
       }
+      if (channel == 'WHATSAPP' && s.verification.whatsappInbound) {
+        try {
+          final challenge = await c.api.requestAccountWhatsAppVerification(
+            purpose: 'VERIFY_PHONE',
+          );
+          if (!mounted) return;
+          final token = await showWhatsAppInboundVerification(
+            context,
+            challenge,
+            c.fa,
+            checkStatus: () => c.api.checkAccountWhatsAppVerification(
+              challengeId: challenge.challengeId,
+            ),
+          );
+          if (token == null || !mounted) return;
+
+          final error = await c.verifyContact(token);
+          if (!mounted) return;
+          if (error != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(error)),
+            );
+            return;
+          }
+          await load();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                tr(c.fa, 'شماره موبایل با موفقیت تأیید شد.', 'Mobile number verified successfully.'),
+              ),
+            ),
+          );
+          return;
+        } on ApiException catch (error) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error.code)),
+          );
+          return;
+        }
+      }
+
       final challenge = await c.requestAccountOtp(channel, 'VERIFY_PHONE');
       if (!mounted) return;
       if (challenge == null) {
