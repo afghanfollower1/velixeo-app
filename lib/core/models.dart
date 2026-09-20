@@ -105,6 +105,8 @@ class VerificationChallenge {
     required this.resendAfterSeconds,
     this.verificationMode,
     this.whatsappLink,
+    this.whatsappNumber,
+    this.verificationMessage,
   });
 
   final String challengeId;
@@ -115,6 +117,8 @@ class VerificationChallenge {
   final int resendAfterSeconds;
   final String? verificationMode;
   final String? whatsappLink;
+  final String? whatsappNumber;
+  final String? verificationMessage;
 
   bool get isWhatsAppInbound =>
       verificationMode == 'WHATSAPP_INBOUND' && whatsappLink?.isNotEmpty == true;
@@ -128,6 +132,8 @@ class VerificationChallenge {
         resendAfterSeconds: (json['resendAfterSeconds'] as num?)?.toInt() ?? 60,
         verificationMode: json['verificationMode'] as String?,
         whatsappLink: json['whatsappLink'] as String?,
+        whatsappNumber: json['whatsappNumber'] as String?,
+        verificationMessage: json['verificationMessage'] as String?,
       );
 }
 
@@ -175,6 +181,8 @@ class TwoFactorLoginChallenge {
     required this.expiresInSeconds,
     this.verificationMode,
     this.whatsappLink,
+    this.whatsappNumber,
+    this.verificationMessage,
   });
 
   final String loginToken;
@@ -184,6 +192,8 @@ class TwoFactorLoginChallenge {
   final int expiresInSeconds;
   final String? verificationMode;
   final String? whatsappLink;
+  final String? whatsappNumber;
+  final String? verificationMessage;
 
   bool get isWhatsAppInbound =>
       channel == 'WHATSAPP' &&
@@ -198,6 +208,8 @@ class TwoFactorLoginChallenge {
         expiresInSeconds: (json['expiresInSeconds'] as num?)?.toInt() ?? 600,
         verificationMode: json['verificationMode'] as String?,
         whatsappLink: json['whatsappLink'] as String?,
+        whatsappNumber: json['whatsappNumber'] as String?,
+        verificationMessage: json['verificationMessage'] as String?,
       );
 }
 
