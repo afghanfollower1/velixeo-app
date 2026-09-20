@@ -21,6 +21,16 @@ import { randomBytes } from 'node:crypto';
 import { encryptProviderSecret, providerSecretEncryptionConfigured } from './providerSecrets.js';
 import { smmClientForProvider } from './smmPanelAdapter.js';
 import { fiveSimClientForProvider } from './fiveSimAdapter.js';
+import {
+  blockPhonePermanently,
+  getAccountControl,
+  permanentPhoneBlockDetails,
+  restoreUserAccess,
+  softDeleteUserAccount,
+  suspendUserPermanently,
+  suspendUserTemporarily,
+  unblockPhone,
+} from './accountControl.js';
 import { dispatchNotificationPush, firebasePushConfigured, publishUserNotification } from './pushNotifications.js';
 import {
   convertSocialPriceToAfn,
@@ -96,8 +106,47 @@ async function providerCheck(p:any){if(!p.enabled)return{status:'Disabled',class
 
 async function dashboard(p:PrismaClient){const now=new Date(),start=new Date(now);start.setUTCHours(0,0,0,0);const from=new Date(now.getTime()-29*86400000);const valid={notIn:[OrderStatus.CANCELLED,OrderStatus.FAILED,OrderStatus.REFUNDED]};const [users,ordersToday,sum,recent,range,providers]=await Promise.all([p.user.count(),p.order.count({where:{createdAt:{gte:start},status:valid}}),p.order.aggregate({where:{createdAt:{gte:start},status:valid},_sum:{totalAmountAfn:true,providerCostAfn:true}}),p.order.findMany({include:{user:true,service:true},orderBy:{createdAt:'desc'},take:5}),p.order.findMany({where:{createdAt:{gte:from},status:valid},select:{createdAt:true,totalAmountAfn:true,category:true}}),p.provider.findMany({orderBy:[{enabled:'desc'},{priority:'asc'}],take:5})]);const sales=sum._sum.totalAmountAfn??0n,cost=sum._sum.providerCostAfn??0n;const days=Array.from({length:30},(_,x)=>new Date(from.getTime()+x*86400000).toISOString().slice(0,10));const dm=new Map(days.map(x=>[x,0]));const cm=new Map<string,number>();for(const o of range){const k=o.createdAt.toISOString().slice(0,10);dm.set(k,(dm.get(k)||0)+Number(o.totalAmountAfn));cm.set(o.category,(cm.get(o.category)||0)+Number(o.totalAmountAfn))}const total=[...cm.values()].reduce((a,b)=>a+b,0)||1;const colors:Record<string,string>={SOCIAL:'#1687f8',VIRTUAL_NUMBER:'#14b98b',PREMIUM:'#51ce7d',MOBILE_TOPUP:'#f1a126',DIGITAL_ACCOUNT:'#765ff3',PROMOTION:'#e95976'};let acc=0;const grad=[...cm.entries()].map(([k,v])=>{const s=acc;acc+=v/total*100;return `${colors[k]||'#a2afbd'} ${s}% ${acc}%`}).join(',')||'#edf2f7 0 100%';const ph=await Promise.all(providers.map(async x=>({p:x,h:await providerCheck(x)})));return `<div class="stats"><div class="stat"><div class="sicon">${ico('users')}</div><div><small>Total Users</small><strong>${users.toLocaleString('en-US')}</strong><div class="delta">Live database</div></div></div><div class="stat"><div class="sicon">${ico('orders')}</div><div><small>Orders Today</small><strong>${ordersToday.toLocaleString('en-US')}</strong><div class="delta">Today</div></div></div><div class="stat"><div class="sicon">${ico('wallet')}</div><div><small>Sales Today</small><strong>${money(sales)}</strong><div class="delta">Valid orders</div></div></div><div class="stat"><div class="sicon">${ico('dashboard')}</div><div><small>Net Profit</small><strong>${money(sales-cost)}</strong><div class="delta">Sales − provider cost</div></div></div></div><div class="grid"><div class="card"><div class="cardhead"><div><h2>Sales Overview</h2><span class="muted">Last 30 days</span></div><div class="actions">${pill('Daily','info')}${pill('Weekly')}${pill('Monthly')}</div></div>${chart([...dm.values()])}</div><div class="card"><div class="cardhead"><h2>Service Distribution</h2><span class="muted">Last 30 days</span></div><div class="donutgrid"><div class="donut" style="background:conic-gradient(${grad})"><div class="donuttext">Total Sales<b>${money([...dm.values()].reduce((a,b)=>a+b,0))}</b></div></div><div class="legend">${[...cm.entries()].sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="legendrow"><i class="dot" style="background:${colors[k]||'#a2afbd'}"></i><span>${e(k.replaceAll('_',' '))}</span><b>${Math.round(v/total*100)}%</b></div>`).join('')||'<span class="muted">No sales data yet.</span>'}</div></div></div></div><div class="grid"><div class="card"><div class="cardhead"><h2>Recent Orders</h2><a class="link" href="${href('orders')}">View all</a></div><div class="tablewrap"><table class="table"><thead><tr><th>#</th><th>User</th><th>Service</th><th>Amount</th><th>Status</th><th>Time</th></tr></thead><tbody>${recent.map(o=>`<tr><td>${sid(o.id)}</td><td>${e(o.user.fullName||o.user.email||o.user.phone||'—')}</td><td><b>${e(o.service?.titleEn||o.service?.titleFa||o.category)}</b></td><td class="money">${money(o.totalAmountAfn)}</td><td>${state(o.status)}</td><td>${dt(o.createdAt)}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">No orders yet.</td></tr>'}</tbody></table></div></div><div class="card"><div class="cardhead"><h2>Provider Status</h2><a class="link" href="${href('social','&tab=providers')}">View all</a></div>${ph.map(({p,h})=>`<div class="provider"><div class="plogo">${e(p.name.charAt(0).toUpperCase())}</div><div><b>${e(p.name)}</b><small>${e(p.kind.replaceAll('_',' '))} Provider</small></div>${pill(h.status,h.class)}<b class="money">${e(h.balance)}</b></div>`).join('')||'<div class="empty">No providers configured.</div>'}</div></div>`}
 
-async function usersPage(p:PrismaClient,q:string,edit:string){const where:Prisma.UserWhereInput=q?{OR:[{fullName:{contains:q,mode:'insensitive'}},{email:{contains:q,mode:'insensitive'}},{phone:{contains:q,mode:'insensitive'}}]}:{};const [rows,total,selected]=await Promise.all([p.user.findMany({where,include:{wallet:true},orderBy:{createdAt:'desc'},take:120}),p.user.count({where}),edit?p.user.findUnique({where:{id:edit},include:{wallet:{include:{entries:{orderBy:{createdAt:'desc'},take:15}}}}}):Promise.resolve(null)]);return `<div class="card"><div class="cardhead"><div><h2>User Directory</h2><span class="muted">${total.toLocaleString('en-US')} accounts</span></div><form method="get" action="/admin/v3" class="actions"><input type="hidden" name="section" value="users"><input name="q" value="${e(q)}" placeholder="Name, email or phone" style="height:34px;border:1px solid #e3eaf3;border-radius:8px;padding:0 9px"><button class="btn">Search</button></form></div><div class="tablewrap"><table class="table"><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Wallet</th><th>Joined</th><th></th></tr></thead><tbody>${rows.map(u=>`<tr><td><b>${e(u.fullName||'—')}</b><br><span class="muted">${e(u.email||u.phone||'—')}</span></td><td>${pill(u.role,u.role==='ADMIN'?'info':'')}</td><td>${state(u.status)}</td><td class="money">${money(u.wallet?.balanceAfn||0n)}</td><td>${dt(u.createdAt)}</td><td><a class="btn ghost" href="${href('users',`&edit=${u.id}`)}">Manage</a></td></tr>`).join('')}</tbody></table></div></div>${selected?`<div class="grid eq"><div class="card"><div class="cardhead"><h2>Account Management</h2>${state(selected.status)}</div><form method="post" action="/admin/v3/user"><input type="hidden" name="userId" value="${selected.id}"><div class="forms"><div class="field"><label>Role</label><select name="role"><option ${selected.role==='USER'?'selected':''}>USER</option><option ${selected.role==='ADMIN'?'selected':''}>ADMIN</option></select></div><div class="field"><label>Status</label><select name="status"><option ${selected.status==='ACTIVE'?'selected':''}>ACTIVE</option><option ${selected.status==='SUSPENDED'?'selected':''}>SUSPENDED</option></select></div></div><button class="btn">Save Account</button></form><hr style="border:0;border-top:1px solid #edf2f7;margin:15px 0"><form method="post" action="/admin/v3/wallet"><input type="hidden" name="userId" value="${selected.id}"><div class="forms"><div class="field"><label>Wallet Adjustment (AFN)</label><input name="amountAfn" type="number" placeholder="500 or -200" required></div><div class="field"><label>Reason</label><input name="reason" minlength="3" required></div></div><button class="btn">Post to Ledger</button></form></div><div class="card"><div class="cardhead"><h2>Recent Wallet Activity</h2><b>${money(selected.wallet?.balanceAfn||0n)}</b></div>${selected.wallet?.entries.map(x=>`<div class="provider" style="grid-template-columns:1fr auto"><div><b>${e(x.description||x.type)}</b><small>${dt(x.createdAt)}</small></div><b style="color:${x.amountAfn>=0n?'#18a875':'#e65362'}">${x.amountAfn>0n?'+':''}${money(x.amountAfn)}</b></div>`).join('')||'<div class="empty">No wallet entries.</div>'}</div></div>`:''}`}
-
+async function usersPage(p:PrismaClient,q:string,edit:string){
+ const where:Prisma.UserWhereInput=q?{OR:[
+  {fullName:{contains:q,mode:'insensitive'}},
+  {email:{contains:q,mode:'insensitive'}},
+  {phone:{contains:q,mode:'insensitive'}}
+ ]}:{};
+ const [rows,total,selected]=await Promise.all([
+  p.user.findMany({where,include:{wallet:true},orderBy:{createdAt:'desc'},take:120}),
+  p.user.count({where}),
+  edit?p.user.findUnique({where:{id:edit},include:{wallet:{include:{entries:{orderBy:{createdAt:'desc'},take:15}}}}}):Promise.resolve(null)
+ ]);
+ const control=selected?await getAccountControl(p,selected.id):null;
+ const blocked=selected?.phone?await permanentPhoneBlockDetails(p,selected.phone):null;
+ const accessLabel=control?.state??selected?.status??'ACTIVE';
+ const accessInfo=control?.state==='TEMP_SUSPENDED'
+   ? `Until ${e(control.until||'—')}`
+   : control?.reason?e(control.reason):'';
+ const directory=`<div class="card"><div class="cardhead"><div><h2>User Directory</h2><span class="muted">${total.toLocaleString('en-US')} accounts</span></div><form method="get" action="/admin/v3" class="actions"><input type="hidden" name="section" value="users"><input name="q" value="${e(q)}" placeholder="Name, email or phone" style="height:34px;border:1px solid #e3eaf3;border-radius:8px;padding:0 9px"><button class="btn">Search</button></form></div><div class="tablewrap"><table class="table"><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Wallet</th><th>Joined</th><th></th></tr></thead><tbody>${rows.map(u=>`<tr><td><b>${e(u.fullName||'—')}</b><br><span class="muted">${e(u.email||u.phone||'—')}</span></td><td>${pill(u.role,u.role==='ADMIN'?'info':'')}</td><td>${state(u.status)}</td><td class="money">${money(u.wallet?.balanceAfn||0n)}</td><td>${dt(u.createdAt)}</td><td><a class="btn ghost" href="${href('users',`&edit=${u.id}`)}">Manage</a></td></tr>`).join('')}</tbody></table></div></div>`;
+ if(!selected)return directory;
+ const phoneBlock=selected.phone
+   ? blocked
+     ? `<div class="notice" style="border-color:#ffd6dc;background:#fff0f2;color:#a73545"><b>Phone permanently blocked</b><br><span class="mono">${e(selected.phone)}</span><br>${e(blocked.reason||'No reason')}</div><form method="post" action="/admin/v3/user-control" style="margin-top:9px"><input type="hidden" name="userId" value="${selected.id}"><input type="hidden" name="action" value="UNBLOCK_PHONE"><button class="btn ghost">Unblock phone</button></form>`
+     : `<form method="post" action="/admin/v3/user-control"><input type="hidden" name="userId" value="${selected.id}"><input type="hidden" name="action" value="BLOCK_PHONE"><div class="field"><label>Permanent phone blacklist reason</label><input name="reason" maxlength="300" placeholder="Reason for blocking this phone"></div><button class="btn danger">Block this phone permanently</button></form>`
+   : '<div class="muted">This account has no phone number to blacklist.</div>';
+ const selectedUi=`<div class="grid eq"><div>
+  <div class="card"><div class="cardhead"><h2>Account Management</h2>${state(selected.status)}</div>
+   <form method="post" action="/admin/v3/user"><input type="hidden" name="userId" value="${selected.id}"><div class="forms"><div class="field"><label>Role</label><select name="role"><option ${selected.role==='USER'?'selected':''}>USER</option><option ${selected.role==='ADMIN'?'selected':''}>ADMIN</option></select></div><div class="field"><label>Base Status</label><select name="status"><option ${selected.status==='ACTIVE'?'selected':''}>ACTIVE</option><option ${selected.status==='SUSPENDED'?'selected':''}>SUSPENDED</option></select></div></div><button class="btn">Save Account</button></form>
+  </div>
+  <div class="card"><div class="cardhead"><h2>Access & Safety Controls</h2>${pill(accessLabel,accessLabel==='ACTIVE'?'ok':'warn')}</div>
+   ${accessInfo?`<div class="notice" style="margin-bottom:10px">${accessInfo}</div>`:''}
+   <form method="post" action="/admin/v3/user-control"><input type="hidden" name="userId" value="${selected.id}"><input type="hidden" name="action" value="TEMP_SUSPEND"><div class="forms"><div class="field"><label>Temporary block (hours)</label><input name="hours" type="number" min="1" max="8760" value="24" required></div><div class="field"><label>Reason</label><input name="reason" maxlength="300" placeholder="Optional admin reason"></div></div><button class="btn ghost">Temporarily suspend</button></form>
+   <div class="actions" style="margin-top:10px"><form method="post" action="/admin/v3/user-control"><input type="hidden" name="userId" value="${selected.id}"><input type="hidden" name="action" value="PERM_SUSPEND"><input type="hidden" name="reason" value="Permanently suspended by administrator"><button class="btn danger">Permanent suspend</button></form><form method="post" action="/admin/v3/user-control"><input type="hidden" name="userId" value="${selected.id}"><input type="hidden" name="action" value="RESTORE"><button class="btn ghost">Restore access</button></form></div>
+   <hr style="border:0;border-top:1px solid #edf2f7;margin:15px 0">${phoneBlock}
+   <hr style="border:0;border-top:1px solid #edf2f7;margin:15px 0"><div class="notice"><b>Delete account</b><br>Soft-deletes and anonymizes the user while preserving financial/order records. This does not blacklist the phone unless you use the phone blacklist above.</div><form method="post" action="/admin/v3/user-control" style="margin-top:9px"><input type="hidden" name="userId" value="${selected.id}"><input type="hidden" name="action" value="DELETE"><div class="field"><label>Type DELETE to confirm</label><input name="confirmText" pattern="DELETE" required></div><div class="field"><label>Reason</label><input name="reason" maxlength="300" placeholder="Administrative deletion"></div><button class="btn danger">Delete account permanently</button></form>
+  </div>
+ </div><div>
+  <div class="card"><div class="cardhead"><h2>Recent Wallet Activity</h2><b>${money(selected.wallet?.balanceAfn||0n)}</b></div>${selected.wallet?.entries.map(x=>`<div class="provider" style="grid-template-columns:1fr auto"><div><b>${e(x.description||x.type)}</b><small>${dt(x.createdAt)}</small></div><b style="color:${x.amountAfn>=0n?'#18a875':'#e65362'}">${x.amountAfn>0n?'+':''}${money(x.amountAfn)}</b></div>`).join('')||'<div class="empty">No wallet entries.</div>'}</div>
+  <div class="card"><div class="cardhead"><h2>Wallet Adjustment</h2></div><form method="post" action="/admin/v3/wallet"><input type="hidden" name="userId" value="${selected.id}"><div class="forms"><div class="field"><label>Amount AFN</label><input name="amountAfn" type="number" placeholder="500 or -200" required></div><div class="field"><label>Reason</label><input name="reason" minlength="3" required></div></div><button class="btn">Post to Ledger</button></form></div>
+ </div></div>`;
+ return directory+selectedUi;
+}
 function categoryKey(slug:string){return `social.category.${slug}`}
 function slug(v:string){return v.toLowerCase().trim().replace(/\s+/g,'-').replace(/[^a-z0-9_-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80)}
 function parseCategory(row:{key:string;value:Prisma.JsonValue}):SocialCategory|null{const v=jsonObj(row.value),s=typeof v.slug==='string'?v.slug:row.key.replace(/^social\.category\./,'');if(!s)return null;return{slug:s,titleEn:typeof v.titleEn==='string'?v.titleEn:s,titleFa:typeof v.titleFa==='string'?v.titleFa:s,platform:typeof v.platform==='string'?v.platform:'OTHER',descriptionEn:typeof v.descriptionEn==='string'?v.descriptionEn:'',descriptionFa:typeof v.descriptionFa==='string'?v.descriptionFa:'',sortOrder:Number.isFinite(Number(v.sortOrder))?Number(v.sortOrder):100,enabled:v.enabled!==false}}
@@ -522,6 +571,55 @@ export function registerAdminV3(app:FastifyInstance,p:PrismaClient,resolve:Admin
  app.post('/admin/v3/social/category',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body;try{const original=t(b,'originalSlug'),s=slug(t(b,'slug')),titleEn=t(b,'titleEn'),platform=t(b,'platform');if(!s||!titleEn)throw new Error('Slug and English name are required');const value:SocialCategory={slug:s,titleEn,titleFa:t(b,'titleFa')||titleEn,platform,descriptionEn:t(b,'descriptionEn'),descriptionFa:t(b,'descriptionFa'),sortOrder:i(b.sortOrder,100),enabled:c(b,'enabled')};if(original&&original!==s)await p.systemSetting.deleteMany({where:{key:categoryKey(original)}});await p.systemSetting.upsert({where:{key:categoryKey(s)},create:{key:categoryKey(s),category:'social-category',description:'Social app category',value:value as unknown as Prisma.InputJsonValue},update:{category:'social-category',value:value as unknown as Prisma.InputJsonValue}});if(original&&original!==s)await p.service.updateMany({where:{category:ServiceCategory.SOCIAL,socialGroup:original},data:{socialGroup:s}});await audit(p,a.id,'SOCIAL_CATEGORY_SAVE','SocialCategory',s,`${platform} → ${titleEn}`);return rep.code(303).redirect(href('social',`&tab=categories&edit=${s}&msg=${encodeURIComponent('Category saved')}`))}catch(err){return rep.code(303).redirect(href('social',`&tab=categories&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'category_failed')}`))}});
  app.post('/admin/v3/social/publish',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body,routeId=t(b,'routeId'),providerId=t(b,'providerId');try{const route=await p.serviceProviderRoute.findUnique({where:{id:routeId},include:{service:true,provider:true}});if(!route||route.provider.kind!==ProviderKind.SOCIAL)throw new Error('Route not found');const cats=await categories(p),cat=cats.find(x=>x.slug===t(b,'categorySlug'));if(!cat)throw new Error('Choose a valid category');const mode=t(b,'pricingMode')==='FIXED'?'FIXED':'AUTO_MARKUP',markup=new Prisma.Decimal(t(b,'markup')||route.provider.defaultMarkupPercent.toString());let fixed:bigint|null=null;if(mode==='FIXED'){const raw=t(b,'fixedPrice');if(!raw)throw new Error('Fixed price is required');fixed=await convertSocialPriceToAfn(p,new Prisma.Decimal(raw),t(b,'fixedCurrency')||'AFN')}const old=jsonObj(route.service.metadata);await p.$transaction([p.service.update({where:{id:route.serviceId},data:{titleEn:t(b,'titleEn')||route.service.titleEn,titleFa:t(b,'titleFa')||t(b,'titleEn')||route.service.titleFa,descriptionEn:t(b,'descriptionEn')||null,descriptionFa:t(b,'descriptionFa')||null,enabled:c(b,'enabled'),sortOrder:i(b.sortOrder,route.service.sortOrder),basePriceAfn:fixed,minQty:t(b,'minQty')?i(b.minQty):route.providerMinQty,maxQty:t(b,'maxQty')?i(b.maxQty):route.providerMaxQty,socialPlatform:cat.platform,socialGroup:cat.slug,metadata:{...old,rawCatalog:false,pricingMode:mode,categorySlug:cat.slug,publishedFromProviderId:route.providerId,publishedAt:new Date().toISOString()} as Prisma.InputJsonValue}}),p.serviceProviderRoute.update({where:{id:route.id},data:{enabled:true,markupPercent:mode==='AUTO_MARKUP'?markup:null}})]);await audit(p,a.id,'SOCIAL_SERVICE_PUBLISH','Service',route.serviceId,`${t(b,'titleEn')} → ${cat.titleEn}`,{pricingMode:mode,markup:markup.toString(),fixedAfn:fixed?.toString()??null});return rep.code(303).redirect(href('social',`&tab=catalog&provider=${providerId}&route=${routeId}&msg=${encodeURIComponent('Service published to VELIXEO')}`))}catch(err){return rep.code(303).redirect(href('social',`&tab=catalog&provider=${providerId}&route=${routeId}&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'publish_failed')}`))}});
  app.post('/admin/v3/user',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body,id=t(b,'userId');if(id===a.id)return rep.code(303).redirect(href('users',`&edit=${id}&err=1&msg=${encodeURIComponent('Current admin account is protected')}`));const role=String(b.role) as UserRole,status=String(b.status) as UserStatus;if(!Object.values(UserRole).includes(role)||!Object.values(UserStatus).includes(status))return rep.code(303).redirect(href('users','&err=1&msg=Invalid access settings'));const x=await p.user.update({where:{id},data:{role,status}});await audit(p,a.id,'USER_ACCESS_UPDATE','User',x.id,`${role}/${status}`);return rep.code(303).redirect(href('users',`&edit=${x.id}&msg=${encodeURIComponent('Account saved')}`))});
+ app.post('/admin/v3/user-control',async(req,rep)=>{
+  const a=await needAdmin(req,rep,resolve);if(!a)return;
+  const b=req.body as Body,id=t(b,'userId'),action=t(b,'action'),reason=t(b,'reason');
+  const back=(ok:boolean,msg:string)=>rep.code(303).redirect(href('users',`&edit=${encodeURIComponent(id)}&${ok?'msg':'err=1&msg'}=${encodeURIComponent(msg)}`));
+  if(!id||id===a.id)return back(false,'Current admin account is protected');
+  const user=await p.user.findUnique({where:{id}});
+  if(!user)return back(false,'User not found');
+  try{
+   if(action==='TEMP_SUSPEND'){
+    const hours=Math.max(1,Math.min(8760,i(b.hours,24)));
+    await suspendUserTemporarily(p,id,a.id,new Date(Date.now()+hours*3600000),reason);
+    await audit(p,a.id,'USER_TEMP_SUSPEND','User',id,`Suspended for ${hours} hours`,{hours,reason} as Prisma.InputJsonValue);
+    return back(true,'Account temporarily suspended');
+   }
+   if(action==='PERM_SUSPEND'){
+    await suspendUserPermanently(p,id,a.id,reason);
+    await audit(p,a.id,'USER_PERM_SUSPEND','User',id,'Account permanently suspended',{reason} as Prisma.InputJsonValue);
+    return back(true,'Account permanently suspended');
+   }
+   if(action==='RESTORE'){
+    const control=await getAccountControl(p,id);
+    if(control?.state==='DELETED_ADMIN'||control?.state==='DELETED_USER')return back(false,'Deleted accounts cannot be restored here');
+    await restoreUserAccess(p,id);
+    await audit(p,a.id,'USER_ACCESS_RESTORE','User',id,'Account access restored');
+    return back(true,'Account access restored');
+   }
+   if(action==='BLOCK_PHONE'){
+    if(!user.phone)return back(false,'User has no phone number');
+    await blockPhonePermanently(p,user.phone,a.id,reason);
+    await audit(p,a.id,'PHONE_PERMANENT_BLOCK','User',id,`Phone permanently blocked: ${user.phone}`,{reason} as Prisma.InputJsonValue);
+    return back(true,'Phone permanently blocked');
+   }
+   if(action==='UNBLOCK_PHONE'){
+    if(!user.phone)return back(false,'User has no phone number');
+    await unblockPhone(p,user.phone);
+    await audit(p,a.id,'PHONE_UNBLOCK','User',id,`Phone unblocked: ${user.phone}`);
+    return back(true,'Phone removed from blacklist');
+   }
+   if(action==='DELETE'){
+    if(t(b,'confirmText')!=='DELETE')return back(false,'Type DELETE to confirm');
+    const phone=user.phone;
+    await softDeleteUserAccount(p,user,'ADMIN',a.id,reason);
+    await audit(p,a.id,'USER_ADMIN_DELETE','User',id,'Account soft-deleted and anonymized',{hadPhone:Boolean(phone),reason} as Prisma.InputJsonValue);
+    return rep.code(303).redirect(href('users',`&msg=${encodeURIComponent('Account deleted and anonymized')}`));
+   }
+   return back(false,'Unknown account action');
+  }catch(err){return back(false,err instanceof Error?err.message:'account_action_failed')}
+ });
+
  app.post('/admin/v3/wallet',async(req,rep)=>{
   const a=await needAdmin(req,rep,resolve);if(!a)return;
   const b=req.body as Body,id=t(b,'userId'),reason=t(b,'reason'),operation=t(b,'operation');
