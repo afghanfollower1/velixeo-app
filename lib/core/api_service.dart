@@ -7,6 +7,7 @@ import 'models.dart';
 import '../social/social_models.dart';
 import '../support/support_models.dart';
 import '../virtual_numbers/virtual_number_models.dart';
+import '../referrals/referral_models.dart';
 
 class ApiException implements Exception {
   const ApiException(this.code, {this.statusCode, this.details});
@@ -164,6 +165,7 @@ class ApiService {
     required String password,
     required AppLang language,
     String? verificationToken,
+    String? referralCode,
   }) async {
     final trimmed = identifier.trim();
     final cleanName = fullName.trim();
@@ -173,6 +175,7 @@ class ApiService {
       'password': password,
       'locale': language == AppLang.fa ? 'FA' : 'EN',
       if (verificationToken?.trim().isNotEmpty == true) 'verificationToken': verificationToken!.trim(),
+      if (referralCode?.trim().isNotEmpty == true) 'referralCode': referralCode!.trim().toUpperCase(),
     };
     final response = await _send('POST', '/api/v1/auth/register', body: body);
     if (response.statusCode != 201) _throwResponse(response);
@@ -857,6 +860,12 @@ class ApiService {
     if (response.statusCode != 200) _throwResponse(response);
   }
 
+
+  Future<ReferralSummary> referralSummary() async {
+    final response = await _send('GET', '/api/v1/referrals/me', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    return ReferralSummary.fromJson(_decodeObject(response));
+  }
 
   Future<VirtualCatalog> virtualNumberCatalog() async {
     final response = await _send('GET', '/api/v1/virtual-numbers/catalog');
