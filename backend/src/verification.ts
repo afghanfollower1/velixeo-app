@@ -196,7 +196,14 @@ export async function issueInboundWhatsAppChallenge(
     },
   });
 
-  const businessNumber = await resolveMetaWhatsAppNumber();
+  let businessNumber: string;
+  try {
+    businessNumber = await resolveMetaWhatsAppNumber();
+  } catch (error) {
+    await prisma.verificationChallenge.delete({ where: { id: challenge.id } }).catch(() => undefined);
+    throw error;
+  }
+
   const message = `VELIXEO VERIFY ${token}`;
   const whatsappLink = `https://wa.me/${businessNumber.replace(/^\+/, '')}?text=${encodeURIComponent(message)}`;
 
