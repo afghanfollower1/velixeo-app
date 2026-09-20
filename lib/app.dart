@@ -1298,6 +1298,18 @@ class _AuthPageState extends State<AuthPage> {
         return tr(fa, 'این شماره قبلاً ثبت شده است.', 'This phone number is already registered.');
       case 'verification_required':
         return tr(fa, 'ابتدا کد تأیید را وارد کنید.', 'Verification is required before registration.');
+      case 'whatsapp_verification_required':
+        return tr(
+          fa,
+          'ثبت‌نام با موبایل فقط پس از تأیید همان شماره از طریق WhatsApp انجام می‌شود.',
+          'Mobile registration requires WhatsApp verification from that exact phone number.',
+        );
+      case 'whatsapp_number_mismatch':
+        return tr(
+          fa,
+          'پیام WhatsApp از شماره دیگری ارسال شده است. باید از همان شماره‌ای که وارد کرده‌اید پیام بفرستید.',
+          'The WhatsApp message came from a different number. Send it from the exact number you entered.',
+        );
       case 'otp_invalid':
         return tr(fa, 'کد تأیید نادرست است.', 'The verification code is incorrect.');
       case 'otp_expired':
@@ -1355,7 +1367,7 @@ class _AuthPageState extends State<AuthPage> {
     if (registerMethod == 'EMAIL') {
       if (caps.email) channel = 'EMAIL';
     } else {
-      if (caps.whatsapp) channel = 'WHATSAPP';
+      if (caps.whatsapp && caps.whatsappInbound) channel = 'WHATSAPP';
     }
 
     if (channel == null) {
