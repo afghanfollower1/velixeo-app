@@ -4588,6 +4588,201 @@ class _InlineOtpPanel extends StatelessWidget {
       );
 }
 
+Future<String?> showWhatsAppInboundVerification(
+  BuildContext context,
+  VerificationChallenge challenge,
+  bool fa, {
+  required Future<String?> Function() checkStatus,
+}) {
+  return showDialog<String>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => _WhatsAppInboundDialog(
+      challenge: challenge,
+      fa: fa,
+      checkStatus: checkStatus,
+    ),
+  );
+}
+
+class _WhatsAppInboundDialog extends StatefulWidget {
+  const _WhatsAppInboundDialog({
+    required this.challenge,
+    required this.fa,
+    required this.checkStatus,
+  });
+
+  final VerificationChallenge challenge;
+  final bool fa;
+  final Future<String?> Function() checkStatus;
+
+  @override
+  State<_WhatsAppInboundDialog> createState() => _WhatsAppInboundDialogState();
+}
+
+class _WhatsAppInboundDialogState extends State<_WhatsAppInboundDialog>
+    with WidgetsBindingObserver {
+  Timer? timer;
+  bool checking = false;
+  bool opening = false;
+  String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _openWhatsApp();
+      if (!mounted) return;
+      await _checkNow();
+      timer = Timer.periodic(const Duration(seconds: 2), (_) => _checkNow());
+    });
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_checkNow());
+    }
+  }
+
+  Future<void> _openWhatsApp() async {
+    final link = widget.challenge.whatsappLink;
+    if (link == null || link.isEmpty || opening) return;
+    opening = true;
+    try {
+      final opened = await launchUrl(
+        Uri.parse(link),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened && mounted) {
+        setState(() {
+          error = tr(
+            widget.fa,
+            'واتساپ باز نشد. دوباره روی «باز کردن واتساپ» بزنید.',
+            'WhatsApp could not be opened. Tap Open WhatsApp and try again.',
+          );
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          error = tr(
+            widget.fa,
+            'واتساپ باز نشد. دوباره تلاش کنید.',
+            'WhatsApp could not be opened. Please try again.',
+          );
+        });
+      }
+    } finally {
+      opening = false;
+    }
+  }
+
+  Future<void> _checkNow() async {
+    if (checking || !mounted) return;
+    checking = true;
+    try {
+      final token = await widget.checkStatus();
+      if (!mounted) return;
+      if (token?.isNotEmpty == true) {
+        timer?.cancel();
+        Navigator.of(context).pop(token);
+        return;
+      }
+      if (error != null) setState(() => error = null);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => error = e.code);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        error = tr(
+          widget.fa,
+          'در حال انتظار برای تأیید واتساپ...',
+          'Waiting for WhatsApp verification...',
+        );
+      });
+    } finally {
+      checking = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Row(
+        children: [
+          const Icon(Icons.chat_rounded, color: Color(0xFF20A76F)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              tr(widget.fa, 'تأیید با واتساپ', 'Verify with WhatsApp'),
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            tr(
+              widget.fa,
+              'واتساپ با یک پیام آماده باز می‌شود. پیام را بدون تغییر ارسال کنید، سپس به VELIXEO برگردید. تأیید به‌صورت خودکار انجام می‌شود.',
+              'WhatsApp opens with a prepared verification message. Send it without editing, then return to VELIXEO. Verification completes automatically.',
+            ),
+            style: const TextStyle(height: 1.5),
+          ),
+          const SizedBox(height: 16),
+          const LinearProgressIndicator(),
+          const SizedBox(height: 10),
+          Text(
+            checking
+                ? tr(widget.fa, 'در حال بررسی...', 'Checking...')
+                : tr(widget.fa, 'منتظر پیام واتساپ شما هستیم...', 'Waiting for your WhatsApp message...'),
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF6E8194),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (error?.isNotEmpty == true) ...[
+            const SizedBox(height: 8),
+            Text(
+              error!,
+              style: const TextStyle(fontSize: 11, color: Colors.redAccent),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(tr(widget.fa, 'لغو', 'Cancel')),
+        ),
+        OutlinedButton.icon(
+          onPressed: checking ? null : _checkNow,
+          icon: const Icon(Icons.refresh_rounded),
+          label: Text(tr(widget.fa, 'بررسی', 'Check')),
+        ),
+        FilledButton.icon(
+          onPressed: opening ? null : _openWhatsApp,
+          icon: const Icon(Icons.open_in_new_rounded),
+          label: Text(tr(widget.fa, 'باز کردن واتساپ', 'Open WhatsApp')),
+        ),
+      ],
+    );
+  }
+}
+
 Future<String?> showOtpDialog(
   BuildContext context,
   VerificationChallenge challenge,
