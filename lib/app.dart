@@ -4187,6 +4187,66 @@ class _EditProfilePageState extends State<EditProfilePage> {
       }
 
       final current = (c.user?.phone ?? '').replaceAll(RegExp(r'[\s()-]'), '');
+      final caps = c.verificationCapabilities;
+
+      if (channel == 'WHATSAPP' && caps.whatsappInbound) {
+        try {
+          final challenge = await c.api.requestAccountWhatsAppVerification(
+            target: target,
+            purpose: 'VERIFY_PHONE',
+          );
+          if (!mounted) return;
+          final token = await showWhatsAppInboundVerification(
+            context,
+            challenge,
+            c.fa,
+            checkStatus: () => c.api.checkAccountWhatsAppVerification(
+              challengeId: challenge.challengeId,
+            ),
+          );
+          if (token == null || !mounted) return;
+
+          if (target == current) {
+            final error = await c.verifyContact(token);
+            if (!mounted) return;
+            if (error != null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(error)),
+              );
+              return;
+            }
+            setState(() {
+              phoneVerificationToken = null;
+              phoneChallenge = null;
+              phoneOtp.clear();
+            });
+          } else {
+            setState(() {
+              phoneVerificationToken = token;
+              phoneChallenge = null;
+              phoneOtp.clear();
+            });
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                target == current
+                    ? tr(c.fa, 'شماره موبایل با موفقیت تأیید شد.', 'Mobile number verified successfully.')
+                    : tr(c.fa, 'شماره تأیید شد؛ برای اعمال تغییرات ذخیره را بزنید.', 'Number verified. Tap Save changes to apply it.'),
+              ),
+            ),
+          );
+          return;
+        } on ApiException catch (error) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error.code)),
+          );
+          return;
+        }
+      }
+
       final challenge = target == current
           ? await c.requestAccountOtp(channel, 'VERIFY_PHONE')
           : await c.requestContactChangeOtp('PHONE', target, channel);
