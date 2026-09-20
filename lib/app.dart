@@ -1914,12 +1914,88 @@ class _TwoFactorLoginPageState extends State<TwoFactorLoginPage>
   }
 
   Future<void> _startWhatsAppVerification() async {
-    await _openWhatsApp();
-    if (!mounted) return;
     await _pollWhatsApp();
+    if (!mounted) return;
     whatsappTimer ??= Timer.periodic(
       const Duration(seconds: 2),
       (_) => _pollWhatsApp(),
+    );
+  }
+
+  String _twoFactorWhatsAppError(String? code) {
+    switch (code) {
+      case 'whatsapp_number_mismatch':
+        return tr(
+          widget.controller.fa,
+          'پیام از شماره دیگری ارسال شده است. برای ورود باید پیام را از همان شماره تأییدشده حساب بفرستید.',
+          'The message came from a different WhatsApp number. Send it from the verified number on this account.',
+        );
+      case 'otp_expired':
+        return tr(
+          widget.controller.fa,
+          'مهلت تأیید تمام شد. دوباره وارد شوید و یک درخواست جدید ایجاد کنید.',
+          'The verification request expired. Sign in again to create a new request.',
+        );
+      default:
+        return code ?? 'WhatsApp verification failed';
+    }
+  }
+
+  Future<void> _copyTwoFactorValue(String value, String label) async {
+    if (value.trim().isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(label)),
+    );
+  }
+
+  Widget _twoFactorCopyBox({
+    required String title,
+    required String value,
+    required String buttonLabel,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F8FB),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: const Color(0xFFDCE6EF)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Color(0xFF6E8194),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 7),
+          SelectableText(
+            value,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF17324D),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: value.trim().isEmpty
+                  ? null
+                  : () => _copyTwoFactorValue(value, buttonLabel),
+              icon: const Icon(Icons.copy_rounded, size: 17),
+              label: Text(buttonLabel),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1936,8 +2012,7 @@ class _TwoFactorLoginPageState extends State<TwoFactorLoginPage>
       }
       if (result == false) {
         setState(() {
-          whatsappStatus =
-              widget.controller.authError ?? 'WhatsApp verification failed';
+          whatsappStatus = _twoFactorWhatsAppError(widget.controller.authError);
         });
       } else if (whatsappStatus != null) {
         setState(() => whatsappStatus = null);
@@ -1987,8 +2062,8 @@ class _TwoFactorLoginPageState extends State<TwoFactorLoginPage>
                 : whatsappInbound
                     ? tr(
                         c.fa,
-                        'واتساپ باز می‌شود. پیام آماده VELIXEO را بدون تغییر ارسال کنید و به برنامه برگردید.',
-                        'WhatsApp will open. Send the prepared VELIXEO message without editing it, then return to the app.',
+                        'پیام تأیید را از همان شماره WhatsApp تأییدشده حساب ارسال کنید. اگر WhatsApp روی گوشی دیگری است، شماره Velixeo و پیام را از پایین کپی کنید.',
+                        'Send the verification message from the verified WhatsApp number on this account. If WhatsApp is on another phone, copy the Velixeo number and message below.',
                       )
                     : tr(
                         c.fa,
@@ -2000,6 +2075,37 @@ class _TwoFactorLoginPageState extends State<TwoFactorLoginPage>
           ),
           const SizedBox(height: 24),
           if (whatsappInbound) ...[
+            PrimaryButton(
+              label: tr(c.fa, 'باز کردن واتساپ روی همین گوشی', 'Open WhatsApp on this phone'),
+              onPressed: whatsappOpening ? null : _openWhatsApp,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              tr(c.fa, 'اگر WhatsApp روی گوشی دیگری است:', 'If WhatsApp is on another phone:'),
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              tr(
+                c.fa,
+                'در گوشی دوم یک چت جدید با شماره رسمی Velixeo بسازید و پیام زیر را بدون تغییر ارسال کنید.',
+                'On the other phone, start a new chat with the official Velixeo number and send the message below without editing it.',
+              ),
+              style: const TextStyle(fontSize: 11.5, color: Color(0xFF607487), height: 1.45),
+            ),
+            const SizedBox(height: 10),
+            _twoFactorCopyBox(
+              title: tr(c.fa, 'شماره رسمی WhatsApp Velixeo', 'Official Velixeo WhatsApp number'),
+              value: challenge?.whatsappNumber ?? '',
+              buttonLabel: tr(c.fa, 'کپی شماره', 'Copy number'),
+            ),
+            const SizedBox(height: 10),
+            _twoFactorCopyBox(
+              title: tr(c.fa, 'پیام تأیید', 'Verification message'),
+              value: challenge?.verificationMessage ?? '',
+              buttonLabel: tr(c.fa, 'کپی پیام تأیید', 'Copy verification message'),
+            ),
+            const SizedBox(height: 18),
             const LinearProgressIndicator(),
             const SizedBox(height: 12),
             Text(
@@ -2020,11 +2126,6 @@ class _TwoFactorLoginPageState extends State<TwoFactorLoginPage>
                 style: const TextStyle(color: Colors.redAccent, fontSize: 12),
               ),
             ],
-            const SizedBox(height: 18),
-            PrimaryButton(
-              label: tr(c.fa, 'باز کردن واتساپ', 'Open WhatsApp'),
-              onPressed: whatsappOpening ? null : _openWhatsApp,
-            ),
             const SizedBox(height: 10),
             OutlinedButton.icon(
               onPressed: whatsappChecking ? null : _pollWhatsApp,
