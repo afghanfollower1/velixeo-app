@@ -524,11 +524,119 @@ function errorReply(reply: FastifyReply, error: unknown) {
   return reply.code(status).send({ error: code });
 }
 
+
+function maskPhoneForLog(value: string) {
+  const clean = value.replace(/\D/g, '');
+  if (clean.length <= 6) return clean;
+  return `${clean.slice(0, 3)}***${clean.slice(-3)}`;
+}
+
+function registerMetaWhatsAppWebhookRoutes(app: FastifyInstance) {
+  app.get('/api/v1/integrations/meta/whatsapp/webhook', async (request, reply) => {
+    const query = (request.query || {}) as Record<string, string | undefined>;
+    const mode = query['hub.mode'];
+    const token = query['hub.verify_token'];
+    const challenge = query['hub.challenge'];
+    const expected = process.env.META_WHATSAPP_WEBHOOK_VERIFY_TOKEN;
+
+    if (!expected) {
+      app.log.error('[meta-whatsapp-webhook] verify token is not configured');
+      return reply.code(503).send('webhook_not_configured');
+    }
+    if (mode === 'subscribe' && token === expected && challenge) {
+      app.log.info('[meta-whatsapp-webhook] verification successful');
+      return reply.code(200).type('text/plain').send(challenge);
+    }
+    app.log.warn('[meta-whatsapp-webhook] verification rejected');
+    return reply.code(403).send('forbidden');
+  });
+
+  app.post('/api/v1/integrations/meta/whatsapp/webhook', async (request, reply) => {
+    const body = request.body as {
+      object?: string;
+      entry?: Array<{
+        id?: string;
+        changes?: Array<{
+          field?: string;
+          value?: {
+            metadata?: {
+              phone_number_id?: string;
+              display_phone_number?: string;
+            };
+            contacts?: Array<{
+              wa_id?: string;
+              profile?: { name?: string };
+            }>;
+            messages?: Array<{
+              from?: string;
+              id?: string;
+              timestamp?: string;
+              type?: string;
+              text?: { body?: string };
+            }>;
+            statuses?: Array<{
+              id?: string;
+              status?: string;
+              recipient_id?: string;
+              timestamp?: string;
+            }>;
+          };
+        }>;
+      }>;
+    };
+
+    if (body?.object !== 'whatsapp_business_account') {
+      return reply.code(200).send({ ok: true });
+    }
+
+    const expectedWabaId = process.env.META_WHATSAPP_BUSINESS_ACCOUNT_ID;
+    const expectedPhoneNumberId = process.env.META_WHATSAPP_PHONE_NUMBER_ID;
+
+    for (const entry of body.entry || []) {
+      if (expectedWabaId && entry.id && entry.id !== expectedWabaId) {
+        app.log.warn({ wabaId: entry.id }, '[meta-whatsapp-webhook] ignored event for another WABA');
+        continue;
+      }
+
+      for (const change of entry.changes || []) {
+        if (change.field !== 'messages') continue;
+        const value = change.value || {};
+        const phoneNumberId = value.metadata?.phone_number_id;
+        if (expectedPhoneNumberId && phoneNumberId && phoneNumberId !== expectedPhoneNumberId) {
+          app.log.warn({ phoneNumberId }, '[meta-whatsapp-webhook] ignored event for another phone number');
+          continue;
+        }
+
+        for (const message of value.messages || []) {
+          app.log.info({
+            from: message.from ? maskPhoneForLog(message.from) : undefined,
+            messageId: message.id,
+            type: message.type,
+            text: message.type === 'text' ? message.text?.body?.slice(0, 120) : undefined,
+          }, '[meta-whatsapp-webhook] inbound message');
+        }
+
+        for (const status of value.statuses || []) {
+          app.log.info({
+            status: status.status,
+            messageId: status.id,
+            recipient: status.recipient_id ? maskPhoneForLog(status.recipient_id) : undefined,
+          }, '[meta-whatsapp-webhook] delivery status');
+        }
+      }
+    }
+
+    return reply.code(200).send({ ok: true });
+  });
+}
+
 export function registerVerificationRoutes(
   app: FastifyInstance,
   prisma: PrismaClient,
   authenticate: AuthHandler,
 ) {
+  registerMetaWhatsAppWebhookRoutes(app);
+
   app.get('/api/v1/auth/verification-capabilities', async () => capabilities());
 
   app.post('/api/v1/auth/verification/request', async (request, reply) => {
