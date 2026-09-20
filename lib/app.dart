@@ -5254,7 +5254,24 @@ class _SecurityPageState extends State<SecurityPage> {
     }
     setState(() => busy = true);
     try {
-      final token = await verifyChallenge(await c.requestAccountOtp(method, 'ENABLE_2FA'));
+      String? token;
+      if (method == 'WHATSAPP' && state?.verification.whatsappInbound == true) {
+        final challenge = await c.api.requestAccountWhatsAppVerification(
+          purpose: 'ENABLE_2FA',
+        );
+        if (!mounted) return;
+        token = await showWhatsAppInboundVerification(
+          context,
+          challenge,
+          c.fa,
+          checkStatus: () => c.api.checkAccountWhatsAppVerification(
+            challengeId: challenge.challengeId,
+          ),
+        );
+      } else {
+        token = await verifyChallenge(await c.requestAccountOtp(method, 'ENABLE_2FA'));
+      }
+
       if (token == null) return;
       final error = await c.enableTwoFactor(method, token);
       if (!mounted) return;
