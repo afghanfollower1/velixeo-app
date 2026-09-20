@@ -24,6 +24,11 @@ import { registerAdminCsrfGuard } from './adminSecurity.js';
 import { registerSocialRoutes } from './socialRoutes.js';
 import { startSocialAutoSync } from './socialSync.js';
 import { registerVirtualNumberRoutes } from './virtualNumberRoutes.js';
+import {
+  isPhonePermanentlyBlocked,
+  resolveEffectiveUserAccess,
+  softDeleteUserAccount,
+} from './accountControl.js';
 import { registerAdminV3 } from './adminV3.js';
 import { startNotificationPushScheduler } from './pushNotifications.js';
 import {
@@ -239,11 +244,17 @@ async function authenticate(request: FastifyRequest, reply: FastifyReply) {
   const claims = request.user as JwtClaims;
   const account = await prisma.user.findUnique({
     where: { id: claims.sub },
-    select: { status: true },
+    select: { id: true, status: true },
   });
   if (!account) return reply.code(401).send({ error: 'unauthorized' });
-  if (account.status !== UserStatus.ACTIVE) {
-    return reply.code(403).send({ error: 'account_suspended' });
+  const access = await resolveEffectiveUserAccess(prisma, account as any);
+  if (!access.allowed) {
+    return reply.code(403).send({
+      error: access.code,
+      state: access.state,
+      until: 'until' in access ? access.until : null,
+      reason: 'reason' in access ? access.reason : null,
+    });
   }
 }
 
@@ -612,6 +623,9 @@ app.post('/api/v1/auth/register', async (request, reply) => {
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) return reply.code(409).send({ error: 'email_already_registered' });
   }
+  if (phone && await isPhonePermanentlyBlocked(prisma, phone)) {
+    return reply.code(403).send({ error: 'phone_permanently_blocked' });
+  }
   if (phone) {
     const existing = await prisma.user.findUnique({ where: { phone } });
     if (existing) return reply.code(409).send({ error: 'phone_already_registered' });
@@ -657,8 +671,14 @@ app.post('/api/v1/auth/login', async (request, reply) => {
   if (!user || !user.passwordHash || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
     return reply.code(401).send({ error: 'invalid_credentials' });
   }
-  if (user.status !== UserStatus.ACTIVE) {
-    return reply.code(403).send({ error: 'account_suspended' });
+  const loginAccess = await resolveEffectiveUserAccess(prisma, user);
+  if (!loginAccess.allowed) {
+    return reply.code(403).send({
+      error: loginAccess.code,
+      state: loginAccess.state,
+      until: 'until' in loginAccess ? loginAccess.until : null,
+      reason: 'reason' in loginAccess ? loginAccess.reason : null,
+    });
   }
 
   if (user.twoFactorEnabled) {
@@ -729,7 +749,9 @@ app.post('/api/v1/auth/login/2fa', async (request, reply) => {
       return reply.code(400).send({ error: 'invalid_two_factor_challenge' });
     }
     const user = await prisma.user.findUnique({ where: { id: loginClaims.userId } });
-    if (!user || user.status !== UserStatus.ACTIVE) return reply.code(401).send({ error: 'invalid_credentials' });
+    if (!user) return reply.code(401).send({ error: 'invalid_credentials' });
+    const access = await resolveEffectiveUserAccess(prisma, user);
+    if (!access.allowed) return reply.code(403).send({ error: access.code, state: access.state });
     const session = await createSession(user);
     return { user: publicUser(user), ...session };
   } catch (error) {
@@ -773,9 +795,9 @@ app.post('/api/v1/auth/login/2fa/whatsapp/status', async (request, reply) => {
     }
 
     const user = await prisma.user.findUnique({ where: { id: loginClaims.userId } });
-    if (!user || user.status !== UserStatus.ACTIVE) {
-      return reply.code(401).send({ error: 'invalid_credentials' });
-    }
+    if (!user) return reply.code(401).send({ error: 'invalid_credentials' });
+    const access = await resolveEffectiveUserAccess(prisma, user);
+    if (!access.allowed) return reply.code(403).send({ error: access.code, state: access.state });
     const session = await createSession(user);
     return reply.code(200).send({ status: 'VERIFIED', user: publicUser(user), ...session });
   } catch (error) {
@@ -836,8 +858,14 @@ app.post('/api/v1/auth/google', async (request, reply) => {
       }
     }
 
-    if (user.status !== UserStatus.ACTIVE) {
-      return reply.code(403).send({ error: 'account_suspended' });
+    const googleAccess = await resolveEffectiveUserAccess(prisma, user);
+    if (!googleAccess.allowed) {
+      return reply.code(403).send({
+        error: googleAccess.code,
+        state: googleAccess.state,
+        until: 'until' in googleAccess ? googleAccess.until : null,
+        reason: 'reason' in googleAccess ? googleAccess.reason : null,
+      });
     }
     if (user.twoFactorEnabled) {
       const method = String(user.twoFactorMethod || '');
@@ -884,8 +912,14 @@ app.post('/api/v1/auth/refresh', async (request, reply) => {
   if (!stored || stored.revokedAt || stored.expiresAt <= new Date()) {
     return reply.code(401).send({ error: 'invalid_refresh_token' });
   }
-  if (stored.user.status !== UserStatus.ACTIVE) {
-    return reply.code(403).send({ error: 'account_suspended' });
+  const refreshAccess = await resolveEffectiveUserAccess(prisma, stored.user);
+  if (!refreshAccess.allowed) {
+    return reply.code(403).send({
+      error: refreshAccess.code,
+      state: refreshAccess.state,
+      until: 'until' in refreshAccess ? refreshAccess.until : null,
+      reason: 'reason' in refreshAccess ? refreshAccess.reason : null,
+    });
   }
 
   const nextRefreshToken = newRefreshToken();
@@ -996,8 +1030,11 @@ app.patch(
 
     if (nextPhone !== current.phone) {
       if (nextPhone) {
+        if (await isPhonePermanentlyBlocked(prisma, nextPhone)) {
+          return reply.code(403).send({ error: 'phone_permanently_blocked' });
+        }
         const token = verificationClaims(parsed.data.phoneVerificationToken);
-        if (!token || token.userId !== current.id || token.target !== nextPhone || token.purpose !== 'VERIFY_PHONE' || !['SMS','WHATSAPP'].includes(String(token.channel))) {
+        if (!token || token.userId !== current.id || token.target !== nextPhone || token.purpose !== 'VERIFY_PHONE' || token.channel !== 'WHATSAPP') {
           return reply.code(403).send({ error: 'phone_verification_required' });
         }
         const taken = await prisma.user.findFirst({ where: { phone: nextPhone, id: { not: current.id } } });
@@ -1092,7 +1129,7 @@ app.post('/api/v1/me/security/verify-contact', { preHandler: authenticate }, asy
     const updated = await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
     return { user: publicUser(updated) };
   }
-  if (token.purpose === 'VERIFY_PHONE' && ['SMS','WHATSAPP'].includes(String(token.channel)) && token.target === user.phone) {
+  if (token.purpose === 'VERIFY_PHONE' && token.channel === 'WHATSAPP' && token.target === user.phone) {
     const updated = await prisma.user.update({ where: { id: user.id }, data: { phoneVerifiedAt: new Date() } });
     return { user: publicUser(updated) };
   }
@@ -1150,6 +1187,35 @@ app.post('/api/v1/me/set-password', { preHandler: authenticate }, async (request
   const updated = await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
   const session = await createSession(updated);
   return { ok: true, user: publicUser(updated), ...session };
+});
+
+app.post('/api/v1/me/delete-account', { preHandler: authenticate }, async (request, reply) => {
+  const parsed = z.object({
+    confirmation: z.literal('DELETE'),
+    password: z.string().min(1).max(128).optional(),
+    reason: z.string().trim().max(300).optional(),
+  }).safeParse(request.body);
+  if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+
+  const claims = request.user as JwtClaims;
+  const user = await prisma.user.findUnique({ where: { id: claims.sub } });
+  if (!user) return reply.code(404).send({ error: 'user_not_found' });
+  if (user.role === UserRole.ADMIN) {
+    return reply.code(403).send({ error: 'admin_account_delete_not_allowed' });
+  }
+  if (user.passwordHash) {
+    if (!parsed.data.password || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
+      return reply.code(400).send({ error: 'incorrect_current_password' });
+    }
+  }
+  await softDeleteUserAccount(
+    prisma,
+    user,
+    'USER',
+    user.id,
+    parsed.data.reason || 'Deleted from VELIXEO app',
+  );
+  return { ok: true };
 });
 
 app.get('/api/v1/wallet', { preHandler: authenticate }, async (request, reply) => {
