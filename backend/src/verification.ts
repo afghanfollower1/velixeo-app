@@ -216,7 +216,6 @@ export async function issueInboundWhatsAppChallenge(
     resendAfterSeconds: 60,
     verificationMode: 'WHATSAPP_INBOUND',
     whatsappLink,
-    whatsappNumber: businessNumber,
     verificationMessage: message,
   };
 }
