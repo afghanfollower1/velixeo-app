@@ -188,7 +188,11 @@ class ApiService {
     final response = await _send(
       'POST',
       '/api/v1/auth/login',
-      body: {'identifier': identifier.trim(), 'password': password},
+      body: {
+        'identifier': identifier.trim(),
+        'password': password,
+        'whatsappInbound': true,
+      },
     );
     if (response.statusCode == 202) {
       final challenge = TwoFactorLoginChallenge.fromJson(_decodeObject(response));
@@ -221,6 +225,26 @@ class ApiService {
   }
 
 
+  Future<AppSession?> checkTwoFactorWhatsApp({
+    required String loginToken,
+    required String challengeId,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/auth/login/2fa/whatsapp/status',
+      body: {
+        'loginToken': loginToken,
+        'challengeId': challengeId,
+      },
+    );
+    if (response.statusCode == 202) return null;
+    if (response.statusCode != 200) _throwResponse(response);
+    final session = _sessionFromJson(_decodeObject(response));
+    await _saveSession(session);
+    return session;
+  }
+
+
   Future<({AppSession? session, TwoFactorLoginChallenge? challenge})> loginWithGoogle({
     required String idToken,
     required AppLang language,
@@ -231,6 +255,7 @@ class ApiService {
       body: {
         'idToken': idToken,
         'locale': language == AppLang.fa ? 'FA' : 'EN',
+        'whatsappInbound': true,
       },
     );
     if (response.statusCode == 202) {
@@ -466,6 +491,64 @@ class ApiService {
     final response = await _send('GET', '/api/v1/auth/verification-capabilities');
     if (response.statusCode != 200) _throwResponse(response);
     return VerificationCapabilities.fromJson(_decodeObject(response));
+  }
+
+  Future<VerificationChallenge> requestRegistrationWhatsAppVerification({
+    required String target,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/auth/whatsapp-verification/request',
+      body: {'target': target.trim(), 'purpose': 'REGISTER'},
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+    return VerificationChallenge.fromJson(_decodeObject(response));
+  }
+
+  Future<String?> checkRegistrationWhatsAppVerification({
+    required String challengeId,
+  }) async {
+    final query = Uri(queryParameters: {'challengeId': challengeId}).query;
+    final response = await _send(
+      'GET',
+      '/api/v1/auth/whatsapp-verification/status?$query',
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+    final json = _decodeObject(response);
+    if (json['status'] != 'VERIFIED') return null;
+    return json['verificationToken'] as String?;
+  }
+
+  Future<VerificationChallenge> requestAccountWhatsAppVerification({
+    String? target,
+    required String purpose,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/me/whatsapp-verification/request',
+      body: {
+        if (target?.trim().isNotEmpty == true) 'target': target!.trim(),
+        'purpose': purpose,
+      },
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+    return VerificationChallenge.fromJson(_decodeObject(response));
+  }
+
+  Future<String?> checkAccountWhatsAppVerification({
+    required String challengeId,
+  }) async {
+    final query = Uri(queryParameters: {'challengeId': challengeId}).query;
+    final response = await _send(
+      'GET',
+      '/api/v1/me/whatsapp-verification/status?$query',
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+    final json = _decodeObject(response);
+    if (json['status'] != 'VERIFIED') return null;
+    return json['verificationToken'] as String?;
   }
 
   Future<VerificationChallenge> requestRegistrationOtp({
