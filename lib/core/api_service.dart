@@ -333,6 +333,25 @@ class ApiService {
     await clearSession();
   }
 
+  Future<void> deleteAccount({
+    String? password,
+    String? reason,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/me/delete-account',
+      body: {
+        'confirmation': 'DELETE',
+        if (password?.isNotEmpty == true) 'password': password,
+        if (reason?.trim().isNotEmpty == true) 'reason': reason!.trim(),
+      },
+      auth: true,
+      retry401: false,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+    await clearSession();
+  }
+
   Future<(AppUser, int)> me() async {
     await restoreTokens();
     final response = await _send('GET', '/api/v1/me', auth: true);
