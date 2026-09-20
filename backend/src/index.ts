@@ -585,7 +585,10 @@ app.post('/api/v1/auth/register', async (request, reply) => {
   const phone = normalizePhone(parsed.data.phone);
   const verified = verificationClaims(parsed.data.verificationToken);
   const requireRegistrationVerification = process.env.AUTH_REQUIRE_REGISTRATION_VERIFICATION === 'true';
-  if (requireRegistrationVerification && !verified) {
+  if (phone && !verified) {
+    return reply.code(403).send({ error: 'whatsapp_verification_required' });
+  }
+  if (!phone && requireRegistrationVerification && !verified) {
     return reply.code(403).send({ error: 'verification_required' });
   }
   if (verified) {
