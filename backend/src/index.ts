@@ -27,7 +27,9 @@ import { registerVirtualNumberRoutes } from './virtualNumberRoutes.js';
 import { registerAdminV3 } from './adminV3.js';
 import { startNotificationPushScheduler } from './pushNotifications.js';
 import {
+  completeInboundWhatsAppChallenge,
   ensureMetaWhatsAppSubscription,
+  issueInboundWhatsAppChallenge,
   issueVerificationChallenge,
   registerVerificationRoutes,
   verificationCapabilities,
@@ -98,6 +100,7 @@ const registerSchema = z
 const loginSchema = z.object({
   identifier: z.string().trim().min(3).max(254),
   password: z.string().min(1).max(128),
+  whatsappInbound: z.boolean().optional(),
 });
 
 const loginTwoFactorSchema = z.object({
@@ -113,6 +116,7 @@ const refreshSchema = z.object({
 const googleAuthSchema = z.object({
   idToken: z.string().min(20),
   locale: z.enum(['FA', 'EN']).default('FA'),
+  whatsappInbound: z.boolean().optional(),
 });
 
 const preferenceSchema = z
@@ -655,12 +659,18 @@ app.post('/api/v1/auth/login', async (request, reply) => {
     const verified = channel === 'EMAIL' ? user.emailVerifiedAt : user.phoneVerifiedAt;
     if (!target || !verified) return reply.code(503).send({ error: 'two_factor_contact_unavailable' });
     try {
-      const challenge = await issueVerificationChallenge(prisma, {
-        userId: user.id,
-        target,
-        channel,
-        purpose: 'LOGIN_2FA',
-      });
+      const challenge = channel === 'WHATSAPP' && parsed.data.whatsappInbound
+        ? await issueInboundWhatsAppChallenge(prisma, {
+            userId: user.id,
+            target,
+            purpose: 'LOGIN_2FA',
+          })
+        : await issueVerificationChallenge(prisma, {
+            userId: user.id,
+            target,
+            channel,
+            purpose: 'LOGIN_2FA',
+          });
       const loginToken = app.jwt.sign(
         { kind: 'two_factor_login', userId: user.id, challengeId: challenge.challengeId },
         { expiresIn: '10m' },
@@ -714,6 +724,54 @@ app.post('/api/v1/auth/login/2fa', async (request, reply) => {
     return { user: publicUser(user), ...session };
   } catch (error) {
     return reply.code(400).send({ error: error instanceof Error ? error.message : 'two_factor_verification_failed' });
+  }
+});
+
+app.post('/api/v1/auth/login/2fa/whatsapp/status', async (request, reply) => {
+  const parsed = z.object({
+    loginToken: z.string().trim().min(20),
+    challengeId: z.string().uuid(),
+  }).safeParse(request.body);
+  if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+
+  let loginClaims: { kind?: string; userId?: string; challengeId?: string };
+  try {
+    loginClaims = app.jwt.verify(parsed.data.loginToken);
+  } catch {
+    return reply.code(401).send({ error: 'invalid_two_factor_login_token' });
+  }
+  if (
+    loginClaims.kind !== 'two_factor_login'
+    || !loginClaims.userId
+    || loginClaims.challengeId !== parsed.data.challengeId
+  ) {
+    return reply.code(401).send({ error: 'invalid_two_factor_login_token' });
+  }
+
+  try {
+    const verified = await completeInboundWhatsAppChallenge(
+      app,
+      prisma,
+      parsed.data.challengeId,
+      loginClaims.userId,
+    );
+    if (verified.status === 'PENDING') {
+      return reply.code(202).send({ status: 'PENDING' });
+    }
+    if (verified.purpose !== 'LOGIN_2FA') {
+      return reply.code(400).send({ error: 'invalid_two_factor_challenge' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: loginClaims.userId } });
+    if (!user || user.status !== UserStatus.ACTIVE) {
+      return reply.code(401).send({ error: 'invalid_credentials' });
+    }
+    const session = await createSession(user);
+    return reply.code(200).send({ status: 'VERIFIED', user: publicUser(user), ...session });
+  } catch (error) {
+    return reply.code(400).send({
+      error: error instanceof Error ? error.message : 'two_factor_verification_failed',
+    });
   }
 });
 
@@ -778,12 +836,18 @@ app.post('/api/v1/auth/google', async (request, reply) => {
       const target = channel === 'EMAIL' ? user.email : user.phone;
       const verified = channel === 'EMAIL' ? user.emailVerifiedAt : user.phoneVerifiedAt;
       if (!target || !verified) return reply.code(503).send({ error: 'two_factor_contact_unavailable' });
-      const challenge = await issueVerificationChallenge(prisma, {
-        userId: user.id,
-        target,
-        channel,
-        purpose: 'LOGIN_2FA',
-      });
+      const challenge = channel === 'WHATSAPP' && parsed.data.whatsappInbound
+        ? await issueInboundWhatsAppChallenge(prisma, {
+            userId: user.id,
+            target,
+            purpose: 'LOGIN_2FA',
+          })
+        : await issueVerificationChallenge(prisma, {
+            userId: user.id,
+            target,
+            channel,
+            purpose: 'LOGIN_2FA',
+          });
       const loginToken = app.jwt.sign(
         { kind: 'two_factor_login', userId: user.id, challengeId: challenge.challengeId },
         { expiresIn: '10m' },
