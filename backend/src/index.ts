@@ -590,11 +590,18 @@ app.post('/api/v1/auth/register', async (request, reply) => {
   }
   if (verified) {
     if (verified.purpose !== 'REGISTER') return reply.code(400).send({ error: 'invalid_verification_token' });
-    if (verified.channel === 'EMAIL' && verified.target !== email) {
+    if (email && !phone && (verified.channel !== 'EMAIL' || verified.target !== email)) {
       return reply.code(400).send({ error: 'verification_target_mismatch' });
     }
-    if ((verified.channel === 'SMS' || verified.channel === 'WHATSAPP') && verified.target !== phone) {
-      return reply.code(400).send({ error: 'verification_target_mismatch' });
+    if (phone && !email && (verified.channel !== 'WHATSAPP' || verified.target !== phone)) {
+      return reply.code(403).send({ error: 'whatsapp_verification_required' });
+    }
+    if (email && phone) {
+      const matchesEmail = verified.channel === 'EMAIL' && verified.target === email;
+      const matchesWhatsApp = verified.channel === 'WHATSAPP' && verified.target === phone;
+      if (!matchesEmail && !matchesWhatsApp) {
+        return reply.code(400).send({ error: 'verification_target_mismatch' });
+      }
     }
   }
 
@@ -616,7 +623,7 @@ app.post('/api/v1/auth/register', async (request, reply) => {
       passwordHash,
       locale: parsed.data.locale as AppLocale,
       emailVerifiedAt: verified?.channel === 'EMAIL' && verified.target === email ? new Date() : null,
-      phoneVerifiedAt: (verified?.channel === 'SMS' || verified?.channel === 'WHATSAPP') && verified.target === phone ? new Date() : null,
+      phoneVerifiedAt: verified?.channel === 'WHATSAPP' && verified.target === phone ? new Date() : null,
       wallet: { create: {} },
     },
   });
