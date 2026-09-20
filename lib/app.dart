@@ -1391,6 +1391,22 @@ class _AuthPageState extends State<AuthPage> {
     }
 
     try {
+      if (channel == 'WHATSAPP' && caps.whatsappInbound) {
+        final challenge = await c.api.requestRegistrationWhatsAppVerification(
+          target: target,
+        );
+        if (!mounted) return '__cancelled__';
+        final token = await showWhatsAppInboundVerification(
+          context,
+          challenge,
+          c.fa,
+          checkStatus: () => c.api.checkRegistrationWhatsAppVerification(
+            challengeId: challenge.challengeId,
+          ),
+        );
+        return token ?? '__cancelled__';
+      }
+
       final challenge = await c.api.requestRegistrationOtp(target: target, channel: channel);
       if (!mounted) return '__cancelled__';
       final code = await showOtpDialog(context, challenge, c.fa);
