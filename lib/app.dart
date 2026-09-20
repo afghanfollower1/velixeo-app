@@ -1355,7 +1355,11 @@ class _AuthPageState extends State<AuthPage> {
                 ListTile(
                   leading: const Icon(Icons.chat_rounded, color: Color(0xFF20A76F)),
                   title: const Text('WhatsApp'),
-                  subtitle: Text(tr(c.fa, 'ارسال کد با واتساپ', 'Send code with WhatsApp')),
+                  subtitle: Text(
+                    caps.whatsappInbound
+                        ? tr(c.fa, 'تأیید با ارسال پیام در واتساپ', 'Verify by sending a WhatsApp message')
+                        : tr(c.fa, 'ارسال کد با واتساپ', 'Send code with WhatsApp'),
+                  ),
                   onTap: () => Navigator.pop(context, 'WHATSAPP'),
                 ),
                 ListTile(
@@ -4293,7 +4297,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ListTile(
               leading: const Icon(Icons.chat_rounded, color: Color(0xFF20A76F)),
               title: const Text('WhatsApp'),
-              subtitle: Text(tr(c.fa, 'ارسال کد با واتساپ', 'Send code with WhatsApp')),
+              subtitle: Text(
+                caps.whatsappInbound
+                    ? tr(c.fa, 'تأیید با ارسال پیام در واتساپ', 'Verify by sending a WhatsApp message')
+                    : tr(c.fa, 'ارسال کد با واتساپ', 'Send code with WhatsApp'),
+              ),
               onTap: () => Navigator.pop(context, 'WHATSAPP'),
             ),
             ListTile(
@@ -5213,7 +5221,11 @@ class _SecurityPageState extends State<SecurityPage> {
             ListTile(
               leading: const Icon(Icons.chat_rounded, color: Color(0xFF20A76F)),
               title: const Text('WhatsApp'),
-              subtitle: Text(tr(c.fa, 'دریافت کد از واتساپ', 'Receive code on WhatsApp')),
+              subtitle: Text(
+                s.verification.whatsappInbound
+                    ? tr(c.fa, 'تأیید با ارسال پیام در واتساپ', 'Verify by sending a WhatsApp message')
+                    : tr(c.fa, 'دریافت کد از واتساپ', 'Receive code on WhatsApp'),
+              ),
               onTap: () => Navigator.pop(context, 'WHATSAPP'),
             ),
             ListTile(
