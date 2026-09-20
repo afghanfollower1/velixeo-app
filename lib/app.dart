@@ -294,7 +294,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
       balanceAfn = result.$2;
       await _loadSecondaryData();
     } on ApiException catch (error) {
-      if (error.statusCode == 401) {
+      if (error.statusCode == 401 || error.statusCode == 403) {
         await api.clearSession();
         authenticated = false;
         user = null;
@@ -1373,7 +1373,18 @@ class _AuthPageState extends State<AuthPage> {
       case 'network_error':
         return tr(fa, 'اتصال به سرور برقرار نشد. اینترنت را بررسی کنید.', 'Could not reach the server. Check your internet connection.');
       case 'account_suspended':
-        return tr(fa, 'این حساب توسط مدیریت موقتاً تعلیق شده است.', 'This account has been suspended by an administrator.');
+      case 'account_temporarily_suspended':
+        return tr(fa, 'این حساب موقتاً توسط مدیریت مسدود شده است.', 'This account is temporarily suspended by an administrator.');
+      case 'account_permanently_suspended':
+        return tr(fa, 'این حساب به‌صورت دائم توسط مدیریت مسدود شده است.', 'This account has been permanently suspended by an administrator.');
+      case 'account_deleted':
+        return tr(fa, 'این حساب حذف شده است و امکان ورود به آن وجود ندارد.', 'This account has been deleted and can no longer be used.');
+      case 'phone_permanently_blocked':
+        return tr(fa, 'این شماره توسط مدیریت برای همیشه مسدود شده و امکان ایجاد حساب با آن وجود ندارد.', 'This phone number has been permanently blocked by administration and cannot be used to create an account.');
+      case 'invalid_referral_code':
+        return tr(fa, 'کد دعوت معتبر نیست.', 'The referral code is invalid.');
+      case 'referral_program_disabled':
+        return tr(fa, 'برنامه دعوت دوستان فعلاً غیرفعال است.', 'The referral program is currently disabled.');
       case 'google_auth_not_configured':
         return tr(fa, 'ورود با Google هنوز برای این نسخه فعال نشده است.', 'Google Sign-In is not configured for this build yet.');
       case 'google_sign_in_failed':
@@ -5227,6 +5238,12 @@ class _WhatsAppInboundDialogState extends State<_WhatsAppInboundDialog>
           widget.fa,
           'اتصال به سرور برقرار نشد. اینترنت را بررسی کنید.',
           'Could not reach the server. Check your internet connection.',
+        );
+      case 'phone_permanently_blocked':
+        return tr(
+          widget.fa,
+          'این شماره توسط مدیریت برای همیشه مسدود شده و امکان تأیید یا ثبت‌نام با آن وجود ندارد.',
+          'This phone number has been permanently blocked by administration and cannot be verified or registered.',
         );
       default:
         return code;
