@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -158,6 +159,44 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
     }
   }
 
+
+  Future<bool?> pollTwoFactorWhatsAppLogin() async {
+    final challenge = pendingTwoFactor;
+    if (challenge == null || !challenge.isWhatsAppInbound) {
+      authError = 'two_factor_session_missing';
+      notifyListeners();
+      return false;
+    }
+
+    try {
+      final session = await api.checkTwoFactorWhatsApp(
+        loginToken: challenge.loginToken,
+        challengeId: challenge.challengeId,
+      );
+      if (session == null) return null;
+
+      pendingTwoFactor = null;
+      user = session.user;
+      authenticated = true;
+      authError = null;
+      _applyUserPreferences(session.user);
+      final result = await api.me();
+      user = result.$1;
+      balanceAfn = result.$2;
+      await _loadSecondaryData();
+      await _configurePush();
+      notifyListeners();
+      return true;
+    } on ApiException catch (error) {
+      authError = error.code;
+      notifyListeners();
+      return false;
+    } catch (_) {
+      authError = 'network_error';
+      notifyListeners();
+      return false;
+    }
+  }
 
   Future<bool> completeTwoFactorLogin(String code) async {
     final challenge = pendingTwoFactor;
