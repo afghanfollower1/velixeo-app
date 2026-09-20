@@ -40,6 +40,7 @@ type VirtualOffer = {
   count: number;
   deliveryRate: number | null;
   providerCost: number;
+  providerCostAfn: number;
   priceAfn: number;
   providerId: string;
   routeId: string;
@@ -76,6 +77,29 @@ function text(body: AnyBody, key: string) {
 
 function checked(body: AnyBody, key: string) {
   return body[key] === 'on' || body[key] === 'true' || body[key] === '1';
+}
+function safeVirtualAdminReturn(body: AnyBody, fallback: string) {
+  const value = text(body, 'returnTo');
+  return value.startsWith('/admin/v3?section=virtual') ? value : fallback;
+}
+
+async function logVirtualAction(
+  prisma: PrismaClient,
+  orderId: string,
+  action: string,
+  status: string,
+  providerReference?: string | null,
+  response?: unknown,
+) {
+  await prisma.orderActionLog.create({
+    data: {
+      orderId,
+      action,
+      status,
+      providerReference: providerReference ?? null,
+      response: response == null ? undefined : response as Prisma.InputJsonValue,
+    },
+  }).catch(() => undefined);
 }
 
 function slugify(value: string) {
@@ -208,6 +232,7 @@ async function offersForService(
         count: row.count,
         deliveryRate: row.rate,
         providerCost: row.cost,
+        providerCostAfn: Math.max(1, Math.ceil(row.cost * factor)),
         priceAfn: customerPriceAfn({
           providerCost: row.cost,
           afnPerUnit: factor,
@@ -636,7 +661,7 @@ export function registerVirtualNumberRoutes(
           data: {
             providerId: route.providerId,
             providerOrderId: providerOrder.id,
-            providerCostAfn: null,
+            providerCostAfn: BigInt(candidate.providerCostAfn),
             status: orderStatus(providerOrder.status, providerOrder.sms.length),
             failureReason: null,
             output: {
@@ -706,6 +731,10 @@ export function registerVirtualNumberRoutes(
     try {
       const providerOrder = await fiveSimClientForProvider(order.provider).check(order.providerOrderId);
       const updated = await updateFromProviderOrder(prisma, order, providerOrder);
+      await logVirtualAction(prisma, order.id, 'VIRTUAL_CHECK', 'SUCCESS', order.providerOrderId, {
+        providerStatus: providerOrder.status,
+        smsCount: providerOrder.sms.length,
+      });
       return { order: orderJson(updated) };
     } catch (error) {
       if (error instanceof FiveSimError) {
@@ -734,6 +763,10 @@ export function registerVirtualNumberRoutes(
       if (providerOrder.status === 'CANCELED' || providerOrder.status === 'CANCELLED') {
         await refundVirtualOrder(prisma, order, `Virtual number cancelled ${order.id}`);
       }
+      await logVirtualAction(prisma, order.id, 'VIRTUAL_CANCEL', 'SUCCESS', order.providerOrderId, {
+        providerStatus: providerOrder.status,
+        smsCount: providerOrder.sms.length,
+      });
       return { order: orderJson(updated) };
     } catch (error) {
       if (error instanceof FiveSimError) {
@@ -756,6 +789,10 @@ export function registerVirtualNumberRoutes(
     try {
       const providerOrder = await fiveSimClientForProvider(order.provider).finish(order.providerOrderId);
       const updated = await updateFromProviderOrder(prisma, order, providerOrder);
+      await logVirtualAction(prisma, order.id, 'VIRTUAL_FINISH', 'SUCCESS', order.providerOrderId, {
+        providerStatus: providerOrder.status,
+        smsCount: providerOrder.sms.length,
+      });
       return { order: orderJson(updated) };
     } catch (error) {
       if (error instanceof FiveSimError) {
@@ -810,7 +847,9 @@ export function registerVirtualNumberRoutes(
   app.post('/admin/virtual-numbers/sync', async (request, reply) => {
     const admin = await resolveAdmin(request);
     if (!admin) return reply.code(303).redirect('/admin');
-    const providerId = text(request.body as AnyBody, 'providerId');
+    const adminBody = request.body as AnyBody;
+    const providerId = text(adminBody, 'providerId');
+    const returnTo = safeVirtualAdminReturn(adminBody, '/admin/virtual-numbers');
     try {
       const result = await syncProviderServices(prisma, providerId);
       await prisma.adminAuditLog.create({
@@ -824,9 +863,11 @@ export function registerVirtualNumberRoutes(
         },
       });
       pricesCache.clear();
-      return reply.code(303).redirect(`/admin/virtual-numbers?msg=${encodeURIComponent(`Sync شد: ${result.total} سرویس`)}`);
+      const joiner = returnTo.includes('?') ? '&' : '?';
+      return reply.code(303).redirect(`${returnTo}${joiner}msg=${encodeURIComponent(`Sync complete: ${result.total} services`)}`);
     } catch (error) {
-      return reply.code(303).redirect(`/admin/virtual-numbers?msg=${encodeURIComponent(error instanceof Error ? error.message : 'sync_failed')}`);
+      const joiner = returnTo.includes('?') ? '&' : '?';
+      return reply.code(303).redirect(`${returnTo}${joiner}err=1&msg=${encodeURIComponent(error instanceof Error ? error.message : 'sync_failed')}`);
     }
   });
 
@@ -834,10 +875,11 @@ export function registerVirtualNumberRoutes(
     const admin = await resolveAdmin(request);
     if (!admin) return reply.code(303).redirect('/admin');
     const body = request.body as AnyBody;
+    const returnTo = safeVirtualAdminReturn(body, '/admin/virtual-numbers');
     const providerId = text(body, 'providerId');
     const rate = Number(text(body, 'afnPerUnit'));
     if (!providerId || !Number.isFinite(rate) || rate <= 0) {
-      return reply.code(303).redirect('/admin/virtual-numbers?msg=invalid_rate');
+      return reply.code(303).redirect(returnTo + (returnTo.includes('?') ? '&' : '?') + 'err=1&msg=invalid_rate');
     }
     await upsertSetting(
       prisma,
@@ -855,13 +897,15 @@ export function registerVirtualNumberRoutes(
         summary: `Virtual provider conversion rate set to ${rate} AFN`,
       },
     });
-    return reply.code(303).redirect('/admin/virtual-numbers?msg=rate_saved');
+    return reply.code(303).redirect(returnTo + (returnTo.includes('?') ? '&' : '?') + 'msg=rate_saved');
   });
 
   app.post('/admin/virtual-numbers/countries', async (request, reply) => {
     const admin = await resolveAdmin(request);
     if (!admin) return reply.code(303).redirect('/admin');
-    const raw = text(request.body as AnyBody, 'countries');
+    const countryBody = request.body as AnyBody;
+    const returnTo = safeVirtualAdminReturn(countryBody, '/admin/virtual-numbers');
+    const raw = text(countryBody, 'countries');
     const countries = [...new Set(raw.split(/[\s,]+/).map((item) => item.trim().toLowerCase()).filter(Boolean))];
     await upsertSetting(prisma, 'virtual.enabledCountries', countries, 'Enabled countries for virtual-number catalog; empty means all');
     pricesCache.clear();
@@ -874,19 +918,20 @@ export function registerVirtualNumberRoutes(
         summary: countries.length ? `${countries.length} virtual-number countries enabled` : 'All virtual-number countries enabled',
       },
     });
-    return reply.code(303).redirect('/admin/virtual-numbers?msg=countries_saved');
+    return reply.code(303).redirect(returnTo + (returnTo.includes('?') ? '&' : '?') + 'msg=countries_saved');
   });
 
   app.post('/admin/virtual-numbers/service-toggle', async (request, reply) => {
     const admin = await resolveAdmin(request);
     if (!admin) return reply.code(303).redirect('/admin');
     const body = request.body as AnyBody;
+    const returnTo = safeVirtualAdminReturn(body, '/admin/virtual-numbers');
     const serviceId = text(body, 'serviceId');
     const enabled = checked(body, 'enabled');
     const service = await prisma.service.findFirst({
       where: { id: serviceId, category: ServiceCategory.VIRTUAL_NUMBER },
     });
-    if (!service) return reply.code(303).redirect('/admin/virtual-numbers?msg=service_not_found');
+    if (!service) return reply.code(303).redirect(returnTo + (returnTo.includes('?') ? '&' : '?') + 'err=1&msg=service_not_found');
     await prisma.service.update({ where: { id: service.id }, data: { enabled } });
     await prisma.adminAuditLog.create({
       data: {
@@ -897,6 +942,6 @@ export function registerVirtualNumberRoutes(
         summary: `${service.slug} enabled=${enabled}`,
       },
     });
-    return reply.code(303).redirect('/admin/virtual-numbers?msg=saved');
+    return reply.code(303).redirect(returnTo + (returnTo.includes('?') ? '&' : '?') + 'msg=saved');
   });
 }
