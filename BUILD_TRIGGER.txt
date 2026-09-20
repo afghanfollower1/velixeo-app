@@ -1,2 +1,2 @@
-Trigger signed Android build - VELIXEO v0.8.7 - 2026-09-19.
-WhatsApp OTP: actionable Meta test-recipient and conversation-window errors.
+Trigger signed Android build - VELIXEO v0.8.8 - 2026-09-20.
+User-initiated WhatsApp verification: registration, profile verification and WhatsApp 2FA can now verify by sending a prepared message to the official Velixeo WhatsApp number, with automatic webhook polling and no outbound OTP required.
