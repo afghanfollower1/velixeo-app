@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:image_picker/image_picker.dart';
@@ -1272,6 +1273,7 @@ class _AuthPageState extends State<AuthPage> {
   bool registerMode = false;
   bool hidden = true;
   String registerMethod = 'EMAIL';
+  String loginMethod = 'EMAIL';
   String countryCode = 'AF';
   String phoneCode = '93';
   String countryFlag = '🇦🇫';
@@ -1330,11 +1332,20 @@ class _AuthPageState extends State<AuthPage> {
     }
   }
 
-  String registrationTarget() {
-    if (registerMethod == 'EMAIL') return identifier.text.trim().toLowerCase();
+  String _phoneTarget() {
     var local = identifier.text.replaceAll(RegExp(r'\D'), '');
     if (local.startsWith('0')) local = local.substring(1);
     return '+$phoneCode$local';
+  }
+
+  String registrationTarget() {
+    if (registerMethod == 'EMAIL') return identifier.text.trim().toLowerCase();
+    return _phoneTarget();
+  }
+
+  String loginTarget() {
+    if (loginMethod == 'EMAIL') return identifier.text.trim().toLowerCase();
+    return _phoneTarget();
   }
 
   Future<String?> registrationVerificationToken(String target) async {
@@ -1437,7 +1448,7 @@ class _AuthPageState extends State<AuthPage> {
       return;
     }
 
-    final rawIdentifier = registerMode ? registrationTarget() : identifier.text.trim();
+    final rawIdentifier = registerMode ? registrationTarget() : loginTarget();
     final looksLikeEmail = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(rawIdentifier);
     final looksLikePhone = RegExp(r'^\+[1-9]\d{6,14}$').hasMatch(rawIdentifier);
     if ((!looksLikeEmail && !looksLikePhone) || password.text.length < 8) {
