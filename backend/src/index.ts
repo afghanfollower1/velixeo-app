@@ -25,6 +25,11 @@ import { registerSocialRoutes } from './socialRoutes.js';
 import { startSocialAutoSync } from './socialSync.js';
 import { registerVirtualNumberRoutes } from './virtualNumberRoutes.js';
 import {
+  recordReferralRegistration,
+  registerReferralRoutes,
+  resolveReferralCode,
+} from './referralRoutes.js';
+import {
   isPhonePermanentlyBlocked,
   resolveEffectiveUserAccess,
   softDeleteUserAccount,
@@ -97,6 +102,7 @@ const registerSchema = z
     password: z.string().min(8).max(128),
     locale: z.enum(['FA', 'EN']).default('FA'),
     verificationToken: z.string().trim().min(20).optional(),
+    referralCode: z.string().trim().min(4).max(40).optional(),
   })
   .refine((data) => Boolean(data.email || data.phone), {
     message: 'email_or_phone_required',
@@ -631,6 +637,16 @@ app.post('/api/v1/auth/register', async (request, reply) => {
     if (existing) return reply.code(409).send({ error: 'phone_already_registered' });
   }
 
+  let referral: Awaited<ReturnType<typeof resolveReferralCode>> = null;
+  if (parsed.data.referralCode) {
+    try {
+      referral = await resolveReferralCode(prisma, parsed.data.referralCode);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : 'invalid_referral_code';
+      return reply.code(400).send({ error: code });
+    }
+  }
+
   const passwordHash = await bcrypt.hash(parsed.data.password, 12);
   const user = await prisma.user.create({
     data: {
@@ -644,6 +660,19 @@ app.post('/api/v1/auth/register', async (request, reply) => {
       wallet: { create: {} },
     },
   });
+
+  if (referral) {
+    try {
+      await recordReferralRegistration(prisma, {
+        inviteeId: user.id,
+        inviterId: referral.inviterId,
+        code: referral.code,
+        settings: referral.settings,
+      });
+    } catch (error) {
+      request.log.error({ error, inviteeId: user.id }, 'referral registration recording failed');
+    }
+  }
 
   const session = await createSession(user);
   return reply.code(201).send({
@@ -1457,6 +1486,7 @@ registerPaymentRoutes(app, prisma, authenticate);
 registerHesabPayWebhookRoutes(app, prisma, authenticate);
 registerSocialRoutes(app, prisma, authenticate, adminWebUser);
 registerVirtualNumberRoutes(app, prisma, authenticate, adminWebUser);
+registerReferralRoutes(app, prisma, authenticate);
 startSocialAutoSync(prisma, app.log as any);
 startNotificationPushScheduler(prisma, app.log as any);
 
