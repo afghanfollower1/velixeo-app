@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
-import { createHmac, randomInt, randomUUID } from 'node:crypto';
+import { createHmac, randomBytes, randomInt, randomUUID } from 'node:crypto';
 import nodemailer from 'nodemailer';
 import { z } from 'zod';
 
@@ -70,6 +70,7 @@ function capabilities() {
     smsMode: smsTwilio ? 'TWILIO_VERIFY' : webhookConfigured('SMS') ? 'WEBHOOK' : null,
     whatsapp: whatsappMeta || whatsappTwilio || webhookConfigured('WHATSAPP'),
     whatsappMode: whatsappMeta ? 'META_CLOUD_API' : whatsappTwilio ? 'TWILIO_VERIFY' : webhookConfigured('WHATSAPP') ? 'WEBHOOK' : null,
+    whatsappInbound: whatsappMeta && Boolean(process.env.META_WHATSAPP_BUSINESS_ACCOUNT_ID),
     registrationVerificationRequired: process.env.AUTH_REQUIRE_REGISTRATION_VERIFICATION === 'true',
     resendCooldownSeconds: 60,
     expiresInSeconds: 600,
@@ -94,6 +95,245 @@ function maskTarget(target: string, channel: 'EMAIL' | 'SMS' | 'WHATSAPP') {
   }
   if (target.length <= 6) return target;
   return `${target.slice(0, 3)}***${target.slice(-3)}`;
+}
+
+type VerificationMetadata = Record<string, unknown>;
+
+function metadataObject(value: unknown): VerificationMetadata {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? { ...(value as VerificationMetadata) }
+    : {};
+}
+
+function normalizeInboundWhatsAppNumber(value: string) {
+  const digits = value.replace(/\D/g, '');
+  return digits ? `+${digits}` : '';
+}
+
+function createInboundWhatsAppToken() {
+  return randomBytes(10).toString('hex').toUpperCase();
+}
+
+let cachedMetaWhatsAppNumber: string | null = null;
+
+async function resolveMetaWhatsAppNumber() {
+  if (cachedMetaWhatsAppNumber) return cachedMetaWhatsAppNumber;
+
+  const configured = String(process.env.META_WHATSAPP_BUSINESS_PHONE || '').trim();
+  if (configured) {
+    cachedMetaWhatsAppNumber = normalizeInboundWhatsAppNumber(configured);
+    return cachedMetaWhatsAppNumber;
+  }
+
+  const accessToken = process.env.META_WHATSAPP_ACCESS_TOKEN;
+  const phoneNumberId = process.env.META_WHATSAPP_PHONE_NUMBER_ID;
+  const version = process.env.META_WHATSAPP_GRAPH_API_VERSION || 'v26.0';
+  if (!accessToken || !phoneNumberId) throw new Error('whatsapp_otp_not_configured');
+
+  const response = await fetch(
+    `https://graph.facebook.com/${version}/${encodeURIComponent(phoneNumberId)}?fields=display_phone_number`,
+    {
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        accept: 'application/json',
+      },
+    },
+  );
+  if (!response.ok) throw new Error('whatsapp_business_number_unavailable');
+
+  const body = await response.json() as { display_phone_number?: string };
+  const number = normalizeInboundWhatsAppNumber(String(body.display_phone_number || ''));
+  if (!number) throw new Error('whatsapp_business_number_unavailable');
+  cachedMetaWhatsAppNumber = number;
+  return number;
+}
+
+export async function issueInboundWhatsAppChallenge(
+  prisma: PrismaClient,
+  input: {
+    userId?: string | null;
+    target: string;
+    purpose: string;
+  },
+) {
+  if (!metaWhatsAppConfigured() || !process.env.META_WHATSAPP_BUSINESS_ACCOUNT_ID) {
+    throw new Error('whatsapp_otp_not_configured');
+  }
+
+  const target = normalizeTarget(input.target, 'WHATSAPP');
+  if (!/^\+[1-9]\d{6,14}$/.test(target)) throw new Error('invalid_phone');
+
+  const now = new Date();
+  const lastMinute = new Date(now.getTime() - 60_000);
+  const lastHour = new Date(now.getTime() - 3_600_000);
+  const [recent, hourly] = await Promise.all([
+    prisma.verificationChallenge.findFirst({
+      where: { target, purpose: input.purpose, createdAt: { gte: lastMinute } },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.verificationChallenge.count({
+      where: { target, purpose: input.purpose, createdAt: { gte: lastHour } },
+    }),
+  ]);
+  if (recent) throw new Error('otp_resend_too_soon');
+  if (hourly >= 5) throw new Error('otp_rate_limited');
+
+  const token = createInboundWhatsAppToken();
+  const challenge = await prisma.verificationChallenge.create({
+    data: {
+      id: randomUUID(),
+      userId: input.userId ?? null,
+      target,
+      channel: 'WHATSAPP',
+      purpose: input.purpose,
+      codeHash: codeHash(token),
+      expiresAt: new Date(now.getTime() + 10 * 60_000),
+      maxAttempts: 5,
+      metadata: {
+        mode: 'WHATSAPP_INBOUND',
+        inboundVerifiedAt: null,
+      },
+    },
+  });
+
+  const businessNumber = await resolveMetaWhatsAppNumber();
+  const message = `VELIXEO VERIFY ${token}`;
+  const whatsappLink = `https://wa.me/${businessNumber.replace(/^\+/, '')}?text=${encodeURIComponent(message)}`;
+
+  return {
+    challengeId: challenge.id,
+    maskedTarget: maskTarget(target, 'WHATSAPP'),
+    channel: 'WHATSAPP',
+    purpose: input.purpose,
+    expiresInSeconds: 600,
+    resendAfterSeconds: 60,
+    verificationMode: 'WHATSAPP_INBOUND',
+    whatsappLink,
+  };
+}
+
+async function markInboundWhatsAppChallenge(
+  prisma: PrismaClient,
+  from: string,
+  text: string,
+  messageId?: string,
+) {
+  const target = normalizeInboundWhatsAppNumber(from);
+  if (!target) return false;
+
+  const match = text.trim().match(/^VELIXEO\s+VERIFY\s+([A-F0-9]{20})$/i);
+  if (!match) return false;
+  const token = match[1].toUpperCase();
+
+  const candidates = await prisma.verificationChallenge.findMany({
+    where: {
+      target,
+      channel: 'WHATSAPP',
+      consumedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+  });
+
+  const challenge = candidates.find((candidate) => {
+    const metadata = metadataObject(candidate.metadata);
+    return metadata.mode === 'WHATSAPP_INBOUND' && candidate.codeHash === codeHash(token);
+  });
+
+  if (!challenge) {
+    const active = candidates.find((candidate) => metadataObject(candidate.metadata).mode === 'WHATSAPP_INBOUND');
+    if (active && active.attempts < active.maxAttempts) {
+      await prisma.verificationChallenge.update({
+        where: { id: active.id },
+        data: { attempts: { increment: 1 } },
+      }).catch(() => undefined);
+    }
+    return false;
+  }
+
+  const metadata = metadataObject(challenge.metadata);
+  await prisma.verificationChallenge.update({
+    where: { id: challenge.id },
+    data: {
+      metadata: {
+        ...metadata,
+        inboundVerifiedAt: new Date().toISOString(),
+        inboundMessageId: messageId || null,
+      },
+    },
+  });
+  return true;
+}
+
+export async function completeInboundWhatsAppChallenge(
+  app: FastifyInstance,
+  prisma: PrismaClient,
+  challengeId: string,
+  expectedUserId?: string,
+) {
+  const challenge = await prisma.verificationChallenge.findUnique({ where: { id: challengeId } });
+  if (!challenge) throw new Error('otp_not_found');
+  if (expectedUserId && challenge.userId !== expectedUserId) throw new Error('otp_not_found');
+  if (challenge.channel !== 'WHATSAPP') throw new Error('invalid_channel');
+  if (challenge.expiresAt <= new Date()) throw new Error('otp_expired');
+
+  const metadata = metadataObject(challenge.metadata);
+  if (metadata.mode !== 'WHATSAPP_INBOUND') throw new Error('invalid_verification_mode');
+
+  if (!metadata.inboundVerifiedAt) {
+    if (challenge.attempts >= challenge.maxAttempts) throw new Error('otp_attempts_exceeded');
+    return { ok: true, status: 'PENDING' as const };
+  }
+
+  const existingToken = typeof metadata.completionToken === 'string'
+    ? metadata.completionToken
+    : null;
+
+  if (challenge.consumedAt && existingToken) {
+    return {
+      ok: true,
+      status: 'VERIFIED' as const,
+      verificationToken: existingToken,
+      target: challenge.target,
+      channel: challenge.channel,
+      purpose: challenge.purpose,
+    };
+  }
+
+  const verificationToken = app.jwt.sign(
+    {
+      kind: 'verification',
+      challengeId: challenge.id,
+      userId: challenge.userId,
+      target: challenge.target,
+      channel: challenge.channel,
+      purpose: challenge.purpose,
+    },
+    { expiresIn: '10m' },
+  );
+
+  await prisma.verificationChallenge.update({
+    where: { id: challenge.id },
+    data: {
+      consumedAt: new Date(),
+      attempts: { increment: 1 },
+      metadata: {
+        ...metadata,
+        completionToken: verificationToken,
+        completedAt: new Date().toISOString(),
+      },
+    },
+  });
+
+  return {
+    ok: true,
+    status: 'VERIFIED' as const,
+    verificationToken,
+    target: challenge.target,
+    channel: challenge.channel,
+    purpose: challenge.purpose,
+  };
 }
 
 async function sendEmailViaHttpsRelay(target: string, code: string) {
@@ -614,11 +854,16 @@ function registerMetaWhatsAppWebhookRoutes(app: FastifyInstance) {
         }
 
         for (const message of value.messages || []) {
+          const inboundText = message.type === 'text' ? String(message.text?.body || '') : '';
+          const verified = message.from && inboundText
+            ? await markInboundWhatsAppChallenge(prisma, message.from, inboundText, message.id)
+            : false;
           app.log.info({
             from: message.from ? maskPhoneForLog(message.from) : undefined,
             messageId: message.id,
             type: message.type,
-            text: message.type === 'text' ? message.text?.body?.slice(0, 120) : undefined,
+            text: inboundText ? inboundText.slice(0, 120) : undefined,
+            verificationMatched: verified,
           }, '[meta-whatsapp-webhook] inbound message');
         }
 
@@ -644,6 +889,90 @@ export function registerVerificationRoutes(
   registerMetaWhatsAppWebhookRoutes(app);
 
   app.get('/api/v1/auth/verification-capabilities', async () => capabilities());
+
+  app.post('/api/v1/auth/whatsapp-verification/request', async (request, reply) => {
+    const parsed = z.object({
+      target: z.string().trim().min(7).max(32),
+      purpose: z.literal('REGISTER'),
+    }).safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+
+    const target = normalizeTarget(parsed.data.target, 'WHATSAPP');
+    if (!/^\+[1-9]\d{6,14}$/.test(target)) {
+      return reply.code(400).send({ error: 'invalid_phone' });
+    }
+
+    try {
+      return await issueInboundWhatsAppChallenge(prisma, {
+        target,
+        purpose: parsed.data.purpose,
+      });
+    } catch (error) {
+      return errorReply(reply, error);
+    }
+  });
+
+  app.get('/api/v1/auth/whatsapp-verification/status', async (request, reply) => {
+    const parsed = z.object({ challengeId: z.string().uuid() }).safeParse(request.query);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+    try {
+      return await completeInboundWhatsAppChallenge(app, prisma, parsed.data.challengeId);
+    } catch (error) {
+      return errorReply(reply, error);
+    }
+  });
+
+  app.post('/api/v1/me/whatsapp-verification/request', { preHandler: authenticate }, async (request, reply) => {
+    const parsed = z.object({
+      target: z.string().trim().min(7).max(32).optional(),
+      purpose: z.enum(['VERIFY_PHONE', 'ENABLE_2FA']),
+    }).safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+
+    const claims = request.user as { sub: string };
+    const user = await prisma.user.findUnique({ where: { id: claims.sub } });
+    if (!user) return reply.code(404).send({ error: 'user_not_found' });
+
+    const rawTarget = parsed.data.purpose === 'ENABLE_2FA'
+      ? user.phone
+      : parsed.data.target || user.phone;
+    if (!rawTarget) return reply.code(400).send({ error: 'phone_required' });
+
+    const target = normalizeTarget(rawTarget, 'WHATSAPP');
+    if (!/^\+[1-9]\d{6,14}$/.test(target)) {
+      return reply.code(400).send({ error: 'invalid_phone' });
+    }
+
+    if (parsed.data.purpose === 'VERIFY_PHONE' && target !== user.phone) {
+      const exists = await prisma.user.findFirst({ where: { phone: target, id: { not: user.id } } });
+      if (exists) return reply.code(409).send({ error: 'phone_already_registered' });
+    }
+
+    if (parsed.data.purpose === 'ENABLE_2FA' && !user.phoneVerifiedAt) {
+      return reply.code(400).send({ error: 'verified_contact_required' });
+    }
+
+    try {
+      return await issueInboundWhatsAppChallenge(prisma, {
+        userId: user.id,
+        target,
+        purpose: parsed.data.purpose,
+      });
+    } catch (error) {
+      return errorReply(reply, error);
+    }
+  });
+
+  app.get('/api/v1/me/whatsapp-verification/status', { preHandler: authenticate }, async (request, reply) => {
+    const parsed = z.object({ challengeId: z.string().uuid() }).safeParse(request.query);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+    const claims = request.user as { sub: string };
+    try {
+      return await completeInboundWhatsAppChallenge(app, prisma, parsed.data.challengeId, claims.sub);
+    } catch (error) {
+      return errorReply(reply, error);
+    }
+  });
 
   app.post('/api/v1/auth/verification/request', async (request, reply) => {
     const parsed = publicRequestSchema.safeParse(request.body);
