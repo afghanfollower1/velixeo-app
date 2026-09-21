@@ -1,11 +1,12 @@
-Trigger signed Android build - VELIXEO v0.9.2 - 2026-09-21.
-Final release scope:
-1) Referral registration earns zero. Inviter receives admin-configured percentage only from each signature-verified HesabPay wallet top-up; idempotent per payment.
-2) Referral Admin controls percentage and shows qualifying top-ups, commission totals, and payment counts.
-3) 5SIM first catalog use auto-syncs all enabled virtual providers and auto-publishes their full service catalog; bulk enable/disable and individual visibility remain available.
-4) Virtual pricing supports global percentage markup plus per-service percentage and optional fixed AFN overrides.
-5) Catalog is scalable: all services load first; countries are fetched only after a service is selected.
-6) Service and country selectors have search. Countries show names/flags and alphabetical ordering.
-7) Smart Buy no longer requires manual country selection. It recommends strongest/stable and cheapest countries using live delivery rate, available stock and price, then fetches a live offer again before purchase.
-8) Popular services are prioritized and major brands have their own brand icon/color.
+Trigger signed Android build - VELIXEO v0.9.2 - 2026-09-21 FINAL.
+Validated release scope:
+1) Referral registration earns zero; commission is an admin-configured percentage only from signature-verified HesabPay wallet top-ups, idempotent per payment.
+2) Referral Admin shows qualifying top-ups, total commission and payment counts.
+3) 5SIM auto-syncs and auto-publishes the full enabled-provider service catalog on first use; bulk enable/disable and individual visibility remain.
+4) Global virtual-number percentage markup plus per-service percentage/fixed AFN pricing overrides.
+5) All services load first; countries load only after selecting a service for scalable 1,000+ service catalogs.
+6) Searchable service/country selectors, alphabetical country names with flags, popular-service priority.
+7) Smart Buy requires only a service and recommends strongest/stable and cheapest countries using live delivery rate, stock and price; purchase rechecks live offer.
+8) Major brands use their own icon and brand color via Font Awesome 11; unknown services retain a clean generic fallback.
 9) Social Media app/admin logic remains byte-for-byte unchanged from v0.9.0.
+10) Backend, payment and Flutter validation passed before this signed build trigger.
