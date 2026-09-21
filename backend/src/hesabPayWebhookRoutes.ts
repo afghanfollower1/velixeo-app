@@ -8,6 +8,7 @@ import {
 import { z } from 'zod';
 import { NotificationPriority, NotificationType } from '@prisma/client';
 import { publishUserNotification } from './pushNotifications.js';
+import { grantReferralTopupCommission } from './referralRoutes.js';
 
 // Payment webhooks publish one typed in-app + FCM notification only on the first verified state transition.
 
@@ -350,6 +351,30 @@ export function registerHesabPayWebhookRoutes(
           amountAfn,
           transactionId,
         });
+
+        // Referral commission is tied to a real, verified wallet top-up.
+        // The referral helper is idempotent per payment, so webhook retries
+        // cannot pay the inviter twice.
+        const referralCommission = await grantReferralTopupCommission(prisma, {
+          inviteeId: result.payment.userId,
+          paymentId: result.payment.id,
+          amountAfn,
+        });
+        if (referralCommission && !referralCommission.idempotent) {
+          await publishUserNotification(prisma, referralCommission.inviterId, {
+            type: NotificationType.WALLET,
+            priority: NotificationPriority.NORMAL,
+            titleEn: 'Referral commission received',
+            titleFa: 'کمیسیون دعوت دریافت شد',
+            bodyEn: `${referralCommission.commissionAfn.toLocaleString('en-US')} AFN (${referralCommission.rewardPercent}%) was added from a referred user wallet top-up.`,
+            bodyFa: `${referralCommission.commissionAfn.toLocaleString('en-US')} افغانی (${referralCommission.rewardPercent}٪) از شارژ کیف پول کاربر دعوت‌شده به حساب شما اضافه شد.`,
+            actionRoute: 'wallet',
+            actionEntityId: result.payment.id,
+            actionLabelEn: 'Open wallet',
+            actionLabelFa: 'مشاهده کیف پول',
+          });
+        }
+
         if (!result.idempotent) {
           await publishUserNotification(prisma,result.payment.userId,{
             type:NotificationType.PAYMENT,priority:NotificationPriority.HIGH,
