@@ -683,6 +683,7 @@ export function registerPremiumAdminRoutes(
               adminUpdatedAt: new Date().toISOString(),
             } as Prisma.InputJsonValue,
           },
+          include: { service: true },
         });
       }
 
