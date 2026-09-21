@@ -117,7 +117,7 @@ abstract class VirtualNumberPanelHost {
   int get balanceAfn;
   List<AppBanner> get banners;
   String money(int amountAfn, {bool showBase});
-  Future<void> refreshAccount();
+  Future<void> refreshBalanceOnly();
 }
 
 class VirtualNumberPanelPage extends StatefulWidget {
@@ -388,7 +388,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
         clientRequestId: newRequestId(),
       );
       orders = [order, ...orders.where((item) => item.id != order.id)];
-      await host.refreshAccount();
+      await host.refreshBalanceOnly();
       if (!mounted) return;
       setState(() => tab = 2);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -485,7 +485,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     if (confirmed != true) return;
     try {
       replaceOrder(await host.api.cancelVirtualNumberOrder(order.id));
-      await host.refreshAccount();
+      await host.refreshBalanceOnly();
     } on ApiException catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorLabel(e.code))));
     }
@@ -494,7 +494,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
   Future<void> finishOrder(VirtualOrder order) async {
     try {
       replaceOrder(await host.api.finishVirtualNumberOrder(order.id));
-      await host.refreshAccount();
+      await host.refreshBalanceOnly();
     } on ApiException catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorLabel(e.code))));
     }
