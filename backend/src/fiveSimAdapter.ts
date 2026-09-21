@@ -68,6 +68,24 @@ function numberValue(value: unknown, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function deliveryPercentValue(value: unknown): number | null {
+  if (value == null || value === '') return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  // 5SIM price feeds can expose the SMS success rate either as a fraction
+  // (0.0441) or as a human percentage (4.41). Normalize both to 0..100.
+  const percent = parsed > 0 && parsed <= 1 ? parsed * 100 : parsed;
+  return Math.max(0, Math.min(100, percent));
+}
+
+function stringField(row: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = row[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return '';
+}
+
 function apiToken(secret: string) {
   const trimmed = secret.trim();
   if (!trimmed) throw new Error('FIVESIM_SECRET_EMPTY');
@@ -189,31 +207,39 @@ export class FiveSimClient {
     if (filters.country) query.set('country', filters.country);
     if (filters.product) query.set('product', filters.product);
     const suffix = query.size ? `?${query}` : '';
-    const raw = objectValue(await this.get(`/v1/guest/prices${suffix}`, { auth: false }));
+    const raw = await this.get(`/v1/guest/prices${suffix}`, { auth: false });
     const rows: FiveSimPrice[] = [];
 
-    // 5SIM returns slightly different nesting depending on filters. Recursively walk
-    // until an operator object with cost/count/rate is found, preserving path labels.
+    // 5SIM has used several equivalent shapes for the guest price feed.
+    // Walk both objects and arrays, and prefer explicit leaf fields when present.
     const walk = (node: unknown, path: string[]) => {
+      if (Array.isArray(node)) {
+        for (const item of node) walk(item, path);
+        return;
+      }
       const obj = objectValue(node);
       if ('cost' in obj && 'count' in obj) {
-        const labels = [...path];
-        let country = filters.country ?? '';
-        let product = filters.product ?? '';
-        let operator = '';
-        if (filters.country && filters.product) {
-          operator = labels.at(-1) ?? '';
-        } else if (filters.country) {
-          product = labels.at(-2) ?? labels.at(0) ?? '';
-          operator = labels.at(-1) ?? '';
-        } else if (filters.product) {
-          country = labels.at(-2) ?? labels.at(0) ?? '';
-          operator = labels.at(-1) ?? '';
-        } else {
-          country = labels.at(-3) ?? '';
-          product = labels.at(-2) ?? '';
-          operator = labels.at(-1) ?? '';
+        const labels = [...path].filter(Boolean);
+        let country = stringField(obj, ['country', 'country_name', 'countryName']) || filters.country || '';
+        let product = stringField(obj, ['product', 'service', 'service_name', 'serviceName']) || filters.product || '';
+        let operator = stringField(obj, ['operator', 'operator_name', 'operatorName']);
+
+        if (!operator) {
+          if (filters.country && filters.product) {
+            operator = labels.at(-1) ?? '';
+          } else if (filters.country) {
+            product ||= labels.at(-2) ?? labels.at(0) ?? '';
+            operator = labels.at(-1) ?? '';
+          } else if (filters.product) {
+            country ||= labels.at(-2) ?? labels.at(0) ?? '';
+            operator = labels.at(-1) ?? '';
+          } else {
+            country ||= labels.at(-3) ?? '';
+            product ||= labels.at(-2) ?? '';
+            operator = labels.at(-1) ?? '';
+          }
         }
+
         if (country && product && operator) {
           rows.push({
             country,
@@ -221,15 +247,39 @@ export class FiveSimClient {
             operator,
             cost: numberValue(obj.cost),
             count: Math.max(0, Math.trunc(numberValue(obj.count))),
-            rate: obj.rate == null ? null : numberValue(obj.rate),
+            rate: deliveryPercentValue(obj.rate ?? obj.delivery_rate ?? obj.deliveryRate ?? obj.success_rate ?? obj.successRate),
           });
         }
         return;
       }
-      for (const [key, value] of Object.entries(obj)) walk(value, [...path, key]);
+      for (const [key, value] of Object.entries(obj)) {
+        walk(value, [...path, key]);
+      }
     };
     walk(raw, []);
-    return rows;
+
+    // A provider response can repeat the same operator through aliases/nesting.
+    // Keep exactly one customer-visible row per country/service/operator.
+    const unique = new Map<string, FiveSimPrice>();
+    for (const row of rows) {
+      const key = `${row.country.toLowerCase()}|${row.product.toLowerCase()}|${row.operator.toLowerCase()}`;
+      const previous = unique.get(key);
+      if (!previous) {
+        unique.set(key, row);
+        continue;
+      }
+      unique.set(key, {
+        ...previous,
+        cost: Math.min(previous.cost, row.cost),
+        count: Math.max(previous.count, row.count),
+        rate: previous.rate == null
+          ? row.rate
+          : row.rate == null
+              ? previous.rate
+              : Math.max(previous.rate, row.rate),
+      });
+    }
+    return [...unique.values()];
   }
 
   async buyActivation(input: {
