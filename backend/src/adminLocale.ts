@@ -328,7 +328,6 @@ const translations: Record<string, string> = {
   'Connected': 'متصل',
   'API key needed': 'کلید API لازم است',
   'Connection error': 'خطای اتصال',
-  'Provider Catalog': 'کاتالوگ ارائه‌دهنده',
   'Get / Refresh Services': 'دریافت / بروزرسانی سرویس‌ها',
   'Choose provider': 'انتخاب ارائه‌دهنده',
   'Original Service Name': 'نام اصلی سرویس',
@@ -442,7 +441,6 @@ const translations: Record<string, string> = {
   'Create product': 'ایجاد محصول',
   'Edit product': 'ویرایش محصول',
   'Bilingual content + packages + dynamic customer fields': 'محتوای دوزبانه + پکیج‌ها + فیلدهای پویای مشتری',
-  'Category': 'دسته‌بندی',
   'Fulfillment type': 'نوع انجام سفارش',
   'Delivery from (hours)': 'شروع زمان تحویل (ساعت)',
   'Delivery up to (hours)': 'حداکثر زمان تحویل (ساعت)',
@@ -594,7 +592,6 @@ const translations: Record<string, string> = {
   // Misc placeholders / hints
   'Search ID, name or category': 'جستجوی شناسه، نام یا دسته‌بندی',
   'Choose a provider service to configure its app category, customer name and pricing.': 'یک سرویس ارائه‌دهنده را انتخاب کنید تا دسته‌بندی اپ، نام مشتری و قیمت‌گذاری آن را تنظیم کنید.',
-  'Search service name, slug or 5SIM code…': 'جستجوی نام سرویس، شناسه یا کد 5SIM…',
   'Recommended: 1080×420 JPG/WebP, optimized below 300 KB for fast mobile loading.': 'پیشنهادی: 1080×420 با فرمت JPG/WebP و حجم کمتر از 300KB برای بارگذاری سریع.',
   'Recommended Social banner: 1080×420 px (JPG or PNG)': 'بنر پیشنهادی شبکه اجتماعی: 1080×420 پیکسل (JPG یا PNG)',
   'Save an image URL to see the live banner preview.': 'برای دیدن پیش‌نمایش زنده، لینک تصویر را ذخیره کنید.',
