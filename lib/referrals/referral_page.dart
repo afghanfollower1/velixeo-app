@@ -26,6 +26,7 @@ class _InviteFriendsPageState extends State<InviteFriendsPage>{
 
   bool get fa=>widget.host.fa;
   String t(String f,String e)=>fa?f:e;
+  String percent(double value)=>value.toStringAsFixed(value%1==0?0:2);
 
   @override
   void initState(){super.initState();load();}
@@ -94,12 +95,12 @@ class _InviteFriendsPageState extends State<InviteFriendsPage>{
                     ),
                     const SizedBox(width:16),
                     Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                      Text(t('دوستانت را دعوت کن، جایزه بگیر','Invite friends, earn rewards'),style:const TextStyle(color:Colors.white,fontSize:19,fontWeight:FontWeight.w900)),
+                      Text(t('دوستانت را دعوت کن، کمیسیون بگیر','Invite friends, earn commission'),style:const TextStyle(color:Colors.white,fontSize:19,fontWeight:FontWeight.w900)),
                       const SizedBox(height:6),
                       Text(
-                        s.rewardAfn>0
-                          ?t('برای هر دعوت موفق تا ${widget.host.money(s.rewardAfn,showBase:true)} پاداش بگیر.','Earn ${widget.host.money(s.rewardAfn,showBase:true)} for each successful referral.')
-                          :t('لینک اختصاصی خودت را با دوستانت به اشتراک بگذار.','Share your personal invitation link with friends.'),
+                        s.rewardPercent>0
+                          ?t('از هر شارژ موفق کیف پول کاربر دعوت‌شده ${percent(s.rewardPercent)}٪ کمیسیون بگیر.','Earn ${percent(s.rewardPercent)}% commission from every verified wallet top-up made by an invited user.')
+                          :t('لینک اختصاصی خودت را به اشتراک بگذار. فعلاً نرخ کمیسیون ۰٪ است.','Share your personal invitation link. Commission is currently 0%.'),
                         style:const TextStyle(color:Color(0xFFE6F7FF),fontSize:11.5,height:1.45),
                       ),
                     ])),
@@ -107,15 +108,27 @@ class _InviteFriendsPageState extends State<InviteFriendsPage>{
                 ),
                 const SizedBox(height:14),
                 Row(children:[
-                  Expanded(child:_Metric(icon:Icons.group_add_rounded,label:t('دعوت‌های موفق','Successful invites'),value:'${s.inviteCount}',accent:const Color(0xFF16A875))),
+                  Expanded(child:_Metric(icon:Icons.group_add_rounded,label:t('دوستان دعوت‌شده','Invited friends'),value:'${s.inviteCount}',accent:const Color(0xFF16A875))),
                   const SizedBox(width:10),
-                  Expanded(child:_Metric(icon:Icons.toll_rounded,label:t('مجموع پاداش‌ها','Total rewards'),value:widget.host.money(s.totalRewardsAfn,showBase:true),accent:const Color(0xFF1686FF))),
+                  Expanded(child:_Metric(icon:Icons.percent_rounded,label:t('نرخ کمیسیون','Commission rate'),value:'${percent(s.rewardPercent)}%',accent:const Color(0xFF1686FF))),
+                ]),
+                const SizedBox(height:10),
+                Row(children:[
+                  Expanded(child:_Metric(icon:Icons.account_balance_wallet_outlined,label:t('شارژ کاربران دعوت‌شده','Referred top-ups'),value:widget.host.money(s.totalQualifyingTopupsAfn,showBase:true),accent:const Color(0xFF805AD5))),
+                  const SizedBox(width:10),
+                  Expanded(child:_Metric(icon:Icons.toll_rounded,label:t('کمیسیون دریافت‌شده','Commission earned'),value:widget.host.money(s.totalRewardsAfn,showBase:true),accent:const Color(0xFF1686FF))),
                 ]),
                 const SizedBox(height:14),
                 _Card(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                   Text(t('لینک اختصاصی دعوت','Your personal invitation'),style:const TextStyle(fontWeight:FontWeight.w900,fontSize:16)),
                   const SizedBox(height:4),
-                  Text(t('دوستت می‌تواند لینک را باز کند یا هنگام ثبت‌نام کد دعوت را وارد کند.','Your friend can open the link or enter your referral code during registration.'),style:const TextStyle(fontSize:11,color:Color(0xFF718399))),
+                  Text(
+                    t(
+                      'ثبت‌نام فقط رابطه دعوت را ثبت می‌کند؛ هیچ پولی با ثبت‌نام اضافه نمی‌شود. کمیسیون فقط بعد از شارژ واقعی و تأییدشده کیف پول محاسبه می‌شود.',
+                      'Registration only links the accounts and pays nothing. Commission is calculated only after a real verified wallet top-up.',
+                    ),
+                    style:const TextStyle(fontSize:11,color:Color(0xFF718399),height:1.45),
+                  ),
                   const SizedBox(height:14),
                   _CopyRow(
                     label:t('کد دعوت','Referral code'),
@@ -156,7 +169,10 @@ class _InviteFriendsPageState extends State<InviteFriendsPage>{
                 ])),
                 const SizedBox(height:12),
                 Text(
-                  t('پاداش‌ها و شرایط دعوت توسط مدیریت VELIXEO تنظیم می‌شوند. ساخت حساب‌های غیرواقعی ممکن است باعث لغو پاداش شود.','Referral rewards and conditions are controlled by VELIXEO administration. Fake or duplicate accounts may have rewards revoked.'),
+                  t(
+                    'ثبت‌نام به‌تنهایی هیچ پولی ایجاد نمی‌کند. نرخ کمیسیون توسط مدیریت VELIXEO تعیین می‌شود و هر پرداخت تأییدشده فقط یک‌بار محاسبه می‌گردد.',
+                    'Registration alone earns no money. VELIXEO administration sets the commission rate and each verified payment is counted only once.',
+                  ),
                   textAlign:TextAlign.center,
                   style:const TextStyle(fontSize:10,color:Color(0xFF8B99A7),height:1.4),
                 ),
@@ -219,8 +235,9 @@ class _InviteTile extends StatelessWidget{
     Text(invite.createdAt.toLocal().toString().substring(0,10),style:const TextStyle(fontSize:10,color:Color(0xFF8A98A6))),
    ])),
    Column(crossAxisAlignment:CrossAxisAlignment.end,children:[
-    Text(invite.status=='REWARDED'?(fa?'پاداش داده شد':'Rewarded'):(fa?'ثبت‌نام شده':'Registered'),style:const TextStyle(fontSize:10,fontWeight:FontWeight.w800,color:Color(0xFF18A875))),
-    if(invite.rewardAfn>0)Text(money(invite.rewardAfn,showBase:true),style:const TextStyle(fontSize:10,color:Color(0xFF1686FF))),
+    Text(invite.rewardCount>0?(fa?'${invite.rewardCount} شارژ موفق':'${invite.rewardCount} verified top-ups'):(fa?'هنوز شارژ نشده':'No top-up yet'),style:const TextStyle(fontSize:10,fontWeight:FontWeight.w800,color:Color(0xFF18A875))),
+    if(invite.qualifyingTopupAfn>0)Text(fa?'شارژ: ${money(invite.qualifyingTopupAfn,showBase:true)}':'Top-ups: ${money(invite.qualifyingTopupAfn,showBase:true)}',style:const TextStyle(fontSize:9.5,color:Color(0xFF718399))),
+    if(invite.rewardAfn>0)Text(fa?'کمیسیون: ${money(invite.rewardAfn,showBase:true)}':'Commission: ${money(invite.rewardAfn,showBase:true)}',style:const TextStyle(fontSize:10,color:Color(0xFF1686FF),fontWeight:FontWeight.w800)),
    ]),
   ]),
  );
