@@ -32,6 +32,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
   VirtualCountry? selectedCountry;
   int tab = 0;
   bool loading = true;
+  bool loadingCountries = false;
   bool loadingOffers = false;
   bool buying = false;
   bool polling = false;
@@ -71,6 +72,8 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
 
   Future<void> load() async {
     if (mounted) setState(() { loading = true; error = null; });
+    final previousServiceId = selectedService?.id;
+    final previousCountryCode = selectedCountry?.code;
     try {
       final results = await Future.wait([
         host.api.virtualNumberCatalog(),
@@ -79,26 +82,73 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
       catalog = results[0] as VirtualCatalog;
       orders = results[1] as List<VirtualOrder>;
       if (catalog.services.isNotEmpty) {
-        final currentId = selectedService?.id;
-        selectedService = catalog.services.where((item) => item.id == currentId).firstOrNull ?? catalog.services.first;
-        final countries = selectedService!.countries;
-        if (countries.isNotEmpty) {
-          final currentCountry = selectedCountry?.code;
-          selectedCountry = countries.where((item) => item.code == currentCountry).firstOrNull ?? countries.first;
-        } else {
-          selectedCountry = null;
-        }
+        final service = catalog.services
+            .where((item) => item.id == previousServiceId)
+            .firstOrNull ?? sortedServices.first;
+        selectedService = service;
+        selectedCountry = null;
+        offers = null;
+        await loadCountries(service, preferredCountryCode: previousCountryCode);
       } else {
         selectedService = null;
         selectedCountry = null;
+        offers = null;
       }
-      await loadOffers();
     } on ApiException catch (e) {
       error = e.code;
     } catch (_) {
       error = 'network_error';
     } finally {
       if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Future<void> loadCountries(
+    VirtualService service, {
+    String? preferredCountryCode,
+  }) async {
+    if (mounted) {
+      setState(() {
+        loadingCountries = true;
+        selectedCountry = null;
+        offers = null;
+      });
+    }
+    try {
+      final countries = await host.api.virtualNumberCountries(serviceId: service.id);
+      if (!mounted || selectedService?.id != service.id) return;
+      final hydrated = service.copyWithCountries(countries);
+      final sorted = sortedCountries(hydrated);
+      final preferred = sorted
+          .where((item) => item.code == preferredCountryCode)
+          .firstOrNull;
+      setState(() {
+        selectedService = hydrated;
+        selectedCountry = preferred ?? sorted.firstOrNull;
+      });
+      await loadOffers();
+    } on ApiException catch (e) {
+      if (mounted && selectedService?.id == service.id) {
+        setState(() {
+          error = e.code;
+          selectedService = service.copyWithCountries(const []);
+          selectedCountry = null;
+          offers = null;
+        });
+      }
+    } catch (_) {
+      if (mounted && selectedService?.id == service.id) {
+        setState(() {
+          error = 'network_error';
+          selectedService = service.copyWithCountries(const []);
+          selectedCountry = null;
+          offers = null;
+        });
+      }
+    } finally {
+      if (mounted && selectedService?.id == service.id) {
+        setState(() => loadingCountries = false);
+      }
     }
   }
 
@@ -122,14 +172,15 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     }
   }
 
-  void changeService(VirtualService? service) {
+  Future<void> changeService(VirtualService? service) async {
     if (service == null) return;
     setState(() {
       selectedService = service;
-      selectedCountry = service.countries.isEmpty ? null : service.countries.first;
+      selectedCountry = null;
       offers = null;
+      error = null;
     });
-    loadOffers();
+    await loadCountries(service);
   }
 
   void changeCountry(VirtualCountry? country) {
@@ -391,7 +442,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
         ]),
       ),
     );
-    if(picked!=null)changeService(picked);
+    if(picked!=null)await changeService(picked);
   }
 
   Future<void> chooseCountry() async {
@@ -495,16 +546,27 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
   Widget countrySelector() {
     final country=selectedCountry;
     return InkWell(
-      onTap:selectedService==null?null:chooseCountry,
+      onTap:selectedService==null||loadingCountries?null:chooseCountry,
       borderRadius:BorderRadius.circular(14),
       child:InputDecorator(
         decoration:InputDecoration(
           labelText:t('کشور','Country'),
-          prefixIcon:country==null?const Icon(Icons.public_rounded):Center(widthFactor:1.8,child:Text(country.flag,style:const TextStyle(fontSize:25))),
-          suffixIcon:const Icon(Icons.search_rounded),
+          prefixIcon:loadingCountries
+              ?const Padding(
+                  padding:EdgeInsets.all(14),
+                  child:SizedBox.square(dimension:18,child:CircularProgressIndicator(strokeWidth:2)),
+                )
+              :country==null
+                  ?const Icon(Icons.public_rounded)
+                  :Center(widthFactor:1.8,child:Text(country.flag,style:const TextStyle(fontSize:25))),
+          suffixIcon:loadingCountries?null:const Icon(Icons.search_rounded),
         ),
         child:Text(
-          country==null?t('انتخاب کشور','Choose country'):'${country.name} • ${host.money(country.minPriceAfn)}',
+          loadingCountries
+              ?t('در حال دریافت کشورهای فعال…','Loading available countries…')
+              :country==null
+                  ?t('کشوری موجود نیست','No country available')
+                  :'${country.name} • ${host.money(country.minPriceAfn)}',
           overflow:TextOverflow.ellipsis,
           style:const TextStyle(fontWeight:FontWeight.w800),
         ),
@@ -569,7 +631,9 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
           'You do not need to choose a country manually. Smart Buy recommends the strongest country using live delivery rate, stock and price, plus the cheapest available country.',
         )),
         const SizedBox(height:14),
-        if(service==null||service.countries.isEmpty)
+        if(loadingCountries)
+          const Center(child:Padding(padding:EdgeInsets.all(28),child:CircularProgressIndicator()))
+        else if(service==null||service.countries.isEmpty)
           _Notice(text:t('برای این سرویس کشور فعالی موجود نیست.','No active country is available for this service.'))
         else ...[
           _SmartCountryCard(
