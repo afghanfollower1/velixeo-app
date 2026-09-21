@@ -737,32 +737,34 @@ class _PanelCard extends StatelessWidget {
 }
 
 class _BrandVisual {
-  const _BrandVisual(this.icon,this.color);
-  final IconData icon;
+  const _BrandVisual.fa(this.faIcon,this.color):materialIcon=null;
+  const _BrandVisual.material(this.materialIcon,this.color):faIcon=null;
+  final FaIconData? faIcon;
+  final IconData? materialIcon;
   final Color color;
 }
 
 _BrandVisual _brandVisual(VirtualService service) {
   final key='${service.titleEn} ${service.slug}'.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'),'');
-  if(key.contains('telegram'))return const _BrandVisual(FontAwesomeIcons.telegram,Color(0xFF229ED9));
-  if(key.contains('instagram'))return const _BrandVisual(FontAwesomeIcons.instagram,Color(0xFFE4405F));
-  if(key.contains('whatsapp'))return const _BrandVisual(FontAwesomeIcons.whatsapp,Color(0xFF25D366));
-  if(key.contains('facebook'))return const _BrandVisual(FontAwesomeIcons.facebookF,Color(0xFF1877F2));
-  if(key.contains('pinterest'))return const _BrandVisual(FontAwesomeIcons.pinterestP,Color(0xFFE60023));
-  if(key.contains('tiktok'))return const _BrandVisual(FontAwesomeIcons.tiktok,Color(0xFF111111));
-  if(key.contains('youtube'))return const _BrandVisual(FontAwesomeIcons.youtube,Color(0xFFFF0000));
-  if(key.contains('twitter')||key=='x'||key.endsWith('virtualx'))return const _BrandVisual(FontAwesomeIcons.xTwitter,Color(0xFF111111));
-  if(key.contains('snapchat'))return const _BrandVisual(FontAwesomeIcons.snapchat,Color(0xFFF7D600));
-  if(key.contains('discord'))return const _BrandVisual(FontAwesomeIcons.discord,Color(0xFF5865F2));
-  if(key.contains('google')||key.contains('gmail'))return const _BrandVisual(FontAwesomeIcons.google,Color(0xFF4285F4));
-  if(key.contains('amazon'))return const _BrandVisual(FontAwesomeIcons.amazon,Color(0xFFFF9900));
-  if(key.contains('microsoft'))return const _BrandVisual(FontAwesomeIcons.microsoft,Color(0xFF00A4EF));
-  if(key.contains('apple'))return const _BrandVisual(FontAwesomeIcons.apple,Color(0xFF111111));
-  if(key.contains('linkedin'))return const _BrandVisual(FontAwesomeIcons.linkedinIn,Color(0xFF0A66C2));
-  if(key.contains('uber'))return const _BrandVisual(FontAwesomeIcons.uber,Color(0xFF111111));
-  if(key.contains('airbnb'))return const _BrandVisual(FontAwesomeIcons.airbnb,Color(0xFFFF5A5F));
-  if(key.contains('spotify'))return const _BrandVisual(FontAwesomeIcons.spotify,Color(0xFF1DB954));
-  return const _BrandVisual(Icons.apps_rounded,Color(0xFF1686FF));
+  if(key.contains('telegram'))return const _BrandVisual.fa(FontAwesomeIcons.telegram,Color(0xFF229ED9));
+  if(key.contains('instagram'))return const _BrandVisual.fa(FontAwesomeIcons.instagram,Color(0xFFE4405F));
+  if(key.contains('whatsapp'))return const _BrandVisual.fa(FontAwesomeIcons.whatsapp,Color(0xFF25D366));
+  if(key.contains('facebook'))return const _BrandVisual.fa(FontAwesomeIcons.facebookF,Color(0xFF1877F2));
+  if(key.contains('pinterest'))return const _BrandVisual.fa(FontAwesomeIcons.pinterestP,Color(0xFFE60023));
+  if(key.contains('tiktok'))return const _BrandVisual.fa(FontAwesomeIcons.tiktok,Color(0xFF111111));
+  if(key.contains('youtube'))return const _BrandVisual.fa(FontAwesomeIcons.youtube,Color(0xFFFF0000));
+  if(key.contains('twitter')||key=='x'||key.endsWith('virtualx'))return const _BrandVisual.fa(FontAwesomeIcons.xTwitter,Color(0xFF111111));
+  if(key.contains('snapchat'))return const _BrandVisual.fa(FontAwesomeIcons.snapchat,Color(0xFFF7D600));
+  if(key.contains('discord'))return const _BrandVisual.fa(FontAwesomeIcons.discord,Color(0xFF5865F2));
+  if(key.contains('google')||key.contains('gmail'))return const _BrandVisual.fa(FontAwesomeIcons.google,Color(0xFF4285F4));
+  if(key.contains('amazon'))return const _BrandVisual.fa(FontAwesomeIcons.amazon,Color(0xFFFF9900));
+  if(key.contains('microsoft'))return const _BrandVisual.fa(FontAwesomeIcons.microsoft,Color(0xFF00A4EF));
+  if(key.contains('apple'))return const _BrandVisual.fa(FontAwesomeIcons.apple,Color(0xFF111111));
+  if(key.contains('linkedin'))return const _BrandVisual.fa(FontAwesomeIcons.linkedinIn,Color(0xFF0A66C2));
+  if(key.contains('uber'))return const _BrandVisual.fa(FontAwesomeIcons.uber,Color(0xFF111111));
+  if(key.contains('airbnb'))return const _BrandVisual.fa(FontAwesomeIcons.airbnb,Color(0xFFFF5A5F));
+  if(key.contains('spotify'))return const _BrandVisual.fa(FontAwesomeIcons.spotify,Color(0xFF1DB954));
+  return const _BrandVisual.material(Icons.apps_rounded,Color(0xFF1686FF));
 }
 
 class _BrandBadge extends StatelessWidget {
@@ -775,7 +777,11 @@ class _BrandBadge extends StatelessWidget {
     return Container(
       width:size,height:size,
       decoration:BoxDecoration(color:brand.color.withValues(alpha:.11),borderRadius:BorderRadius.circular(size*.30)),
-      child:Center(child:FaIcon(brand.icon,color:brand.color,size:size*.48)),
+      child:Center(
+        child:brand.faIcon!=null
+          ?FaIcon(brand.faIcon!,color:brand.color,size:size*.48)
+          :Icon(brand.materialIcon,color:brand.color,size:size*.48),
+      ),
     );
   }
 }
