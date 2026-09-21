@@ -258,6 +258,19 @@ function virtualCountryMeta(code:string, providerRow?:unknown){
   return{name,iso,flag:countryFlag(iso)};
 }
 
+function virtualServiceMetadata(value: Prisma.JsonValue | null | undefined) {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function virtualIconParts(value: unknown) {
+  if (typeof value !== 'string') return null;
+  const match = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(value.trim());
+  if (!match) return null;
+  return { mime: match[1], base64: match[2] };
+}
+
 const pricesCache = new Map<string, { expiresAt: number; rows: FiveSimPrice[] }>();
 const countriesCache = new Map<string, { expiresAt: number; data: Record<string, unknown> }>();
 
@@ -523,7 +536,7 @@ async function syncProviderServices(prisma: PrismaClient, providerId: string) {
             category: ServiceCategory.VIRTUAL_NUMBER,
             titleEn: titleCaseVirtual(product),
             titleFa: titleCaseVirtual(product),
-            sortOrder: virtualServiceSortOrder(product),
+            // Keep the administrator's manual display priority on every future sync.
             metadata: { ...(existing.metadata && typeof existing.metadata === 'object' && !Array.isArray(existing.metadata) ? existing.metadata as Record<string,unknown> : {}), source: 'virtual_provider_sync', product },
           },
         })
@@ -594,7 +607,28 @@ export function registerVirtualNumberRoutes(
   authenticate: AuthenticateHook,
   resolveAdmin: AdminResolver,
 ) {
-  app.get('/api/v1/virtual-numbers/catalog', async (_request, reply) => {
+  app.get('/api/v1/virtual-numbers/service-icon/:serviceId', async (request, reply) => {
+    const serviceId = String((request.params as { serviceId?: string }).serviceId ?? '');
+    const service = await prisma.service.findFirst({
+      where: { id: serviceId, category: ServiceCategory.VIRTUAL_NUMBER, enabled: true },
+      select: { metadata: true, updatedAt: true },
+    });
+    if (!service) return reply.code(404).send({ error: 'icon_not_found' });
+    const meta = virtualServiceMetadata(service.metadata);
+    const icon = virtualIconParts(meta.virtualIconDataUri);
+    if (!icon) return reply.code(404).send({ error: 'icon_not_found' });
+    const bytes = Buffer.from(icon.base64, 'base64');
+    if (bytes.length === 0 || bytes.length > 160 * 1024) {
+      return reply.code(404).send({ error: 'icon_not_found' });
+    }
+    return reply
+      .header('Content-Type', icon.mime)
+      .header('Cache-Control', 'public, max-age=31536000, immutable')
+      .header('ETag', `"${service.updatedAt.getTime()}-${bytes.length}"`)
+      .send(bytes);
+  });
+
+  app.get('/api/v1/virtual-numbers/catalog', async (request, reply) => {
     await ensureVirtualCatalogInitialized(prisma);
     const services = await prisma.service.findMany({
       where: { category: ServiceCategory.VIRTUAL_NUMBER, enabled: true },
@@ -612,18 +646,30 @@ export function registerVirtualNumberRoutes(
       baseCurrency: 'AFN',
       services: services
         .filter((service) => service.routes.length > 0)
-        .map((service) => ({
-          id: service.id,
-          slug: service.slug,
-          titleFa: service.titleFa,
-          titleEn: service.titleEn,
-          descriptionFa: service.descriptionFa,
-          descriptionEn: service.descriptionEn,
-          featured: service.featured,
-          // Countries are intentionally loaded only after a service is selected.
-          // This keeps a 1,000+ service catalog fast and uncluttered.
-          countries: [],
-        })),
+        .map((service) => {
+          const meta = virtualServiceMetadata(service.metadata);
+          const hasUploadedIcon = virtualIconParts(meta.virtualIconDataUri) != null;
+          const base = (process.env.PUBLIC_BASE_URL || `${request.protocol}://${request.headers.host ?? ''}`).replace(/\/$/, '');
+          const iconVersion = typeof meta.virtualIconUpdatedAt === 'string'
+            ? encodeURIComponent(meta.virtualIconUpdatedAt)
+            : service.updatedAt.getTime().toString();
+          return {
+            id: service.id,
+            slug: service.slug,
+            titleFa: service.titleFa,
+            titleEn: service.titleEn,
+            descriptionFa: service.descriptionFa,
+            descriptionEn: service.descriptionEn,
+            featured: service.featured,
+            sortOrder: service.sortOrder,
+            iconUrl: hasUploadedIcon
+              ? `${base}/api/v1/virtual-numbers/service-icon/${service.id}?v=${iconVersion}`
+              : null,
+            // Countries are intentionally loaded only after a service is selected.
+            // This keeps a 1,000+ service catalog fast and uncluttered.
+            countries: [],
+          };
+        }),
     });
   });
 
@@ -1165,6 +1211,62 @@ export function registerVirtualNumberRoutes(
     pricesCache.clear();
     await prisma.adminAuditLog.create({data:{adminUserId:admin.id,action:'VIRTUAL_NUMBER_SERVICE_PRICING',entityType:'Service',entityId:serviceId,summary:`${service.slug}: markup=${markup}%, fixed=${fixed?.toString()??'dynamic'} AFN`}});
     return reply.code(303).redirect(returnTo+'&msg=service_pricing_saved');
+  });
+
+  app.post('/admin/virtual-numbers/service-display', async (request, reply) => {
+    const admin = await resolveAdmin(request);
+    if (!admin) return reply.code(303).redirect('/admin');
+    const body = request.body as AnyBody;
+    const returnTo = safeVirtualAdminReturn(body, '/admin/v3?section=virtual&tab=services');
+    const serviceId = text(body, 'serviceId');
+    const order = Number(text(body, 'sortOrder'));
+    const iconData = text(body, 'iconData');
+    const removeIcon = checked(body, 'removeIcon');
+
+    if (!serviceId || !Number.isInteger(order) || order < 1 || order > 1000000) {
+      return reply.code(303).redirect(returnTo + '&err=1&msg=invalid_display_settings');
+    }
+    const service = await prisma.service.findFirst({
+      where: { id: serviceId, category: ServiceCategory.VIRTUAL_NUMBER },
+    });
+    if (!service) return reply.code(303).redirect(returnTo + '&err=1&msg=service_not_found');
+
+    const metadata = virtualServiceMetadata(service.metadata);
+    let nextMetadata: Record<string, unknown> = { ...metadata };
+    if (removeIcon) {
+      delete nextMetadata.virtualIconDataUri;
+      delete nextMetadata.virtualIconUpdatedAt;
+    } else if (iconData) {
+      const parsed = virtualIconParts(iconData);
+      if (!parsed) return reply.code(303).redirect(returnTo + '&err=1&msg=invalid_icon_type');
+      const bytes = Buffer.from(parsed.base64, 'base64');
+      if (bytes.length === 0 || bytes.length > 160 * 1024) {
+        return reply.code(303).redirect(returnTo + '&err=1&msg=icon_too_large');
+      }
+      nextMetadata = {
+        ...nextMetadata,
+        virtualIconDataUri: iconData,
+        virtualIconUpdatedAt: new Date().toISOString(),
+      };
+    }
+
+    await prisma.service.update({
+      where: { id: service.id },
+      data: {
+        sortOrder: order,
+        metadata: nextMetadata as Prisma.InputJsonValue,
+      },
+    });
+    await prisma.adminAuditLog.create({
+      data: {
+        adminUserId: admin.id,
+        action: 'VIRTUAL_NUMBER_SERVICE_DISPLAY',
+        entityType: 'Service',
+        entityId: service.id,
+        summary: `${service.slug}: display order=${order}, icon=${removeIcon ? 'removed' : iconData ? 'updated' : 'unchanged'}`,
+      },
+    });
+    return reply.code(303).redirect(returnTo + '&msg=service_display_saved');
   });
 
   app.post('/admin/virtual-numbers/service-toggle', async (request, reply) => {
