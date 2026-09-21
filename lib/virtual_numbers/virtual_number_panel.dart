@@ -297,7 +297,10 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     }
   }
 
-  Future<void> changeService(VirtualService? service) async {
+  Future<void> changeService(
+    VirtualService? service, {
+    bool loadCountryData=true,
+  }) async {
     if (service == null) return;
     setState(() {
       selectedService = service;
@@ -305,7 +308,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
       offers = null;
       error = null;
     });
-    await loadCountries(service);
+    if(loadCountryData)await loadCountries(service);
   }
 
   void changeCountry(VirtualCountry? country) {
@@ -402,6 +405,36 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorLabel('network_error'))));
     } finally {
       if (mounted) setState(() => buying = false);
+    }
+  }
+
+  Future<void> smartBuy() async {
+    final service=selectedService;
+    if(service==null||buying)return;
+    setState(()=>buying=true);
+    try{
+      final order=await host.api.createVirtualNumberOrder(
+        serviceId:service.id,
+        country:'any',
+        operatorName:'any',
+        mode:'SMART',
+        clientRequestId:newRequestId(),
+      );
+      orders=[order,...orders.where((item)=>item.id!=order.id)];
+      await host.refreshBalanceOnly();
+      if(!mounted)return;
+      setState(()=>tab=2);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content:Text(t('کشور و اپراتور به‌صورت هوشمند انتخاب شد و شماره با موفقیت خریداری شد.','The best country and operator were selected automatically and the number was purchased.'))),
+      );
+    }on ApiException catch(e){
+      if(!mounted)return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(errorLabel(e.code))));
+    }catch(_){
+      if(!mounted)return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(errorLabel('network_error'))));
+    }finally{
+      if(mounted)setState(()=>buying=false);
     }
   }
 
@@ -519,32 +552,6 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     return rows;
   }
 
-  VirtualCountry? strongestCountry(VirtualService service) {
-    if(service.countries.isEmpty)return null;
-    final rows=[...service.countries];
-    rows.sort((a,b) {
-      final rate=(b.maxRate??-1).compareTo(a.maxRate??-1);
-      if(rate!=0)return rate;
-      final stock=b.availableCount.compareTo(a.availableCount);
-      if(stock!=0)return stock;
-      return a.minPriceAfn.compareTo(b.minPriceAfn);
-    });
-    return rows.first;
-  }
-
-  VirtualCountry? cheapestCountry(VirtualService service) {
-    if(service.countries.isEmpty)return null;
-    final rows=[...service.countries];
-    rows.sort((a,b) {
-      final price=a.minPriceAfn.compareTo(b.minPriceAfn);
-      if(price!=0)return price;
-      final rate=(b.maxRate??-1).compareTo(a.maxRate??-1);
-      if(rate!=0)return rate;
-      return b.availableCount.compareTo(a.availableCount);
-    });
-    return rows.first;
-  }
-
   Future<void> chooseService() async {
     final picked=await showModalBottomSheet<VirtualService>(
       context:context,
@@ -563,7 +570,11 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
         ]),
       ),
     );
-    if(picked!=null)await changeService(picked);
+    if(picked!=null){
+      final smart=tab==1;
+      await changeService(picked,loadCountryData:!smart);
+      if(smart&&mounted)await smartBuy();
+    }
   }
 
   Future<void> chooseCountry() async {
@@ -628,7 +639,16 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
                       ButtonSegment(value: 2, icon: const Icon(Icons.sms_outlined), label: Text(t('شماره‌های من', 'My Numbers'))),
                     ],
                     selected: {tab},
-                    onSelectionChanged: (value) => setState(() => tab = value.first),
+                    onSelectionChanged: (value) {
+                      final next=value.first;
+                      setState(()=>tab=next);
+                      if(next==0){
+                        final service=selectedService;
+                        if(service!=null&&service.countries.isEmpty&&!loadingCountries){
+                          unawaited(loadCountries(service));
+                        }
+                      }
+                    },
                   ),
                   const SizedBox(height: 16),
                   if (error != null)
@@ -799,56 +819,31 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
 
   Widget smartPanel() {
     final service=selectedService;
-    final best=service==null?null:strongestCountry(service);
-    final cheap=service==null?null:cheapestCountry(service);
     return Column(
       crossAxisAlignment:CrossAxisAlignment.stretch,
       children:[
         _PanelCard(child:serviceSelector()),
         const SizedBox(height:12),
-        _Notice(text:t(
-          'کشور را لازم نیست دستی انتخاب کنید. Smart Buy براساس درصد تحویل زنده، موجودی و قیمت، پایدارترین کشور و ارزان‌ترین کشور را پیشنهاد می‌دهد.',
-          'You do not need to choose a country manually. Smart Buy recommends the strongest country using live delivery rate, stock and price, plus the cheapest available country.',
-        )),
-        const SizedBox(height:14),
-        if(loadingCountries)
-          const Center(child:Padding(padding:EdgeInsets.all(28),child:CircularProgressIndicator()))
-        else if(service==null||service.countries.isEmpty)
-          _Notice(text:t('برای این سرویس کشور فعالی موجود نیست.','No active country is available for this service.'))
-        else ...[
-          _SmartCountryCard(
-            icon:Icons.verified_rounded,
-            title:t('بهترین و پایدارترین کشور','Best & most stable country'),
-            subtitle:t('اولویت با درصد تحویل بیشتر، سپس موجودی و قیمت','Highest delivery rate first, then stock and price'),
-            country:best,
-            fa:fa,
-            price:best==null?'—':host.money(best.minPriceAfn,showBase:true),
-            busy:buying,
-            onTap:best==null?null:()=>buy(operatorName:'any',mode:'BEST_RATE',countryOverride:best),
+        _Notice(
+          text:t(
+            'فقط سرویس را انتخاب کنید. کشور و اپراتور به‌صورت خودکار از میان گزینه‌های زنده 5SIM و براساس بهترین نرخ تحویل SMS انتخاب می‌شود و خرید همان لحظه انجام می‌گردد.',
+            'Choose only the service. The country and operator are selected automatically from live 5SIM offers using the best SMS delivery rate, and the purchase starts immediately.',
           ),
-          const SizedBox(height:10),
-          _SmartCountryCard(
-            icon:Icons.savings_outlined,
-            title:t('ارزان‌ترین کشور','Cheapest country'),
-            subtitle:t('کمترین قیمت زنده با موجودی واقعی','Lowest live price with real available stock'),
-            country:cheap,
-            fa:fa,
-            price:cheap==null?'—':host.money(cheap.minPriceAfn,showBase:true),
-            busy:buying,
-            onTap:cheap==null?null:()=>buy(operatorName:'any',mode:'LOW_PRICE',countryOverride:cheap),
+        ),
+        const SizedBox(height:12),
+        _SmartCountryCard(
+          icon:Icons.auto_awesome_rounded,
+          fa:fa,
+          title:t('خرید هوشمند 5SIM','5SIM Smart Buy'),
+          subtitle:t(
+            'نیازی به انتخاب کشور یا سرور نیست؛ سیستم بهترین گزینه موجود را خودش انتخاب می‌کند.',
+            'No country or server selection is needed; the best available option is selected automatically.',
           ),
-          const SizedBox(height:10),
-          _SmartCountryCard(
-            icon:Icons.auto_awesome_rounded,
-            title:t('انتخاب هوشمند','Smart recommendation'),
-            subtitle:t('پیشنهاد اصلی سیستم برای خرید سریع','System recommendation for a fast reliable purchase'),
-            country:best,
-            fa:fa,
-            price:best==null?'—':host.money(best.minPriceAfn,showBase:true),
-            busy:buying,
-            onTap:best==null?null:()=>buy(operatorName:'any',mode:'ANY',countryOverride:best),
-          ),
-        ],
+          country:null,
+          price:service==null?t('ابتدا سرویس را انتخاب کنید','Choose a service first'):t('انتخاب خودکار کشور و اپراتور','Automatic country & operator'),
+          busy:buying,
+          onTap:service==null?null:smartBuy,
+        ),
       ],
     );
   }

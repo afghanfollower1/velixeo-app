@@ -61,7 +61,7 @@ const buySchema = z.object({
   serviceId: z.string().uuid(),
   country: z.string().trim().min(1).max(80),
   operator: z.string().trim().min(1).max(120).default('any'),
-  mode: z.enum(['BEST_RATE', 'LOW_PRICE', 'ANY']).default('BEST_RATE'),
+  mode: z.enum(['BEST_RATE', 'LOW_PRICE', 'ANY', 'SMART']).default('BEST_RATE'),
   clientRequestId: z.string().uuid(),
 });
 
@@ -808,11 +808,13 @@ export function registerVirtualNumberRoutes(
       include: { routes: { include: { provider: true } } },
     });
     if (!service) return reply.code(404).send({ error: 'service_unavailable' });
-    let offers = await offersForService(prisma, service.id, parsed.data.country);
-    if (parsed.data.operator !== 'any') {
+    const smartBuy = parsed.data.mode === 'SMART';
+    let offers = await offersForService(prisma, service.id, smartBuy ? undefined : parsed.data.country);
+    if (!smartBuy && parsed.data.operator !== 'any') {
       offers = offers.filter((row) => row.operator === parsed.data.operator);
     }
-    offers = sortOffers(offers, parsed.data.mode);
+    const purchaseMode = parsed.data.mode === 'SMART' ? 'BEST_RATE' : parsed.data.mode;
+    offers = sortOffers(offers, purchaseMode);
     if (offers.length === 0) return reply.code(409).send({ error: 'number_not_available' });
     const selected = offers[0];
     const amount = BigInt(selected.priceAfn);
@@ -836,9 +838,12 @@ export function registerVirtualNumberRoutes(
             totalAmountAfn: amount,
             clientRequestId: parsed.data.clientRequestId,
             input: {
-              country: parsed.data.country,
-              operator: parsed.data.operator,
+              country: smartBuy ? 'any' : parsed.data.country,
+              operator: smartBuy ? 'any' : parsed.data.operator,
               mode: parsed.data.mode,
+              smartAutoSelect: smartBuy,
+              selectedCountry: selected.country,
+              selectedOperator: selected.operator,
               product: selected.product,
             },
           },
@@ -880,7 +885,7 @@ export function registerVirtualNumberRoutes(
       try {
         const providerOrder = await fiveSimClientForProvider(route.provider).buyActivation({
           country: candidate.country,
-          operator: parsed.data.operator === 'any' ? candidate.operator : parsed.data.operator,
+          operator: smartBuy || parsed.data.operator === 'any' ? candidate.operator : parsed.data.operator,
           product: route.providerServiceCode,
         });
         order = await prisma.order.update({

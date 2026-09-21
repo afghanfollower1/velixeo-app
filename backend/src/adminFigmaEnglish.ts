@@ -359,7 +359,23 @@ async function virtualModule(p:PrismaClient,tab:string,edit:string){
      <form method="post" action="/admin/virtual-numbers/services-bulk"><input type="hidden" name="enabled" value="1"><input type="hidden" name="returnTo" value="${e(returnTo('services'))}"><button class="btn">Enable all services</button></form>
      <form method="post" action="/admin/virtual-numbers/services-bulk"><input type="hidden" name="enabled" value="0"><input type="hidden" name="returnTo" value="${e(returnTo('services'))}"><button class="btn danger">Disable all services</button></form>
     </div>
-    <div class="tablewrap"><table class="table" style="min-width:1450px"><thead><tr><th>Service</th><th>Icon & display order</th><th>5SIM Route</th><th>Pricing</th><th>Status</th><th>Individual pricing</th><th>Visibility</th></tr></thead><tbody>
+    <div class="actions" style="margin-bottom:13px;align-items:center;gap:9px;flex-wrap:wrap">
+     <div style="min-width:260px;flex:1">
+      <input id="vxl-service-search" type="search" placeholder="Search service name, slug or 5SIM code…" oninput="vxlFilterServices()" style="width:100%;height:40px;border:1px solid #dce8f1;border-radius:10px;padding:0 12px">
+     </div>
+     <select id="vxl-service-visibility" onchange="vxlFilterServices()" style="height:40px;border:1px solid #dce8f1;border-radius:10px;padding:0 10px">
+      <option value="all">All visibility</option>
+      <option value="visible">Visible only</option>
+      <option value="hidden">Hidden only</option>
+     </select>
+     <select id="vxl-service-icon-filter" onchange="vxlFilterServices()" style="height:40px;border:1px solid #dce8f1;border-radius:10px;padding:0 10px">
+      <option value="all">All icons</option>
+      <option value="missing">Missing icon</option>
+      <option value="uploaded">Uploaded icon</option>
+     </select>
+     <span id="vxl-service-filter-count" class="badge">${services.length} shown</span>
+    </div>
+    <div class="tablewrap"><table class="table" style="min-width:1450px"><thead><tr><th>Service</th><th>Icon & display order</th><th>5SIM Route</th><th>Pricing</th><th>Status</th><th>Individual pricing</th><th>Visibility</th></tr></thead><tbody id="vxl-service-rows">
     ${services.map(s=>{
       const route=s.routes[0],markup=route?.markupPercent?.toString?.()??route?.provider.defaultMarkupPercent.toString()??'0';
       const meta=jsonObj(s.metadata);
@@ -367,7 +383,8 @@ async function virtualModule(p:PrismaClient,tab:string,edit:string){
       const iconVersion=encodeURIComponent(String(meta.virtualIconUpdatedAt||s.updatedAt.toISOString()));
       const iconUrl=`/api/v1/virtual-numbers/service-icon/${encodeURIComponent(s.id)}?v=${iconVersion}`;
       const fileId=`vicon-${s.id}`,hiddenId=`vicondata-${s.id}`,previewId=`viconpreview-${s.id}`;
-      return`<tr>
+      const serviceSearch=[s.titleEn,s.titleFa,s.slug,...s.routes.flatMap(r=>[r.provider.name,r.providerServiceCode])].filter(Boolean).join(' ').toLowerCase();
+      return`<tr class="vxl-service-row" data-search="${e(serviceSearch)}" data-enabled="${s.enabled?'1':'0'}" data-icon="${hasIcon?'1':'0'}">
        <td><b>${e(s.titleEn||s.titleFa)}</b><br><span class="mono muted">${e(s.slug)}</span></td>
        <td style="min-width:330px">
         <form method="post" action="/admin/virtual-numbers/service-display" class="vicon-form">
@@ -398,9 +415,34 @@ async function virtualModule(p:PrismaClient,tab:string,edit:string){
        <td><form method="post" action="/admin/virtual-numbers/service-toggle"><input type="hidden" name="serviceId" value="${s.id}"><input type="hidden" name="enabled" value="${s.enabled?'0':'1'}"><input type="hidden" name="returnTo" value="${e(returnTo('services'))}"><button class="btn ghost">${s.enabled?'Hide':'Show'}</button></form></td>
       </tr>`;
     }).join('')||'<tr><td colspan="7" class="empty">Sync the 5SIM provider to load all products.</td></tr>'}
+    <tr id="vxl-service-no-results" style="display:none"><td colspan="7" class="empty">No service matches this search/filter.</td></tr>
     </tbody></table></div>
    </div>
    <script>
+   function vxlFilterServices(){
+     const search=document.getElementById('vxl-service-search');
+     const visibility=document.getElementById('vxl-service-visibility');
+     const iconFilter=document.getElementById('vxl-service-icon-filter');
+     const q=String(search&&search.value||'').trim().toLowerCase();
+     const visibilityValue=String(visibility&&visibility.value||'all');
+     const iconValue=String(iconFilter&&iconFilter.value||'all');
+     const rows=Array.from(document.querySelectorAll('.vxl-service-row'));
+     let shown=0;
+     rows.forEach(function(row){
+       const matchesText=!q||String(row.getAttribute('data-search')||'').includes(q);
+       const enabled=row.getAttribute('data-enabled')==='1';
+       const hasIcon=row.getAttribute('data-icon')==='1';
+       const matchesVisibility=visibilityValue==='all'||(visibilityValue==='visible'&&enabled)||(visibilityValue==='hidden'&&!enabled);
+       const matchesIcon=iconValue==='all'||(iconValue==='uploaded'&&hasIcon)||(iconValue==='missing'&&!hasIcon);
+       const visible=matchesText&&matchesVisibility&&matchesIcon;
+       row.style.display=visible?'':'none';
+       if(visible)shown++;
+     });
+     const count=document.getElementById('vxl-service-filter-count');
+     if(count)count.textContent=shown+' shown';
+     const empty=document.getElementById('vxl-service-no-results');
+     if(empty)empty.style.display=rows.length>0&&shown===0?'':'none';
+   }
    function vxlPrepareIcon(input,hiddenId,previewId){
      const file=input.files&&input.files[0];
      if(!file)return;
