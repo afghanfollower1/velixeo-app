@@ -598,7 +598,6 @@ const translations: Record<string, string> = {
   'No categories yet.': 'هنوز دسته‌بندی‌ای وجود ندارد.',
   'No VIRTUAL_NUMBER provider.': 'ارائه‌دهنده شماره مجازی وجود ندارد.',
   'No virtual-number provider configured.': 'ارائه‌دهنده شماره مجازی تنظیم نشده است.',
-  'No providers configured.': 'ارائه‌دهنده‌ای تنظیم نشده است.',
 };
 
 const statusTranslations: Record<string, string> = {
