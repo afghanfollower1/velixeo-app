@@ -879,6 +879,30 @@ class _BrandVisual {
   final Color color;
 }
 
+String _serviceInitials(VirtualService service) {
+  final raw = service.titleEn.trim().isNotEmpty ? service.titleEn.trim() : service.slug;
+  final clean = raw.replaceAll(RegExp(r'[^A-Za-z0-9]+'), ' ').trim();
+  if (clean.isEmpty) return '?';
+  final parts = clean.split(RegExp(r'\s+')).where((part)=>part.isNotEmpty).toList();
+  if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+  final one = parts.first;
+  return one.substring(0, one.length >= 2 ? 2 : 1).toUpperCase();
+}
+
+Color _serviceFallbackColor(VirtualService service) {
+  const palette = [
+    Color(0xFF1686FF), Color(0xFF805AD5), Color(0xFF16A875),
+    Color(0xFFE86A33), Color(0xFFDB3F71), Color(0xFF2D7D9A),
+    Color(0xFF6B7280), Color(0xFF8B5CF6),
+  ];
+  final source = '${service.slug}|${service.titleEn}';
+  var hash = 0;
+  for (final unit in source.codeUnits) {
+    hash = ((hash * 31) + unit) & 0x7fffffff;
+  }
+  return palette[hash % palette.length];
+}
+
 _BrandVisual _brandVisual(VirtualService service) {
   final key='${service.titleEn} ${service.slug}'.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'),'');
   if(key.contains('telegram'))return const _BrandVisual.fa(FontAwesomeIcons.telegram,Color(0xFF229ED9));
@@ -899,7 +923,7 @@ _BrandVisual _brandVisual(VirtualService service) {
   if(key.contains('uber'))return const _BrandVisual.fa(FontAwesomeIcons.uber,Color(0xFF111111));
   if(key.contains('airbnb'))return const _BrandVisual.fa(FontAwesomeIcons.airbnb,Color(0xFFFF5A5F));
   if(key.contains('spotify'))return const _BrandVisual.fa(FontAwesomeIcons.spotify,Color(0xFF1DB954));
-  return const _BrandVisual.material(Icons.apps_rounded,Color(0xFF1686FF));
+  return _BrandVisual.material(Icons.apps_rounded,_serviceFallbackColor(service));
 }
 
 class _BrandBadge extends StatelessWidget {
@@ -915,7 +939,15 @@ class _BrandBadge extends StatelessWidget {
       child:Center(
         child:brand.faIcon!=null
           ?FaIcon(brand.faIcon!,color:brand.color,size:size*.48)
-          :Icon(brand.materialIcon,color:brand.color,size:size*.48),
+          :Text(
+              _serviceInitials(service),
+              style:TextStyle(
+                color:brand.color,
+                fontSize:size*.28,
+                fontWeight:FontWeight.w900,
+                letterSpacing:-.4,
+              ),
+            ),
       ),
     );
   }
