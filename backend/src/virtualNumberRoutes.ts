@@ -48,6 +48,10 @@ type VirtualOffer = {
   providerPriority: number;
 };
 
+const countryQuerySchema = z.object({
+  serviceId: z.string().uuid(),
+});
+
 const offerQuerySchema = z.object({
   serviceId: z.string().uuid(),
   country: z.string().trim().min(1).max(80),
@@ -596,64 +600,104 @@ export function registerVirtualNumberRoutes(
       include: {
         routes: {
           where: { enabled: true, provider: { enabled: true, kind: ProviderKind.VIRTUAL_NUMBER } },
-          include: { provider: true },
-          orderBy: [{ priority: 'asc' }, { provider: { priority: 'asc' } }],
+          select: { id: true },
+          take: 1,
         },
       },
       orderBy: [{ sortOrder: 'asc' }, { featured: 'desc' }, { titleEn: 'asc' }],
     });
-    const countryMetadata = new Map<string,{name:string;iso:string;flag:string}>();
-    const seenProviders = new Set<string>();
-    for (const service of services) {
-      for (const route of service.routes) {
-        if (seenProviders.has(route.provider.id)) continue;
-        seenProviders.add(route.provider.id);
-        try {
-          const raw = await providerCountries(route.provider);
-          for (const [code,row] of Object.entries(raw)) {
-            countryMetadata.set(code.toLowerCase(), virtualCountryMeta(code,row));
-          }
-        } catch {}
-      }
+
+    return reply.send({
+      baseCurrency: 'AFN',
+      services: services
+        .filter((service) => service.routes.length > 0)
+        .map((service) => ({
+          id: service.id,
+          slug: service.slug,
+          titleFa: service.titleFa,
+          titleEn: service.titleEn,
+          descriptionFa: service.descriptionFa,
+          descriptionEn: service.descriptionEn,
+          featured: service.featured,
+          // Countries are intentionally loaded only after a service is selected.
+          // This keeps a 1,000+ service catalog fast and uncluttered.
+          countries: [],
+        })),
+    });
+  });
+
+  app.get('/api/v1/virtual-numbers/countries', async (request, reply) => {
+    const parsed = countryQuerySchema.safeParse(request.query);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+
+    const service = await prisma.service.findFirst({
+      where: {
+        id: parsed.data.serviceId,
+        category: ServiceCategory.VIRTUAL_NUMBER,
+        enabled: true,
+      },
+      include: {
+        routes: {
+          where: {
+            enabled: true,
+            provider: { enabled: true, kind: ProviderKind.VIRTUAL_NUMBER },
+          },
+          include: { provider: true },
+          orderBy: [{ priority: 'asc' }, { provider: { priority: 'asc' } }],
+        },
+      },
+    });
+    if (!service || service.routes.length === 0) {
+      return reply.code(404).send({ error: 'service_unavailable' });
     }
-    const result = [];
-    for (const service of services) {
-      if (service.routes.length === 0) continue;
-      const offers = await offersForService(prisma, service.id);
-      const byCountry = new Map<string, { minPriceAfn: number; availableCount: number; maxRate: number | null }>();
-      for (const offer of offers) {
-        const current = byCountry.get(offer.country);
-        if (!current) {
-          byCountry.set(offer.country, {
-            minPriceAfn: offer.priceAfn,
-            availableCount: offer.count,
-            maxRate: offer.deliveryRate,
-          });
-        } else {
-          current.minPriceAfn = Math.min(current.minPriceAfn, offer.priceAfn);
-          current.availableCount += offer.count;
-          if (offer.deliveryRate != null) {
-            current.maxRate = current.maxRate == null ? offer.deliveryRate : Math.max(current.maxRate, offer.deliveryRate);
-          }
+
+    const offers = await offersForService(prisma, service.id);
+    const byCountry = new Map<string, { minPriceAfn: number; availableCount: number; maxRate: number | null }>();
+    for (const offer of offers) {
+      const current = byCountry.get(offer.country);
+      if (!current) {
+        byCountry.set(offer.country, {
+          minPriceAfn: offer.priceAfn,
+          availableCount: offer.count,
+          maxRate: offer.deliveryRate,
+        });
+      } else {
+        current.minPriceAfn = Math.min(current.minPriceAfn, offer.priceAfn);
+        current.availableCount += offer.count;
+        if (offer.deliveryRate != null) {
+          current.maxRate = current.maxRate == null
+            ? offer.deliveryRate
+            : Math.max(current.maxRate, offer.deliveryRate);
         }
       }
-      result.push({
-        id: service.id,
-        slug: service.slug,
-        titleFa: service.titleFa,
-        titleEn: service.titleEn,
-        descriptionFa: service.descriptionFa,
-        descriptionEn: service.descriptionEn,
-        featured: service.featured,
-        countries: [...byCountry.entries()]
-          .map(([code, value]) => {
-            const meta=countryMetadata.get(code.toLowerCase())??virtualCountryMeta(code);
-            return { code, name:meta.name, iso:meta.iso, flag:meta.flag, ...value };
-          })
-          .sort((a, b) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code)),
-      });
     }
-    return reply.send({ baseCurrency: 'AFN', services: result });
+
+    const countryMetadata = new Map<string, { name: string; iso: string; flag: string }>();
+    const seen = new Set<string>();
+    for (const route of service.routes) {
+      if (seen.has(route.providerId)) continue;
+      seen.add(route.providerId);
+      try {
+        const raw = await providerCountries(route.provider);
+        for (const [code, row] of Object.entries(raw)) {
+          countryMetadata.set(code.toLowerCase(), virtualCountryMeta(code, row));
+        }
+      } catch {
+        // Country names/flags fall back to our local metadata below.
+      }
+    }
+
+    const countries = [...byCountry.entries()]
+      .map(([code, value]) => {
+        const meta = countryMetadata.get(code.toLowerCase()) ?? virtualCountryMeta(code);
+        return { code, name: meta.name, iso: meta.iso, flag: meta.flag, ...value };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code));
+
+    return reply.send({
+      serviceId: service.id,
+      countries,
+    });
   });
 
   app.get('/api/v1/virtual-numbers/offers', async (request, reply) => {
