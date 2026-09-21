@@ -281,8 +281,63 @@ function logsTable(rows:any[]){return `<div class="card"><div class="cardhead"><
 async function genericModule(p:PrismaClient,section:Section,category:ServiceCategory,kind:ProviderKind,tab:string,edit:string){const tb=tabbar(section,tab,[['overview','Overview'],['providers','Providers'],['services','Services'],['orders','Orders'],['logs','API Logs']]);const [providers,services,orders]=await Promise.all([providerFormData(p,kind),p.service.findMany({where:{category},include:{routes:{include:{provider:true}}},orderBy:[{enabled:'desc'},{sortOrder:'asc'}],take:250}),p.order.findMany({where:{category},include:{user:true,service:true,provider:true},orderBy:{createdAt:'desc'},take:130})]);if(tab==='providers'){const x=edit?providers.find(y=>y.id===edit):undefined;return{tabs:tb,body:`<div class="grid"><div><div class="card"><div class="cardhead"><h2>Providers</h2>${pill(`${providers.length}`,'info')}</div>${providers.map(y=>`<div class="provider"><div class="plogo">${e(y.name.charAt(0))}</div><div><b>${e(y.name)}</b><small class="mono">${e(y.baseUrl||'No URL')}</small></div>${y.enabled?pill('Active','ok'):pill('Disabled','bad')}<a class="btn ghost" href="${href(section,`&tab=providers&edit=${y.id}`)}">Edit</a></div>`).join('')||'<div class="empty">No providers yet.</div>'}</div>${x?`<div class="card"><div class="cardhead"><h2>Encrypted Credential</h2>${x.secretCiphertext?pill('Configured','ok'):pill('Missing','warn')}</div><form method="post" action="/admin/v3/provider-secret"><input type="hidden" name="id" value="${x.id}"><input type="hidden" name="section" value="${section}"><div class="field"><label>New API Key / Token</label><textarea class="mono" name="secret" required></textarea></div><button class="btn">Save Secret</button></form></div>`:''}</div><div class="card"><div class="cardhead"><h2>${x?'Edit Provider':'Add Provider'}</h2></div>${providerEditor(section,kind,x)}</div></div>`}}if(tab==='orders')return{tabs:tb,body:ordersTable(orders)};if(tab==='logs'){const logs=await p.orderActionLog.findMany({where:{order:{category}},orderBy:{createdAt:'desc'},take:150});return{tabs:tb,body:logsTable(logs)}}if(tab==='services')return{tabs:tb,body:`<div class="card"><div class="cardhead"><h2>Services</h2>${pill(`${services.length}`,'info')}</div><div class="tablewrap"><table class="table"><thead><tr><th>Service</th><th>Provider Routes</th><th>Price</th><th>Min / Max</th><th>Status</th></tr></thead><tbody>${services.map(s=>`<tr><td><b>${e(s.titleEn||s.titleFa)}</b><br><span class="mono muted">${e(s.slug)}</span></td><td>${s.routes.map(r=>e(r.provider.name)).join(', ')||'—'}</td><td>${s.basePriceAfn!=null?money(s.basePriceAfn):'Dynamic'}</td><td>${s.minQty??'—'} – ${s.maxQty??'—'}</td><td>${s.enabled?pill('Active','ok'):pill('Hidden','bad')}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">No services yet.</td></tr>'}</tbody></table></div></div>`};return{tabs:tb,body:`<div class="card modulehero"><div class="cardhead"><div><h2>${e(meta[section][0])} Workspace</h2><p>Independent providers, products, pricing and orders for this business module.</p></div>${ico(section==='virtual'?'phone':'service')}</div><div class="kpis"><div><b>${providers.length}</b><small>Providers</small></div><div><b>${services.length}</b><small>Services</small></div><div><b>${services.filter(x=>x.enabled).length}</b><small>Active</small></div><div><b>${orders.length}</b><small>Recent Orders</small></div></div></div>`}}
 
 async function virtualModule(p:PrismaClient,tab:string,edit:string){
- const tb=tabbar('virtual',tab,[['overview','Overview'],['providers','Providers'],['services','Services'],['countries','Countries'],['pricing','Pricing'],['orders','Orders'],['logs','API Logs']]);
+ const tb=tabbar('virtual',tab,[['overview','Overview'],['banner','Banner'],['providers','Providers'],['services','Services'],['countries','Countries'],['pricing','Pricing'],['orders','Orders'],['logs','API Logs']]);
  const returnTo=(target:string)=>`/admin/v3?section=virtual&tab=${encodeURIComponent(target)}`;
+ if(tab==='banner'){
+  const banner=await p.banner.findFirst({
+   where:{
+    placement:BannerPlacement.SERVICES_TOP,
+    actionUrl:{in:['velixeo://virtual-numbers','velixeo://virtual']},
+   },
+   orderBy:{updatedAt:'desc'},
+  });
+  return{tabs:tb,body:`
+   <div class="grid eq">
+    <div class="card">
+     <div class="cardhead">
+      <div><h2>Virtual Numbers Entry Banner</h2><span class="muted">Shown at the top every time the Virtual Numbers section opens</span></div>
+      ${banner?(banner.enabled?pill('Live','ok'):pill('Disabled','bad')):pill('Default hero','info')}
+     </div>
+     <div class="notice" style="margin-bottom:12px">
+      Change the image or text here at any time — no APK update is needed.
+      If this banner is disabled, VELIXEO shows the built-in “Virtual numbers & OTP” information hero instead.
+     </div>
+     <form method="post" action="/admin/v3/virtual/banner">
+      <input type="hidden" name="id" value="${e(banner?.id||'')}">
+      <div class="forms">
+       <div class="field"><label>English Title</label><input name="titleEn" value="${e(banner?.titleEn||'Virtual Numbers & OTP')}"></div>
+       <div class="field"><label>Persian Title</label><input name="titleFa" value="${e(banner?.titleFa||'شماره مجازی و دریافت OTP')}"></div>
+      </div>
+      <div class="forms">
+       <div class="field"><label>English Subtitle</label><input name="subtitleEn" value="${e(banner?.subtitleEn||'Choose a service, country and live operator to receive SMS verification codes.')}"></div>
+       <div class="field"><label>Persian Subtitle</label><input name="subtitleFa" value="${e(banner?.subtitleFa||'سرویس و کشور را انتخاب کنید و شماره را با قیمت، موجودی و نرخ تحویل زنده بخرید.')}"></div>
+      </div>
+      <div class="field">
+       <label>Banner Image URL</label>
+       <input class="mono" name="imageUrl" value="${e(banner?.imageUrl||'')}" placeholder="https://.../virtual-number-banner.jpg" required>
+       <small class="muted">Recommended: 1080×420 JPG/WebP, optimized below 300 KB for fast mobile loading.</small>
+      </div>
+      <div class="forms">
+       <div class="field"><label>Sort Order</label><input type="number" name="sortOrder" value="${e(banner?.sortOrder??10)}"></div>
+       <div class="field"><label>Deep Link</label><input class="mono" value="velixeo://virtual-numbers" disabled></div>
+      </div>
+      <label class="check"><input type="checkbox" name="enabled" ${banner?.enabled===false?'':'checked'}> Show this banner in the app</label>
+      <button class="btn" style="margin-top:12px">Save Virtual Banner</button>
+     </form>
+    </div>
+    <div class="card">
+     <div class="cardhead"><h2>Preview</h2><span class="muted">Mobile crop preview</span></div>
+     ${banner?.imageUrl
+       ?`<div style="height:180px;border-radius:20px;overflow:hidden;position:relative;background:linear-gradient(135deg,#0b5f9f,#31a8ff)">
+          <img src="${e(banner.imageUrl)}" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
+          <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,18,40,.7),rgba(0,18,40,.12))"></div>
+          <div style="position:absolute;left:18px;right:18px;bottom:16px;color:#fff"><b style="font-size:20px">${e(banner.titleEn||'Virtual Numbers & OTP')}</b><div style="font-size:12px;margin-top:5px;color:#e7f5ff">${e(banner.subtitleEn||'')}</div></div>
+        </div>`
+       :'<div class="empty">Save an image URL to see the live banner preview.</div>'}
+     <p class="muted" style="margin-top:12px">The app uses a lightweight image decode and keeps the fallback hero visible if the network image fails.</p>
+    </div>
+   </div>`};
+ }
  if(tab==='providers'){
   const providers=await providerFormData(p,ProviderKind.VIRTUAL_NUMBER),selected=edit?providers.find(x=>x.id===edit):undefined;
   const health=await Promise.all(providers.map(async x=>({x,h:await providerCheck(x)})));
@@ -666,6 +721,34 @@ async function auditPage(p:PrismaClient){const rows=await p.adminAuditLog.findMa
 
 export function registerAdminV3(app:FastifyInstance,p:PrismaClient,resolve:AdminResolver){
  app.get('/admin/v3',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const s=qstate(req);try{let body='',tabs='';if(s.section==='dashboard')body=await dashboard(p);else if(s.section==='users')body=await usersPage(p,s.q,s.edit);else if(s.section==='referrals')body=await referralsPage(p);else if(s.section==='social'){const r=await socialPage(p,s.tab,s.q,s.edit,s.provider,s.route);body=r.body;tabs=r.tabs}else if(s.section==='virtual'){const r=await virtualModule(p,s.tab,s.edit);body=r.body;tabs=r.tabs}else if(s.section==='premium'){const r=await genericModule(p,'premium',ServiceCategory.PREMIUM,ProviderKind.PREMIUM,s.tab,s.edit);body=r.body;tabs=r.tabs}else if(s.section==='topup'){const r=await genericModule(p,'topup',ServiceCategory.MOBILE_TOPUP,ProviderKind.TOPUP,s.tab,s.edit);body=r.body;tabs=r.tabs}else if(s.section==='accounts'){const r=await genericModule(p,'accounts',ServiceCategory.DIGITAL_ACCOUNT,ProviderKind.GENERIC,s.tab,s.edit);body=r.body;tabs=r.tabs}else if(s.section==='promotions'){const r=await genericModule(p,'promotions',ServiceCategory.PROMOTION,ProviderKind.GENERIC,s.tab,s.edit);body=r.body;tabs=r.tabs}else if(s.section==='orders'){tabs='';body=await allOrders(p,s.q,s.status,s.filter,s.kind,s.page);}else if(s.section==='payments')body=await payments(p,s.q);else if(s.section==='coupons')body=await coupons(p);else if(s.section==='banners')body=await banners(p);else if(s.section==='notifications')body=await notifications(p);else if(s.section==='support')body=await support(p,s.ticket);else if(s.section==='settings')body=await settings(p);else body=await auditPage(p);return rep.type('text/html; charset=utf-8').send(shell(a,s.section,body,tabs,s.msg,s.err))}catch(err){req.log.error(err);return rep.type('text/html; charset=utf-8').send(shell(a,s.section,'<div class="card empty">This section could not be loaded. The error was recorded in server logs.</div>',tabs,err instanceof Error?err.message:'load_failed',true))}});
+ app.post('/admin/v3/virtual/banner',async(req,rep)=>{
+  const a=await needAdmin(req,rep,resolve);if(!a)return;
+  const b=req.body as Body;
+  try{
+   const id=t(b,'id'),imageUrl=t(b,'imageUrl');
+   if(imageUrl.length<5)throw new Error('Banner image URL is required');
+   const data={
+    placement:BannerPlacement.SERVICES_TOP,
+    titleEn:t(b,'titleEn')||null,
+    titleFa:t(b,'titleFa')||null,
+    subtitleEn:t(b,'subtitleEn')||null,
+    subtitleFa:t(b,'subtitleFa')||null,
+    imageUrl,
+    actionLabelEn:null,
+    actionLabelFa:null,
+    actionUrl:'velixeo://virtual-numbers',
+    enabled:c(b,'enabled'),
+    sortOrder:i(b.sortOrder,10),
+   };
+   const saved=id
+    ?await p.banner.update({where:{id},data})
+    :await p.banner.create({data});
+   await audit(p,a.id,id?'VIRTUAL_BANNER_UPDATE':'VIRTUAL_BANNER_CREATE','Banner',saved.id,'Virtual Numbers entry banner',{imageUrl:saved.imageUrl,enabled:saved.enabled} as unknown as Prisma.InputJsonValue);
+   return rep.code(303).redirect(href('virtual',`&tab=banner&msg=${encodeURIComponent('Virtual Numbers banner saved')}`));
+  }catch(err){
+   return rep.code(303).redirect(href('virtual',`&tab=banner&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'virtual_banner_failed')}`));
+  }
+ });
  app.post('/admin/v3/referral-settings',async(req,rep)=>{
   const a=await needAdmin(req,rep,resolve);if(!a)return;
   const b=req.body as Body;
