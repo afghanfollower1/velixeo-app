@@ -1,0 +1,94 @@
+name: Shorebird VELIXEO Android Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+  SHOREBIRD_APP_ID: ${{ vars.SHOREBIRD_APP_ID }}
+  GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
+  ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+  ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+  ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+  ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+  FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+  FIREBASE_ANDROID_API_KEY: ${{ secrets.FIREBASE_ANDROID_API_KEY }}
+  FIREBASE_ANDROID_APP_ID: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
+  FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify Shorebird configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SHOREBIRD_TOKEN:-}" || { echo "::error::Add SHOREBIRD_TOKEN in GitHub Actions secrets."; exit 1; }
+          test -n "${SHOREBIRD_APP_ID:-}" || { echo "::error::Add SHOREBIRD_APP_ID in GitHub Actions variables."; exit 1; }
+          printf 'app_id: %s\n' "$SHOREBIRD_APP_ID" > shorebird.yaml
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Shorebird
+        uses: shorebirdtech/setup-shorebird@v1
+        with:
+          cache: true
+
+      - name: Prepare deterministic Android release
+        shell: bash
+        run: bash tools/prepare_shorebird_android_ci.sh
+
+      - name: Shorebird release APK
+        id: shorebird-release
+        uses: shorebirdtech/shorebird-release@v1
+        with:
+          platform: android
+          args: '--artifact apk -- --dart-define=GOOGLE_WEB_CLIENT_ID=${{ secrets.GOOGLE_WEB_CLIENT_ID }}'
+
+      - name: Resolve app version
+        id: app-version
+        shell: bash
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Publish signed Shorebird base APK
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ steps.app-version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          APK_SRC="build/app/outputs/flutter-apk/app-release.apk"
+          APK_DST="dist/VELIXEO-v${APP_VERSION}-release.apk"
+          cp "$APK_SRC" "$APK_DST"
+          sha256sum "$APK_DST" | tee dist/SHA256SUMS.txt
+          TAG="v${APP_VERSION}"
+          NOTES="Official signed VELIXEO Shorebird base release. Dart-only fixes and UI/business-logic changes can receive small OTA patches; native/asset changes still require a full APK."
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK_DST" dist/SHA256SUMS.txt --clobber
+          else
+            gh release create "$TAG" "$APK_DST" dist/SHA256SUMS.txt --title "VELIXEO v${APP_VERSION}" --notes "$NOTES"
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VELIXEO-Shorebird-Android
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            dist/SHA256SUMS.txt
+          retention-days: 30
