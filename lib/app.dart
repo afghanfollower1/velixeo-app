@@ -15,13 +15,14 @@ import 'core/update_service.dart';
 import 'social/social_panel.dart';
 import 'support/support_page.dart';
 import 'virtual_numbers/virtual_number_panel.dart';
+import 'premium/premium_panel.dart';
 import 'referrals/referral_page.dart';
 
 // FIGMA_ENGLISH_V1 — UI implementation based on the approved English Figma file.
 
 String tr(bool fa, String faText, String enText) => fa ? faText : enText;
 
-class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNumberPanelHost, SupportPanelHost, ReferralPanelHost {
+class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNumberPanelHost, PremiumPanelHost, SupportPanelHost, ReferralPanelHost {
   AppController(this.api, this.googleAuth);
 
   final ApiService api;
@@ -2278,12 +2279,14 @@ class _TwoFactorLoginPageState extends State<TwoFactorLoginPage>
 Widget _serviceDestination(AppController c, ServiceItem service) {
   if (service.en == 'Social Media') return SocialPanelPage(host: c);
   if (service.en == 'Virtual Numbers') return VirtualNumberPanelPage(host: c);
+  if (service.en == 'Premium') return PremiumPanelPage(host: c);
   return ServicePreviewPage(controller: c, service: service);
 }
 
 Widget _catalogDestination(AppController c, CatalogService service) {
   if (service.category == 'SOCIAL') return SocialPanelPage(host: c);
   if (service.category == 'VIRTUAL_NUMBER') return VirtualNumberPanelPage(host: c);
+  if (service.category == 'PREMIUM') return PremiumPanelPage(host: c, initialServiceId: service.id);
   return CatalogServicePage(controller: c, service: service);
 }
 
@@ -2337,6 +2340,9 @@ class _MainShellState extends State<MainShell> {
         break;
       case 'support':
         Navigator.push(context, MaterialPageRoute(builder: (_) => SupportPage(host: widget.controller)));
+        break;
+      case 'premium':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => PremiumPanelPage(host: widget.controller, initialServiceId: data['entityId'])));
         break;
       default:
         Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationsPage(controller: widget.controller)));
@@ -3560,6 +3566,8 @@ class RemoteBannerCard extends StatelessWidget {
         await Navigator.push(context, MaterialPageRoute(builder: (_) => SocialPanelPage(host: controller)));
       } else if (target == 'virtual-numbers' || target == 'virtual') {
         await Navigator.push(context, MaterialPageRoute(builder: (_) => VirtualNumberPanelPage(host: controller)));
+      } else if (target == 'premium') {
+        await Navigator.push(context, MaterialPageRoute(builder: (_) => PremiumPanelPage(host: controller)));
       } else if (target == 'wallet') {
         await Navigator.push(context, MaterialPageRoute(builder: (_) => AddFundsPage(controller: controller)));
       } else if (target == 'support') {
