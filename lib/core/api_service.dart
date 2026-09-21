@@ -7,6 +7,7 @@ import 'models.dart';
 import '../social/social_models.dart';
 import '../support/support_models.dart';
 import '../virtual_numbers/virtual_number_models.dart';
+import '../premium/premium_models.dart';
 import '../referrals/referral_models.dart';
 
 class ApiException implements Exception {
@@ -455,6 +456,44 @@ class ApiService {
       auth: true,
     );
     if (response.statusCode != 200) _throwResponse(response);
+  }
+
+  Future<PremiumCatalog> premiumCatalog() async {
+    final response = await _send('GET', '/api/v1/premium/catalog');
+    if (response.statusCode != 200) _throwResponse(response);
+    return PremiumCatalog.fromJson(_decodeObject(response));
+  }
+
+  Future<List<PremiumOrder>> premiumOrders() async {
+    final response = await _send('GET', '/api/v1/premium/orders', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    final rows = (_decodeObject(response)['orders'] as List<dynamic>?) ?? const [];
+    return rows
+        .whereType<Map>()
+        .map((item) => PremiumOrder.fromJson(Map<String, dynamic>.from(item)))
+        .toList(growable: false);
+  }
+
+  Future<PremiumOrderResult> createPremiumOrder({
+    required String serviceId,
+    required String packageId,
+    required Map<String, String> fields,
+    required String clientRequestId,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/premium/orders',
+      body: {
+        'serviceId': serviceId,
+        'packageId': packageId,
+        'fields': fields,
+        'clientRequestId': clientRequestId,
+        'termsAccepted': true,
+      },
+      auth: true,
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) _throwResponse(response);
+    return PremiumOrderResult.fromJson(_decodeObject(response));
   }
 
   Future<List<AppOrder>> orders() async {
