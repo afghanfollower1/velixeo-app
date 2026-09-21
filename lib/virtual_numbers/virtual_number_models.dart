@@ -122,7 +122,12 @@ class VirtualOffers {
     required this.country,
     this.bestRate,
     this.lowPrice,
+    this.highPrice,
     this.anyOperator,
+    this.minPriceAfn = 0,
+    this.maxPriceAfn = 0,
+    this.bestDeliveryPercent,
+    this.totalAvailable = 0,
     this.operators = const [],
   });
 
@@ -136,7 +141,12 @@ class VirtualOffers {
       country: '${json['country'] ?? ''}',
       bestRate: read('bestRate'),
       lowPrice: read('lowPrice'),
+      highPrice: read('highPrice'),
       anyOperator: read('anyOperator'),
+      minPriceAfn: _asInt(json['minPriceAfn']),
+      maxPriceAfn: _asInt(json['maxPriceAfn']),
+      bestDeliveryPercent: _asDoubleOrNull(json['bestDeliveryPercent']),
+      totalAvailable: _asInt(json['totalAvailable']),
       operators: ((json['operators'] as List<dynamic>?) ?? const [])
           .map((item) => VirtualOffer.fromJson(Map<String, dynamic>.from(item as Map)))
           .toList(growable: false),
@@ -146,7 +156,12 @@ class VirtualOffers {
   final String country;
   final VirtualOffer? bestRate;
   final VirtualOffer? lowPrice;
+  final VirtualOffer? highPrice;
   final VirtualOffer? anyOperator;
+  final int minPriceAfn;
+  final int maxPriceAfn;
+  final double? bestDeliveryPercent;
+  final int totalAvailable;
   final List<VirtualOffer> operators;
 }
 
