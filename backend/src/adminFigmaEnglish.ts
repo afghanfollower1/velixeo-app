@@ -155,9 +155,40 @@ async function usersPage(p:PrismaClient,q:string,edit:string){
 }
 async function referralsPage(p:PrismaClient){
  const snap=await referralAdminSnapshot(p),s=snap.settings;
- return `<div class="stats"><div class="stat"><div class="sicon">${ico('users')}</div><div><small>Total referrals</small><strong>${snap.count.toLocaleString('en-US')}</strong></div></div><div class="stat"><div class="sicon">${ico('wallet')}</div><div><small>Total rewards</small><strong>${money(snap.totalRewards)}</strong></div></div><div class="stat"><div class="sicon">${ico('settings')}</div><div><small>Program</small><strong>${s.enabled?'ON':'OFF'}</strong></div></div><div class="stat"><div class="sicon">${ico('coupon')}</div><div><small>Reward / referral</small><strong>${money(s.rewardAfn)}</strong></div></div></div>
- <div class="grid eq"><div class="card"><div class="cardhead"><h2>Referral Program Settings</h2>${s.enabled?pill('Enabled','ok'):pill('Disabled','bad')}</div><form method="post" action="/admin/v3/referral-settings"><label class="check"><input type="checkbox" name="enabled" ${s.enabled?'checked':''}> Enable Invite Friends</label><div class="field"><label>Reward per successful registration (AFN)</label><input type="number" min="0" max="1000000" name="rewardAfn" value="${e(s.rewardAfn)}" required></div><div class="notice">Reward trigger is currently <b>successful registration</b>. Set reward to 0 if you want tracking and sharing without automatic wallet credit.</div><button class="btn" style="margin-top:12px">Save referral settings</button></form></div><div class="card modulehero"><div class="cardhead"><div><h2>Invite Friends</h2><p>The app shows a branded banner, personal link/code, WhatsApp/Telegram sharing, statistics and invited friends.</p></div>${ico('users')}</div><div class="kpis"><div><b>${snap.count}</b><small>Invites</small></div><div><b>${money(snap.totalRewards)}</b><small>Rewards</small></div></div></div></div>
- <div class="card"><div class="cardhead"><h2>Referral Activity</h2><span class="muted">Latest 300 invitations</span></div><div class="tablewrap"><table class="table"><thead><tr><th>Inviter</th><th>Invitee</th><th>Code</th><th>Status</th><th>Reward</th><th>Created</th></tr></thead><tbody>${snap.items.map((x:any)=>`<tr><td><b>${e(x.inviter?.fullName||'VELIXEO user')}</b><br><span class="muted">${e(x.inviter?.email||x.inviter?.phone||x.inviterId||'—')}</span></td><td><b>${e(x.invitee?.fullName||'VELIXEO user')}</b><br><span class="muted">${e(x.invitee?.email||x.invitee?.phone||x.inviteeId||'—')}</span></td><td class="mono">${e(x.code||'—')}</td><td>${pill(String(x.status||'REGISTERED'),x.status==='REWARDED'?'ok':'info')}</td><td class="money">${money(Number(x.rewardAfn||0))}</td><td>${dt(String(x.createdAt||''))}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">No referral activity yet.</td></tr>'}</tbody></table></div></div>`;
+ return `<div class="stats">
+  <div class="stat"><div class="sicon">${ico('users')}</div><div><small>Total referrals</small><strong>${snap.count.toLocaleString('en-US')}</strong></div></div>
+  <div class="stat"><div class="sicon">${ico('wallet')}</div><div><small>Verified referred top-ups</small><strong>${money(snap.totalQualifyingTopups)}</strong></div></div>
+  <div class="stat"><div class="sicon">${ico('coupon')}</div><div><small>Total commission paid</small><strong>${money(snap.totalRewards)}</strong></div></div>
+  <div class="stat"><div class="sicon">${ico('settings')}</div><div><small>Commission rate</small><strong>${e(s.rewardPercent)}%</strong><div class="delta">${s.enabled?'Program active':'Program disabled'}</div></div></div>
+ </div>
+ <div class="grid eq">
+  <div class="card">
+   <div class="cardhead"><h2>Referral Commission Settings</h2>${s.enabled?pill('Enabled','ok'):pill('Disabled','bad')}</div>
+   <form method="post" action="/admin/v3/referral-settings">
+    <label class="check"><input type="checkbox" name="enabled" ${s.enabled?'checked':''}> Enable Invite Friends commission</label>
+    <div class="field"><label>Commission from each verified wallet top-up (%)</label><input type="number" min="0" max="100" step="0.01" name="rewardPercent" value="${e(s.rewardPercent)}" required></div>
+    <div class="notice"><b>No reward is paid for registration.</b><br>The inviter receives this percentage only when the invited user completes a verified HesabPay wallet top-up. Payment-level idempotency prevents duplicate commission.</div>
+    <button class="btn" style="margin-top:12px">Save commission settings</button>
+   </form>
+  </div>
+  <div class="card modulehero">
+   <div class="cardhead"><div><h2>Invite Friends</h2><p>The referral link connects the two accounts; commission follows real verified top-ups.</p></div>${ico('users')}</div>
+   <div class="kpis"><div><b>${snap.count}</b><small>Invited accounts</small></div><div><b>${money(snap.totalQualifyingTopups)}</b><small>Top-ups</small></div><div><b>${money(snap.totalRewards)}</b><small>Commission</small></div></div>
+  </div>
+ </div>
+ <div class="card"><div class="cardhead"><h2>Referral Activity</h2><span class="muted">Latest 500 referral relationships</span></div>
+  <div class="tablewrap"><table class="table"><thead><tr><th>Inviter</th><th>Invitee</th><th>Code</th><th>Verified top-ups</th><th>Commission paid</th><th>Payments</th><th>Created</th></tr></thead><tbody>
+  ${snap.items.map((x:any)=>`<tr>
+   <td><b>${e(x.inviter?.fullName||'VELIXEO user')}</b><br><span class="muted">${e(x.inviter?.email||x.inviter?.phone||x.inviterId||'—')}</span></td>
+   <td><b>${e(x.invitee?.fullName||'VELIXEO user')}</b><br><span class="muted">${e(x.invitee?.email||x.invitee?.phone||x.inviteeId||'—')}</span></td>
+   <td class="mono">${e(x.code||'—')}</td>
+   <td class="money">${money(Number(x.qualifyingTopupAfn||0))}</td>
+   <td class="money">${money(Number(x.rewardAfn||0))}</td>
+   <td>${e(Number(x.rewardCount||0))}</td>
+   <td>${dt(String(x.createdAt||''))}</td>
+  </tr>`).join('')||'<tr><td colspan="7" class="empty">No referral activity yet.</td></tr>'}
+  </tbody></table></div>
+ </div>`;
 }
 function categoryKey(slug:string){return `social.category.${slug}`}
 function slug(v:string){return v.toLowerCase().trim().replace(/\s+/g,'-').replace(/[^a-z0-9_-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80)}
@@ -603,10 +634,12 @@ export function registerAdminV3(app:FastifyInstance,p:PrismaClient,resolve:Admin
   const a=await needAdmin(req,rep,resolve);if(!a)return;
   const b=req.body as Body;
   try{
-   const value={enabled:c(b,'enabled'),rewardAfn:Math.max(0,Math.min(1000000,i(b.rewardAfn,0))),rewardTrigger:'REGISTER' as const};
+   const raw=Number(t(b,'rewardPercent')||'0');
+   if(!Number.isFinite(raw)||raw<0||raw>100)throw new Error('Commission percentage must be between 0 and 100');
+   const value={enabled:c(b,'enabled'),rewardPercent:Math.round(raw*100)/100,rewardTrigger:'WALLET_TOPUP' as const};
    await saveReferralSettings(p,value);
-   await audit(p,a.id,'REFERRAL_SETTINGS_UPDATE','ReferralProgram',null,`enabled=${value.enabled}, reward=${value.rewardAfn} AFN`,value as unknown as Prisma.InputJsonValue);
-   return rep.code(303).redirect(href('referrals',`&msg=${encodeURIComponent('Referral settings saved')}`));
+   await audit(p,a.id,'REFERRAL_SETTINGS_UPDATE','ReferralProgram',null,`enabled=${value.enabled}, commission=${value.rewardPercent}% of verified top-ups`,value as unknown as Prisma.InputJsonValue);
+   return rep.code(303).redirect(href('referrals',`&msg=${encodeURIComponent('Referral commission settings saved')}`));
   }catch(err){return rep.code(303).redirect(href('referrals',`&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'referral_settings_failed')}`))}
  });
  app.post('/admin/v3/provider',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body,section=String(b.section||'social') as Section;try{const id=t(b,'id'),kind=String(b.kind) as ProviderKind,name=t(b,'name'),sl=t(b,'slug').toLowerCase();if(!name||!sl||!Object.values(ProviderKind).includes(kind))throw new Error('Invalid provider data');const data={name,slug:sl,kind,baseUrl:t(b,'baseUrl')||null,priority:i(b.priority,100),defaultMarkupPercent:new Prisma.Decimal(t(b,'markup')||'0'),timeoutSeconds:Math.max(5,Math.min(120,i(b.timeout,30))),notes:t(b,'notes')||null,enabled:c(b,'enabled')};const x=id?await p.provider.update({where:{id},data}):await p.provider.create({data});await audit(p,a.id,id?'PROVIDER_UPDATE':'PROVIDER_CREATE','Provider',x.id,`${x.name} (${x.kind})`);return rep.code(303).redirect(href(section,`&tab=providers&edit=${x.id}&msg=${encodeURIComponent('Provider saved')}`))}catch(err){return rep.code(303).redirect(href(section,`&tab=providers&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'provider_failed')}`))}});
