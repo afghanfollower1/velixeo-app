@@ -165,6 +165,24 @@ async function ensureVirtualCatalogInitialized(prisma: PrismaClient) {
   const key = 'virtual.autoPublishInitializedV2';
   const done = await settingValue(prisma, key);
   if (done === true) return;
+
+  // First use should not require the admin to publish products one by one.
+  // Pull every enabled VIRTUAL_NUMBER provider once, then publish the resulting
+  // virtual catalog. Provider failures are isolated so one upstream cannot
+  // break the whole customer catalog.
+  const providers = await prisma.provider.findMany({
+    where: { kind: ProviderKind.VIRTUAL_NUMBER, enabled: true },
+    select: { id: true },
+    orderBy: { priority: 'asc' },
+  });
+  for (const provider of providers) {
+    try {
+      await syncProviderServices(prisma, provider.id);
+    } catch {
+      // The normal admin Sync action remains available for retry/diagnostics.
+    }
+  }
+
   await prisma.$transaction([
     prisma.service.updateMany({
       where: { category: ServiceCategory.VIRTUAL_NUMBER },
@@ -172,8 +190,8 @@ async function ensureVirtualCatalogInitialized(prisma: PrismaClient) {
     }),
     prisma.systemSetting.upsert({
       where: { key },
-      update: { value: true, category: 'virtual_number', description: 'One-time auto-publish migration for existing virtual-number services' },
-      create: { key, value: true, category: 'virtual_number', description: 'One-time auto-publish migration for existing virtual-number services' },
+      update: { value: true, category: 'virtual_number', description: 'One-time provider sync + auto-publish migration for virtual-number services' },
+      create: { key, value: true, category: 'virtual_number', description: 'One-time provider sync + auto-publish migration for virtual-number services' },
     }),
     prisma.systemSetting.upsert({
       where: { key: 'virtual.defaultServiceEnabled' },
