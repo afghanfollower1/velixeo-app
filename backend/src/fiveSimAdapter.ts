@@ -72,10 +72,9 @@ function deliveryPercentValue(value: unknown): number | null {
   if (value == null || value === '') return null;
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0) return null;
-  // 5SIM price feeds can expose the SMS success rate either as a fraction
-  // (0.0441) or as a human percentage (4.41). Normalize both to 0..100.
-  const percent = parsed > 0 && parsed <= 1 ? parsed * 100 : parsed;
-  return Math.max(0, Math.min(100, percent));
+  // 5SIM documents "rate" as an already-human delivery percentage
+  // (for example 0.54 means 0.54%, 99.99 means 99.99%).
+  return Math.max(0, Math.min(100, parsed));
 }
 
 function stringField(row: Record<string, unknown>, keys: string[]) {
