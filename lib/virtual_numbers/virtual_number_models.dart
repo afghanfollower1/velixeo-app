@@ -42,7 +42,9 @@ class VirtualService {
     required this.titleFa,
     required this.titleEn,
     required this.featured,
+    required this.sortOrder,
     required this.countries,
+    this.iconUrl,
     this.descriptionFa,
     this.descriptionEn,
   });
@@ -55,6 +57,8 @@ class VirtualService {
         descriptionFa: json['descriptionFa'] as String?,
         descriptionEn: json['descriptionEn'] as String?,
         featured: json['featured'] == true,
+        sortOrder: _asInt(json['sortOrder']),
+        iconUrl: json['iconUrl'] as String?,
         countries: ((json['countries'] as List<dynamic>?) ?? const [])
             .map((item) => VirtualCountry.fromJson(Map<String, dynamic>.from(item as Map)))
             .toList(growable: false),
@@ -67,6 +71,8 @@ class VirtualService {
   final String? descriptionFa;
   final String? descriptionEn;
   final bool featured;
+  final int sortOrder;
+  final String? iconUrl;
   final List<VirtualCountry> countries;
 
   VirtualService copyWithCountries(List<VirtualCountry> value) => VirtualService(
@@ -75,6 +81,8 @@ class VirtualService {
         titleFa: titleFa,
         titleEn: titleEn,
         featured: featured,
+        sortOrder: sortOrder,
+        iconUrl: iconUrl,
         countries: value,
         descriptionFa: descriptionFa,
         descriptionEn: descriptionEn,
