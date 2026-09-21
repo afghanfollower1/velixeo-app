@@ -130,6 +130,21 @@ export async function sendAdminOrderAlert(
       if (String(value ?? '').trim()) details.push(`${clean(key, 80)}: ${clean(value)}`);
     }
   }
+  if (order.category === 'PROMOTION') {
+    const packageTitle = pkg.titleEn ?? pkg.titleFa ?? pkg.id;
+    if (packageTitle) details.push(`Package: ${clean(packageTitle)}`);
+    if (rawInput.platform) details.push(`Platform: ${clean(rawInput.platform)}`);
+    if (rawInput.postUrl) details.push(`Post: ${clean(rawInput.postUrl, 1000)}`);
+    if (rawInput.partnershipAdCode) details.push(`Ad code: ${clean(rawInput.partnershipAdCode, 1200)}`);
+    if (rawInput.objective) details.push(`Objective: ${clean(rawInput.objective)}`);
+    if (Array.isArray(rawInput.targetCountries) && rawInput.targetCountries.length) {
+      details.push(`Target: ${clean(rawInput.targetCountries.join(', '), 500)}`);
+    }
+    if (rawInput.audienceNotes) details.push(`Audience: ${clean(rawInput.audienceNotes, 700)}`);
+    if (rawInput.websiteUrl) details.push(`Website: ${clean(rawInput.websiteUrl, 1000)}`);
+    if (pkg.durationDays) details.push(`Duration: ${clean(pkg.durationDays)} day(s)`);
+    if (pkg.adBudgetAfn) details.push(`Ad budget: ${clean(pkg.adBudgetAfn)} AFN`);
+  }
   if (order.providerOrderId) details.push(`Provider order: ${clean(order.providerOrderId)}`);
   if (note) details.push(`Note: ${clean(note, 700)}`);
 

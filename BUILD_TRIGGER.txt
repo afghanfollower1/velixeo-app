@@ -1,16 +1,17 @@
-Trigger signed Android build - VELIXEO v0.9.6 - 2026-09-21.
+Trigger signed Android build - VELIXEO v0.9.7 - 2026-09-21.
 Release scope:
-1) Premium & Subscriptions is now a dedicated manual-fulfillment business module.
-2) Admin can create bilingual Premium products with multiple packages, AFN prices, optional stock, delivery SLA, category, icon URL and instructions.
-3) Every Premium product can define its own dynamic customer order form (username, phone, email, text, select, textarea); password fields are intentionally not supported.
-4) Premium purchases are charged atomically from the AFN wallet before the order enters the fulfillment queue.
-5) Telegram admin invoice alerts are triggered only after a successful paid wallet transaction.
-6) Premium admin fulfillment supports Pending, Processing, Need information, Completed and Reject + Refund.
-7) Refunds return funds to the customer wallet idempotently and restore finite package stock.
-8) Optional manual-delivery credentials/license text are encrypted at rest with the existing AES-GCM server key.
-9) Customers receive bilingual in-app/push updates for Premium order lifecycle changes.
-10) Premium entry includes a bilingual server-controlled banner plus a built-in fallback hero explaining the section.
-11) Premium navigation is wired from Home, service catalog, search results and velixeo://premium deep links.
-12) English remains the currently enabled app locale; all new Premium content and logic are Persian/English-ready for the later UI/UX localization pass.
-13) Full signed APK update is used during the current development phase.
-14) Backend and Flutter validations passed before the release trigger.
+1) Adds the first dedicated Instagram & Facebook Promotions module.
+2) Customers can choose a promotion package, provide a post/Reel URL and a Meta Partnership Ad Code without sharing passwords.
+3) Promotion checkout collects objective, target countries, optional audience notes and optional website URL.
+4) Wallet payment and promotion order creation are atomic; unpaid orders never enter the admin queue.
+5) Telegram admin invoices include platform, post, authorization code, objective, targeting, package, duration and ad budget.
+6) Admin gets a dedicated Promotions workspace with Overview, Banner, Packages, Orders and Meta Setup.
+7) Promotion order lifecycle supports permission review, need information, ready to launch, active, completed and refund.
+8) Admin can record Meta Campaign ID, Meta Ad ID and bilingual result summaries.
+9) Refunds are idempotent and return the paid amount to the customer wallet.
+10) Customers receive bilingual lifecycle notifications.
+11) Promotions has a bilingual server-controlled banner plus a built-in fallback hero.
+12) The app explains exactly how customers can obtain a Partnership Ad Code.
+13) Mobile Top-up remains Coming Soon until official telecom APIs are available.
+14) Meta Marketing API automation is intentionally deferred; v1 uses manual Ads Manager fulfillment.
+15) Backend and Flutter validations passed before this release trigger.

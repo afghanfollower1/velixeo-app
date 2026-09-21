@@ -8,6 +8,7 @@ import '../social/social_models.dart';
 import '../support/support_models.dart';
 import '../virtual_numbers/virtual_number_models.dart';
 import '../premium/premium_models.dart';
+import '../promotions/promotion_models.dart';
 import '../referrals/referral_models.dart';
 
 class ApiException implements Exception {
@@ -456,6 +457,54 @@ class ApiService {
       auth: true,
     );
     if (response.statusCode != 200) _throwResponse(response);
+  }
+
+  Future<PromotionCatalog> promotionCatalog() async {
+    final response = await _send('GET', '/api/v1/promotions/catalog');
+    if (response.statusCode != 200) _throwResponse(response);
+    return PromotionCatalog.fromJson(_decodeObject(response));
+  }
+
+  Future<List<PromotionOrder>> promotionOrders() async {
+    final response = await _send('GET', '/api/v1/promotions/orders', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    final rows = (_decodeObject(response)['orders'] as List<dynamic>?) ?? const [];
+    return rows
+        .whereType<Map>()
+        .map((item) => PromotionOrder.fromJson(Map<String, dynamic>.from(item)))
+        .toList(growable: false);
+  }
+
+  Future<PromotionOrderResult> createPromotionOrder({
+    required String serviceId,
+    required String packageId,
+    required String postUrl,
+    required String partnershipAdCode,
+    required String objective,
+    required List<String> targetCountries,
+    required String audienceNotes,
+    required String websiteUrl,
+    required String clientRequestId,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/promotions/orders',
+      auth: true,
+      body: {
+        'serviceId': serviceId,
+        'packageId': packageId,
+        'postUrl': postUrl,
+        'partnershipAdCode': partnershipAdCode,
+        'objective': objective,
+        'targetCountries': targetCountries,
+        'audienceNotes': audienceNotes,
+        'websiteUrl': websiteUrl,
+        'clientRequestId': clientRequestId,
+        'termsAccepted': true,
+      },
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) _throwResponse(response);
+    return PromotionOrderResult.fromJson(_decodeObject(response));
   }
 
   Future<PremiumCatalog> premiumCatalog() async {
