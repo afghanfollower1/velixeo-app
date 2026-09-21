@@ -152,9 +152,9 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
 
     setState(() => buying = true);
     try {
-      VirtualOffers? liveOffers;
+      final VirtualOffers liveOffers;
       if (selectedCountry?.code == country.code && offers != null) {
-        liveOffers = offers;
+        liveOffers = offers!;
       } else {
         liveOffers = await host.api.virtualNumberOffers(
           serviceId: service.id,
@@ -320,12 +320,14 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     final text = '${service.titleEn} ${service.slug}'.toLowerCase();
     const names = [
       'telegram','instagram','whatsapp','facebook','pinterest','tiktok',
-      'youtube','twitter',' x ','snapchat','discord','google','gmail',
+      'youtube','twitter','snapchat','discord','google','gmail',
       'amazon','microsoft','apple','linkedin','uber','airbnb','netflix','spotify'
     ];
     for (var i = 0; i < names.length; i++) {
-      if (text.contains(names[i].trim())) return i;
+      if (text.contains(names[i])) return i;
     }
+    final normalized = service.slug.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
+    if (normalized == 'virtualx' || normalized == 'x') return 7;
     return 1000;
   }
 
@@ -909,65 +911,6 @@ class _OfferTile extends StatelessWidget {
                   const SizedBox(height: 5),
                   FilledButton.tonal(onPressed: busy ? null : onBuy, child: Text(fa ? 'خرید' : 'Buy')),
                 ],
-              ),
-            ],
-          ),
-        ),
-      );
-}
-
-class _SmartCard extends StatelessWidget {
-  const _SmartCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.offer,
-    required this.fa,
-    required this.price,
-    required this.busy,
-    required this.onTap,
-  });
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VirtualOffer? offer;
-  final bool fa;
-  final String price;
-  final bool busy;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  CircleAvatar(backgroundColor: const Color(0xFFE4F4FF), child: Icon(icon, color: const Color(0xFF0D78C8))),
-                  const SizedBox(width: 11),
-                  Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15))),
-                  Text(price, style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF0D78C8))),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(subtitle, style: const TextStyle(color: Color(0xFF607487), fontSize: 12)),
-              if (offer != null) ...[
-                const SizedBox(height: 9),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    Chip(label: Text(offer!.operatorName)),
-                    Chip(label: Text('${offer!.count} ${fa ? 'موجود' : 'available'}')),
-                    if (offer!.deliveryPercent != null) Chip(label: Text('${offer!.deliveryPercent!.toStringAsFixed(1)}%')),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(onPressed: busy || offer == null ? null : onTap, child: Text(fa ? 'خرید هوشمند' : 'Smart buy')),
               ),
             ],
           ),
