@@ -352,9 +352,9 @@ export function registerHesabPayWebhookRoutes(
           transactionId,
         });
 
-        // Referral commission is tied to a real, verified wallet top-up.
-        // The referral helper is idempotent per payment, so webhook retries
-        // cannot pay the inviter twice.
+        // Referral commission is tied only to a real, signature-verified wallet top-up.
+        // Registration itself pays nothing. The referral helper is idempotent per
+        // payment transaction, so webhook retries can never pay the inviter twice.
         const referralCommission = await grantReferralTopupCommission(prisma, {
           inviteeId: result.payment.userId,
           paymentId: result.payment.id,
