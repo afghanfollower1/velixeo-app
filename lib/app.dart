@@ -2280,6 +2280,7 @@ Widget _serviceDestination(AppController c, ServiceItem service) {
   if (service.en == 'Social Media') return SocialPanelPage(host: c);
   if (service.en == 'Virtual Numbers') return VirtualNumberPanelPage(host: c);
   if (service.en == 'Premium') return PremiumPanelPage(host: c);
+  if (service.en == 'Mobile Top-up') return ComingSoonServicePage(controller: c, service: service);
   return ServicePreviewPage(controller: c, service: service);
 }
 
@@ -3013,6 +3014,56 @@ class CatalogServicePage extends StatelessWidget {
           const SizedBox(height: 22),
           PrimaryButton(label: tr(fa, 'خرید پس از اتصال Provider فعال می‌شود', 'Purchase unlocks after provider integration'), onPressed: null),
         ],
+      ),
+    );
+  }
+}
+
+class ComingSoonServicePage extends StatelessWidget {
+  const ComingSoonServicePage({super.key, required this.controller, required this.service});
+
+  final AppController controller;
+  final ServiceItem service;
+
+  @override
+  Widget build(BuildContext context) {
+    final fa = controller.fa;
+    return Scaffold(
+      appBar: AppBar(title: Text(fa ? service.fa : service.en)),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 104,
+                height: 104,
+                decoration: BoxDecoration(
+                  color: service.color.withValues(alpha: .10),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Icon(service.icon, size: 52, color: service.color),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                tr(fa, 'به‌زودی', 'Coming soon'),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                tr(
+                  fa,
+                  'بخش شارژ موبایل پس از اتصال رسمی به API شرکت‌های مخابراتی فعال خواهد شد.',
+                  'Mobile Top-up will become available after official telecom provider APIs are connected.',
+                ),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xFF607487), height: 1.6),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -6586,6 +6637,20 @@ class ServiceCard extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
               ),
+              if (service.en == 'Mobile Top-up') ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: service.color.withValues(alpha: .12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    tr(fa, 'به‌زودی', 'Coming soon'),
+                    style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w900, color: service.color),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
