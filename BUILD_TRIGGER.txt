@@ -1,12 +1,12 @@
-Trigger signed Android build - VELIXEO v0.9.2 - 2026-09-21 FINAL.
-Validated release scope:
-1) Referral registration earns zero; commission is an admin-configured percentage only from signature-verified HesabPay wallet top-ups, idempotent per payment.
-2) Referral Admin shows qualifying top-ups, total commission and payment counts.
-3) 5SIM auto-syncs and auto-publishes the full enabled-provider service catalog on first use; bulk enable/disable and individual visibility remain.
-4) Global virtual-number percentage markup plus per-service percentage/fixed AFN pricing overrides.
-5) All services load first; countries load only after selecting a service for scalable 1,000+ service catalogs.
-6) Searchable service/country selectors, alphabetical country names with flags, popular-service priority.
-7) Smart Buy requires only a service and recommends strongest/stable and cheapest countries using live delivery rate, stock and price; purchase rechecks live offer.
-8) Major brands use their own icon and brand color via Font Awesome 11; unknown services retain a clean generic fallback.
-9) Social Media app/admin logic remains byte-for-byte unchanged from v0.9.0.
-10) Backend, payment and Flutter validation passed before this signed build trigger.
+Trigger signed Android build - VELIXEO v0.9.3 - 2026-09-21.
+Release scope:
+1) Normalize 5SIM SMS delivery-rate values so fractional API rates display as real percentages.
+2) Preserve all operator rows returned by 5SIM, including array/object response variants and deduplication by country/service/operator.
+3) Manual Virtual Numbers mirrors 5SIM comparison: price-sorted operators, per-operator stock, SMS delivery %, lowest/highest price, best-delivery tags, plus Any operator.
+4) Any operator purchase now selects from the same lowest-price-first live offer logic shown to the user.
+5) Country flags/names are resolved from complete ISO metadata with aliases instead of partial hardcoded flags.
+6) Known services use brand icons/colors; every unknown 5SIM service gets a visible deterministic initials badge instead of a missing generic icon.
+7) My Numbers is organized into Active / Completed / Cancelled / Failed / All; completed is green, cancelled/refunded red, failed dark red; terminal orders no longer show Check SMS.
+8) Virtual Numbers has an admin-managed entry banner. Admin can change image/text or disable it without an APK update; built-in information hero remains as fallback.
+9) Virtual panel and app performance improvements: parallel secondary API loading, staged startup render, parallel active-order polling, fewer full-screen timer rebuilds, lightweight balance-only refresh after number actions, optimized network image decoding.
+10) Backend CI and Flutter analyzer passed before this build.
