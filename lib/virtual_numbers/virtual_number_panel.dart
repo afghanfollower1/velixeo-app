@@ -10,6 +10,107 @@ import '../core/api_service.dart';
 import '../core/models.dart';
 import 'virtual_number_models.dart';
 
+String _normalizeCountryKey(String value) =>
+    value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
+
+final CountryService _countryService = CountryService();
+final List<Country> _allCountries = _countryService.getAll();
+final Map<String, Country> _countriesByNormalizedName = {
+  for (final country in _allCountries) _normalizeCountryKey(country.name): country,
+};
+
+const Map<String, String> _fiveSimCountryAliases = {
+  'england': 'GB',
+  'uk': 'GB',
+  'greatbritain': 'GB',
+  'usa': 'US',
+  'unitedstatesofamerica': 'US',
+  'russia': 'RU',
+  'southkorea': 'KR',
+  'northkorea': 'KP',
+  'czech': 'CZ',
+  'czechrepublic': 'CZ',
+  'ivorycoast': 'CI',
+  'cotedivoire': 'CI',
+  'moldova': 'MD',
+  'tanzania': 'TZ',
+  'bolivia': 'BO',
+  'venezuela': 'VE',
+  'laos': 'LA',
+  'brunei': 'BN',
+  'capeverde': 'CV',
+  'easttimor': 'TL',
+  'macedonia': 'MK',
+  'palestine': 'PS',
+  'syria': 'SY',
+  'iran': 'IR',
+  'vietnam': 'VN',
+  'kosovo': 'XK',
+};
+
+Country? _resolveCountry(VirtualCountry item) {
+  final iso = item.iso.trim().toUpperCase();
+  if (iso.length == 2) {
+    final byCode = _countryService.findByCode(iso);
+    if (byCode != null) return byCode;
+  }
+  final direct = _countriesByNormalizedName[_normalizeCountryKey(item.name)] ??
+      _countriesByNormalizedName[_normalizeCountryKey(item.code)];
+  if (direct != null) return direct;
+  final alias = _fiveSimCountryAliases[_normalizeCountryKey(item.name)] ??
+      _fiveSimCountryAliases[_normalizeCountryKey(item.code)];
+  return alias == null ? null : _countryService.findByCode(alias);
+}
+
+String _countryFlag(VirtualCountry item) {
+  final resolved = _resolveCountry(item);
+  if (resolved != null) return resolved.flagEmoji;
+  final raw = item.flag.trim();
+  return raw.isNotEmpty && raw != '🌐' ? raw : '🌐';
+}
+
+String _countryDisplayName(VirtualCountry item) {
+  final direct = _countriesByNormalizedName[_normalizeCountryKey(item.name)] ??
+      _countriesByNormalizedName[_normalizeCountryKey(item.code)];
+  if (direct != null) return direct.name;
+  final raw = item.name.trim().isNotEmpty ? item.name.trim() : item.code.trim();
+  if (raw.isEmpty) return 'Unknown';
+  return raw
+      .replaceAll(RegExp(r'[-_]+'), ' ')
+      .split(' ')
+      .where((part) => part.isNotEmpty)
+      .map((part) => part.length == 1
+          ? part.toUpperCase()
+          : '${part[0].toUpperCase()}${part.substring(1)}')
+      .join(' ');
+}
+
+String _orderCountryName(String? raw) {
+  final value = raw?.trim() ?? '';
+  if (value.isEmpty) return '—';
+  final direct = _countriesByNormalizedName[_normalizeCountryKey(value)];
+  if (direct != null) return direct.name;
+  return value
+      .replaceAll(RegExp(r'[-_]+'), ' ')
+      .split(' ')
+      .where((part) => part.isNotEmpty)
+      .map((part) => part.length == 1
+          ? part.toUpperCase()
+          : '${part[0].toUpperCase()}${part.substring(1)}')
+      .join(' ');
+}
+
+AppBanner? _pickVirtualBanner(List<AppBanner> rows) {
+  for (final banner in rows) {
+    final target = banner.actionUrl?.trim().toLowerCase();
+    if (banner.placement == 'SERVICES_TOP' &&
+        (target == 'velixeo://virtual-numbers' || target == 'velixeo://virtual')) {
+      return banner;
+    }
+  }
+  return null;
+}
+
 abstract class VirtualNumberPanelHost {
   ApiService get api;
   bool get fa;
