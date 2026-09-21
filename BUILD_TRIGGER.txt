@@ -1,11 +1,11 @@
-Trigger signed Android build - VELIXEO v0.9.4 - 2026-09-21.
+Trigger signed Android build - VELIXEO v0.9.5 - 2026-09-21.
 Release scope:
-1) Virtual Numbers admin Services now has per-service icon upload next to every service.
-2) Uploaded icons are compressed in-browser to lightweight 128x128 WebP before storage.
-3) Mobile catalog receives only a tiny cached icon URL; it never downloads icon blobs inside the catalog JSON.
-4) Uploaded admin icon overrides built-in brand icon; failures fall back to existing brand icon/initials.
-5) Admin can set Display order per virtual-number service (1, 2, 3, ...).
-6) App service picker follows the exact backend/admin sortOrder instead of hardcoded popularity sorting.
-7) Future 5SIM syncs preserve admin icon and manual display order.
-8) Virtual Numbers remains isolated from Social Media.
-9) Backend tests and Flutter validation passed before build trigger.
+1) Smart Buy now follows the 5SIM-style service-only flow and automatically selects the best live country/operator.
+2) Virtual Numbers admin Services loads the complete synchronized 5SIM catalog instead of stopping at 1000 rows.
+3) Service search therefore finds services that were previously visible in the app but missing from the admin list.
+4) Social provider creation was hardened: slug stays optional/auto-unique and a provider can be saved before its API key is added.
+5) Provider currency is now a dropdown instead of free text, with AFN/USD/TOMAN and configured provider currencies available.
+6) Provider currency selection is saved to the real Provider record and used by AFN pricing conversion.
+7) AFN remains the accounting/base currency; customers may display AFN, USD or Toman.
+8) Full signed APK update is used for this development-stage release.
+9) Backend and Flutter validations must pass before release publication.

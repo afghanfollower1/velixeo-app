@@ -20,6 +20,7 @@ import {
 } from './socialSync.js';
 import { brandSettingKey, defaultBrandIcons, loadSocialBrands, normalizeBrandKey, parseBrand, validateBrandIcon, type SocialBrand } from './socialBrands.js';
 import { getSocialOrderSettings, saveSocialOrderSettings } from './socialOrderSettings.js';
+import { normalizeCurrencyCode } from './currency.js';
 
 type AdminIdentity = {
   id: string;
@@ -247,8 +248,19 @@ function query(request: FastifyRequest) {
   };
 }
 
-function providerForm(provider: Provider | null, meta: ProviderMeta, sync: Awaited<ReturnType<typeof getSocialProviderSyncConfig>>) {
-  return `<form method="post" action="/admin/v3/social/providers/save"><input type="hidden" name="id" value="${esc(provider?.id || '')}"><div class="forms"><div class="field"><label>Provider Name</label><input name="name" value="${esc(provider?.name || '')}" placeholder="JustAnotherPanel" required></div><div class="field"><label>Slug (optional)</label><input class="mono" name="slug" value="${esc(provider?.slug || '')}" placeholder="auto-generated-from-name"></div><div class="field"><label>Website URL</label><input class="mono" name="websiteUrl" value="${esc(meta.websiteUrl)}" placeholder="https://provider.com"></div><div class="field"><label>API Endpoint / Base URL</label><input class="mono" name="baseUrl" value="${esc(provider?.baseUrl || '')}" placeholder="https://provider.com/api/v2" required></div><div class="field"><label>Default Provider Currency</label><input class="mono" name="currency" value="${esc(meta.defaultCurrency || 'USD')}" placeholder="USD"></div><div class="field"><label>Default Profit / Markup %</label><input name="markup" inputmode="decimal" value="${esc(provider?.defaultMarkupPercent?.toString() || '0')}" placeholder="30"></div><div class="field"><label>Priority</label><input type="number" name="priority" value="${esc(provider?.priority ?? 20)}"><span class="tiny">Lower number is preferred first.</span></div><div class="field"><label>Timeout (seconds)</label><input type="number" min="5" max="120" name="timeout" value="${esc(provider?.timeoutSeconds ?? 30)}"></div><div class="field"><label>Auto Service Sync</label><select name="autoSync"><option value="1" ${sync.autoSync?'selected':''}>Enabled</option><option value="0" ${!sync.autoSync?'selected':''}>Disabled</option></select></div><div class="field"><label>Service Sync Interval (minutes)</label><input type="number" min="1" max="1440" name="syncMinutes" value="${esc(sync.syncMinutes)}"></div></div><div class="field"><label>API Key / Secret ${provider ? '(leave blank to keep current key)' : ''}</label><textarea class="mono" name="secret" ${provider ? '' : 'required'} placeholder="Paste the provider API key here"></textarea><span class="tiny">The secret is encrypted before storage and is never displayed again.</span></div><div class="field"><label>Description / Internal Notes</label><textarea name="description" placeholder="Internal notes about this provider">${esc(meta.description || provider?.notes || '')}</textarea></div><label class="check"><input type="checkbox" name="enabled" ${provider?.enabled===false?'':'checked'}> Provider enabled</label><div class="actions"><button class="btn">${provider ? 'Save Provider' : 'Add Provider'}</button><a class="btn ghost" href="/admin/v3/social/providers">Cancel</a></div></form>`;
+function providerForm(
+  provider: Provider | null,
+  meta: ProviderMeta,
+  sync: Awaited<ReturnType<typeof getSocialProviderSyncConfig>>,
+  currencies: string[],
+) {
+  const selectedCurrency = provider?.currencyCode || meta.defaultCurrency || 'USD';
+  const common = ['AUTO','AFN','USD','TOMAN'];
+  const currencyValues = [...new Set([...common, ...currencies.map(code => code.toUpperCase()), selectedCurrency.toUpperCase()])];
+  const currencyOptions = currencyValues.map(code =>
+    `<option value="${esc(code)}" ${selectedCurrency.toUpperCase()===code?'selected':''}>${esc(code === 'AUTO' ? 'AUTO / Provider API' : code)}</option>`
+  ).join('');
+  return `<form method="post" action="/admin/v3/social/providers/save"><input type="hidden" name="id" value="${esc(provider?.id || '')}"><div class="forms"><div class="field"><label>Provider Name</label><input name="name" value="${esc(provider?.name || '')}" placeholder="JustAnotherPanel" required></div><div class="field"><label>Slug (optional)</label><input class="mono" name="slug" value="${esc(provider?.slug || '')}" placeholder="auto-generated-from-name"><span class="tiny">Leave blank and VELIXEO creates a unique slug automatically.</span></div><div class="field"><label>Website URL</label><input class="mono" name="websiteUrl" value="${esc(meta.websiteUrl)}" placeholder="https://provider.com"></div><div class="field"><label>API Endpoint / Base URL</label><input class="mono" name="baseUrl" value="${esc(provider?.baseUrl || '')}" placeholder="https://provider.com/api/v2" required></div><div class="field"><label>Default Provider Currency</label><select name="currency">${currencyOptions}</select><span class="tiny">All provider prices are converted to AFN. Add extra currencies and AFN rates in Settings → Exchange Rates.</span></div><div class="field"><label>Default Profit / Markup %</label><input name="markup" inputmode="decimal" value="${esc(provider?.defaultMarkupPercent?.toString() || '0')}" placeholder="30"></div><div class="field"><label>Priority</label><input type="number" name="priority" value="${esc(provider?.priority ?? 20)}"><span class="tiny">Lower number is preferred first.</span></div><div class="field"><label>Timeout (seconds)</label><input type="number" min="5" max="120" name="timeout" value="${esc(provider?.timeoutSeconds ?? 30)}"></div><div class="field"><label>Auto Service Sync</label><select name="autoSync"><option value="1" ${sync.autoSync?'selected':''}>Enabled</option><option value="0" ${!sync.autoSync?'selected':''}>Disabled</option></select></div><div class="field"><label>Service Sync Interval (minutes)</label><input type="number" min="1" max="1440" name="syncMinutes" value="${esc(sync.syncMinutes)}"></div></div><div class="field"><label>API Key / Secret ${provider ? '(leave blank to keep current key)' : '(optional — can be added later)'}</label><textarea class="mono" name="secret" placeholder="Paste the provider API key here"></textarea><span class="tiny">You can save the provider first and add the API key later. Sync and ordering will stay disabled until a valid key is configured. Secrets are encrypted before storage.</span></div><div class="field"><label>Description / Internal Notes</label><textarea name="description" placeholder="Internal notes about this provider">${esc(meta.description || provider?.notes || '')}</textarea></div><label class="check"><input type="checkbox" name="enabled" ${provider?.enabled===false?'':'checked'}> Provider enabled</label><div class="actions"><button class="btn">${provider ? 'Save Provider' : 'Add Provider'}</button><a class="btn ghost" href="/admin/v3/social/providers">Cancel</a></div></form>`;
 }
 
 async function providerStatus(provider: Provider) {
@@ -287,10 +299,14 @@ async function providersPage(prisma: PrismaClient, admin: AdminIdentity, request
     if (q.edit && !selected) {
       return shell({ admin, title: 'Providers', subtitle: 'Provider not found', active: 'providers', body: '<div class="card empty">The selected provider does not exist.</div>', message: q.msg, error: q.error });
     }
-    const meta = selected ? await getProviderMeta(prisma, selected.id) : { websiteUrl: '', defaultCurrency: 'USD', description: '' };
+    const [meta, rateRows] = await Promise.all([
+      selected ? getProviderMeta(prisma, selected.id) : Promise.resolve({ websiteUrl: '', defaultCurrency: 'USD', description: '' }),
+      prisma.exchangeRate.findMany({ select: { code: true }, orderBy: { code: 'asc' } }),
+    ]);
     const sync = selected
       ? await getSocialProviderSyncConfig(prisma, selected.id)
       : { autoSync: true, syncMinutes: 10, lastSyncAt: null, lastSyncStatus: 'idle' as const, lastSyncError: null, lastServiceCount: 0, lastCreatedCount: 0, lastUpdatedCount: 0 };
+    const currencies = rateRows.map(row => row.code);
     return shell({
       admin,
       title: selected ? 'Edit Provider' : 'Add New Provider',
@@ -298,7 +314,7 @@ async function providersPage(prisma: PrismaClient, admin: AdminIdentity, request
       active: 'providers',
       message: q.msg,
       error: q.error,
-      body: `<div class="card" style="max-width:920px;margin:0 auto"><div class="cardhead"><div class="split-title">${icon('provider')}<div><h2>${selected ? esc(selected.name) : 'Provider Details'}</h2><span class="muted">Connection credentials and business rules</span></div></div><a class="btn ghost" href="/admin/v3/social/providers">${icon('back')} Back to Providers</a></div>${providerForm(selected, meta, sync)}</div>`,
+      body: `<div class="card" style="max-width:920px;margin:0 auto"><div class="cardhead"><div class="split-title">${icon('provider')}<div><h2>${selected ? esc(selected.name) : 'Provider Details'}</h2><span class="muted">Connection credentials and business rules</span></div></div><a class="btn ghost" href="/admin/v3/social/providers">${icon('back')} Back to Providers</a></div>${providerForm(selected, meta, sync, currencies)}</div>`,
     });
   }
 
@@ -311,7 +327,7 @@ async function providersPage(prisma: PrismaClient, admin: AdminIdentity, request
     return { provider, meta, sync, serviceCount };
   }));
 
-  const rows = data.map(({ provider, meta, sync, serviceCount }) => `<tr><td><div class="provider-name"><div class="provider-logo">${esc(provider.name.charAt(0).toUpperCase())}</div><div><b>${esc(provider.name)}</b><br><span class="mono muted">${esc(provider.slug)}</span></div></div></td><td><span id="balance-${provider.id}" class="pill info">Checking…</span><br><span id="balance-time-${provider.id}" class="tiny">Auto refresh: 60 sec</span></td><td>${esc(meta.defaultCurrency || 'USD')}</td><td><b>${serviceCount.toLocaleString('en-US')}</b><br><span class="tiny">API last sync: ${sync.lastServiceCount.toLocaleString('en-US')}</span></td><td>${sync.autoSync ? pill(`Every ${sync.syncMinutes} min`, 'ok') : pill('Off')}<br><span class="tiny">Last: ${esc(dateText(sync.lastSyncAt))}</span></td><td><span id="status-${provider.id}">${provider.enabled ? pill('Enabled','ok') : pill('Disabled','bad')}</span></td><td><div class="switch"><form method="post" action="/admin/v3/social/providers/toggle"><input type="hidden" name="id" value="${provider.id}"><button class="${provider.enabled?'on':''}" title="${provider.enabled?'Disable provider':'Enable provider'}" aria-label="Toggle provider"></button></form></div></td><td><div class="actions">${meta.websiteUrl ? `<a class="iconbtn orange" href="${esc(meta.websiteUrl)}" target="_blank" rel="noreferrer" title="Open provider website">${icon('link')}</a>` : `<span class="iconbtn" title="No provider website configured">${icon('link')}</span>`}<a class="iconbtn" href="/admin/v3/social/providers?edit=${provider.id}" title="Edit provider">${icon('edit')}</a><button type="button" class="iconbtn purple" onclick="refreshProviderStatuses()" title="Check balance now">${icon('wallet')}</button><form method="post" action="/admin/v3/social/provider-services/sync"><input type="hidden" name="providerId" value="${provider.id}"><button class="iconbtn green" title="Synchronize provider services">${icon('sync')}</button></form><a class="iconbtn" href="/admin/v3/social/provider-services?provider=${provider.id}" title="Provider service list">${icon('list')}</a><form method="post" action="/admin/v3/social/providers/delete" onsubmit="return confirm('Delete this provider? Raw imported services will also be removed. Published services without another route will be hidden.');"><input type="hidden" name="id" value="${provider.id}"><button class="iconbtn red" title="Delete provider">${icon('trash')}</button></form></div></td></tr>`).join('');
+  const rows = data.map(({ provider, meta, sync, serviceCount }) => `<tr><td><div class="provider-name"><div class="provider-logo">${esc(provider.name.charAt(0).toUpperCase())}</div><div><b>${esc(provider.name)}</b><br><span class="mono muted">${esc(provider.slug)}</span></div></div></td><td><span id="balance-${provider.id}" class="pill info">Checking…</span><br><span id="balance-time-${provider.id}" class="tiny">Auto refresh: 60 sec</span></td><td>${esc(provider.currencyCode || meta.defaultCurrency || 'AUTO')}</td><td><b>${serviceCount.toLocaleString('en-US')}</b><br><span class="tiny">API last sync: ${sync.lastServiceCount.toLocaleString('en-US')}</span></td><td>${sync.autoSync ? pill(`Every ${sync.syncMinutes} min`, 'ok') : pill('Off')}<br><span class="tiny">Last: ${esc(dateText(sync.lastSyncAt))}</span></td><td><span id="status-${provider.id}">${provider.enabled ? pill('Enabled','ok') : pill('Disabled','bad')}</span></td><td><div class="switch"><form method="post" action="/admin/v3/social/providers/toggle"><input type="hidden" name="id" value="${provider.id}"><button class="${provider.enabled?'on':''}" title="${provider.enabled?'Disable provider':'Enable provider'}" aria-label="Toggle provider"></button></form></div></td><td><div class="actions">${meta.websiteUrl ? `<a class="iconbtn orange" href="${esc(meta.websiteUrl)}" target="_blank" rel="noreferrer" title="Open provider website">${icon('link')}</a>` : `<span class="iconbtn" title="No provider website configured">${icon('link')}</span>`}<a class="iconbtn" href="/admin/v3/social/providers?edit=${provider.id}" title="Edit provider">${icon('edit')}</a><button type="button" class="iconbtn purple" onclick="refreshProviderStatuses()" title="Check balance now">${icon('wallet')}</button><form method="post" action="/admin/v3/social/provider-services/sync"><input type="hidden" name="providerId" value="${provider.id}"><button class="iconbtn green" title="Synchronize provider services">${icon('sync')}</button></form><a class="iconbtn" href="/admin/v3/social/provider-services?provider=${provider.id}" title="Provider service list">${icon('list')}</a><form method="post" action="/admin/v3/social/providers/delete" onsubmit="return confirm('Delete this provider? Raw imported services will also be removed. Published services without another route will be hidden.');"><input type="hidden" name="id" value="${provider.id}"><button class="iconbtn red" title="Delete provider">${icon('trash')}</button></form></div></td></tr>`).join('');
 
   const script = `
 async function refreshProviderStatuses(){
@@ -686,27 +702,32 @@ export function registerAdminSocialProviderManager(
       if (!name) throw new Error('Provider name is required.');
       let slug = safeSlug(text(body, 'slug') || name);
       if (!slug) throw new Error('A valid provider name or slug is required.');
-      if (!id) {
-        let candidate = slug;
+      {
+        const baseSlug = slug;
+        let candidate = baseSlug;
         let suffix = 1;
-        while (await prisma.provider.findUnique({ where: { slug: candidate } })) {
+        while (await prisma.provider.findFirst({
+          where: { slug: candidate, ...(id ? { id: { not: id } } : {}) },
+          select: { id: true },
+        })) {
           suffix += 1;
-          candidate = `${slug}-${suffix}`;
+          candidate = `${baseSlug}-${suffix}`;
         }
         slug = candidate;
       }
       const baseUrl = text(body, 'baseUrl');
       if (!baseUrl) throw new Error('API endpoint is required.');
       const secret = text(body, 'secret');
-      if (!id && !secret) throw new Error('API key is required for a new provider.');
       if (secret && !providerSecretEncryptionConfigured()) {
         throw new Error('Provider secret encryption is not configured on the server.');
       }
+      const currencyCode = normalizeCurrencyCode(text(body, 'currency'), null);
       const data = {
         name,
         slug,
         kind: ProviderKind.SOCIAL,
         baseUrl,
+        currencyCode,
         enabled: checked(body, 'enabled'),
         priority: intValue(body.priority, 20),
         defaultMarkupPercent: new Prisma.Decimal(text(body, 'markup') || '0'),
@@ -724,7 +745,7 @@ export function registerAdminSocialProviderManager(
       }
       await saveProviderMeta(prisma, provider.id, {
         websiteUrl: text(body, 'websiteUrl'),
-        defaultCurrency: (text(body, 'currency') || 'USD').toUpperCase(),
+        defaultCurrency: currencyCode || 'AUTO',
         description: text(body, 'description'),
       });
       await saveSocialProviderSyncConfig(prisma, provider.id, {
