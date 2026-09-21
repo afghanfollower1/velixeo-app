@@ -865,25 +865,85 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     );
   }
 
+  bool orderMatchesFilter(VirtualOrder order) {
+    switch(orderFilter){
+      case 'ALL': return true;
+      case 'ACTIVE': return isActive(order);
+      case 'COMPLETED': return order.status=='COMPLETED';
+      case 'CANCELLED': return order.status=='CANCELLED'||order.status=='REFUNDED';
+      case 'FAILED': return order.status=='FAILED';
+      default:return true;
+    }
+  }
+
+  int filterCount(String filter){
+    final previous=orderFilter;
+    orderFilter=filter;
+    final count=orders.where(orderMatchesFilter).length;
+    orderFilter=previous;
+    return count;
+  }
+
   Widget numbersPanel() {
     if (orders.isEmpty) {
       return _Notice(text: t('هنوز شماره‌ای نخریده‌اید.', 'You have not purchased a number yet.'));
     }
+    final visible=orders.where(orderMatchesFilter).toList(growable:false);
+    final filters=[
+      ('ACTIVE',t('فعال','Active'),Icons.timelapse_rounded,const Color(0xFF1686FF)),
+      ('COMPLETED',t('تکمیل‌شده','Completed'),Icons.check_circle_rounded,const Color(0xFF16A875)),
+      ('CANCELLED',t('لغوشده','Cancelled'),Icons.cancel_rounded,const Color(0xFFE65454)),
+      ('FAILED',t('ناموفق','Failed'),Icons.error_rounded,const Color(0xFFB42318)),
+      ('ALL',t('همه','All'),Icons.list_alt_rounded,const Color(0xFF607487)),
+    ];
     return Column(
-      children: orders.map((order) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: _OrderCard(
-          order: order,
-          fa: fa,
-          price: host.money(order.totalAmountAfn, showBase: true),
-          onRefresh: () => checkOrder(order),
-          onCancel: order.canCancel ? () => cancelOrder(order) : null,
-          onFinish: order.canFinish ? () => finishOrder(order) : null,
-          onBuyNew: () => setState(() => tab = 0),
+      crossAxisAlignment:CrossAxisAlignment.stretch,
+      children:[
+        SingleChildScrollView(
+          scrollDirection:Axis.horizontal,
+          child:Row(
+            children:filters.map((item){
+              final selected=orderFilter==item.$1;
+              return Padding(
+                padding:const EdgeInsetsDirectional.only(end:8),
+                child:ChoiceChip(
+                  selected:selected,
+                  onSelected:(_)=>setState(()=>orderFilter=item.$1),
+                  avatar:Icon(item.$3,size:17,color:selected?Colors.white:item.$4),
+                  label:Text('${item.$2} ${filterCount(item.$1)}'),
+                  labelStyle:TextStyle(
+                    fontWeight:FontWeight.w800,
+                    color:selected?Colors.white:const Color(0xFF27364A),
+                  ),
+                  selectedColor:item.$4,
+                  side:BorderSide(color:selected?item.$4:const Color(0xFFDCE8F1)),
+                  backgroundColor:Colors.white,
+                  showCheckmark:false,
+                ),
+              );
+            }).toList(),
+          ),
         ),
-      )).toList(),
+        const SizedBox(height:12),
+        if(visible.isEmpty)
+          _Notice(text:t('در این دسته سفارشی وجود ندارد.','There are no orders in this category.'))
+        else
+          ...visible.map((order) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _OrderCard(
+              order: order,
+              fa: fa,
+              price: host.money(order.totalAmountAfn, showBase: true),
+              onRefresh: isActive(order) ? () => checkOrder(order) : null,
+              onCancel: order.canCancel ? () => cancelOrder(order) : null,
+              onFinish: order.canFinish ? () => finishOrder(order) : null,
+              onBuyNew: () => setState(() => tab = 0),
+            ),
+          )),
+      ],
     );
   }
+
 }
 
 class _InfoHero extends StatelessWidget {
@@ -1281,15 +1341,15 @@ class _OrderCard extends StatelessWidget {
     required this.order,
     required this.fa,
     required this.price,
-    required this.onRefresh,
     required this.onBuyNew,
+    this.onRefresh,
     this.onCancel,
     this.onFinish,
   });
   final VirtualOrder order;
   final bool fa;
   final String price;
-  final VoidCallback onRefresh;
+  final VoidCallback? onRefresh;
   final VoidCallback onBuyNew;
   final VoidCallback? onCancel;
   final VoidCallback? onFinish;
@@ -1316,6 +1376,31 @@ class _OrderCard extends StatelessWidget {
     }
   }
 
+  Color statusColor() {
+    switch(order.status){
+      case 'COMPLETED': return const Color(0xFF16A875);
+      case 'CANCELLED':
+      case 'REFUNDED': return const Color(0xFFE65454);
+      case 'FAILED': return const Color(0xFFB42318);
+      default:return const Color(0xFF1686FF);
+    }
+  }
+
+  Color statusBackground() {
+    switch(order.status){
+      case 'COMPLETED': return const Color(0xFFE8F8F1);
+      case 'CANCELLED':
+      case 'REFUNDED': return const Color(0xFFFFEEEE);
+      case 'FAILED': return const Color(0xFFFFE7E5);
+      default:return const Color(0xFFEAF6FF);
+    }
+  }
+
+  bool get hasMeaningfulFailure {
+    final value=order.failureReason?.trim()??'';
+    return value.isNotEmpty && value!='{}' && value!='[]' && value!='[object Object]';
+  }
+
   Future<void> copy(BuildContext context, String value, String label) async {
     await Clipboard.setData(ClipboardData(text: value));
     if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(label)));
@@ -1324,7 +1409,12 @@ class _OrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final terminal = ['COMPLETED', 'CANCELLED', 'REFUNDED', 'FAILED'].contains(order.status);
+    final tone=statusColor();
     return Card(
+      shape:RoundedRectangleBorder(
+        borderRadius:BorderRadius.circular(16),
+        side:BorderSide(color:tone.withValues(alpha:.22)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -1335,8 +1425,8 @@ class _OrderCard extends StatelessWidget {
                 Expanded(child: Text(fa ? (order.serviceTitleFa ?? order.product ?? 'شماره مجازی') : (order.serviceTitleEn ?? order.product ?? 'Virtual number'), style: const TextStyle(fontWeight: FontWeight.w900))),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                  decoration: BoxDecoration(color: const Color(0xFFEAF6FF), borderRadius: BorderRadius.circular(999)),
-                  child: Text(statusLabel(), style: const TextStyle(color: Color(0xFF0D78C8), fontSize: 11, fontWeight: FontWeight.w800)),
+                  decoration: BoxDecoration(color: statusBackground(), borderRadius: BorderRadius.circular(999)),
+                  child: Text(statusLabel(), style: TextStyle(color: tone, fontSize: 11, fontWeight: FontWeight.w900)),
                 ),
               ],
             ),
@@ -1393,7 +1483,7 @@ class _OrderCard extends StatelessWidget {
                     ),
                   )),
             ],
-            if (order.failureReason?.isNotEmpty == true) ...[
+            if (hasMeaningfulFailure) ...[
               const SizedBox(height: 8),
               Text(order.failureReason!, style: const TextStyle(color: Color(0xFFE65454), fontSize: 11)),
             ],
@@ -1402,7 +1492,7 @@ class _OrderCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                OutlinedButton.icon(onPressed: onRefresh, icon: const Icon(Icons.refresh_rounded), label: Text(fa ? 'بررسی SMS' : 'Check SMS')),
+                if (onRefresh != null) OutlinedButton.icon(onPressed: onRefresh, icon: const Icon(Icons.refresh_rounded), label: Text(fa ? 'بررسی SMS' : 'Check SMS')),
                 if (onFinish != null) FilledButton.tonalIcon(onPressed: onFinish, icon: const Icon(Icons.check_circle_outline), label: Text(fa ? 'پایان سفارش' : 'Finish')),
                 if (onCancel != null) OutlinedButton.icon(onPressed: onCancel, icon: const Icon(Icons.close_rounded), label: Text(fa ? 'لغو و برگشت وجه' : 'Cancel & refund')),
                 if (terminal) FilledButton.icon(onPressed: onBuyNew, icon: const Icon(Icons.add_rounded), label: Text(fa ? 'خرید شماره جدید' : 'Buy another number')),
