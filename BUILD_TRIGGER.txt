@@ -1,12 +1,12 @@
-Trigger signed Android build - VELIXEO v0.9.3 - 2026-09-21.
-Release scope:
-1) Normalize 5SIM SMS delivery-rate values so fractional API rates display as real percentages.
-2) Preserve all operator rows returned by 5SIM, including array/object response variants and deduplication by country/service/operator.
-3) Manual Virtual Numbers mirrors 5SIM comparison: price-sorted operators, per-operator stock, SMS delivery %, lowest/highest price, best-delivery tags, plus Any operator.
-4) Any operator purchase now selects from the same lowest-price-first live offer logic shown to the user.
-5) Country flags/names are resolved from complete ISO metadata with aliases instead of partial hardcoded flags.
-6) Known services use brand icons/colors; every unknown 5SIM service gets a visible deterministic initials badge instead of a missing generic icon.
-7) My Numbers is organized into Active / Completed / Cancelled / Failed / All; completed is green, cancelled/refunded red, failed dark red; terminal orders no longer show Check SMS.
-8) Virtual Numbers has an admin-managed entry banner. Admin can change image/text or disable it without an APK update; built-in information hero remains as fallback.
-9) Virtual panel and app performance improvements: parallel secondary API loading, staged startup render, parallel active-order polling, fewer full-screen timer rebuilds, lightweight balance-only refresh after number actions, optimized network image decoding.
-10) Backend CI and Flutter analyzer passed before this build.
+Trigger signed Android build - VELIXEO v0.9.3 - 2026-09-21 FINAL.
+Validated release scope:
+1) 5SIM delivery "rate" is kept in the provider's documented percentage units and displayed with two decimal precision when supplied.
+2) All operator rows returned by 5SIM are preserved across supported object/array response shapes and deduplicated only by country/service/operator.
+3) Manual Virtual Numbers mirrors the 5SIM comparison flow: price-sorted operators, stock, SMS delivery %, lowest/highest price, best-delivery labels, and an Any operator option.
+4) Any operator purchase uses the same live lowest-price-first selection shown to the customer.
+5) Country flags and display names resolve from full ISO metadata and aliases rather than a partial hardcoded list.
+6) Known services use brand icons/colors; unknown 5SIM services receive a distinct service initials badge instead of a missing/generic icon.
+7) My Numbers is organized into Active / Completed / Cancelled / Failed / All with green completion and red cancellation/failure states.
+8) Virtual Numbers has an admin-managed entry banner; image/text can be changed or disabled without an APK update and the built-in information hero is the fallback.
+9) Startup and Virtual Numbers performance: parallel secondary API calls, staged authenticated startup, parallel order polling, fewer timer rebuilds, lightweight balance refresh, and optimized network-image decoding.
+10) Flutter validation, backend CI and Railway production deployment passed for the final code.
