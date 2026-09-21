@@ -150,6 +150,92 @@ async function providerAfnPerUnit(prisma: PrismaClient, providerId: string) {
   return null;
 }
 
+async function virtualGlobalMarkupPercent(prisma: PrismaClient) {
+  const raw = await settingValue(prisma, 'virtual.globalMarkupPercent');
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 && value <= 1000 ? value : null;
+}
+
+async function virtualDefaultServiceEnabled(prisma: PrismaClient) {
+  const raw = await settingValue(prisma, 'virtual.defaultServiceEnabled');
+  return raw == null ? true : raw !== false && raw !== 'false' && raw !== 0;
+}
+
+async function ensureVirtualCatalogInitialized(prisma: PrismaClient) {
+  const key = 'virtual.autoPublishInitializedV2';
+  const done = await settingValue(prisma, key);
+  if (done === true) return;
+  await prisma.$transaction([
+    prisma.service.updateMany({
+      where: { category: ServiceCategory.VIRTUAL_NUMBER },
+      data: { enabled: true },
+    }),
+    prisma.systemSetting.upsert({
+      where: { key },
+      update: { value: true, category: 'virtual_number', description: 'One-time auto-publish migration for existing virtual-number services' },
+      create: { key, value: true, category: 'virtual_number', description: 'One-time auto-publish migration for existing virtual-number services' },
+    }),
+    prisma.systemSetting.upsert({
+      where: { key: 'virtual.defaultServiceEnabled' },
+      update: { value: true, category: 'virtual_number', description: 'Default visibility for newly synced virtual-number services' },
+      create: { key: 'virtual.defaultServiceEnabled', value: true, category: 'virtual_number', description: 'Default visibility for newly synced virtual-number services' },
+    }),
+  ]);
+}
+
+const virtualPriorityNames = [
+  'telegram','instagram','whatsapp','facebook','pinterest','tiktok','youtube',
+  'twitter','x','snapchat','discord','google','gmail','amazon','microsoft',
+  'apple','linkedin','uber','airbnb','netflix','spotify'
+];
+function virtualServiceSortOrder(product: string) {
+  const normalized = product.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const index = virtualPriorityNames.findIndex((name) => normalized === name || normalized.includes(name));
+  return index >= 0 ? index + 1 : 1000;
+}
+function titleCaseVirtual(value: string) {
+  const aliases: Record<string,string> = {
+    whatsapp: 'WhatsApp', instagram: 'Instagram', telegram: 'Telegram',
+    facebook: 'Facebook', pinterest: 'Pinterest', tiktok: 'TikTok',
+    youtube: 'YouTube', twitter: 'X / Twitter', x: 'X',
+    snapchat: 'Snapchat', discord: 'Discord', gmail: 'Gmail',
+  };
+  const key = value.trim().toLowerCase();
+  return aliases[key] ?? value.replace(/[-_]+/g,' ').replace(/\b\w/g,(m)=>m.toUpperCase());
+}
+
+const countryFallback: Record<string,{name:string;iso:string}> = {
+  afghanistan:{name:'Afghanistan',iso:'AF'}, england:{name:'United Kingdom',iso:'GB'},
+  unitedkingdom:{name:'United Kingdom',iso:'GB'}, uk:{name:'United Kingdom',iso:'GB'},
+  usa:{name:'United States',iso:'US'}, unitedstates:{name:'United States',iso:'US'},
+  canada:{name:'Canada',iso:'CA'}, germany:{name:'Germany',iso:'DE'}, france:{name:'France',iso:'FR'},
+  india:{name:'India',iso:'IN'}, pakistan:{name:'Pakistan',iso:'PK'}, iran:{name:'Iran',iso:'IR'},
+  turkey:{name:'Turkey',iso:'TR'}, russia:{name:'Russia',iso:'RU'}, kazakhstan:{name:'Kazakhstan',iso:'KZ'},
+  uzbekistan:{name:'Uzbekistan',iso:'UZ'}, tajikistan:{name:'Tajikistan',iso:'TJ'}, turkmenistan:{name:'Turkmenistan',iso:'TM'},
+  azerbaijan:{name:'Azerbaijan',iso:'AZ'}, uae:{name:'United Arab Emirates',iso:'AE'}, saudiarabia:{name:'Saudi Arabia',iso:'SA'},
+  qatar:{name:'Qatar',iso:'QA'}, china:{name:'China',iso:'CN'}, japan:{name:'Japan',iso:'JP'},
+  southkorea:{name:'South Korea',iso:'KR'}, indonesia:{name:'Indonesia',iso:'ID'}, malaysia:{name:'Malaysia',iso:'MY'},
+  thailand:{name:'Thailand',iso:'TH'}, vietnam:{name:'Vietnam',iso:'VN'}, philippines:{name:'Philippines',iso:'PH'},
+  brazil:{name:'Brazil',iso:'BR'}, mexico:{name:'Mexico',iso:'MX'}, argentina:{name:'Argentina',iso:'AR'},
+  australia:{name:'Australia',iso:'AU'}, italy:{name:'Italy',iso:'IT'}, spain:{name:'Spain',iso:'ES'},
+  netherlands:{name:'Netherlands',iso:'NL'}, poland:{name:'Poland',iso:'PL'}, ukraine:{name:'Ukraine',iso:'UA'},
+};
+function countryFlag(iso: string) {
+  const code=iso.trim().toUpperCase();
+  if(!/^[A-Z]{2}$/.test(code))return '🌐';
+  return String.fromCodePoint(...[...code].map(ch=>127397+ch.charCodeAt(0)));
+}
+function virtualCountryMeta(code:string, providerRow?:unknown){
+  const key=code.trim().toLowerCase().replace(/[^a-z]/g,'');
+  const row=providerRow&&typeof providerRow==='object'&&!Array.isArray(providerRow)?providerRow as Record<string,unknown>:{};
+  const fallback=countryFallback[key];
+  const rawIso=String(row.iso??row.iso2??row.code??fallback?.iso??'').trim().toUpperCase();
+  const iso=/^[A-Z]{2}$/.test(rawIso)?rawIso:(fallback?.iso??'');
+  const rawName=String(row.text??row.name??row.title??fallback?.name??'').trim();
+  const name=rawName||code.replace(/[-_]+/g,' ').replace(/\b\w/g,(m)=>m.toUpperCase());
+  return{name,iso,flag:countryFlag(iso)};
+}
+
 const pricesCache = new Map<string, { expiresAt: number; rows: FiveSimPrice[] }>();
 const countriesCache = new Map<string, { expiresAt: number; data: Record<string, unknown> }>();
 
@@ -400,6 +486,8 @@ async function syncProviderServices(prisma: PrismaClient, providerId: string) {
   if (!provider) throw new Error('PROVIDER_NOT_FOUND');
   const rows = await providerPrices(provider);
   const products = [...new Set(rows.map((row) => row.product).filter(Boolean))].sort();
+  const defaultEnabled = await virtualDefaultServiceEnabled(prisma);
+  const globalMarkup = await virtualGlobalMarkupPercent(prisma);
   let created = 0;
   let updated = 0;
   for (const product of products) {
@@ -410,19 +498,23 @@ async function syncProviderServices(prisma: PrismaClient, providerId: string) {
           where: { id: existing.id },
           data: {
             category: ServiceCategory.VIRTUAL_NUMBER,
-            metadata: { source: 'virtual_provider_sync', product },
+            titleEn: titleCaseVirtual(product),
+            titleFa: titleCaseVirtual(product),
+            sortOrder: virtualServiceSortOrder(product),
+            metadata: { ...(existing.metadata && typeof existing.metadata === 'object' && !Array.isArray(existing.metadata) ? existing.metadata as Record<string,unknown> : {}), source: 'virtual_provider_sync', product },
           },
         })
       : await prisma.service.create({
           data: {
             category: ServiceCategory.VIRTUAL_NUMBER,
             slug,
-            titleFa: product,
-            titleEn: product,
+            titleFa: titleCaseVirtual(product),
+            titleEn: titleCaseVirtual(product),
             descriptionFa: 'دریافت شماره مجازی و کد SMS',
             descriptionEn: 'Virtual number and SMS activation',
-            enabled: false,
-            sortOrder: 100,
+            enabled: defaultEnabled,
+            featured: virtualServiceSortOrder(product) <= 8,
+            sortOrder: virtualServiceSortOrder(product),
             priceUnit: 1,
             minQty: 1,
             maxQty: 1,
@@ -455,6 +547,7 @@ async function syncProviderServices(prisma: PrismaClient, providerId: string) {
         providerServiceCode: product,
         enabled: true,
         priority: provider.priority,
+        markupPercent: globalMarkup == null ? null : new Prisma.Decimal(globalMarkup),
         providerName: provider.name,
         providerType: '5SIM',
         providerCategory: 'activation',
@@ -465,7 +558,7 @@ async function syncProviderServices(prisma: PrismaClient, providerId: string) {
       },
     });
   }
-  return { total: products.length, created, updated };
+  return { total: products.length, created, updated, autoPublished: defaultEnabled, globalMarkup };
 }
 
 function adminShell(admin: AdminIdentity, body: string, message = '') {
@@ -479,6 +572,7 @@ export function registerVirtualNumberRoutes(
   resolveAdmin: AdminResolver,
 ) {
   app.get('/api/v1/virtual-numbers/catalog', async (_request, reply) => {
+    await ensureVirtualCatalogInitialized(prisma);
     const services = await prisma.service.findMany({
       where: { category: ServiceCategory.VIRTUAL_NUMBER, enabled: true },
       include: {
@@ -488,8 +582,22 @@ export function registerVirtualNumberRoutes(
           orderBy: [{ priority: 'asc' }, { provider: { priority: 'asc' } }],
         },
       },
-      orderBy: [{ featured: 'desc' }, { sortOrder: 'asc' }, { titleEn: 'asc' }],
+      orderBy: [{ sortOrder: 'asc' }, { featured: 'desc' }, { titleEn: 'asc' }],
     });
+    const countryMetadata = new Map<string,{name:string;iso:string;flag:string}>();
+    const seenProviders = new Set<string>();
+    for (const service of services) {
+      for (const route of service.routes) {
+        if (seenProviders.has(route.provider.id)) continue;
+        seenProviders.add(route.provider.id);
+        try {
+          const raw = await providerCountries(route.provider);
+          for (const [code,row] of Object.entries(raw)) {
+            countryMetadata.set(code.toLowerCase(), virtualCountryMeta(code,row));
+          }
+        } catch {}
+      }
+    }
     const result = [];
     for (const service of services) {
       if (service.routes.length === 0) continue;
@@ -520,8 +628,11 @@ export function registerVirtualNumberRoutes(
         descriptionEn: service.descriptionEn,
         featured: service.featured,
         countries: [...byCountry.entries()]
-          .map(([code, value]) => ({ code, ...value }))
-          .sort((a, b) => a.minPriceAfn - b.minPriceAfn || a.code.localeCompare(b.code)),
+          .map(([code, value]) => {
+            const meta=countryMetadata.get(code.toLowerCase())??virtualCountryMeta(code);
+            return { code, name:meta.name, iso:meta.iso, flag:meta.flag, ...value };
+          })
+          .sort((a, b) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code)),
       });
     }
     return reply.send({ baseCurrency: 'AFN', services: result });
@@ -919,6 +1030,71 @@ export function registerVirtualNumberRoutes(
       },
     });
     return reply.code(303).redirect(returnTo + (returnTo.includes('?') ? '&' : '?') + 'msg=countries_saved');
+  });
+
+  app.post('/admin/virtual-numbers/services-bulk', async (request, reply) => {
+    const admin = await resolveAdmin(request);
+    if (!admin) return reply.code(303).redirect('/admin');
+    const body=request.body as AnyBody;
+    const returnTo=safeVirtualAdminReturn(body,'/admin/v3?section=virtual&tab=services');
+    const enabled=checked(body,'enabled');
+    await prisma.$transaction([
+      prisma.service.updateMany({where:{category:ServiceCategory.VIRTUAL_NUMBER},data:{enabled}}),
+      prisma.systemSetting.upsert({
+        where:{key:'virtual.defaultServiceEnabled'},
+        update:{value:enabled,category:'virtual_number',description:'Default visibility for newly synced virtual-number services'},
+        create:{key:'virtual.defaultServiceEnabled',value:enabled,category:'virtual_number',description:'Default visibility for newly synced virtual-number services'},
+      }),
+    ]);
+    await prisma.adminAuditLog.create({data:{adminUserId:admin.id,action:'VIRTUAL_NUMBER_SERVICES_BULK',entityType:'Service',entityId:null,summary:`All virtual-number services enabled=${enabled}`}});
+    pricesCache.clear();
+    return reply.code(303).redirect(returnTo+(returnTo.includes('?')?'&':'?')+`msg=${enabled?'all_services_enabled':'all_services_disabled'}`);
+  });
+
+  app.post('/admin/virtual-numbers/pricing-global', async (request, reply) => {
+    const admin = await resolveAdmin(request);
+    if (!admin) return reply.code(303).redirect('/admin');
+    const body=request.body as AnyBody;
+    const returnTo=safeVirtualAdminReturn(body,'/admin/v3?section=virtual&tab=pricing');
+    const markup=Number(text(body,'markup'));
+    if(!Number.isFinite(markup)||markup<0||markup>1000)return reply.code(303).redirect(returnTo+'&err=1&msg=invalid_markup');
+    const providerIds=(await prisma.provider.findMany({where:{kind:ProviderKind.VIRTUAL_NUMBER},select:{id:true}})).map(x=>x.id);
+    await prisma.$transaction([
+      prisma.serviceProviderRoute.updateMany({where:{providerId:{in:providerIds}},data:{markupPercent:new Prisma.Decimal(markup)}}),
+      prisma.systemSetting.upsert({
+        where:{key:'virtual.globalMarkupPercent'},
+        update:{value:markup,category:'virtual_number',description:'Default/global markup percent for all virtual-number routes'},
+        create:{key:'virtual.globalMarkupPercent',value:markup,category:'virtual_number',description:'Default/global markup percent for all virtual-number routes'},
+      }),
+    ]);
+    pricesCache.clear();
+    await prisma.adminAuditLog.create({data:{adminUserId:admin.id,action:'VIRTUAL_NUMBER_GLOBAL_MARKUP',entityType:'ServiceProviderRoute',entityId:null,summary:`Global virtual-number markup set to ${markup}%`}});
+    return reply.code(303).redirect(returnTo+'&msg=global_markup_saved');
+  });
+
+  app.post('/admin/virtual-numbers/service-pricing', async (request, reply) => {
+    const admin = await resolveAdmin(request);
+    if (!admin) return reply.code(303).redirect('/admin');
+    const body=request.body as AnyBody;
+    const returnTo=safeVirtualAdminReturn(body,'/admin/v3?section=virtual&tab=services');
+    const serviceId=text(body,'serviceId');
+    const markup=Number(text(body,'markup'));
+    const fixedRaw=text(body,'fixedPriceAfn');
+    if(!serviceId||!Number.isFinite(markup)||markup<0||markup>1000)return reply.code(303).redirect(returnTo+'&err=1&msg=invalid_service_pricing');
+    let fixed:bigint|null=null;
+    if(fixedRaw){
+      try{fixed=BigInt(fixedRaw);if(fixed<=0n)throw new Error('bad')}catch{return reply.code(303).redirect(returnTo+'&err=1&msg=invalid_fixed_price')}
+    }
+    const service=await prisma.service.findFirst({where:{id:serviceId,category:ServiceCategory.VIRTUAL_NUMBER}});
+    if(!service)return reply.code(303).redirect(returnTo+'&err=1&msg=service_not_found');
+    const providerIds=(await prisma.provider.findMany({where:{kind:ProviderKind.VIRTUAL_NUMBER},select:{id:true}})).map(x=>x.id);
+    await prisma.$transaction([
+      prisma.service.update({where:{id:serviceId},data:{basePriceAfn:fixed}}),
+      prisma.serviceProviderRoute.updateMany({where:{serviceId,providerId:{in:providerIds}},data:{markupPercent:new Prisma.Decimal(markup)}}),
+    ]);
+    pricesCache.clear();
+    await prisma.adminAuditLog.create({data:{adminUserId:admin.id,action:'VIRTUAL_NUMBER_SERVICE_PRICING',entityType:'Service',entityId:serviceId,summary:`${service.slug}: markup=${markup}%, fixed=${fixed?.toString()??'dynamic'} AFN`}});
+    return reply.code(303).redirect(returnTo+'&msg=service_pricing_saved');
   });
 
   app.post('/admin/virtual-numbers/service-toggle', async (request, reply) => {
