@@ -607,6 +607,107 @@ async function syncProviderServices(prisma: PrismaClient, providerId: string) {
   return { total: products.length, created, updated, autoPublished: defaultEnabled, globalMarkup };
 }
 
+type VirtualDisplayChange = {
+  serviceId: string;
+  sortOrder: number;
+  orderChanged?: boolean;
+  iconData?: string;
+  removeIcon?: boolean;
+};
+
+async function applyVirtualDisplayChanges(
+  prisma: PrismaClient,
+  rawChanges: VirtualDisplayChange[],
+) {
+  const changes = [...new Map(rawChanges.map((change) => [change.serviceId, change])).values()];
+  if (changes.length === 0) return { changed: 0, reordered: 0, iconChanges: 0 };
+
+  const services = await prisma.service.findMany({
+    where: { category: ServiceCategory.VIRTUAL_NUMBER },
+    select: { id: true, slug: true, sortOrder: true, titleEn: true, metadata: true },
+    orderBy: [{ sortOrder: 'asc' }, { titleEn: 'asc' }, { id: 'asc' }],
+  });
+  const byId = new Map(services.map((service) => [service.id, service]));
+  for (const change of changes) {
+    if (!byId.has(change.serviceId)) throw new Error('service_not_found');
+    if (!Number.isInteger(change.sortOrder) || change.sortOrder < 1 || change.sortOrder > 1000000) {
+      throw new Error('invalid_display_settings');
+    }
+  }
+
+  const metadataUpdates = new Map<string, Prisma.InputJsonValue>();
+  let iconChanges = 0;
+  const now = new Date().toISOString();
+  for (const change of changes) {
+    const service = byId.get(change.serviceId)!;
+    if (!change.removeIcon && !change.iconData) continue;
+    const metadata = virtualServiceMetadata(service.metadata);
+    const nextMetadata: Record<string, unknown> = { ...metadata };
+    if (change.removeIcon) {
+      delete nextMetadata.virtualIconDataUri;
+      delete nextMetadata.virtualIconUpdatedAt;
+      iconChanges += 1;
+    } else if (change.iconData) {
+      const parsed = virtualIconParts(change.iconData);
+      if (!parsed) throw new Error('invalid_icon_type');
+      const bytes = Buffer.from(parsed.base64, 'base64');
+      if (bytes.length === 0 || bytes.length > 160 * 1024) throw new Error('icon_too_large');
+      nextMetadata.virtualIconDataUri = change.iconData;
+      nextMetadata.virtualIconUpdatedAt = now;
+      iconChanges += 1;
+    }
+    metadataUpdates.set(service.id, nextMetadata as Prisma.InputJsonValue);
+  }
+
+  const moves = changes
+    .map((change) => {
+      const service = byId.get(change.serviceId)!;
+      const orderChanged = change.orderChanged ?? change.sortOrder !== service.sortOrder;
+      return {
+        ...change,
+        orderChanged,
+        originalIndex: services.findIndex((item) => item.id === change.serviceId),
+      };
+    })
+    .filter((change) => change.orderChanged)
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.originalIndex - b.originalIndex);
+
+  let finalOrder = services.map((service) => service.id);
+  if (moves.length) {
+    const movingIds = new Set(moves.map((move) => move.serviceId));
+    finalOrder = finalOrder.filter((serviceId) => !movingIds.has(serviceId));
+    const sameTargetOffsets = new Map<number, number>();
+    for (const move of moves) {
+      const target = Math.max(1, Math.min(services.length, move.sortOrder));
+      const offset = sameTargetOffsets.get(target) ?? 0;
+      const insertionIndex = Math.max(0, Math.min(finalOrder.length, target - 1 + offset));
+      finalOrder.splice(insertionIndex, 0, move.serviceId);
+      sameTargetOffsets.set(target, offset + 1);
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    if (moves.length) {
+      const values = finalOrder.map((serviceId, index) => Prisma.sql`(${serviceId}, ${index + 1})`);
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE "Service" AS service
+        SET "sortOrder" = ordered.position
+        FROM (VALUES ${Prisma.join(values)}) AS ordered(id, position)
+        WHERE service.id = ordered.id
+      `);
+    }
+    for (const [serviceId, metadata] of metadataUpdates.entries()) {
+      await tx.service.update({ where: { id: serviceId }, data: { metadata } });
+    }
+  });
+
+  return {
+    changed: changes.length,
+    reordered: moves.length,
+    iconChanges,
+  };
+}
+
 function adminShell(admin: AdminIdentity, body: string, message = '') {
   return `<!doctype html><html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>شماره مجازی — VELIXEO</title><style>:root{--p:#0D78C8;--sky:#31A8FF;--bg:#F4FAFF;--text:#102235;--muted:#607487;--line:#DCE8F1;--ok:#18A875;--bad:#E65454}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif}.wrap{max-width:1500px;margin:auto;padding:22px}.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.top h1{margin:0}.spacer{flex:1}.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:17px;margin-top:14px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.muted{color:var(--muted);font-size:12px}.btn,.ghost{border-radius:11px;padding:10px 14px;text-decoration:none;cursor:pointer}.btn{border:0;background:linear-gradient(135deg,var(--sky),var(--p));color:#fff;font-weight:800}.ghost{border:1px solid var(--line);background:#fff;color:var(--text)}.field{margin-top:10px}.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}.field input,.field textarea{width:100%;border:1px solid var(--line);border-radius:11px;padding:10px;background:#fff}.field textarea{min-height:90px}.table{overflow:auto}.table table{width:100%;border-collapse:collapse;min-width:900px}th,td{padding:10px;border-bottom:1px solid #EDF3F7;text-align:left;font-size:12px}th{color:var(--muted)}.badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#EDF4F8;font-size:11px}.ok{background:#E7F8F1;color:#0A8B5B}.off{background:#FFF0F0;color:#B33737}.msg{background:#E7F8F1;border:1px solid #C7EFDC;color:#0A8B5B;padding:10px;border-radius:12px;margin-top:12px}.warn{background:#FFF7E8;border:1px solid #FFE3AE;color:#8E5D0C;padding:10px;border-radius:12px;margin-top:12px}.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;direction:ltr;text-align:left}@media(max-width:900px){.grid,.grid3{grid-template-columns:1fr}.wrap{padding:14px}}</style></head><body><main class="wrap"><div class="top"><div><h1>پنل شماره مجازی</h1><div class="muted">5SIM / SMS Activation • Providerها برای مشتری مخفی هستند</div></div><span class="spacer"></span><span class="muted">${esc(admin.fullName || admin.email || admin.phone || 'ADMIN')}</span><a class="ghost" href="/admin">مدیریت اصلی</a><a class="ghost" href="/admin/providers">Provider و API</a></div>${message ? `<div class="msg">${esc(message)}</div>` : ''}${body}</main></body></html>`;
 }
@@ -1228,6 +1329,44 @@ export function registerVirtualNumberRoutes(
     return reply.code(303).redirect(returnTo+'&msg=service_pricing_saved');
   });
 
+  app.post(
+    '/admin/virtual-numbers/service-display-bulk',
+    { bodyLimit: 8 * 1024 * 1024 },
+    async (request, reply) => {
+      const admin = await resolveAdmin(request);
+      if (!admin) return reply.code(401).send({ error: 'admin_required' });
+      const parsed = z.object({
+        changes: z.array(z.object({
+          serviceId: z.string().min(1),
+          sortOrder: z.number().int().min(1).max(1000000),
+          orderChanged: z.boolean().optional(),
+          iconData: z.string().max(240000).optional().default(''),
+          removeIcon: z.boolean().optional().default(false),
+        })).min(1).max(50),
+      }).safeParse(request.body);
+      if (!parsed.success) return reply.code(400).send({ error: 'invalid_display_settings' });
+
+      try {
+        const result = await applyVirtualDisplayChanges(prisma, parsed.data.changes);
+        await prisma.adminAuditLog.create({
+          data: {
+            adminUserId: admin.id,
+            action: 'VIRTUAL_NUMBER_SERVICE_DISPLAY_BULK',
+            entityType: 'Service',
+            entityId: null,
+            summary: `Bulk display save: ${result.changed} services, ${result.reordered} reordered, ${result.iconChanges} icon changes`,
+            metadata: result,
+          },
+        });
+        return reply.send({ ok: true, ...result });
+      } catch (error) {
+        const code = error instanceof Error ? error.message : 'bulk_display_save_failed';
+        const status = ['service_not_found','invalid_display_settings','invalid_icon_type','icon_too_large'].includes(code) ? 400 : 500;
+        return reply.code(status).send({ error: code });
+      }
+    },
+  );
+
   app.post('/admin/virtual-numbers/service-display', async (request, reply) => {
     const admin = await resolveAdmin(request);
     if (!admin) return reply.code(303).redirect('/admin');
@@ -1243,35 +1382,22 @@ export function registerVirtualNumberRoutes(
     }
     const service = await prisma.service.findFirst({
       where: { id: serviceId, category: ServiceCategory.VIRTUAL_NUMBER },
+      select: { id: true, slug: true, sortOrder: true },
     });
     if (!service) return reply.code(303).redirect(returnTo + '&err=1&msg=service_not_found');
 
-    const metadata = virtualServiceMetadata(service.metadata);
-    let nextMetadata: Record<string, unknown> = { ...metadata };
-    if (removeIcon) {
-      delete nextMetadata.virtualIconDataUri;
-      delete nextMetadata.virtualIconUpdatedAt;
-    } else if (iconData) {
-      const parsed = virtualIconParts(iconData);
-      if (!parsed) return reply.code(303).redirect(returnTo + '&err=1&msg=invalid_icon_type');
-      const bytes = Buffer.from(parsed.base64, 'base64');
-      if (bytes.length === 0 || bytes.length > 160 * 1024) {
-        return reply.code(303).redirect(returnTo + '&err=1&msg=icon_too_large');
-      }
-      nextMetadata = {
-        ...nextMetadata,
-        virtualIconDataUri: iconData,
-        virtualIconUpdatedAt: new Date().toISOString(),
-      };
-    }
-
-    await prisma.service.update({
-      where: { id: service.id },
-      data: {
+    try {
+      await applyVirtualDisplayChanges(prisma, [{
+        serviceId,
         sortOrder: order,
-        metadata: nextMetadata as Prisma.InputJsonValue,
-      },
-    });
+        orderChanged: order !== service.sortOrder,
+        iconData,
+        removeIcon,
+      }]);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : 'service_display_save_failed';
+      return reply.code(303).redirect(returnTo + '&err=1&msg=' + encodeURIComponent(code));
+    }
     await prisma.adminAuditLog.create({
       data: {
         adminUserId: admin.id,
