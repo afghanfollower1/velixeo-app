@@ -478,6 +478,7 @@ async function refundPremiumOrder(prisma: PrismaClient, orderId: string, reason:
           refundedAt: new Date().toISOString(),
         } as Prisma.InputJsonValue,
       },
+      include: { service: true },
     });
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
