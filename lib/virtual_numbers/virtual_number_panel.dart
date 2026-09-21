@@ -631,7 +631,9 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
                 children: [
-                  _InfoHero(fa: fa),
+                  virtualBanner == null
+                      ? _InfoHero(fa: fa)
+                      : _VirtualPromoBanner(banner: virtualBanner!, fa: fa),
                   const SizedBox(height: 14),
                   SegmentedButton<int>(
                     segments: [
@@ -944,6 +946,81 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     );
   }
 
+}
+
+class _VirtualPromoBanner extends StatelessWidget {
+  const _VirtualPromoBanner({required this.banner,required this.fa});
+  final AppBanner banner;
+  final bool fa;
+
+  @override
+  Widget build(BuildContext context){
+    final title=(fa?banner.titleFa:banner.titleEn)?.trim();
+    final subtitle=(fa?banner.subtitleFa:banner.subtitleEn)?.trim();
+    final imageUrl=banner.imageUrl.trim();
+    return ClipRRect(
+      borderRadius:BorderRadius.circular(24),
+      child:SizedBox(
+        height:154,
+        child:Stack(
+          fit:StackFit.expand,
+          children:[
+            Container(
+              decoration:const BoxDecoration(
+                gradient:LinearGradient(
+                  colors:[Color(0xFF0B5F9F),Color(0xFF1597DC),Color(0xFF31A8FF)],
+                ),
+              ),
+            ),
+            if(imageUrl.isNotEmpty)
+              Image.network(
+                imageUrl,
+                fit:BoxFit.cover,
+                cacheWidth:1080,
+                filterQuality:FilterQuality.low,
+                gaplessPlayback:true,
+                loadingBuilder:(context,child,progress)=>progress==null?child:const SizedBox.shrink(),
+                errorBuilder:(_,__,___)=>const SizedBox.shrink(),
+              ),
+            Container(
+              decoration:const BoxDecoration(
+                gradient:LinearGradient(
+                  begin:Alignment.centerLeft,
+                  end:Alignment.centerRight,
+                  colors:[Color(0xA8001830),Color(0x33001830),Color(0x05001830)],
+                ),
+              ),
+            ),
+            Padding(
+              padding:const EdgeInsets.all(18),
+              child:Column(
+                crossAxisAlignment:CrossAxisAlignment.start,
+                mainAxisAlignment:MainAxisAlignment.end,
+                children:[
+                  if(title?.isNotEmpty==true)
+                    Text(
+                      title!,
+                      maxLines:2,
+                      overflow:TextOverflow.ellipsis,
+                      style:const TextStyle(color:Colors.white,fontSize:20,fontWeight:FontWeight.w900),
+                    ),
+                  if(subtitle?.isNotEmpty==true)...[
+                    const SizedBox(height:5),
+                    Text(
+                      subtitle!,
+                      maxLines:2,
+                      overflow:TextOverflow.ellipsis,
+                      style:const TextStyle(color:Color(0xFFE8F5FF),fontSize:11.5,height:1.35,fontWeight:FontWeight.w600),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _InfoHero extends StatelessWidget {
