@@ -4,14 +4,17 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:country_picker/country_picker.dart';
 
 import '../core/api_service.dart';
+import '../core/models.dart';
 import 'virtual_number_models.dart';
 
 abstract class VirtualNumberPanelHost {
   ApiService get api;
   bool get fa;
   int get balanceAfn;
+  List<AppBanner> get banners;
   String money(int amountAfn, {bool showBase});
   Future<void> refreshAccount();
 }
@@ -36,6 +39,8 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
   bool loadingOffers = false;
   bool buying = false;
   bool polling = false;
+  String orderFilter = 'ACTIVE';
+  AppBanner? virtualBanner;
   String? error;
   Timer? tickTimer;
   Timer? pollTimer;
@@ -47,9 +52,11 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
   @override
   void initState() {
     super.initState();
+    virtualBanner = _pickVirtualBanner(host.banners);
     load();
+    unawaited(loadVirtualBanner());
     tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
+      if (mounted && tab == 2 && orders.any(isActive)) setState(() {});
     });
     pollTimer = Timer.periodic(const Duration(seconds: 8), (_) => pollActiveOrders());
   }
@@ -88,18 +95,35 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
         selectedService = service;
         selectedCountry = null;
         offers = null;
-        await loadCountries(service, preferredCountryCode: previousCountryCode);
-      } else {
-        selectedService = null;
-        selectedCountry = null;
-        offers = null;
+        if (mounted) setState(() => loading = false);
+        unawaited(loadCountries(service, preferredCountryCode: previousCountryCode));
+        return;
       }
+      selectedService = null;
+      selectedCountry = null;
+      offers = null;
     } on ApiException catch (e) {
       error = e.code;
     } catch (_) {
       error = 'network_error';
     } finally {
-      if (mounted) setState(() => loading = false);
+      if (mounted && loading) setState(() => loading = false);
+    }
+  }
+
+  Future<void> loadVirtualBanner() async {
+    try {
+      final rows = await host.api.banners();
+      if (!mounted) return;
+      final next = _pickVirtualBanner(rows);
+      if (next?.id != virtualBanner?.id ||
+          next?.imageUrl != virtualBanner?.imageUrl ||
+          next?.titleEn != virtualBanner?.titleEn ||
+          next?.subtitleEn != virtualBanner?.subtitleEn) {
+        setState(() => virtualBanner = next);
+      }
+    } catch (_) {
+      // The default informational hero stays visible when the remote banner is unavailable.
     }
   }
 
@@ -126,7 +150,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
         selectedService = hydrated;
         selectedCountry = preferred ?? sorted.firstOrNull;
       });
-      await loadOffers();
+      unawaited(loadOffers());
     } on ApiException catch (e) {
       if (mounted && selectedService?.id == service.id) {
         setState(() {
@@ -305,12 +329,22 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     if (active.isEmpty) return;
     polling = true;
     try {
-      for (final item in active) {
-        try {
-          final updated = await host.api.checkVirtualNumberOrder(item.id);
-          replaceOrder(updated);
-        } catch (_) {}
+      final updates = await Future.wait(
+        active.map((item) async {
+          try {
+            return await host.api.checkVirtualNumberOrder(item.id);
+          } catch (_) {
+            return null;
+          }
+        }),
+      );
+      if (!mounted) return;
+      final next=[...orders];
+      for(final updated in updates.whereType<VirtualOrder>()){
+        final index=next.indexWhere((item)=>item.id==updated.id);
+        if(index>=0) next[index]=updated; else next.insert(0,updated);
       }
+      setState(()=>orders=next);
     } finally {
       polling = false;
     }
