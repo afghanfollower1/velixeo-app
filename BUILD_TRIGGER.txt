@@ -1,7 +1,10 @@
-Trigger signed Android build - VELIXEO v0.9.0 - 2026-09-20.
-Completed release scope:
-1) WhatsApp verification privacy: no visible official number, copyable secure verification link, same-device and second-device guidance.
-2) User/admin account controls: self-delete, temporary/permanent suspension, admin soft-delete, independent permanent phone blacklist.
-3) Invite Friends: referral codes/links, branded app page, WhatsApp/Telegram share, invite/reward tracking and admin controls.
-4) Virtual Numbers: isolated VIRTUAL_NUMBER/5SIM workspace, live catalog, Best Rate/Low Price/Any Operator, provider cost accounting, order action logs, sync/country/pricing/service controls.
-5) Regression: Social Media logic intentionally unchanged and backend/Flutter validation passed before release.
+Trigger signed Android build - VELIXEO v0.9.1 - 2026-09-21.
+Release scope:
+1) Referral registration pays zero; inviter commission is percentage-based only on signature-verified HesabPay wallet top-ups, idempotent per payment.
+2) Admin referral setting controls commission percentage and displays referred top-ups and commissions.
+3) 5SIM virtual catalog auto-syncs/auto-publishes all enabled provider products on first catalog load; bulk enable/disable remains available.
+4) Virtual pricing supports global percentage markup plus per-service percentage/fixed AFN overrides.
+5) Smart Buy recommends best/stable and cheapest countries without manual country selection using live delivery rate, stock and price.
+6) Service and country selectors are searchable; countries have flags/names and alphabetical ordering; popular services are prioritized.
+7) Popular service icons use their own brand icons/colors.
+8) Social Media app and admin logic remain unchanged from v0.9.0.
