@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../core/api_service.dart';
 import 'virtual_number_models.dart';
@@ -140,43 +141,69 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     loadOffers();
   }
 
-  Future<void> buy({required String operatorName, required String mode}) async {
+  Future<void> buy({
+    required String operatorName,
+    required String mode,
+    VirtualCountry? countryOverride,
+  }) async {
     final service = selectedService;
-    final country = selectedCountry;
+    final country = countryOverride ?? selectedCountry;
     if (service == null || country == null || buying) return;
-    final preview = mode == 'LOW_PRICE'
-        ? offers?.lowPrice
-        : mode == 'ANY'
-            ? offers?.anyOperator
-            : operatorName == 'any'
-                ? offers?.bestRate
-                : offers?.operators.where((item) => item.operatorName == operatorName).firstOrNull;
-    if (preview != null && preview.priceAfn > host.balanceAfn) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t('موجودی کیف پول کافی نیست.', 'Your wallet balance is not enough.'))),
-      );
-      return;
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(t('تأیید خرید شماره', 'Confirm number purchase')),
-        content: Text(
-          preview == null
-              ? t('شماره از بهترین مسیر موجود انتخاب می‌شود.', 'The number will be selected from the best available route.')
-              : '${t('قیمت', 'Price')}: ${host.money(preview.priceAfn, showBase: true)}\n${t('کشور', 'Country')}: ${country.code}\n${t('اپراتور', 'Operator')}: ${operatorName == 'any' ? t('هوشمند', 'Smart') : operatorName}',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(t('لغو', 'Cancel'))),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(t('خرید', 'Buy'))),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
 
     setState(() => buying = true);
     try {
+      VirtualOffers? liveOffers;
+      if (selectedCountry?.code == country.code && offers != null) {
+        liveOffers = offers;
+      } else {
+        liveOffers = await host.api.virtualNumberOffers(
+          serviceId: service.id,
+          country: country.code,
+        );
+      }
+      final preview = mode == 'LOW_PRICE'
+          ? liveOffers.lowPrice
+          : mode == 'ANY'
+              ? liveOffers.anyOperator
+              : operatorName == 'any'
+                  ? liveOffers.bestRate
+                  : liveOffers.operators.where((item) => item.operatorName == operatorName).firstOrNull;
+
+      if (preview == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(t('برای این انتخاب شماره موجود نیست.', 'No live number is available for this selection.'))),
+          );
+        }
+        return;
+      }
+      if (preview.priceAfn > host.balanceAfn) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(t('موجودی کیف پول کافی نیست.', 'Your wallet balance is not enough.'))),
+          );
+        }
+        return;
+      }
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(t('تأیید خرید شماره', 'Confirm number purchase')),
+          content: Text(
+            '${t('قیمت', 'Price')}: ${host.money(preview.priceAfn, showBase: true)}\n'
+            '${t('کشور', 'Country')}: ${country.flag} ${country.name}\n'
+            '${t('اپراتور', 'Operator')}: ${operatorName == 'any' ? t('هوشمند', 'Smart') : operatorName}'
+            '${preview.deliveryPercent == null ? '' : '\n${t('نرخ تحویل', 'Delivery rate')}: ${preview.deliveryPercent!.toStringAsFixed(1)}%'}',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: Text(t('لغو', 'Cancel'))),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(t('خرید', 'Buy'))),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+
       final order = await host.api.createVirtualNumberOrder(
         serviceId: service.id,
         country: country.code,
@@ -289,6 +316,108 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
 
   String serviceName(VirtualService service) => fa ? service.titleFa : service.titleEn;
 
+  int servicePriority(VirtualService service) {
+    final text = '${service.titleEn} ${service.slug}'.toLowerCase();
+    const names = [
+      'telegram','instagram','whatsapp','facebook','pinterest','tiktok',
+      'youtube','twitter',' x ','snapchat','discord','google','gmail',
+      'amazon','microsoft','apple','linkedin','uber','airbnb','netflix','spotify'
+    ];
+    for (var i = 0; i < names.length; i++) {
+      if (text.contains(names[i].trim())) return i;
+    }
+    return 1000;
+  }
+
+  List<VirtualService> get sortedServices {
+    final rows = [...catalog.services];
+    rows.sort((a,b) {
+      final pa=servicePriority(a),pb=servicePriority(b);
+      if(pa!=pb)return pa.compareTo(pb);
+      return serviceName(a).toLowerCase().compareTo(serviceName(b).toLowerCase());
+    });
+    return rows;
+  }
+
+  List<VirtualCountry> sortedCountries(VirtualService service) {
+    final rows=[...service.countries];
+    rows.sort((a,b)=>a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return rows;
+  }
+
+  VirtualCountry? strongestCountry(VirtualService service) {
+    if(service.countries.isEmpty)return null;
+    final rows=[...service.countries];
+    rows.sort((a,b) {
+      final rate=(b.maxRate??-1).compareTo(a.maxRate??-1);
+      if(rate!=0)return rate;
+      final stock=b.availableCount.compareTo(a.availableCount);
+      if(stock!=0)return stock;
+      return a.minPriceAfn.compareTo(b.minPriceAfn);
+    });
+    return rows.first;
+  }
+
+  VirtualCountry? cheapestCountry(VirtualService service) {
+    if(service.countries.isEmpty)return null;
+    final rows=[...service.countries];
+    rows.sort((a,b) {
+      final price=a.minPriceAfn.compareTo(b.minPriceAfn);
+      if(price!=0)return price;
+      final rate=(b.maxRate??-1).compareTo(a.maxRate??-1);
+      if(rate!=0)return rate;
+      return b.availableCount.compareTo(a.availableCount);
+    });
+    return rows.first;
+  }
+
+  Future<void> chooseService() async {
+    final picked=await showModalBottomSheet<VirtualService>(
+      context:context,
+      isScrollControlled:true,
+      useSafeArea:true,
+      builder:(_)=>_SearchPickerSheet<VirtualService>(
+        title:t('انتخاب سرویس','Choose service'),
+        searchHint:t('جستجوی سرویس…','Search services…'),
+        items:sortedServices,
+        searchText:(item)=>'${serviceName(item)} ${item.slug}',
+        itemBuilder:(item)=>Row(children:[
+          _BrandBadge(service:item,size:42),
+          const SizedBox(width:12),
+          Expanded(child:Text(serviceName(item),style:const TextStyle(fontWeight:FontWeight.w800))),
+          if(item.featured)const Icon(Icons.star_rounded,color:Color(0xFFFFB020),size:18),
+        ]),
+      ),
+    );
+    if(picked!=null)changeService(picked);
+  }
+
+  Future<void> chooseCountry() async {
+    final service=selectedService;
+    if(service==null)return;
+    final picked=await showModalBottomSheet<VirtualCountry>(
+      context:context,
+      isScrollControlled:true,
+      useSafeArea:true,
+      builder:(_)=>_SearchPickerSheet<VirtualCountry>(
+        title:t('انتخاب کشور','Choose country'),
+        searchHint:t('جستجوی کشور…','Search countries…'),
+        items:sortedCountries(service),
+        searchText:(item)=>'${item.name} ${item.code} ${item.iso}',
+        itemBuilder:(item)=>Row(children:[
+          Text(item.flag,style:const TextStyle(fontSize:28)),
+          const SizedBox(width:12),
+          Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            Text(item.name,style:const TextStyle(fontWeight:FontWeight.w800)),
+            Text('${host.money(item.minPriceAfn)} • ${item.availableCount} ${t('موجود','available')}',style:const TextStyle(fontSize:10.5,color:Color(0xFF718399))),
+          ])),
+          if(item.maxRate!=null)Text('${item.maxRate!.toStringAsFixed(1)}%',style:const TextStyle(fontWeight:FontWeight.w800,color:Color(0xFF18A875))),
+        ]),
+      ),
+    );
+    if(picked!=null)changeCountry(picked);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -342,33 +471,52 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     );
   }
 
-  Widget selectors() {
-    final service = selectedService;
-    if (service == null) return const SizedBox.shrink();
-    return Column(
-      children: [
-        DropdownButtonFormField<VirtualService>(
-          value: service,
-          isExpanded: true,
-          decoration: InputDecoration(labelText: t('سرویس', 'Service'), prefixIcon: const Icon(Icons.apps_rounded)),
-          items: catalog.services.map((item) => DropdownMenuItem(value: item, child: Text(serviceName(item), overflow: TextOverflow.ellipsis))).toList(),
-          onChanged: changeService,
+  Widget serviceSelector() {
+    final service=selectedService;
+    return InkWell(
+      onTap:chooseService,
+      borderRadius:BorderRadius.circular(14),
+      child:InputDecorator(
+        decoration:InputDecoration(
+          labelText:t('سرویس','Service'),
+          prefixIcon:service==null?const Icon(Icons.apps_rounded):Padding(
+            padding:const EdgeInsets.all(8),
+            child:_BrandBadge(service:service,size:34),
+          ),
+          suffixIcon:const Icon(Icons.search_rounded),
         ),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<VirtualCountry>(
-          value: selectedCountry,
-          isExpanded: true,
-          decoration: InputDecoration(labelText: t('کشور', 'Country'), prefixIcon: const Icon(Icons.public_rounded)),
-          items: service.countries
-              .map((item) => DropdownMenuItem(
-                    value: item,
-                    child: Text('${item.code.toUpperCase()} • ${host.money(item.minPriceAfn)} • ${item.availableCount} ${t('شماره', 'available')}'),
-                  ))
-              .toList(),
-          onChanged: changeCountry,
-        ),
-      ],
+        child:Text(service==null?t('انتخاب سرویس','Choose service'):serviceName(service),overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w800)),
+      ),
     );
+  }
+
+  Widget countrySelector() {
+    final country=selectedCountry;
+    return InkWell(
+      onTap:selectedService==null?null:chooseCountry,
+      borderRadius:BorderRadius.circular(14),
+      child:InputDecorator(
+        decoration:InputDecoration(
+          labelText:t('کشور','Country'),
+          prefixIcon:country==null?const Icon(Icons.public_rounded):Center(widthFactor:1.8,child:Text(country.flag,style:const TextStyle(fontSize:25))),
+          suffixIcon:const Icon(Icons.search_rounded),
+        ),
+        child:Text(
+          country==null?t('انتخاب کشور','Choose country'):'${country.name} • ${host.money(country.minPriceAfn)}',
+          overflow:TextOverflow.ellipsis,
+          style:const TextStyle(fontWeight:FontWeight.w800),
+        ),
+      ),
+    );
+  }
+
+  Widget selectors() {
+    if(selectedService==null)return const SizedBox.shrink();
+    return Column(children:[
+      serviceSelector(),
+      const SizedBox(height:12),
+      countrySelector(),
+    ]);
   }
 
   Widget manualPanel() {
@@ -406,52 +554,55 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
   }
 
   Widget smartPanel() {
+    final service=selectedService;
+    final best=service==null?null:strongestCountry(service);
+    final cheap=service==null?null:cheapestCountry(service);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _PanelCard(child: selectors()),
-        const SizedBox(height: 12),
-        _Notice(text: t('خرید هوشمند Provider را به شما نشان نمی‌دهد؛ سیستم براساس قیمت، درصد تحویل و اولویت مسیر بهترین شماره را انتخاب می‌کند.', 'Smart Buy keeps providers hidden and selects a route by live price, delivery rate and routing priority.')),
-        const SizedBox(height: 14),
-        if (loadingOffers)
-          const Center(child: Padding(padding: EdgeInsets.all(28), child: CircularProgressIndicator()))
-        else if (offers == null)
-          _Notice(text: t('پیشنهاد زنده‌ای موجود نیست.', 'No live offer is available.'))
-        else
-          ...[
-            _SmartCard(
-              icon: Icons.verified_rounded,
-              title: t('بهترین نرخ تحویل', 'Best delivery rate'),
-              subtitle: t('اولویت با درصد موفقیت بیشتر، سپس قیمت بهتر', 'Prioritizes delivery success, then price'),
-              offer: offers!.bestRate,
-              fa: fa,
-              price: offers!.bestRate == null ? '—' : host.money(offers!.bestRate!.priceAfn, showBase: true),
-              busy: buying,
-              onTap: () => buy(operatorName: 'any', mode: 'BEST_RATE'),
-            ),
-            const SizedBox(height: 10),
-            _SmartCard(
-              icon: Icons.savings_outlined,
-              title: t('کمترین قیمت', 'Lowest price'),
-              subtitle: t('ارزان‌ترین شماره موجود با موجودی واقعی', 'Cheapest currently available route'),
-              offer: offers!.lowPrice,
-              fa: fa,
-              price: offers!.lowPrice == null ? '—' : host.money(offers!.lowPrice!.priceAfn, showBase: true),
-              busy: buying,
-              onTap: () => buy(operatorName: 'any', mode: 'LOW_PRICE'),
-            ),
-            const SizedBox(height: 10),
-            _SmartCard(
-              icon: Icons.shuffle_rounded,
-              title: t('هر اپراتور', 'Any operator'),
-              subtitle: t('سیستم اولین مسیر مناسب را با Failover انتخاب می‌کند', 'Uses routing priority with provider failover'),
-              offer: offers!.anyOperator,
-              fa: fa,
-              price: offers!.anyOperator == null ? '—' : host.money(offers!.anyOperator!.priceAfn, showBase: true),
-              busy: buying,
-              onTap: () => buy(operatorName: 'any', mode: 'ANY'),
-            ),
-          ],
+      crossAxisAlignment:CrossAxisAlignment.stretch,
+      children:[
+        _PanelCard(child:serviceSelector()),
+        const SizedBox(height:12),
+        _Notice(text:t(
+          'کشور را لازم نیست دستی انتخاب کنید. Smart Buy براساس درصد تحویل زنده، موجودی و قیمت، پایدارترین کشور و ارزان‌ترین کشور را پیشنهاد می‌دهد.',
+          'You do not need to choose a country manually. Smart Buy recommends the strongest country using live delivery rate, stock and price, plus the cheapest available country.',
+        )),
+        const SizedBox(height:14),
+        if(service==null||service.countries.isEmpty)
+          _Notice(text:t('برای این سرویس کشور فعالی موجود نیست.','No active country is available for this service.'))
+        else ...[
+          _SmartCountryCard(
+            icon:Icons.verified_rounded,
+            title:t('بهترین و پایدارترین کشور','Best & most stable country'),
+            subtitle:t('اولویت با درصد تحویل بیشتر، سپس موجودی و قیمت','Highest delivery rate first, then stock and price'),
+            country:best,
+            fa:fa,
+            price:best==null?'—':host.money(best.minPriceAfn,showBase:true),
+            busy:buying,
+            onTap:best==null?null:()=>buy(operatorName:'any',mode:'BEST_RATE',countryOverride:best),
+          ),
+          const SizedBox(height:10),
+          _SmartCountryCard(
+            icon:Icons.savings_outlined,
+            title:t('ارزان‌ترین کشور','Cheapest country'),
+            subtitle:t('کمترین قیمت زنده با موجودی واقعی','Lowest live price with real available stock'),
+            country:cheap,
+            fa:fa,
+            price:cheap==null?'—':host.money(cheap.minPriceAfn,showBase:true),
+            busy:buying,
+            onTap:cheap==null?null:()=>buy(operatorName:'any',mode:'LOW_PRICE',countryOverride:cheap),
+          ),
+          const SizedBox(height:10),
+          _SmartCountryCard(
+            icon:Icons.auto_awesome_rounded,
+            title:t('انتخاب هوشمند','Smart recommendation'),
+            subtitle:t('پیشنهاد اصلی سیستم برای خرید سریع','System recommendation for a fast reliable purchase'),
+            country:best,
+            fa:fa,
+            price:best==null?'—':host.money(best.minPriceAfn,showBase:true),
+            busy:buying,
+            onTap:best==null?null:()=>buy(operatorName:'any',mode:'ANY',countryOverride:best),
+          ),
+        ],
       ],
     );
   }
