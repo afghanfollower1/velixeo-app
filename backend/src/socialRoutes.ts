@@ -18,6 +18,7 @@ import { claimCoupon, quoteCoupon, releaseCoupon } from './couponPricing.js';
 import { loadSocialBrands, normalizeBrandKey } from './socialBrands.js';
 import { getSocialOrderSettings } from './socialOrderSettings.js';
 import { normalizeCurrencyCode } from './currency.js';
+import { sendAdminOrderAlert, sendAdminRefundAlert } from './adminTelegramEvents.js';
 
 type AuthenticateHook = (
   request: FastifyRequest,
@@ -1242,6 +1243,12 @@ export function registerSocialRoutes(
       throw error;
     }
 
+    try {
+      await sendAdminOrderAlert(prisma, order.id, 'Wallet charged; provider submission is starting.');
+    } catch (error) {
+      request.log.warn({ error, orderId: order.id }, 'admin Telegram social order alert failed');
+    }
+
     if (order.providerOrderId) {
       const hydrated = await prisma.order.findUnique({
         where: { id: order.id }, include: { service: true, actions: true },
@@ -1346,6 +1353,11 @@ export function registerSocialRoutes(
       where: { id: order.id },
       include: { service: true, actions: { orderBy: { createdAt: 'desc' } } },
     });
+    try {
+      await sendAdminRefundAlert(prisma, order.id, explicitFailure);
+    } catch (error) {
+      request.log.warn({ error, orderId: order.id }, 'admin Telegram social refund alert failed');
+    }
     return reply.code(502).send({ error: 'provider_rejected', order: socialOrderJson(hydrated) });
   });
 
