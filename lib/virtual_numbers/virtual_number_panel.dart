@@ -368,7 +368,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
           title: Text(t('تأیید خرید شماره', 'Confirm number purchase')),
           content: Text(
             '${t('قیمت', 'Price')}: ${host.money(preview.priceAfn, showBase: true)}\n'
-            '${t('کشور', 'Country')}: ${country.flag} ${country.name}\n'
+            '${t('کشور', 'Country')}: ${_countryFlag(country)} ${_countryDisplayName(country)}\n'
             '${t('اپراتور', 'Operator')}: ${operatorName == 'any' ? t('هوشمند', 'Smart') : operatorName}'
             '${preview.deliveryPercent == null ? '' : '\n${t('نرخ تحویل', 'Delivery rate')}: ${preview.deliveryPercent!.toStringAsFixed(1)}%'}',
           ),
@@ -529,7 +529,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
 
   List<VirtualCountry> sortedCountries(VirtualService service) {
     final rows=[...service.countries];
-    rows.sort((a,b)=>a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    rows.sort((a,b)=>_countryDisplayName(a).toLowerCase().compareTo(_countryDisplayName(b).toLowerCase()));
     return rows;
   }
 
@@ -591,12 +591,12 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
         title:t('انتخاب کشور','Choose country'),
         searchHint:t('جستجوی کشور…','Search countries…'),
         items:sortedCountries(service),
-        searchText:(item)=>'${item.name} ${item.code} ${item.iso}',
+        searchText:(item)=>'${_countryDisplayName(item)} ${item.name} ${item.code} ${item.iso}',
         itemBuilder:(item)=>Row(children:[
-          Text(item.flag,style:const TextStyle(fontSize:28)),
+          Text(_countryFlag(item),style:const TextStyle(fontSize:28)),
           const SizedBox(width:12),
           Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-            Text(item.name,style:const TextStyle(fontWeight:FontWeight.w800)),
+            Text(_countryDisplayName(item),style:const TextStyle(fontWeight:FontWeight.w800)),
             Text('${host.money(item.minPriceAfn)} • ${item.availableCount} ${t('موجود','available')}',style:const TextStyle(fontSize:10.5,color:Color(0xFF718399))),
           ])),
           if(item.maxRate!=null)Text('${item.maxRate!.toStringAsFixed(1)}%',style:const TextStyle(fontWeight:FontWeight.w800,color:Color(0xFF18A875))),
@@ -693,7 +693,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
                 )
               :country==null
                   ?const Icon(Icons.public_rounded)
-                  :Center(widthFactor:1.8,child:Text(country.flag,style:const TextStyle(fontSize:25))),
+                  :Center(widthFactor:1.8,child:Text(_countryFlag(country),style:const TextStyle(fontSize:25))),
           suffixIcon:loadingCountries?null:const Icon(Icons.search_rounded),
         ),
         child:Text(
@@ -701,7 +701,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
               ?t('در حال دریافت کشورهای فعال…','Loading available countries…')
               :country==null
                   ?t('کشوری موجود نیست','No country available')
-                  :'${country.name} • ${host.money(country.minPriceAfn)}',
+                  :'${_countryDisplayName(country)} • ${host.money(country.minPriceAfn)}',
           overflow:TextOverflow.ellipsis,
           style:const TextStyle(fontWeight:FontWeight.w800),
         ),
@@ -1036,10 +1036,10 @@ class _SmartCountryCard extends StatelessWidget {
             padding:const EdgeInsets.all(11),
             decoration:BoxDecoration(color:const Color(0xFFF5FAFE),borderRadius:BorderRadius.circular(13)),
             child:Row(children:[
-              Text(country!.flag,style:const TextStyle(fontSize:30)),
+              Text(_countryFlag(country!),style:const TextStyle(fontSize:30)),
               const SizedBox(width:10),
               Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                Text(country!.name,style:const TextStyle(fontWeight:FontWeight.w900)),
+                Text(_countryDisplayName(country!),style:const TextStyle(fontWeight:FontWeight.w900)),
                 Text('${country!.availableCount} ${fa?'موجود':'available'}',style:const TextStyle(fontSize:10.5,color:Color(0xFF718399))),
               ])),
               if(country!.maxRate!=null)Container(
@@ -1204,7 +1204,7 @@ class _OrderCard extends StatelessWidget {
             const SizedBox(height: 9),
             Row(
               children: [
-                Text('${fa ? 'کشور' : 'Country'}: ${order.country ?? '—'}', style: const TextStyle(fontSize: 12, color: Color(0xFF607487))),
+                Text('${fa ? 'کشور' : 'Country'}: ${_orderCountryName(order.country)}', style: const TextStyle(fontSize: 12, color: Color(0xFF607487))),
                 const Spacer(),
                 if (!terminal) Text('⏱ $remaining', style: const TextStyle(fontWeight: FontWeight.w900)),
                 const SizedBox(width: 8),
