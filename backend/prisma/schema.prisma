@@ -220,6 +220,7 @@ model Provider {
   slug                 String       @unique
   kind                 ProviderKind
   baseUrl              String?
+  currencyCode         String?
   enabled              Boolean      @default(true)
   priority             Int          @default(100)
   defaultMarkupPercent Decimal      @default(0) @db.Decimal(10, 2)
