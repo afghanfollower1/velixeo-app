@@ -354,25 +354,84 @@ async function virtualModule(p:PrismaClient,tab:string,edit:string){
   return{tabs:tb,body:`
    <div class="card">
     <div class="cardhead"><div><h2>Virtual Number Services</h2><span class="muted">All 5SIM products are synchronized automatically</span></div><div class="actions">${pill(`${active} visible`,'ok')}${pill(`${services.length} total`,'info')}</div></div>
-    <div class="notice" style="margin-bottom:10px"><b>Bulk visibility:</b> newly synced virtual-number services are published automatically. You can still hide/show every service individually. Nothing here changes Social Media.</div>
+    <div class="notice" style="margin-bottom:10px"><b>Icons & ordering:</b> uploaded icons are compressed in your browser to a lightweight 128×128 WebP before saving. The app loads only the tiny icon URL and follows the exact Display order below. Future 5SIM syncs will not overwrite your manual order or icon. Social Media is untouched.</div>
     <div class="actions" style="margin-bottom:13px">
      <form method="post" action="/admin/virtual-numbers/services-bulk"><input type="hidden" name="enabled" value="1"><input type="hidden" name="returnTo" value="${e(returnTo('services'))}"><button class="btn">Enable all services</button></form>
      <form method="post" action="/admin/virtual-numbers/services-bulk"><input type="hidden" name="enabled" value="0"><input type="hidden" name="returnTo" value="${e(returnTo('services'))}"><button class="btn danger">Disable all services</button></form>
     </div>
-    <div class="tablewrap"><table class="table"><thead><tr><th>Service</th><th>5SIM Route</th><th>Pricing</th><th>Status</th><th>Individual pricing</th><th>Visibility</th></tr></thead><tbody>
+    <div class="tablewrap"><table class="table" style="min-width:1450px"><thead><tr><th>Service</th><th>Icon & display order</th><th>5SIM Route</th><th>Pricing</th><th>Status</th><th>Individual pricing</th><th>Visibility</th></tr></thead><tbody>
     ${services.map(s=>{
       const route=s.routes[0],markup=route?.markupPercent?.toString?.()??route?.provider.defaultMarkupPercent.toString()??'0';
+      const meta=jsonObj(s.metadata);
+      const hasIcon=typeof meta.virtualIconDataUri==='string'&&String(meta.virtualIconDataUri).startsWith('data:image/');
+      const iconVersion=encodeURIComponent(String(meta.virtualIconUpdatedAt||s.updatedAt.toISOString()));
+      const iconUrl=`/api/v1/virtual-numbers/service-icon/${encodeURIComponent(s.id)}?v=${iconVersion}`;
+      const fileId=`vicon-${s.id}`,hiddenId=`vicondata-${s.id}`,previewId=`viconpreview-${s.id}`;
       return`<tr>
        <td><b>${e(s.titleEn||s.titleFa)}</b><br><span class="mono muted">${e(s.slug)}</span></td>
+       <td style="min-width:330px">
+        <form method="post" action="/admin/virtual-numbers/service-display" class="vicon-form">
+         <input type="hidden" name="serviceId" value="${s.id}">
+         <input type="hidden" name="returnTo" value="${e(returnTo('services'))}">
+         <input type="hidden" name="iconData" id="${hiddenId}">
+         <div class="actions" style="align-items:center">
+          <div style="width:46px;height:46px;border-radius:13px;background:#eef7ff;border:1px solid #dce8f1;display:grid;place-items:center;overflow:hidden">
+           ${hasIcon?`<img id="${previewId}" src="${iconUrl}" alt="" style="width:100%;height:100%;object-fit:contain;padding:4px">`:`<div id="${previewId}" style="font-size:10px;color:#789;line-height:1.1;text-align:center">No<br>icon</div>`}
+          </div>
+          <div style="flex:1;min-width:155px">
+           <label class="btn ghost" for="${fileId}" style="display:inline-block;padding:7px 9px;cursor:pointer">Upload icon</label>
+           <input id="${fileId}" type="file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="vxlPrepareIcon(this,'${hiddenId}','${previewId}')">
+           <div class="muted" style="margin-top:4px">PNG/JPG/WebP → 128×128 WebP</div>
+          </div>
+         </div>
+         <div class="actions" style="margin-top:8px">
+          <label class="muted">Display order <input name="sortOrder" type="number" min="1" max="1000000" value="${e(s.sortOrder)}" style="width:90px;height:32px;border:1px solid #e3eaf3;border-radius:7px;padding:0 7px"></label>
+          ${hasIcon?'<label class="muted"><input type="checkbox" name="removeIcon"> Remove icon</label>':''}
+          <button class="btn ghost" style="padding:6px 8px">Save icon & order</button>
+         </div>
+        </form>
+       </td>
        <td>${s.routes.map(r=>`${e(r.provider.name)} · <span class="mono">${e(r.providerServiceCode)}</span>`).join('<br>')||'—'}</td>
        <td>${s.basePriceAfn!=null?`Fixed ${money(s.basePriceAfn)}`:`Live cost + ${e(markup)}%`}</td>
        <td>${s.enabled?pill('Visible','ok'):pill('Hidden','bad')}</td>
        <td><form method="post" action="/admin/virtual-numbers/service-pricing"><input type="hidden" name="serviceId" value="${s.id}"><input type="hidden" name="returnTo" value="${e(returnTo('services'))}"><div class="actions"><input name="markup" type="number" min="0" max="1000" step="0.01" value="${e(markup)}" title="Markup %" style="width:82px;height:32px;border:1px solid #e3eaf3;border-radius:7px;padding:0 7px"><input name="fixedPriceAfn" type="number" min="1" value="${s.basePriceAfn==null?'':e(s.basePriceAfn.toString())}" placeholder="Fixed AFN" style="width:105px;height:32px;border:1px solid #e3eaf3;border-radius:7px;padding:0 7px"><button class="btn ghost" style="padding:6px 8px">Save</button></div><small class="muted">Leave Fixed AFN empty for percentage pricing.</small></form></td>
        <td><form method="post" action="/admin/virtual-numbers/service-toggle"><input type="hidden" name="serviceId" value="${s.id}"><input type="hidden" name="enabled" value="${s.enabled?'0':'1'}"><input type="hidden" name="returnTo" value="${e(returnTo('services'))}"><button class="btn ghost">${s.enabled?'Hide':'Show'}</button></form></td>
       </tr>`;
-    }).join('')||'<tr><td colspan="6" class="empty">Sync the 5SIM provider to load all products.</td></tr>'}
+    }).join('')||'<tr><td colspan="7" class="empty">Sync the 5SIM provider to load all products.</td></tr>'}
     </tbody></table></div>
-   </div>`};
+   </div>
+   <script>
+   function vxlPrepareIcon(input,hiddenId,previewId){
+     const file=input.files&&input.files[0];
+     if(!file)return;
+     if(!['image/png','image/jpeg','image/webp'].includes(file.type)){
+       alert('Use PNG, JPG or WebP.');
+       input.value='';
+       return;
+     }
+     const reader=new FileReader();
+     reader.onload=function(){
+       const img=new Image();
+       img.onload=function(){
+         const size=128,canvas=document.createElement('canvas');
+         canvas.width=size;canvas.height=size;
+         const ctx=canvas.getContext('2d');
+         ctx.clearRect(0,0,size,size);
+         const scale=Math.min(size/img.width,size/img.height);
+         const w=Math.max(1,Math.round(img.width*scale)),h=Math.max(1,Math.round(img.height*scale));
+         ctx.drawImage(img,Math.round((size-w)/2),Math.round((size-h)/2),w,h);
+         const data=canvas.toDataURL('image/webp',0.82);
+         if(data.length>210000){alert('Icon is still too large. Please choose a simpler image.');return;}
+         document.getElementById(hiddenId).value=data;
+         const host=document.getElementById(previewId);
+         if(host&&host.tagName==='IMG'){host.src=data;}
+         else if(host){host.outerHTML='<img id="'+previewId+'" src="'+data+'" alt="" style="width:100%;height:100%;object-fit:contain;padding:4px">';}
+       };
+       img.src=String(reader.result||'');
+     };
+     reader.readAsDataURL(file);
+   }
+   </script>`};
  }
  if(tab==='countries'){
   const row=await p.systemSetting.findUnique({where:{key:'virtual.enabledCountries'}});
