@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { NotificationPriority, NotificationType } from '@prisma/client';
 import { publishUserNotification } from './pushNotifications.js';
 import { grantReferralTopupCommission } from './referralRoutes.js';
+import { sendAdminWalletTopupAlert } from './adminTelegramEvents.js';
 
 // Payment webhooks publish one typed in-app + FCM notification only on the first verified state transition.
 
@@ -383,6 +384,14 @@ export function registerHesabPayWebhookRoutes(
             bodyFa:`${amountAfn.toLocaleString('en-US')} افغانی با موفقیت به کیف پول VELIXEO شما اضافه شد.`,
             actionRoute:'wallet',actionEntityId:result.payment.id,actionLabelEn:'Open wallet',actionLabelFa:'مشاهده کیف پول',
           });
+          try {
+            await sendAdminWalletTopupAlert(prisma, {
+              paymentId: result.payment.id,
+              transactionId,
+            });
+          } catch (error) {
+            request.log.warn({ error, paymentId: result.payment.id }, 'admin Telegram wallet top-up alert failed');
+          }
         }
         return reply.code(200).send({
           ok: true,
