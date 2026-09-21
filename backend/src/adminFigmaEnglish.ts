@@ -360,6 +360,11 @@ async function virtualModule(p:PrismaClient,tab:string,edit:string){
      <form method="post" action="/admin/virtual-numbers/services-bulk"><input type="hidden" name="enabled" value="1"><input type="hidden" name="returnTo" value="${e(returnTo('services'))}"><button class="btn">Enable all services</button></form>
      <form method="post" action="/admin/virtual-numbers/services-bulk"><input type="hidden" name="enabled" value="0"><input type="hidden" name="returnTo" value="${e(returnTo('services'))}"><button class="btn danger">Disable all services</button></form>
     </div>
+    <div id="vxl-bulk-display-bar" class="notice" style="position:sticky;top:8px;z-index:25;margin-bottom:13px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;box-shadow:0 8px 24px rgba(19,70,110,.08)">
+     <div style="flex:1;min-width:240px"><b>Bulk icon & display-order editor</b><div class="muted" style="margin-top:3px">Change icons or order numbers on as many services as you want, then save everything once. Moving a service into position 10 shifts the old #10 to #11 instead of replacing it.</div></div>
+     <span id="vxl-bulk-change-count" class="badge">0 changed</span>
+     <button type="button" id="vxl-save-all-display" class="btn" onclick="vxlSaveAllDisplayChanges()" disabled>Save all changes</button>
+    </div>
     <div class="actions" style="margin-bottom:13px;align-items:center;gap:9px;flex-wrap:wrap">
      <div style="min-width:260px;flex:1">
       <input id="vxl-service-search" type="search" placeholder="Search service name, slug or 5SIM code…" oninput="vxlFilterServices()" style="width:100%;height:40px;border:1px solid #dce8f1;border-radius:10px;padding:0 12px">
@@ -388,7 +393,7 @@ async function virtualModule(p:PrismaClient,tab:string,edit:string){
       return`<tr class="vxl-service-row" data-search="${e(serviceSearch)}" data-enabled="${s.enabled?'1':'0'}" data-icon="${hasIcon?'1':'0'}">
        <td><b>${e(s.titleEn||s.titleFa)}</b><br><span class="mono muted">${e(s.slug)}</span></td>
        <td style="min-width:330px">
-        <form method="post" action="/admin/virtual-numbers/service-display" class="vicon-form">
+        <form method="post" action="/admin/virtual-numbers/service-display" class="vicon-form" data-service-id="${s.id}" data-original-order="${e(s.sortOrder)}" data-dirty="0" onsubmit="event.preventDefault();vxlMarkDisplayDirty(this);return false" oninput="vxlMarkDisplayDirty(this)" onchange="vxlMarkDisplayDirty(this)">
          <input type="hidden" name="serviceId" value="${s.id}">
          <input type="hidden" name="returnTo" value="${e(returnTo('services'))}">
          <input type="hidden" name="iconData" id="${hiddenId}">
@@ -403,9 +408,9 @@ async function virtualModule(p:PrismaClient,tab:string,edit:string){
           </div>
          </div>
          <div class="actions" style="margin-top:8px">
-          <label class="muted">Display order <input name="sortOrder" type="number" min="1" max="1000000" value="${e(s.sortOrder)}" style="width:90px;height:32px;border:1px solid #e3eaf3;border-radius:7px;padding:0 7px"></label>
+          <label class="muted">Display order <input name="sortOrder" class="vxl-sort-order" type="number" min="1" max="1000000" value="${e(s.sortOrder)}" style="width:90px;height:32px;border:1px solid #e3eaf3;border-radius:7px;padding:0 7px"></label>
           ${hasIcon?'<label class="muted"><input type="checkbox" name="removeIcon"> Remove icon</label>':''}
-          <button class="btn ghost" style="padding:6px 8px">Save icon & order</button>
+          <span class="badge vxl-row-save-state">Saved</span>
          </div>
         </form>
        </td>
@@ -420,6 +425,60 @@ async function virtualModule(p:PrismaClient,tab:string,edit:string){
     </tbody></table></div>
    </div>
    <script>
+   function vxlMarkDisplayDirty(form){
+     if(!form)return;
+     form.dataset.dirty='1';
+     const state=form.querySelector('.vxl-row-save-state');
+     if(state){state.textContent='Changed';state.style.background='#fff1dc';state.style.color='#a76a09';}
+     vxlUpdateBulkDisplayState();
+   }
+   function vxlUpdateBulkDisplayState(){
+     const dirty=Array.from(document.querySelectorAll('.vicon-form[data-dirty="1"]'));
+     const count=document.getElementById('vxl-bulk-change-count');
+     const button=document.getElementById('vxl-save-all-display');
+     if(count)count.textContent=dirty.length+' changed';
+     if(button)button.disabled=dirty.length===0;
+   }
+   async function vxlSaveAllDisplayChanges(){
+     const forms=Array.from(document.querySelectorAll('.vicon-form[data-dirty="1"]'));
+     if(forms.length===0)return;
+     const button=document.getElementById('vxl-save-all-display');
+     const count=document.getElementById('vxl-bulk-change-count');
+     const previousLabel=button?button.textContent:'Save all changes';
+     const changes=forms.map(function(form){
+       const orderInput=form.querySelector('input[name="sortOrder"]');
+       const iconInput=form.querySelector('input[name="iconData"]');
+       const removeInput=form.querySelector('input[name="removeIcon"]');
+       const originalOrder=Number(form.dataset.originalOrder||'0');
+       const sortOrder=Number(orderInput&&orderInput.value||'0');
+       return{
+         serviceId:String(form.dataset.serviceId||''),
+         sortOrder:sortOrder,
+         orderChanged:Number.isInteger(sortOrder)&&sortOrder!==originalOrder,
+         iconData:String(iconInput&&iconInput.value||''),
+         removeIcon:Boolean(removeInput&&removeInput.checked)
+       };
+     });
+     if(button){button.disabled=true;button.textContent='Saving…';}
+     if(count)count.textContent=changes.length+' saving';
+     try{
+       const response=await fetch('/admin/virtual-numbers/service-display-bulk',{
+         method:'POST',
+         headers:{'Content-Type':'application/json','Accept':'application/json'},
+         credentials:'same-origin',
+         body:JSON.stringify({changes:changes})
+       });
+       const payload=await response.json().catch(function(){return{};});
+       if(!response.ok)throw new Error(String(payload.error||'bulk_save_failed'));
+       const url=new URL(window.location.href);
+       url.searchParams.set('msg','Saved '+String(payload.changed||changes.length)+' service display changes');
+       window.location.href=url.toString();
+     }catch(error){
+       alert('Could not save all changes: '+String(error&&error.message||error));
+       if(button){button.disabled=false;button.textContent=previousLabel;}
+       if(count)count.textContent=forms.length+' changed';
+     }
+   }
    function vxlFilterServices(){
      const search=document.getElementById('vxl-service-search');
      const visibility=document.getElementById('vxl-service-visibility');
@@ -465,10 +524,13 @@ async function virtualModule(p:PrismaClient,tab:string,edit:string){
          ctx.drawImage(img,Math.round((size-w)/2),Math.round((size-h)/2),w,h);
          const data=canvas.toDataURL('image/webp',0.82);
          if(data.length>210000){alert('Icon is still too large. Please choose a simpler image.');return;}
-         document.getElementById(hiddenId).value=data;
+         const hidden=document.getElementById(hiddenId);
+         hidden.value=data;
          const host=document.getElementById(previewId);
          if(host&&host.tagName==='IMG'){host.src=data;}
          else if(host){host.outerHTML='<img id="'+previewId+'" src="'+data+'" alt="" style="width:100%;height:100%;object-fit:contain;padding:4px">';}
+         const form=hidden.closest('.vicon-form');
+         if(form)vxlMarkDisplayDirty(form);
        };
        img.src=String(reader.result||'');
      };
