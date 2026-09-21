@@ -8,6 +8,9 @@ double? _asDoubleOrNull(Object? value) {
 class VirtualCountry {
   const VirtualCountry({
     required this.code,
+    required this.name,
+    required this.iso,
+    required this.flag,
     required this.minPriceAfn,
     required this.availableCount,
     this.maxRate,
@@ -15,12 +18,18 @@ class VirtualCountry {
 
   factory VirtualCountry.fromJson(Map<String, dynamic> json) => VirtualCountry(
         code: '${json['code'] ?? ''}',
+        name: '${json['name'] ?? json['code'] ?? ''}',
+        iso: '${json['iso'] ?? ''}',
+        flag: '${json['flag'] ?? '🌐'}',
         minPriceAfn: _asInt(json['minPriceAfn']),
         availableCount: _asInt(json['availableCount']),
         maxRate: _asDoubleOrNull(json['maxRate']),
       );
 
   final String code;
+  final String name;
+  final String iso;
+  final String flag;
   final int minPriceAfn;
   final int availableCount;
   final double? maxRate;
