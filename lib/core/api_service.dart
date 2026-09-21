@@ -873,6 +873,16 @@ class ApiService {
     return VirtualCatalog.fromJson(_decodeObject(response));
   }
 
+  Future<List<VirtualCountry>> virtualNumberCountries({required String serviceId}) async {
+    final query = Uri(queryParameters: {'serviceId': serviceId}).query;
+    final response = await _send('GET', '/api/v1/virtual-numbers/countries?$query');
+    if (response.statusCode != 200) _throwResponse(response);
+    final rows = (_decodeObject(response)['countries'] as List<dynamic>?) ?? const [];
+    return rows
+        .map((item) => VirtualCountry.fromJson(Map<String, dynamic>.from(item as Map)))
+        .toList(growable: false);
+  }
+
   Future<VirtualOffers> virtualNumberOffers({required String serviceId, required String country}) async {
     final query = Uri(queryParameters: {'serviceId': serviceId, 'country': country}).query;
     final response = await _send('GET', '/api/v1/virtual-numbers/offers?$query');
