@@ -24,6 +24,7 @@ import { registerAdminCsrfGuard } from './adminSecurity.js';
 import { registerSocialRoutes } from './socialRoutes.js';
 import { startSocialAutoSync } from './socialSync.js';
 import { registerVirtualNumberRoutes } from './virtualNumberRoutes.js';
+import { registerPremiumRoutes } from './premiumRoutes.js';
 import { normalizeCurrencyCode } from './currency.js';
 import {
   recordReferralRegistration,
@@ -1489,6 +1490,7 @@ registerPaymentRoutes(app, prisma, authenticate);
 registerHesabPayWebhookRoutes(app, prisma, authenticate);
 registerSocialRoutes(app, prisma, authenticate, adminWebUser);
 registerVirtualNumberRoutes(app, prisma, authenticate, adminWebUser);
+registerPremiumRoutes(app, prisma, authenticate);
 registerReferralRoutes(app, prisma, authenticate);
 startSocialAutoSync(prisma, app.log as any);
 startNotificationPushScheduler(prisma, app.log as any);
