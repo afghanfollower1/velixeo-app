@@ -719,6 +719,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
   }
 
   Widget manualPanel() {
+    final current=offers;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -726,27 +727,83 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
         const SizedBox(height: 14),
         if (loadingOffers)
           const Center(child: Padding(padding: EdgeInsets.all(26), child: CircularProgressIndicator()))
-        else if (offers == null || offers!.operators.isEmpty)
+        else if (current == null || current.operators.isEmpty)
           _Notice(text: t('برای این سرویس و کشور فعلاً شماره‌ای موجود نیست.', 'No number is currently available for this service and country.'))
         else ...[
           Row(
             children: [
-              Text(t('اپراتورها / سرورها', 'Operators / servers'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-              const Spacer(),
-              Text('${offers!.operators.length}', style: const TextStyle(color: Color(0xFF607487))),
+              Expanded(
+                child: Text(t('اپراتورها / سرورها', 'Operators / servers'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+              ),
+              Text('${current.operators.length}', style: const TextStyle(color: Color(0xFF607487), fontWeight:FontWeight.w800)),
             ],
           ),
-          const SizedBox(height: 9),
-          ...offers!.operators.map((offer) => Padding(
-                padding: const EdgeInsets.only(bottom: 9),
-                child: _OfferTile(
-                  offer: offer,
-                  fa: fa,
-                  price: host.money(offer.priceAfn, showBase: true),
-                  busy: buying,
-                  onBuy: () => buy(operatorName: offer.operatorName, mode: 'BEST_RATE'),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing:7,
+            runSpacing:7,
+            children:[
+              _SummaryPill(
+                icon:Icons.savings_outlined,
+                label:t('کمترین','Lowest'),
+                value:host.money(current.minPriceAfn,showBase:true),
+              ),
+              _SummaryPill(
+                icon:Icons.trending_up_rounded,
+                label:t('بیشترین','Highest'),
+                value:host.money(current.maxPriceAfn,showBase:true),
+              ),
+              if(current.bestDeliveryPercent!=null)
+                _SummaryPill(
+                  icon:Icons.mark_email_read_outlined,
+                  label:t('بهترین SMS','Best SMS'),
+                  value:'${current.bestDeliveryPercent!.toStringAsFixed(2)}%',
                 ),
-              )),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...current.operators.map((offer) {
+            final tags=<String>[];
+            if(current.lowPrice?.operatorName==offer.operatorName && current.lowPrice?.priceAfn==offer.priceAfn){
+              tags.add(t('ارزان‌ترین','Cheapest'));
+            }
+            if(current.highPrice?.operatorName==offer.operatorName && current.highPrice?.priceAfn==offer.priceAfn && current.maxPriceAfn!=current.minPriceAfn){
+              tags.add(t('بیشترین قیمت','Highest price'));
+            }
+            if(current.bestRate?.operatorName==offer.operatorName &&
+                current.bestRate?.deliveryPercent==offer.deliveryPercent &&
+                (offer.deliveryPercent??0)>0){
+              tags.add(t('پایدارترین','Best delivery'));
+            }
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 9),
+              child: _OfferTile(
+                offer: offer,
+                fa: fa,
+                price: host.money(offer.priceAfn, showBase: true),
+                busy: buying,
+                tags:tags,
+                onBuy: () => buy(operatorName: offer.operatorName, mode: 'BEST_RATE'),
+              ),
+            );
+          }),
+          if(current.anyOperator!=null)...[
+            const SizedBox(height:2),
+            _OfferTile(
+              offer:current.anyOperator!,
+              fa:fa,
+              price:host.money(current.anyOperator!.priceAfn,showBase:true),
+              busy:buying,
+              anyOperator:true,
+              tags:[t('انتخاب خودکار','Auto select')],
+              onBuy:()=>buy(operatorName:'any',mode:'ANY'),
+            ),
+          ],
+          const SizedBox(height:6),
+          _Notice(text:t(
+            'درصد SMS نشان‌دهنده نرخ اخیر تحویل پیام برای همان سرویس، کشور و اپراتور است. قیمت و موجودی لحظه‌ای تغییر می‌کند.',
+            'SMS % is the recent delivery rate for this exact service, country and operator. Price and stock can change live.',
+          )),
         ],
       ],
     );
@@ -1105,48 +1162,111 @@ class _Notice extends StatelessWidget {
       );
 }
 
+class _SummaryPill extends StatelessWidget {
+  const _SummaryPill({required this.icon,required this.label,required this.value});
+  final IconData icon;
+  final String label;
+  final String value;
+  @override
+  Widget build(BuildContext context)=>Container(
+    padding:const EdgeInsets.symmetric(horizontal:10,vertical:7),
+    decoration:BoxDecoration(
+      color:const Color(0xFFF1F7FC),
+      borderRadius:BorderRadius.circular(999),
+      border:Border.all(color:const Color(0xFFDCE8F1)),
+    ),
+    child:Row(mainAxisSize:MainAxisSize.min,children:[
+      Icon(icon,size:14,color:const Color(0xFF1686FF)),
+      const SizedBox(width:5),
+      Text('$label: ',style:const TextStyle(fontSize:10.5,color:Color(0xFF607487),fontWeight:FontWeight.w700)),
+      Text(value,style:const TextStyle(fontSize:10.5,fontWeight:FontWeight.w900,color:Color(0xFF102235))),
+    ]),
+  );
+}
+
 class _OfferTile extends StatelessWidget {
-  const _OfferTile({required this.offer, required this.fa, required this.price, required this.busy, required this.onBuy});
+  const _OfferTile({
+    required this.offer,
+    required this.fa,
+    required this.price,
+    required this.busy,
+    required this.onBuy,
+    this.tags=const [],
+    this.anyOperator=false,
+  });
   final VirtualOffer offer;
   final bool fa;
   final String price;
   final bool busy;
   final VoidCallback onBuy;
+  final List<String> tags;
+  final bool anyOperator;
 
   @override
   Widget build(BuildContext context) => Card(
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
+            crossAxisAlignment:CrossAxisAlignment.center,
             children: [
               CircleAvatar(
-                backgroundColor: const Color(0xFFE4F4FF),
-                child: const Icon(Icons.cell_tower_rounded, color: Color(0xFF0D78C8)),
+                backgroundColor: anyOperator?const Color(0xFFEAF7FF):const Color(0xFFE4F4FF),
+                child: Icon(anyOperator?Icons.shuffle_rounded:Icons.cell_tower_rounded, color: const Color(0xFF0D78C8)),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(offer.operatorName, style: const TextStyle(fontWeight: FontWeight.w900)),
-                    const SizedBox(height: 4),
+                    Row(children:[
+                      Expanded(
+                        child:Text(
+                          anyOperator?(fa?'هر اپراتور':'Any operator'):offer.operatorName,
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ]),
+                    const SizedBox(height: 5),
                     Wrap(
-                      spacing: 7,
+                      spacing: 8,
+                      runSpacing:5,
+                      crossAxisAlignment:WrapCrossAlignment.center,
                       children: [
                         Text('${offer.count} ${fa ? 'موجود' : 'available'}', style: const TextStyle(fontSize: 11, color: Color(0xFF607487))),
                         if (offer.deliveryPercent != null)
-                          Text('${offer.deliveryPercent!.toStringAsFixed(1)}% ${fa ? 'تحویل' : 'delivery'}', style: const TextStyle(fontSize: 11, color: Color(0xFF18A875), fontWeight: FontWeight.w700)),
+                          Row(mainAxisSize:MainAxisSize.min,children:[
+                            const Icon(Icons.mark_email_read_outlined,size:14,color:Color(0xFF1686FF)),
+                            const SizedBox(width:3),
+                            Text(
+                              '${offer.deliveryPercent!.toStringAsFixed(2)}% SMS',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color:(offer.deliveryPercent??0)>0?const Color(0xFF18A875):const Color(0xFF607487),
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ]),
+                        ...tags.map((tag)=>Container(
+                          padding:const EdgeInsets.symmetric(horizontal:7,vertical:3),
+                          decoration:BoxDecoration(color:const Color(0xFFEAF6FF),borderRadius:BorderRadius.circular(999)),
+                          child:Text(tag,style:const TextStyle(fontSize:9.5,fontWeight:FontWeight.w800,color:Color(0xFF0D78C8))),
+                        )),
                       ],
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width:10),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(price, style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF0D78C8))),
-                  const SizedBox(height: 5),
-                  FilledButton.tonal(onPressed: busy ? null : onBuy, child: Text(fa ? 'خرید' : 'Buy')),
+                  Text(price, style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF0D78C8),fontSize:15)),
+                  const SizedBox(height: 7),
+                  FilledButton.tonal(
+                    onPressed: busy ? null : onBuy,
+                    style:FilledButton.styleFrom(minimumSize:const Size(72,40)),
+                    child: Text(fa ? 'خرید' : 'Buy'),
+                  ),
                 ],
               ),
             ],
@@ -1154,6 +1274,7 @@ class _OfferTile extends StatelessWidget {
         ),
       );
 }
+
 
 class _OrderCard extends StatelessWidget {
   const _OrderCard({
