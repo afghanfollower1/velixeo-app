@@ -68,6 +68,17 @@ class VirtualService {
   final String? descriptionEn;
   final bool featured;
   final List<VirtualCountry> countries;
+
+  VirtualService copyWithCountries(List<VirtualCountry> value) => VirtualService(
+        id: id,
+        slug: slug,
+        titleFa: titleFa,
+        titleEn: titleEn,
+        featured: featured,
+        countries: value,
+        descriptionFa: descriptionFa,
+        descriptionEn: descriptionEn,
+      );
 }
 
 class VirtualCatalog {
