@@ -70,8 +70,10 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
         authenticated = true;
         languageConfirmed = true;
         _applyUserPreferences(user!);
-        await _loadSecondaryData();
-        await _configurePush();
+        booting = false;
+        notifyListeners();
+        _warmAuthenticatedData();
+        return;
       } catch (_) {
         await api.clearSession();
       }
@@ -115,8 +117,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
       final result = await api.me();
       user = result.$1;
       balanceAfn = result.$2;
-      await _loadSecondaryData();
-      await _configurePush();
+      _warmAuthenticatedData();
       return true;
     } on ApiException catch (error) {
       authError = error.code;
@@ -153,8 +154,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
       authenticated = true;
       balanceAfn = 0;
       _applyUserPreferences(session.user);
-      await _loadSecondaryData();
-      await _configurePush();
+      _warmAuthenticatedData();
       return true;
     } on ApiException catch (error) {
       authError = error.code;
@@ -192,8 +192,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
       final result = await api.me();
       user = result.$1;
       balanceAfn = result.$2;
-      await _loadSecondaryData();
-      await _configurePush();
+      _warmAuthenticatedData();
       notifyListeners();
       return true;
     } on ApiException catch (error) {
@@ -230,8 +229,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
       final result = await api.me();
       user = result.$1;
       balanceAfn = result.$2;
-      await _loadSecondaryData();
-      await _configurePush();
+      _warmAuthenticatedData();
       return true;
     } on ApiException catch (error) {
       authError = error.code;
@@ -266,8 +264,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
       final result = await api.me();
       user = result.$1;
       balanceAfn = result.$2;
-      await _loadSecondaryData();
-      await _configurePush();
+      _warmAuthenticatedData();
       return true;
     } on GoogleAuthException catch (error) {
       authError = error.code;
@@ -357,6 +354,16 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
       balanceAfn = result.$2;
       notifyListeners();
     } catch (_) {}
+  }
+
+  void _warmAuthenticatedData() {
+    unawaited(() async {
+      await Future.wait([
+        _loadSecondaryData(),
+        _configurePush(),
+      ]);
+      if (authenticated) notifyListeners();
+    }());
   }
 
   Map<String, String>? takePendingNotificationOpen() {
@@ -3587,6 +3594,16 @@ class RemoteBannerCard extends StatelessWidget {
               Image.network(
                 banner.imageUrl,
                 fit: BoxFit.cover,
+                cacheWidth: 1080,
+                filterQuality: FilterQuality.low,
+                gaplessPlayback: true,
+                loadingBuilder: (context, child, progress) => progress == null
+                    ? child
+                    : Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(colors: [Color(0xFF0D78C8), Color(0xFF31A8FF)]),
+                        ),
+                      ),
                 errorBuilder: (_, __, ___) => Container(
                   decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF0D78C8), Color(0xFF31A8FF)])),
                 ),
