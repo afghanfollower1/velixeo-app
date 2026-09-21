@@ -76,7 +76,7 @@ class _PromotionPanelPageState extends State<PromotionPanelPage> {
       if (!mounted) return;
       final changed = await Navigator.push<bool>(
         context,
-        MaterialPageRoute(builder: (_) => PromotionOrderPage(host: host, product: target!)),
+        MaterialPageRoute(builder: (_) => PromotionOrderPage(host: host, product: target)),
       );
       if (changed == true) await load();
     });
@@ -498,7 +498,7 @@ class _PromotionOrderPageState extends State<PromotionOrderPage> {
             ),
           ),
           DropdownButtonFormField<String>(
-            value: objective,
+            initialValue: objective,
             decoration: InputDecoration(labelText: t('هدف تبلیغ', 'Campaign objective')),
             items: product.supportedObjectives.map((value) => DropdownMenuItem(value: value, child: Text(objectiveLabel(value)))).toList(growable: false),
             onChanged: (value) => setState(() => objective = value),
