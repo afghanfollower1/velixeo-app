@@ -27,6 +27,7 @@ import {
   savePremiumTelegramSettings,
   sendPremiumTelegramMessage,
 } from './telegramAdminAlerts.js';
+import { sendAdminRefundAlert } from './adminTelegramEvents.js';
 
 type AdminIdentity = {
   id: string;
@@ -726,6 +727,14 @@ export function registerPremiumAdminRoutes(
           actionLabelFa: 'مشاهده سفارش',
         });
       } catch {}
+
+      if (action === 'REFUND') {
+        try {
+          await sendAdminRefundAlert(prisma, updated.id, messageEn || messageFa || 'Premium order refunded by admin');
+        } catch (error) {
+          request.log.warn({ error, orderId: updated.id }, 'admin Telegram Premium refund alert failed');
+        }
+      }
 
       await prisma.orderActionLog.create({
         data: {
