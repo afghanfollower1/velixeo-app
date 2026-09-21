@@ -308,32 +308,55 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
   }
 
   Future<void> _loadSecondaryData() async {
-    try {
-      rates = await api.exchangeRates();
-    } catch (_) {}
-    try {
-      walletEntries = await api.walletEntries();
-    } catch (_) {}
-    try {
-      catalogServices = await api.catalogServices();
-    } catch (_) {}
-    try {
-      banners = await api.banners();
-    } catch (_) {}
-    if (authenticated) {
-      try {
-        notifications = await api.notifications();
-      } catch (_) {}
-      try {
-        orders = await api.orders();
-      } catch (_) {}
-      try {
-        paymentCapabilities = await api.paymentCapabilities();
-      } catch (_) {}
-      try {
-        payments = await api.payments();
-      } catch (_) {}
+    Future<void> loadRates() async {
+      try { rates = await api.exchangeRates(); } catch (_) {}
     }
+    Future<void> loadWallet() async {
+      try { walletEntries = await api.walletEntries(); } catch (_) {}
+    }
+    Future<void> loadCatalog() async {
+      try { catalogServices = await api.catalogServices(); } catch (_) {}
+    }
+    Future<void> loadBanners() async {
+      try { banners = await api.banners(); } catch (_) {}
+    }
+    Future<void> loadNotifications() async {
+      if (!authenticated) return;
+      try { notifications = await api.notifications(); } catch (_) {}
+    }
+    Future<void> loadOrders() async {
+      if (!authenticated) return;
+      try { orders = await api.orders(); } catch (_) {}
+    }
+    Future<void> loadPaymentCapabilities() async {
+      if (!authenticated) return;
+      try { paymentCapabilities = await api.paymentCapabilities(); } catch (_) {}
+    }
+    Future<void> loadPayments() async {
+      if (!authenticated) return;
+      try { payments = await api.payments(); } catch (_) {}
+    }
+
+    await Future.wait([
+      loadRates(),
+      loadWallet(),
+      loadCatalog(),
+      loadBanners(),
+      loadNotifications(),
+      loadOrders(),
+      loadPaymentCapabilities(),
+      loadPayments(),
+    ]);
+  }
+
+  Future<void> refreshBalanceOnly() async {
+    if (!authenticated) return;
+    try {
+      final result = await api.me();
+      user = result.$1;
+      balanceAfn = result.$2;
+      notifyListeners();
+    } catch (_) {}
   }
 
   Map<String, String>? takePendingNotificationOpen() {
