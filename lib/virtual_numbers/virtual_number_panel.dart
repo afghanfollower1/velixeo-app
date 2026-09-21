@@ -502,30 +502,16 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
 
   String serviceName(VirtualService service) => fa ? service.titleFa : service.titleEn;
 
-  int servicePriority(VirtualService service) {
-    final text = '${service.titleEn} ${service.slug}'.toLowerCase();
-    const names = [
-      'telegram','instagram','whatsapp','facebook','pinterest','tiktok',
-      'youtube','twitter','snapchat','discord','google','gmail',
-      'amazon','microsoft','apple','linkedin','uber','airbnb','netflix','spotify'
-    ];
-    for (var i = 0; i < names.length; i++) {
-      if (text.contains(names[i])) return i;
-    }
-    final normalized = service.slug.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
-    if (normalized == 'virtualx' || normalized == 'x') return 7;
-    return 1000;
-  }
-
   List<VirtualService> get sortedServices {
     final rows = [...catalog.services];
     rows.sort((a,b) {
-      final pa=servicePriority(a),pb=servicePriority(b);
-      if(pa!=pb)return pa.compareTo(pb);
+      final order=a.sortOrder.compareTo(b.sortOrder);
+      if(order!=0)return order;
       return serviceName(a).toLowerCase().compareTo(serviceName(b).toLowerCase());
     });
     return rows;
   }
+
 
   List<VirtualCountry> sortedCountries(VirtualService service) {
     final rows=[...service.countries];
@@ -1121,25 +1107,50 @@ class _BrandBadge extends StatelessWidget {
   const _BrandBadge({required this.service,this.size=40});
   final VirtualService service;
   final double size;
+
+  Widget _fallback(_BrandVisual brand){
+    return Center(
+      child:brand.faIcon!=null
+        ?FaIcon(brand.faIcon!,color:brand.color,size:size*.48)
+        :Text(
+            _serviceInitials(service),
+            style:TextStyle(
+              color:brand.color,
+              fontSize:size*.28,
+              fontWeight:FontWeight.w900,
+              letterSpacing:-.4,
+            ),
+          ),
+    );
+  }
+
   @override
   Widget build(BuildContext context){
     final brand=_brandVisual(service);
+    final uploaded=service.iconUrl?.trim()??'';
     return Container(
       width:size,height:size,
-      decoration:BoxDecoration(color:brand.color.withValues(alpha:.11),borderRadius:BorderRadius.circular(size*.30)),
-      child:Center(
-        child:brand.faIcon!=null
-          ?FaIcon(brand.faIcon!,color:brand.color,size:size*.48)
-          :Text(
-              _serviceInitials(service),
-              style:TextStyle(
-                color:brand.color,
-                fontSize:size*.28,
-                fontWeight:FontWeight.w900,
-                letterSpacing:-.4,
-              ),
-            ),
+      decoration:BoxDecoration(
+        color:brand.color.withValues(alpha:.10),
+        borderRadius:BorderRadius.circular(size*.30),
       ),
+      clipBehavior:Clip.antiAlias,
+      child:uploaded.isNotEmpty
+        ?Padding(
+            padding:EdgeInsets.all(size*.12),
+            child:Image.network(
+              uploaded,
+              width:size*.76,
+              height:size*.76,
+              fit:BoxFit.contain,
+              cacheWidth:96,
+              cacheHeight:96,
+              filterQuality:FilterQuality.low,
+              gaplessPlayback:true,
+              errorBuilder:(_,__,___)=>_fallback(brand),
+            ),
+          )
+        :_fallback(brand),
     );
   }
 }
