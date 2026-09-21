@@ -16,6 +16,7 @@ import {
   fiveSimClientForProvider,
 } from './fiveSimAdapter.js';
 import { normalizeCurrencyCode } from './currency.js';
+import { sendAdminOrderAlert, sendAdminRefundAlert } from './adminTelegramEvents.js';
 
 type AuthenticateHook = (
   request: FastifyRequest,
@@ -983,6 +984,12 @@ export function registerVirtualNumberRoutes(
       throw error;
     }
 
+    try {
+      await sendAdminOrderAlert(prisma, order.id, 'Wallet charged; 5SIM purchase is starting.');
+    } catch (error) {
+      request.log.warn({ error, orderId: order.id }, 'admin Telegram virtual-number order alert failed');
+    }
+
     if (order.providerOrderId) {
       const hydrated = await prisma.order.findUnique({ where: { id: order.id }, include: { service: true } });
       return { order: orderJson(hydrated), idempotent: true };
@@ -1058,6 +1065,11 @@ export function registerVirtualNumberRoutes(
       data: { status: OrderStatus.FAILED, failureReason: lastError },
       include: { service: true },
     });
+    try {
+      await sendAdminRefundAlert(prisma, order.id, lastError);
+    } catch (error) {
+      request.log.warn({ error, orderId: order.id }, 'admin Telegram virtual-number refund alert failed');
+    }
     return reply.code(502).send({ error: 'provider_rejected', order: orderJson(failed) });
   });
 
