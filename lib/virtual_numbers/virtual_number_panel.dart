@@ -867,8 +867,8 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     );
   }
 
-  bool orderMatchesFilter(VirtualOrder order) {
-    switch(orderFilter){
+  bool orderMatches(VirtualOrder order,String filter) {
+    switch(filter){
       case 'ALL': return true;
       case 'ACTIVE': return isActive(order);
       case 'COMPLETED': return order.status=='COMPLETED';
@@ -878,13 +878,10 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     }
   }
 
-  int filterCount(String filter){
-    final previous=orderFilter;
-    orderFilter=filter;
-    final count=orders.where(orderMatchesFilter).length;
-    orderFilter=previous;
-    return count;
-  }
+  bool orderMatchesFilter(VirtualOrder order)=>orderMatches(order,orderFilter);
+
+  int filterCount(String filter)=>
+      orders.where((order)=>orderMatches(order,filter)).length;
 
   Widget numbersPanel() {
     if (orders.isEmpty) {
