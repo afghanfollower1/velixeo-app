@@ -670,6 +670,186 @@ class _PanelCard extends StatelessWidget {
   Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(16), child: child));
 }
 
+class _BrandVisual {
+  const _BrandVisual(this.icon,this.color);
+  final IconData icon;
+  final Color color;
+}
+
+_BrandVisual _brandVisual(VirtualService service) {
+  final key='${service.titleEn} ${service.slug}'.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'),'');
+  if(key.contains('telegram'))return const _BrandVisual(FontAwesomeIcons.telegram,Color(0xFF229ED9));
+  if(key.contains('instagram'))return const _BrandVisual(FontAwesomeIcons.instagram,Color(0xFFE4405F));
+  if(key.contains('whatsapp'))return const _BrandVisual(FontAwesomeIcons.whatsapp,Color(0xFF25D366));
+  if(key.contains('facebook'))return const _BrandVisual(FontAwesomeIcons.facebookF,Color(0xFF1877F2));
+  if(key.contains('pinterest'))return const _BrandVisual(FontAwesomeIcons.pinterestP,Color(0xFFE60023));
+  if(key.contains('tiktok'))return const _BrandVisual(FontAwesomeIcons.tiktok,Color(0xFF111111));
+  if(key.contains('youtube'))return const _BrandVisual(FontAwesomeIcons.youtube,Color(0xFFFF0000));
+  if(key.contains('twitter')||key=='x'||key.endsWith('virtualx'))return const _BrandVisual(FontAwesomeIcons.xTwitter,Color(0xFF111111));
+  if(key.contains('snapchat'))return const _BrandVisual(FontAwesomeIcons.snapchat,Color(0xFFF7D600));
+  if(key.contains('discord'))return const _BrandVisual(FontAwesomeIcons.discord,Color(0xFF5865F2));
+  if(key.contains('google')||key.contains('gmail'))return const _BrandVisual(FontAwesomeIcons.google,Color(0xFF4285F4));
+  if(key.contains('amazon'))return const _BrandVisual(FontAwesomeIcons.amazon,Color(0xFFFF9900));
+  if(key.contains('microsoft'))return const _BrandVisual(FontAwesomeIcons.microsoft,Color(0xFF00A4EF));
+  if(key.contains('apple'))return const _BrandVisual(FontAwesomeIcons.apple,Color(0xFF111111));
+  if(key.contains('linkedin'))return const _BrandVisual(FontAwesomeIcons.linkedinIn,Color(0xFF0A66C2));
+  if(key.contains('uber'))return const _BrandVisual(FontAwesomeIcons.uber,Color(0xFF111111));
+  if(key.contains('airbnb'))return const _BrandVisual(FontAwesomeIcons.airbnb,Color(0xFFFF5A5F));
+  if(key.contains('spotify'))return const _BrandVisual(FontAwesomeIcons.spotify,Color(0xFF1DB954));
+  return const _BrandVisual(Icons.apps_rounded,Color(0xFF1686FF));
+}
+
+class _BrandBadge extends StatelessWidget {
+  const _BrandBadge({required this.service,this.size=40});
+  final VirtualService service;
+  final double size;
+  @override
+  Widget build(BuildContext context){
+    final brand=_brandVisual(service);
+    return Container(
+      width:size,height:size,
+      decoration:BoxDecoration(color:brand.color.withValues(alpha:.11),borderRadius:BorderRadius.circular(size*.30)),
+      child:Center(child:FaIcon(brand.icon,color:brand.color,size:size*.48)),
+    );
+  }
+}
+
+class _SearchPickerSheet<T> extends StatefulWidget {
+  const _SearchPickerSheet({
+    required this.title,
+    required this.searchHint,
+    required this.items,
+    required this.searchText,
+    required this.itemBuilder,
+  });
+  final String title;
+  final String searchHint;
+  final List<T> items;
+  final String Function(T) searchText;
+  final Widget Function(T) itemBuilder;
+
+  @override
+  State<_SearchPickerSheet<T>> createState()=>_SearchPickerSheetState<T>();
+}
+
+class _SearchPickerSheetState<T> extends State<_SearchPickerSheet<T>> {
+  final search=TextEditingController();
+  String query='';
+
+  @override
+  void dispose(){search.dispose();super.dispose();}
+
+  @override
+  Widget build(BuildContext context){
+    final q=query.trim().toLowerCase();
+    final rows=q.isEmpty?widget.items:widget.items.where((item)=>widget.searchText(item).toLowerCase().contains(q)).toList(growable:false);
+    return Padding(
+      padding:EdgeInsets.only(bottom:MediaQuery.viewInsetsOf(context).bottom),
+      child:DraggableScrollableSheet(
+        expand:false,
+        initialChildSize:.82,
+        minChildSize:.55,
+        maxChildSize:.96,
+        builder:(context,controller)=>Column(children:[
+          const SizedBox(height:9),
+          Container(width:44,height:5,decoration:BoxDecoration(color:const Color(0xFFD5E0E8),borderRadius:BorderRadius.circular(99))),
+          Padding(
+            padding:const EdgeInsets.fromLTRB(18,14,18,10),
+            child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              Text(widget.title,style:const TextStyle(fontSize:19,fontWeight:FontWeight.w900)),
+              const SizedBox(height:11),
+              TextField(
+                controller:search,
+                autofocus:false,
+                onChanged:(v)=>setState(()=>query=v),
+                decoration:InputDecoration(prefixIcon:const Icon(Icons.search_rounded),hintText:widget.searchHint,suffixIcon:query.isEmpty?null:IconButton(onPressed:(){search.clear();setState(()=>query='');},icon:const Icon(Icons.close_rounded))),
+              ),
+            ]),
+          ),
+          Expanded(
+            child:rows.isEmpty
+              ?const Center(child:Text('No results',style:TextStyle(color:Color(0xFF718399))))
+              :ListView.separated(
+                controller:controller,
+                padding:const EdgeInsets.fromLTRB(12,2,12,20),
+                itemCount:rows.length,
+                separatorBuilder:(_,__)=>const Divider(height:1,color:Color(0xFFEDF2F7)),
+                itemBuilder:(context,index){
+                  final item=rows[index];
+                  return ListTile(
+                    contentPadding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
+                    title:widget.itemBuilder(item),
+                    onTap:()=>Navigator.pop(context,item),
+                  );
+                },
+              ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+class _SmartCountryCard extends StatelessWidget {
+  const _SmartCountryCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.country,
+    required this.fa,
+    required this.price,
+    required this.busy,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VirtualCountry? country;
+  final bool fa;
+  final String price;
+  final bool busy;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context)=>Card(
+    child:Padding(
+      padding:const EdgeInsets.all(16),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Row(children:[
+          CircleAvatar(backgroundColor:const Color(0xFFE4F4FF),child:Icon(icon,color:const Color(0xFF0D78C8))),
+          const SizedBox(width:11),
+          Expanded(child:Text(title,style:const TextStyle(fontWeight:FontWeight.w900,fontSize:15))),
+          Text(price,style:const TextStyle(fontWeight:FontWeight.w900,color:Color(0xFF0D78C8))),
+        ]),
+        const SizedBox(height:7),
+        Text(subtitle,style:const TextStyle(color:Color(0xFF607487),fontSize:11.5,height:1.4)),
+        if(country!=null)...[
+          const SizedBox(height:12),
+          Container(
+            padding:const EdgeInsets.all(11),
+            decoration:BoxDecoration(color:const Color(0xFFF5FAFE),borderRadius:BorderRadius.circular(13)),
+            child:Row(children:[
+              Text(country!.flag,style:const TextStyle(fontSize:30)),
+              const SizedBox(width:10),
+              Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                Text(country!.name,style:const TextStyle(fontWeight:FontWeight.w900)),
+                Text('${country!.availableCount} ${fa?'موجود':'available'}',style:const TextStyle(fontSize:10.5,color:Color(0xFF718399))),
+              ])),
+              if(country!.maxRate!=null)Container(
+                padding:const EdgeInsets.symmetric(horizontal:8,vertical:5),
+                decoration:BoxDecoration(color:const Color(0xFFE7F8F1),borderRadius:BorderRadius.circular(99)),
+                child:Text('${country!.maxRate!.toStringAsFixed(1)}%',style:const TextStyle(fontSize:10.5,fontWeight:FontWeight.w900,color:Color(0xFF0A8B5B))),
+              ),
+            ]),
+          ),
+        ],
+        const SizedBox(height:10),
+        SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:busy?null:onTap,icon:const Icon(Icons.flash_on_rounded),label:Text(fa?'خرید هوشمند':'Smart buy'))),
+      ]),
+    ),
+  );
+}
+
 class _Notice extends StatelessWidget {
   const _Notice({required this.text, this.danger = false});
   final String text;
