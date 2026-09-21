@@ -1,11 +1,16 @@
-Trigger signed Android build - VELIXEO v0.9.5 - 2026-09-21.
+Trigger signed Android build - VELIXEO v0.9.6 - 2026-09-21.
 Release scope:
-1) Smart Buy now follows the 5SIM-style service-only flow and automatically selects the best live country/operator.
-2) Virtual Numbers admin Services loads the complete synchronized 5SIM catalog instead of stopping at 1000 rows.
-3) Service search therefore finds services that were previously visible in the app but missing from the admin list.
-4) Social provider creation was hardened: slug stays optional/auto-unique and a provider can be saved before its API key is added.
-5) Provider currency is now a dropdown instead of free text, with AFN/USD/TOMAN and configured provider currencies available.
-6) Provider currency selection is saved to the real Provider record and used by AFN pricing conversion.
-7) AFN remains the accounting/base currency; customers may display AFN, USD or Toman.
-8) Full signed APK update is used for this development-stage release.
-9) Backend and Flutter validations must pass before release publication.
+1) Premium & Subscriptions is now a dedicated manual-fulfillment business module.
+2) Admin can create bilingual Premium products with multiple packages, AFN prices, optional stock, delivery SLA, category, icon URL and instructions.
+3) Every Premium product can define its own dynamic customer order form (username, phone, email, text, select, textarea); password fields are intentionally not supported.
+4) Premium purchases are charged atomically from the AFN wallet before the order enters the fulfillment queue.
+5) Telegram admin invoice alerts are triggered only after a successful paid wallet transaction.
+6) Premium admin fulfillment supports Pending, Processing, Need information, Completed and Reject + Refund.
+7) Refunds return funds to the customer wallet idempotently and restore finite package stock.
+8) Optional manual-delivery credentials/license text are encrypted at rest with the existing AES-GCM server key.
+9) Customers receive bilingual in-app/push updates for Premium order lifecycle changes.
+10) Premium entry includes a bilingual server-controlled banner plus a built-in fallback hero explaining the section.
+11) Premium navigation is wired from Home, service catalog, search results and velixeo://premium deep links.
+12) English remains the currently enabled app locale; all new Premium content and logic are Persian/English-ready for the later UI/UX localization pass.
+13) Full signed APK update is used during the current development phase.
+14) Backend and Flutter validations passed before the release trigger.
