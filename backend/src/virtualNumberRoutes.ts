@@ -366,9 +366,10 @@ function sortOffers(rows: VirtualOffer[], mode: 'BEST_RATE' | 'LOW_PRICE' | 'ANY
         a.providerPriority - b.providerPriority;
     }
     if (mode === 'ANY') {
-      return a.routePriority - b.routePriority ||
-        a.providerPriority - b.providerPriority ||
-        a.priceAfn - b.priceAfn;
+      return a.priceAfn - b.priceAfn ||
+        (b.deliveryRate ?? -1) - (a.deliveryRate ?? -1) ||
+        a.routePriority - b.routePriority ||
+        a.providerPriority - b.providerPriority;
     }
     return (b.deliveryRate ?? -1) - (a.deliveryRate ?? -1) ||
       a.priceAfn - b.priceAfn ||
@@ -707,11 +708,18 @@ export function registerVirtualNumberRoutes(
     if (rows.length === 0) return reply.code(404).send({ error: 'no_virtual_number_offers' });
     const bestRate = sortOffers(rows, 'BEST_RATE')[0];
     const lowPrice = sortOffers(rows, 'LOW_PRICE')[0];
-    const operators = sortOffers(rows, 'BEST_RATE').map(publicOffer);
+    const priceSorted = sortOffers(rows, 'LOW_PRICE');
+    const highPrice = [...priceSorted].sort((a,b)=>b.priceAfn-a.priceAfn)[0];
+    const operators = priceSorted.map(publicOffer);
     return {
       country: parsed.data.country,
       bestRate: bestRate ? publicOffer(bestRate) : null,
       lowPrice: lowPrice ? publicOffer(lowPrice) : null,
+      highPrice: highPrice ? publicOffer(highPrice) : null,
+      minPriceAfn: lowPrice?.priceAfn ?? 0,
+      maxPriceAfn: highPrice?.priceAfn ?? 0,
+      bestDeliveryPercent: bestRate?.deliveryRate ?? null,
+      totalAvailable: rows.reduce((sum, row) => sum + row.count, 0),
       anyOperator: {
         country: parsed.data.country,
         operator: 'any',
