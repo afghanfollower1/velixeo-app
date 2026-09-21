@@ -15,6 +15,7 @@ import {
   type FiveSimPrice,
   fiveSimClientForProvider,
 } from './fiveSimAdapter.js';
+import { normalizeCurrencyCode } from './currency.js';
 
 type AuthenticateHook = (
   request: FastifyRequest,
@@ -140,7 +141,11 @@ async function enabledCountrySet(prisma: PrismaClient) {
   return new Set(raw.map((item) => String(item).trim().toLowerCase()).filter(Boolean));
 }
 
-async function providerAfnPerUnit(prisma: PrismaClient, providerId: string) {
+async function providerAfnPerUnit(
+  prisma: PrismaClient,
+  providerId: string,
+  providerCurrency?: string | null,
+) {
   const raw = await settingValue(prisma, `virtual.provider.${providerId}.afnPerUnit`);
   if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw;
   if (typeof raw === 'string') {
@@ -151,7 +156,12 @@ async function providerAfnPerUnit(prisma: PrismaClient, providerId: string) {
     const parsed = Number((raw as Record<string, unknown>).value);
     if (Number.isFinite(parsed) && parsed > 0) return parsed;
   }
-  return null;
+  const currency = normalizeCurrencyCode(providerCurrency || 'USD') || 'USD';
+  if (currency === 'AFN') return 1;
+  const exchange = await prisma.exchangeRate.findUnique({ where: { code: currency } });
+  if (!exchange) return null;
+  const value = Number(exchange.afnPerUnit.toString());
+  return Number.isFinite(value) && value > 0 ? value : null;
 }
 
 async function virtualGlobalMarkupPercent(prisma: PrismaClient) {
@@ -328,7 +338,7 @@ async function offersForService(
   const product = service.routes[0]?.providerServiceCode || service.slug.replace(/^virtual-/, '');
   const rows: VirtualOffer[] = [];
   for (const route of service.routes) {
-    const factor = await providerAfnPerUnit(prisma, route.providerId);
+    const factor = await providerAfnPerUnit(prisma, route.providerId, route.provider.currencyCode);
     if (factor == null) continue;
     let providerRows: FiveSimPrice[];
     try {
