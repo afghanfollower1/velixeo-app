@@ -39,6 +39,10 @@ import {
 import { registerAdminV3 } from './adminV3.js';
 import { startNotificationPushScheduler } from './pushNotifications.js';
 import {
+  sendAdminRegistrationAlert,
+  sendAdminWalletAdjustmentAlert,
+} from './adminTelegramEvents.js';
+import {
   completeInboundWhatsAppChallenge,
   ensureMetaWhatsAppSubscription,
   issueInboundWhatsAppChallenge,
@@ -563,6 +567,17 @@ app.post('/admin/wallet-adjust', async (request, reply) => {
         metadata: { userId: parsed.data.userId },
       },
     });
+    try {
+      await sendAdminWalletAdjustmentAlert(prisma, {
+        userId: parsed.data.userId,
+        amountAfn,
+        balanceAfterAfn: entry.balanceAfterAfn,
+        reason: parsed.data.reason,
+        adminName: admin.fullName || admin.email || admin.phone || 'Administrator',
+      });
+    } catch (error) {
+      request.log.warn({ error, walletEntryId: entry.id }, 'admin Telegram wallet adjustment alert failed');
+    }
     return reply.code(303).redirect(`/admin?view=users&user=${encodeURIComponent(parsed.data.userId)}&msg=wallet_updated`);
   } catch (error) {
     if (error instanceof Error && error.message === 'INSUFFICIENT_FUNDS') {
@@ -674,6 +689,16 @@ app.post('/api/v1/auth/register', async (request, reply) => {
     } catch (error) {
       request.log.error({ error, inviteeId: user.id }, 'referral registration recording failed');
     }
+  }
+
+  try {
+    await sendAdminRegistrationAlert(prisma, {
+      userId: user.id,
+      method: 'PASSWORD',
+      referralCode: parsed.data.referralCode || null,
+    });
+  } catch (error) {
+    request.log.warn({ error, userId: user.id }, 'admin Telegram registration alert failed');
   }
 
   const session = await createSession(user);
@@ -859,6 +884,7 @@ app.post('/api/v1/auth/google', async (request, reply) => {
     }
 
     let user = await prisma.user.findUnique({ where: { googleSubject } });
+    let createdGoogleUser = false;
     if (!user) {
       const existing = await prisma.user.findUnique({ where: { email } });
       if (existing?.googleSubject && existing.googleSubject !== googleSubject) {
@@ -886,6 +912,18 @@ app.post('/api/v1/auth/google', async (request, reply) => {
             wallet: { create: {} },
           },
         });
+        createdGoogleUser = true;
+      }
+    }
+
+    if (createdGoogleUser) {
+      try {
+        await sendAdminRegistrationAlert(prisma, {
+          userId: user.id,
+          method: 'GOOGLE',
+        });
+      } catch (error) {
+        request.log.warn({ error, userId: user.id }, 'admin Telegram Google registration alert failed');
       }
     }
 
