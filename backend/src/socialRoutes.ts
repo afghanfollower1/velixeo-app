@@ -17,6 +17,7 @@ import {
 import { claimCoupon, quoteCoupon, releaseCoupon } from './couponPricing.js';
 import { loadSocialBrands, normalizeBrandKey } from './socialBrands.js';
 import { getSocialOrderSettings } from './socialOrderSettings.js';
+import { normalizeCurrencyCode } from './currency.js';
 
 type AuthenticateHook = (
   request: FastifyRequest,
@@ -430,7 +431,7 @@ async function providerRateAfn(
   },
 ) {
   if (!route.providerRate) return null;
-  const currency = (route.providerCurrency || 'USD').toUpperCase();
+  const currency = normalizeCurrencyCode(route.providerCurrency || 'USD') || 'USD';
   const rateScaled = decimalToScaled(route.providerRate);
   let afnPerCurrencyScaled = 1_000_000n;
   if (currency !== 'AFN') {
@@ -463,7 +464,7 @@ async function providerCostAfn(
   priceUnit: number,
 ) {
   if (!route.providerRate) return null;
-  const currency = (route.providerCurrency || 'USD').toUpperCase();
+  const currency = normalizeCurrencyCode(route.providerCurrency || 'USD') || 'USD';
   let afnPerCurrencyScaled = 1_000_000n;
   if (currency !== 'AFN') {
     const exchange = await prisma.exchangeRate.findUnique({ where: { code: currency } });
@@ -790,7 +791,7 @@ async function syncProviderServices(prisma: PrismaClient, providerId: string) {
       providerType: row.type,
       providerCategory: row.category,
       providerRate: new Prisma.Decimal(row.rate || '0'),
-      providerCurrency: balance.currency,
+      providerCurrency: normalizeCurrencyCode(provider.currencyCode || balance.currency || 'USD') || 'USD',
       providerMinQty: row.min || null,
       providerMaxQty: row.max || null,
       providerRefill: row.refill,
@@ -851,9 +852,12 @@ async function syncSocialOrderRecord(prisma: PrismaClient, order: any) {
   const status = await smmClientForProvider(order.provider).status(order.providerOrderId);
   const providerMappedStatus = mapProviderStatus(status.status);
   let actualCostAfn: bigint | undefined;
-  if (status.charge && status.currency) {
-    const rate = await prisma.exchangeRate.findUnique({ where: { code: status.currency } });
-    if (status.currency === 'AFN') {
+  const chargeCurrency = normalizeCurrencyCode(order.provider.currencyCode || status.currency || 'USD') || 'USD';
+  if (status.charge) {
+    const rate = chargeCurrency === 'AFN'
+      ? null
+      : await prisma.exchangeRate.findUnique({ where: { code: chargeCurrency } });
+    if (chargeCurrency === 'AFN') {
       actualCostAfn = BigInt(Math.ceil(Number(status.charge)));
     } else if (rate) {
       actualCostAfn = BigInt(Math.ceil(Number(status.charge) * Number(rate.afnPerUnit.toString())));
@@ -881,7 +885,7 @@ async function syncSocialOrderRecord(prisma: PrismaClient, order: any) {
         charge: status.charge ?? null,
         startCount: status.startCount ?? null,
         remains: status.remains ?? null,
-        providerCurrency: status.currency ?? null,
+        providerCurrency: chargeCurrency,
         providerRefillReady: providerBool(status.raw.refill),
         providerCancelReady: providerBool(status.raw.cancel),
         refillAvailabilityMessage: providerText(status.raw, 'refillAvailableTime', 'refill_available_time', 'refill_available'),

@@ -8,6 +8,7 @@ import {
   type ServiceProviderRoute,
 } from '@prisma/client';
 import { smmClientForProvider } from './smmPanelAdapter.js';
+import { normalizeCurrencyCode } from './currency.js';
 
 const SCALE = 1_000_000n;
 const DEFAULT_SYNC_MINUTES = 10;
@@ -134,7 +135,7 @@ function ceilDiv(a: bigint, b: bigint) {
 }
 
 async function afnPerCurrencyScaled(prisma: PrismaClient, currency: string) {
-  const normalized = currency.trim().toUpperCase() || 'USD';
+  const normalized = normalizeCurrencyCode(currency) || 'USD';
   if (normalized === 'AFN') return SCALE;
   const exchange = await prisma.exchangeRate.findUnique({ where: { code: normalized } });
   if (!exchange) return null;
@@ -160,7 +161,7 @@ export async function socialRouteSaleRateAfn(
 ) {
   if (service.basePriceAfn != null) return service.basePriceAfn;
   if (!route.providerRate) return null;
-  const currency = (route.providerCurrency || 'USD').toUpperCase();
+  const currency = normalizeCurrencyCode(route.providerCurrency || 'USD') || 'USD';
   const fx = await afnPerCurrencyScaled(prisma, currency);
   if (fx == null) return null;
 
@@ -241,7 +242,7 @@ export async function syncSocialProviderCatalog(
       include: { service: true },
     });
     const byCode = new Map(routes.map((route) => [route.providerServiceCode, route]));
-    const currency = (balance.currency || 'USD').toUpperCase();
+    const currency = normalizeCurrencyCode(provider.currencyCode || balance.currency || 'USD') || 'USD';
     const fx = await afnPerCurrencyScaled(prisma, currency);
     let created = 0;
     let updated = 0;

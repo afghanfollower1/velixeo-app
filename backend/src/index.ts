@@ -24,6 +24,7 @@ import { registerAdminCsrfGuard } from './adminSecurity.js';
 import { registerSocialRoutes } from './socialRoutes.js';
 import { startSocialAutoSync } from './socialSync.js';
 import { registerVirtualNumberRoutes } from './virtualNumberRoutes.js';
+import { normalizeCurrencyCode } from './currency.js';
 import {
   recordReferralRegistration,
   registerReferralRoutes,
@@ -178,7 +179,7 @@ const adminAdjustmentSchema = z.object({
 });
 
 const rateSchema = z.object({
-  code: z.enum(['USD', 'TOMAN']),
+  code: z.string().trim().min(2).max(12).regex(/^[A-Za-z0-9_-]+$/),
   afnPerUnit: z.string().regex(/^\d+(\.\d{1,8})?$/),
 });
 
@@ -1417,11 +1418,13 @@ app.put(
     const parsed = rateSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
 
+    const code = normalizeCurrencyCode(parsed.data.code) || 'USD';
+    if (code === 'AFN') return reply.code(400).send({ error: 'base_currency_is_fixed' });
     const rate = await prisma.exchangeRate.upsert({
-      where: { code: parsed.data.code },
+      where: { code },
       update: { afnPerUnit: new Prisma.Decimal(parsed.data.afnPerUnit) },
       create: {
-        code: parsed.data.code,
+        code,
         afnPerUnit: new Prisma.Decimal(parsed.data.afnPerUnit),
       },
     });
