@@ -297,7 +297,10 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     }
   }
 
-  Future<void> changeService(VirtualService? service) async {
+  Future<void> changeService(
+    VirtualService? service, {
+    bool loadCountryData=true,
+  }) async {
     if (service == null) return;
     setState(() {
       selectedService = service;
@@ -305,7 +308,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
       offers = null;
       error = null;
     });
-    await loadCountries(service);
+    if(loadCountryData)await loadCountries(service);
   }
 
   void changeCountry(VirtualCountry? country) {
@@ -568,8 +571,9 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
       ),
     );
     if(picked!=null){
-      await changeService(picked);
-      if(tab==1&&mounted)await smartBuy();
+      final smart=tab==1;
+      await changeService(picked,loadCountryData:!smart);
+      if(smart&&mounted)await smartBuy();
     }
   }
 
@@ -635,7 +639,16 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
                       ButtonSegment(value: 2, icon: const Icon(Icons.sms_outlined), label: Text(t('شماره‌های من', 'My Numbers'))),
                     ],
                     selected: {tab},
-                    onSelectionChanged: (value) => setState(() => tab = value.first),
+                    onSelectionChanged: (value) {
+                      final next=value.first;
+                      setState(()=>tab=next);
+                      if(next==0){
+                        final service=selectedService;
+                        if(service!=null&&service.countries.isEmpty&&!loadingCountries){
+                          unawaited(loadCountries(service));
+                        }
+                      }
+                    },
                   ),
                   const SizedBox(height: 16),
                   if (error != null)
@@ -819,6 +832,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
         ),
         const SizedBox(height:12),
         _SmartCountryCard(
+          icon:Icons.auto_awesome_rounded,
           fa:fa,
           title:t('خرید هوشمند 5SIM','5SIM Smart Buy'),
           subtitle:t(
@@ -833,6 +847,22 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
       ],
     );
   }
+
+  bool orderMatches(VirtualOrder order,String filter) {
+    switch(filter){
+      case 'ALL': return true;
+      case 'ACTIVE': return isActive(order);
+      case 'COMPLETED': return order.status=='COMPLETED';
+      case 'CANCELLED': return order.status=='CANCELLED'||order.status=='REFUNDED';
+      case 'FAILED': return order.status=='FAILED';
+      default:return true;
+    }
+  }
+
+  bool orderMatchesFilter(VirtualOrder order)=>orderMatches(order,orderFilter);
+
+  int filterCount(String filter)=>
+      orders.where((order)=>orderMatches(order,filter)).length;
 
   Widget numbersPanel() {
     if (orders.isEmpty) {
