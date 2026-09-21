@@ -1,12 +1,11 @@
-Trigger signed Android build - VELIXEO v0.9.3 - 2026-09-21 FINAL.
-Validated release scope:
-1) 5SIM delivery "rate" is kept in the provider's documented percentage units and displayed with two decimal precision when supplied.
-2) All operator rows returned by 5SIM are preserved across supported object/array response shapes and deduplicated only by country/service/operator.
-3) Manual Virtual Numbers mirrors the 5SIM comparison flow: price-sorted operators, stock, SMS delivery %, lowest/highest price, best-delivery labels, and an Any operator option.
-4) Any operator purchase uses the same live lowest-price-first selection shown to the customer.
-5) Country flags and display names resolve from full ISO metadata and aliases rather than a partial hardcoded list.
-6) Known services use brand icons/colors; unknown 5SIM services receive a distinct service initials badge instead of a missing/generic icon.
-7) My Numbers is organized into Active / Completed / Cancelled / Failed / All with green completion and red cancellation/failure states.
-8) Virtual Numbers has an admin-managed entry banner; image/text can be changed or disabled without an APK update and the built-in information hero is the fallback.
-9) Startup and Virtual Numbers performance: parallel secondary API calls, staged authenticated startup, parallel order polling, fewer timer rebuilds, lightweight balance refresh, and optimized network-image decoding.
-10) Flutter validation, backend CI and Railway production deployment passed for the final code.
+Trigger signed Android build - VELIXEO v0.9.4 - 2026-09-21.
+Release scope:
+1) Virtual Numbers admin Services now has per-service icon upload next to every service.
+2) Uploaded icons are compressed in-browser to lightweight 128x128 WebP before storage.
+3) Mobile catalog receives only a tiny cached icon URL; it never downloads icon blobs inside the catalog JSON.
+4) Uploaded admin icon overrides built-in brand icon; failures fall back to existing brand icon/initials.
+5) Admin can set Display order per virtual-number service (1, 2, 3, ...).
+6) App service picker follows the exact backend/admin sortOrder instead of hardcoded popularity sorting.
+7) Future 5SIM syncs preserve admin icon and manual display order.
+8) Virtual Numbers remains isolated from Social Media.
+9) Backend tests and Flutter validation passed before build trigger.
