@@ -118,7 +118,7 @@ export function registerClientFoundationRoutes(
 ) {
   app.get('/api/v1/catalog/services', async () => {
     const services = await prisma.service.findMany({
-      where: { enabled: true, category: { not: ServiceCategory.PROMOTION } },
+      where: { enabled: true, category: { notIn: [ServiceCategory.PROMOTION, ServiceCategory.MOBILE_TOPUP] } },
       orderBy: [{ featured: 'desc' }, { category: 'asc' }, { sortOrder: 'asc' }],
       select: {
         id: true,
