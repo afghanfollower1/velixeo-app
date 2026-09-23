@@ -370,10 +370,12 @@ export async function premiumAdminPage(
   ]);
   const products = allProducts.filter(isPremiumAccountService);
   const premiumOrders = allOverviewOrders.filter((order) => order.service && isPremiumAccountService(order.service));
-  const openOrders = premiumOrders.filter((order) => [OrderStatus.PENDING, OrderStatus.PROCESSING].includes(order.status)).length;
+  const openStatuses = new Set<OrderStatus>([OrderStatus.PENDING, OrderStatus.PROCESSING]);
+  const openOrders = premiumOrders.filter((order) => openStatuses.has(order.status)).length;
   const completedOrders = premiumOrders.filter((order) => order.status === OrderStatus.COMPLETED).length;
+  const excludedRevenueStatuses = new Set<OrderStatus>([OrderStatus.REFUNDED, OrderStatus.CANCELLED, OrderStatus.FAILED]);
   const revenue = premiumOrders
-    .filter((order) => ![OrderStatus.REFUNDED, OrderStatus.CANCELLED, OrderStatus.FAILED].includes(order.status))
+    .filter((order) => !excludedRevenueStatuses.has(order.status))
     .reduce((sum, order) => sum + order.totalAmountAfn, 0n);
   return {
     tabs: tabHtml,
