@@ -954,7 +954,7 @@ class _VirtualPromoBanner extends StatelessWidget {
               Image.network(
                 imageUrl,
                 fit:BoxFit.cover,
-                cacheWidth:1080,
+                cacheWidth:((MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context)).clamp(640,1280)).round(),
                 filterQuality:FilterQuality.low,
                 gaplessPlayback:true,
                 loadingBuilder:(context,child,progress)=>progress==null?child:const SizedBox.shrink(),
