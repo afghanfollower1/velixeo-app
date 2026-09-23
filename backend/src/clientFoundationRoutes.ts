@@ -150,8 +150,8 @@ export function registerClientFoundationRoutes(
     const banners = await prisma.banner.findMany({
       where: {
         enabled: true,
-        NOT: { actionUrl: { in: ['velixeo://promotions', 'velixeo://promotion'] } },
         AND: [
+          { OR: [{ actionUrl: null }, { actionUrl: { notIn: ['velixeo://promotions', 'velixeo://promotion'] } }] },
           { OR: [{ startsAt: null }, { startsAt: { lte: now } }] },
           { OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
         ],
