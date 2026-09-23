@@ -8,6 +8,8 @@ import '../social/social_models.dart';
 import '../support/support_models.dart';
 import '../virtual_numbers/virtual_number_models.dart';
 import '../premium/premium_models.dart';
+// Compatibility only: Promotions UI/routes are disabled, but these types keep the dormant source compiling.
+import '../promotions/promotion_models.dart';
 import '../referrals/referral_models.dart';
 
 class ApiException implements Exception {
@@ -456,6 +458,94 @@ class ApiService {
       auth: true,
     );
     if (response.statusCode != 200) _throwResponse(response);
+  }
+
+  // Dormant compatibility methods. The Promotions screen is not linked into the app,
+  // and the backend Promotions routes are not registered. Keeping these methods
+  // allows the retained source files to pass static analysis for possible future reuse.
+  Future<List<MetaConnection>> metaConnections() async {
+    final response = await _send('GET', '/api/v1/promotions/meta/connections', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    final rows = (_decodeObject(response)['connections'] as List<dynamic>?) ?? const [];
+    return rows
+        .whereType<Map>()
+        .map((item) => MetaConnection.fromJson(Map<String, dynamic>.from(item)))
+        .toList(growable: false);
+  }
+
+  Future<String> startMetaConnection() async {
+    final response = await _send('POST', '/api/v1/promotions/meta/connect', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    final url = (_decodeObject(response)['url'] as String?) ?? '';
+    if (url.isEmpty) throw const ApiException('meta_login_url_missing');
+    return url;
+  }
+
+  Future<List<MetaMedia>> metaMedia(String connectionId) async {
+    final response = await _send('GET', '/api/v1/promotions/meta/connections/$connectionId/media', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    final rows = (_decodeObject(response)['media'] as List<dynamic>?) ?? const [];
+    return rows
+        .whereType<Map>()
+        .map((item) => MetaMedia.fromJson(Map<String, dynamic>.from(item)))
+        .toList(growable: false);
+  }
+
+  Future<void> disconnectMetaConnection(String connectionId) async {
+    final response = await _send('POST', '/api/v1/promotions/meta/connections/$connectionId/disconnect', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+  }
+
+  Future<PromotionCatalog> promotionCatalog() async {
+    final response = await _send('GET', '/api/v1/promotions/catalog');
+    if (response.statusCode != 200) _throwResponse(response);
+    return PromotionCatalog.fromJson(_decodeObject(response));
+  }
+
+  Future<List<PromotionOrder>> promotionOrders() async {
+    final response = await _send('GET', '/api/v1/promotions/orders', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    final rows = (_decodeObject(response)['orders'] as List<dynamic>?) ?? const [];
+    return rows
+        .whereType<Map>()
+        .map((item) => PromotionOrder.fromJson(Map<String, dynamic>.from(item)))
+        .toList(growable: false);
+  }
+
+  Future<PromotionOrderResult> createPromotionOrder({
+    required String serviceId,
+    required String packageId,
+    required String postUrl,
+    required String partnershipAdCode,
+    required String objective,
+    required List<String> targetCountries,
+    required String audienceNotes,
+    required String websiteUrl,
+    required String clientRequestId,
+    String? metaConnectionId,
+    String? instagramMediaId,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/promotions/orders',
+      auth: true,
+      body: {
+        'serviceId': serviceId,
+        'packageId': packageId,
+        'postUrl': postUrl,
+        'partnershipAdCode': partnershipAdCode,
+        'objective': objective,
+        'targetCountries': targetCountries,
+        'audienceNotes': audienceNotes,
+        'websiteUrl': websiteUrl,
+        if (metaConnectionId?.isNotEmpty == true) 'metaConnectionId': metaConnectionId,
+        if (instagramMediaId?.isNotEmpty == true) 'instagramMediaId': instagramMediaId,
+        'clientRequestId': clientRequestId,
+        'termsAccepted': true,
+      },
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) _throwResponse(response);
+    return PromotionOrderResult.fromJson(_decodeObject(response));
   }
 
   Future<PremiumCatalog> premiumCatalog() async {
