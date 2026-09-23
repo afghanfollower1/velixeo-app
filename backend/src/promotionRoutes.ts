@@ -31,6 +31,8 @@ const createOrderSchema = z.object({
   targetCountries: z.array(z.string().trim().min(2).max(80)).min(1).max(10),
   audienceNotes: z.string().trim().max(1200).optional().default(''),
   websiteUrl: z.string().url().max(1200).optional().or(z.literal('')).default(''),
+  metaConnectionId: z.string().uuid().optional(),
+  instagramMediaId: z.string().trim().max(120).optional(),
   clientRequestId: z.string().uuid(),
   termsAccepted: z.literal(true),
 });
@@ -79,6 +81,10 @@ function orderJson(order: any) {
     targetCountries: input.targetCountries ?? [],
     audienceNotes: input.audienceNotes ?? null,
     websiteUrl: input.websiteUrl ?? null,
+    metaConnectionId: input.metaConnectionId ?? null,
+    instagramMediaId: input.instagramMediaId ?? null,
+    instagramUsername: input.instagramUsername ?? null,
+    instagramPageName: input.instagramPageName ?? null,
     partnershipAdCode: input.partnershipAdCode ?? null,
     deliveryMinHours: input.deliveryMinHours ?? null,
     deliveryMaxHours: input.deliveryMaxHours ?? null,
@@ -175,6 +181,14 @@ export function registerPromotionRoutes(
       return reply.code(400).send({ error: 'website_url_required' });
     }
 
+    let metaConnection: any = null;
+    if (parsed.data.metaConnectionId) {
+      metaConnection = await prisma.metaConnection.findFirst({
+        where: { id: parsed.data.metaConnectionId, userId, status: 'CONNECTED' },
+      });
+      if (!metaConnection) return reply.code(409).send({ error: 'meta_connection_unavailable' });
+    }
+
     const priceAfn = BigInt(pkg.priceAfn);
     let result;
     try {
@@ -237,6 +251,15 @@ export function registerPromotionRoutes(
                 targetCountries: parsed.data.targetCountries,
                 audienceNotes: parsed.data.audienceNotes,
                 websiteUrl: parsed.data.websiteUrl,
+                metaConnectionId: metaConnection?.id ?? null,
+                instagramMediaId: parsed.data.instagramMediaId ?? null,
+                instagramUsername: metaConnection?.instagramUsername ?? null,
+                instagramUserId: metaConnection?.instagramUserId ?? null,
+                instagramPageId: metaConnection?.pageId ?? null,
+                instagramPageName: metaConnection?.pageName ?? null,
+                metaAdvertisingReady: Boolean(
+                  metaConnection && Array.isArray(metaConnection.pageTasks) && metaConnection.pageTasks.includes('ADVERTISE'),
+                ),
                 deliveryMinHours: lockedMeta.deliveryMinHours,
                 deliveryMaxHours: lockedMeta.deliveryMaxHours,
                 termsAccepted: true,
@@ -301,7 +324,7 @@ export function registerPromotionRoutes(
         });
       } catch {}
       try {
-        await sendAdminOrderAlert(prisma, order.id, 'Promotion order paid; review the partnership ad code and launch manually in Meta Ads Manager.');
+        await sendAdminOrderAlert(prisma, order.id, 'Promotion order paid; review the connected Instagram account and selected post, then launch the ad manually in Meta Ads Manager.');
       } catch (error) {
         request.log.warn({ error, orderId: order.id }, 'admin Telegram promotion order alert failed');
       }
