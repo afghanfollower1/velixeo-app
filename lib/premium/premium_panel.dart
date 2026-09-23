@@ -661,8 +661,10 @@ class _PremiumBanner extends StatelessWidget {
               Image.network(
                 image,
                 fit: BoxFit.cover,
-                cacheWidth: 1080,
+                cacheWidth: ((MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context)).clamp(640, 1280)).round(),
                 filterQuality: FilterQuality.low,
+                gaplessPlayback: true,
+                loadingBuilder: (context, child, progress) => progress == null ? child : const SizedBox.shrink(),
                 errorBuilder: (_, __, ___) => const SizedBox.shrink(),
               ),
             Container(decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xC8121631), Color(0x33121631)]))),
