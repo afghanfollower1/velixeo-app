@@ -459,6 +459,39 @@ class ApiService {
     if (response.statusCode != 200) _throwResponse(response);
   }
 
+  Future<List<MetaConnection>> metaConnections() async {
+    final response = await _send('GET', '/api/v1/promotions/meta/connections', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    final rows = (_decodeObject(response)['connections'] as List<dynamic>?) ?? const [];
+    return rows
+        .whereType<Map>()
+        .map((item) => MetaConnection.fromJson(Map<String, dynamic>.from(item)))
+        .toList(growable: false);
+  }
+
+  Future<String> startMetaConnection() async {
+    final response = await _send('POST', '/api/v1/promotions/meta/connect', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    final url = (_decodeObject(response)['url'] as String?) ?? '';
+    if (url.isEmpty) throw const ApiException('meta_login_url_missing');
+    return url;
+  }
+
+  Future<List<MetaMedia>> metaMedia(String connectionId) async {
+    final response = await _send('GET', '/api/v1/promotions/meta/connections/$connectionId/media', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+    final rows = (_decodeObject(response)['media'] as List<dynamic>?) ?? const [];
+    return rows
+        .whereType<Map>()
+        .map((item) => MetaMedia.fromJson(Map<String, dynamic>.from(item)))
+        .toList(growable: false);
+  }
+
+  Future<void> disconnectMetaConnection(String connectionId) async {
+    final response = await _send('POST', '/api/v1/promotions/meta/connections/$connectionId/disconnect', auth: true);
+    if (response.statusCode != 200) _throwResponse(response);
+  }
+
   Future<PromotionCatalog> promotionCatalog() async {
     final response = await _send('GET', '/api/v1/promotions/catalog');
     if (response.statusCode != 200) _throwResponse(response);
@@ -485,6 +518,8 @@ class ApiService {
     required String audienceNotes,
     required String websiteUrl,
     required String clientRequestId,
+    String? metaConnectionId,
+    String? instagramMediaId,
   }) async {
     final response = await _send(
       'POST',
@@ -499,6 +534,8 @@ class ApiService {
         'targetCountries': targetCountries,
         'audienceNotes': audienceNotes,
         'websiteUrl': websiteUrl,
+        if (metaConnectionId?.isNotEmpty == true) 'metaConnectionId': metaConnectionId,
+        if (instagramMediaId?.isNotEmpty == true) 'instagramMediaId': instagramMediaId,
         'clientRequestId': clientRequestId,
         'termsAccepted': true,
       },
