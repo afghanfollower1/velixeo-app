@@ -248,6 +248,11 @@ function productForm(service: any | null) {
   </script>`;
 }
 
+const premiumAccountGroups = new Set(['MESSAGING', 'SOCIAL', 'OTHER']);
+function isPremiumAccountService(service: { metadata: Prisma.JsonValue | null }) {
+  return premiumAccountGroups.has(parsePremiumMetadata(service.metadata).group);
+}
+
 function premiumState(order: any) {
   const output = jsonObject(order.output);
   return String(output.premiumState || order.status || 'PENDING');
@@ -280,10 +285,10 @@ export async function premiumAdminPage(
     });
     return {
       tabs: tabHtml,
-      body: `<div class="grid eq"><div class="card"><div class="cardhead"><div><h2>Premium section banner</h2><span class="muted">Shown when users enter Premium & Subscriptions.</span></div>${banner ? (banner.enabled ? pill('Live','ok') : pill('Disabled','bad')) : pill('Built-in fallback','info')}</div>
+      body: `<div class="grid eq"><div class="card"><div class="cardhead"><div><h2>Premium accounts banner</h2><span class="muted">Shown when users enter Premium Accounts.</span></div>${banner ? (banner.enabled ? pill('Live','ok') : pill('Disabled','bad')) : pill('Built-in fallback','info')}</div>
       <div class="notice">The app has a bilingual built-in banner even when no image is configured. Later UI/UX work can replace this image without changing product logic.</div>
       <form method="post" action="/admin/v3/premium/banner"><input type="hidden" name="id" value="${esc(banner?.id || '')}">
-      <div class="forms"><div class="field"><label>English title</label><input name="titleEn" value="${esc(banner?.titleEn || 'Premium & Subscriptions')}"></div><div class="field"><label>عنوان فارسی</label><input name="titleFa" value="${esc(banner?.titleFa || 'پریمیوم و اشتراک‌ها')}"></div></div>
+      <div class="forms"><div class="field"><label>English title</label><input name="titleEn" value="${esc(banner?.titleEn || 'Premium Accounts')}"></div><div class="field"><label>عنوان فارسی</label><input name="titleFa" value="${esc(banner?.titleFa || 'اکانت‌های پریمیوم')}"></div></div>
       <div class="forms"><div class="field"><label>English subtitle</label><textarea name="subtitleEn">${esc(banner?.subtitleEn || 'Choose a plan, pay securely from your wallet, and our team completes the activation manually.')}</textarea></div><div class="field"><label>توضیح فارسی</label><textarea name="subtitleFa">${esc(banner?.subtitleFa || 'پکیج موردنظر را انتخاب کنید، از کیف پول پرداخت کنید و تیم ما فعال‌سازی را برایتان انجام می‌دهد.')}</textarea></div></div>
       <div class="field"><label>Banner image URL (optional)</label><input class="mono" name="imageUrl" value="${esc(banner?.imageUrl || '')}" placeholder="https://.../premium-banner.webp"><span class="muted">Leave empty to keep the built-in gradient hero.</span></div>
       <div class="forms"><div class="field"><label>Sort order</label><input type="number" name="sortOrder" value="${esc(banner?.sortOrder ?? 10)}"></div><div class="field"><label>Deep link</label><input value="velixeo://premium" disabled></div></div>
@@ -293,15 +298,16 @@ export async function premiumAdminPage(
       <div style="height:190px;border-radius:20px;overflow:hidden;position:relative;background:linear-gradient(135deg,#6d4cff,#ff9e36)">
       ${banner?.imageUrl ? `<img src="${esc(banner.imageUrl)}" style="width:100%;height:100%;object-fit:cover">` : ''}
       <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(14,13,36,.72),rgba(14,13,36,.15))"></div>
-      <div style="position:absolute;left:18px;right:18px;bottom:18px;color:white"><b style="font-size:20px">${esc(banner?.titleEn || 'Premium & Subscriptions')}</b><div style="font-size:11px;margin-top:6px">${esc(banner?.subtitleEn || 'Manual activation after secure wallet payment.')}</div></div></div></div></div>`,
+      <div style="position:absolute;left:18px;right:18px;bottom:18px;color:white"><b style="font-size:20px">${esc(banner?.titleEn || 'Premium Accounts')}</b><div style="font-size:11px;margin-top:6px">${esc(banner?.subtitleEn || 'Manual activation after secure wallet payment.')}</div></div></div></div></div>`,
     };
   }
 
   if (activeTab === 'products') {
-    const services = await prisma.service.findMany({
+    const allServices = await prisma.service.findMany({
       where: { category: ServiceCategory.PREMIUM },
       orderBy: [{ enabled: 'desc' }, { sortOrder: 'asc' }, { titleEn: 'asc' }],
     });
+    const services = allServices.filter(isPremiumAccountService);
     const selected = edit ? services.find((service) => service.id === edit) ?? null : null;
     return {
       tabs: tabHtml,
@@ -318,12 +324,13 @@ export async function premiumAdminPage(
   }
 
   if (activeTab === 'orders') {
-    const orders = await prisma.order.findMany({
+    const allOrders = await prisma.order.findMany({
       where: { category: ServiceCategory.PREMIUM },
       include: { user: true, service: true, actions: { orderBy: { createdAt: 'desc' }, take: 5 } },
       orderBy: { createdAt: 'desc' },
-      take: 150,
+      take: 250,
     });
+    const orders = allOrders.filter((order) => order.service && isPremiumAccountService(order.service)).slice(0, 150);
     return {
       tabs: tabHtml,
       body: `<div class="card"><div class="cardhead"><div><h2>Premium fulfillment queue</h2><span class="muted">Every order shown here has already been charged from the customer wallet.</span></div>${pill(`${orders.filter(o => ['PENDING','PROCESSING'].includes(o.status)).length} open`,'info')}</div>
@@ -357,15 +364,20 @@ export async function premiumAdminPage(
     };
   }
 
-  const [products, openOrders, completedOrders, revenue] = await Promise.all([
+  const [allProducts, allOverviewOrders] = await Promise.all([
     prisma.service.findMany({ where: { category: ServiceCategory.PREMIUM }, orderBy: [{ enabled: 'desc' }, { sortOrder: 'asc' }] }),
-    prisma.order.count({ where: { category: ServiceCategory.PREMIUM, status: { in: [OrderStatus.PENDING, OrderStatus.PROCESSING] } } }),
-    prisma.order.count({ where: { category: ServiceCategory.PREMIUM, status: OrderStatus.COMPLETED } }),
-    prisma.order.aggregate({ where: { category: ServiceCategory.PREMIUM, status: { notIn: [OrderStatus.REFUNDED, OrderStatus.CANCELLED, OrderStatus.FAILED] } }, _sum: { totalAmountAfn: true } }),
+    prisma.order.findMany({ where: { category: ServiceCategory.PREMIUM }, include: { service: true }, orderBy: { createdAt: 'desc' }, take: 1000 }),
   ]);
+  const products = allProducts.filter(isPremiumAccountService);
+  const premiumOrders = allOverviewOrders.filter((order) => order.service && isPremiumAccountService(order.service));
+  const openOrders = premiumOrders.filter((order) => [OrderStatus.PENDING, OrderStatus.PROCESSING].includes(order.status)).length;
+  const completedOrders = premiumOrders.filter((order) => order.status === OrderStatus.COMPLETED).length;
+  const revenue = premiumOrders
+    .filter((order) => ![OrderStatus.REFUNDED, OrderStatus.CANCELLED, OrderStatus.FAILED].includes(order.status))
+    .reduce((sum, order) => sum + order.totalAmountAfn, 0n);
   return {
     tabs: tabHtml,
-    body: `<div class="card modulehero"><div class="cardhead"><div><h2>Premium Accounts Workspace</h2><p>Premium-only services such as Telegram Premium, Snapchat+ and similar subscriptions. Netflix, VPN and other digital accounts belong in Digital Accounts.</p></div></div><div class="kpis"><div><b>${products.length}</b><small>Products</small></div><div><b>${products.filter(p => p.enabled).length}</b><small>Live</small></div><div><b>${openOrders}</b><small>Open orders</small></div><div><b>${money(revenue._sum.totalAmountAfn || 0n)}</b><small>Paid sales</small></div></div></div>
+    body: `<div class="card modulehero"><div class="cardhead"><div><h2>Premium Accounts Workspace</h2><p>Premium-only services such as Telegram Premium, Snapchat+ and similar subscriptions. Netflix, VPN and other digital accounts belong in Digital Accounts.</p></div></div><div class="kpis"><div><b>${products.length}</b><small>Products</small></div><div><b>${products.filter(p => p.enabled).length}</b><small>Live</small></div><div><b>${openOrders}</b><small>Open orders</small></div><div><b>${money(revenue)}</b><small>Paid sales</small></div></div></div>
     <div class="grid eq"><div class="card"><div class="cardhead"><h2>How this module works</h2>${pill('No provider API required','info')}</div><div class="notice">Product → package → dynamic customer form → wallet payment → paid order queue → Telegram admin invoice → manual fulfillment → customer notification.</div><a class="btn" href="${href('products')}">Manage products & packages</a></div><div class="card"><div class="cardhead"><h2>Fulfillment</h2>${pill(`${completedOrders} completed`,'ok')}</div><p class="muted">Use Processing while working on an order, Need information when the customer data is incomplete, Completed after activation/delivery, or Reject + refund when the service cannot be fulfilled.</p><a class="btn ghost" href="${href('orders')}">Open fulfillment queue</a></div></div>`,
   };
 }
