@@ -313,7 +313,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
       try { walletEntries = await api.walletEntries(); } catch (_) {}
     }
     Future<void> loadCatalog() async {
-      try { catalogServices = (await api.catalogServices()).where((service) => service.category != 'PROMOTION').toList(growable: false); } catch (_) {}
+      try { catalogServices = (await api.catalogServices()).where((service) => !const ['PROMOTION', 'MOBILE_TOPUP'].contains(service.category)).toList(growable: false); } catch (_) {}
     }
     Future<void> loadBanners() async {
       try { banners = (await api.banners()).where((banner) => !const ['velixeo://promotions', 'velixeo://promotion'].contains(banner.actionUrl?.trim().toLowerCase())).toList(growable: false); } catch (_) {}
@@ -2580,6 +2580,14 @@ class HomePage extends StatelessWidget {
                       Container(width: 43, height: 43, decoration: BoxDecoration(color: service.color.withValues(alpha: .10), borderRadius: BorderRadius.circular(14)), child: Icon(service.icon, color: service.color, size: 23)),
                       const SizedBox(height: 9),
                       Text(service.en, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Color(0xFF273447))),
+                      if (service.en == 'Mobile Top-up') ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(color: service.color.withValues(alpha: .10), borderRadius: BorderRadius.circular(999)),
+                          child: Text(tr(c.fa, 'به‌زودی', 'Coming soon'), style: TextStyle(fontSize: 8, color: service.color, fontWeight: FontWeight.w900)),
+                        ),
+                      ],
                     ]),
                   ),
                 );
@@ -2903,6 +2911,41 @@ class ServicesPage extends StatelessWidget {
                     ),
                   ),
                 ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 11),
+                child: SoftCard(
+                  onTap: () {
+                    final service = HomePage.services.firstWhere((item) => item.en == 'Mobile Top-up');
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => ComingSoonServicePage(controller: c, service: service)));
+                  },
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(color: const Color(0xFF12B8A6).withValues(alpha: .10), borderRadius: BorderRadius.circular(16)),
+                        child: const Icon(Icons.sim_card_rounded, color: Color(0xFF12B8A6)),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(tr(c.fa, 'شارژ موبایل', 'Mobile Top-up'), style: const TextStyle(fontWeight: FontWeight.w900)),
+                            const SizedBox(height: 3),
+                            Text(tr(c.fa, 'به‌زودی · پس از اتصال API شرکت‌های مخابراتی', 'Coming soon · waiting for telecom APIs'), style: const TextStyle(fontSize: 12, color: Color(0xFF607487))),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(color: const Color(0xFF12B8A6).withValues(alpha: .10), borderRadius: BorderRadius.circular(999)),
+                        child: Text(tr(c.fa, 'به‌زودی', 'Soon'), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Color(0xFF0D8E81))),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               ...c.catalogServices.where((service) => service.category != 'SOCIAL').map((service) {
                 final color = catalogColor(service.category);
                 return Padding(
@@ -3732,6 +3775,8 @@ class RemoteBannerCard extends StatelessWidget {
         await Navigator.push(context, MaterialPageRoute(builder: (_) => VirtualNumberPanelPage(host: controller)));
       } else if (target == 'premium') {
         await Navigator.push(context, MaterialPageRoute(builder: (_) => PremiumPanelPage(host: controller)));
+      } else if (target == 'digital-accounts' || target == 'accounts') {
+        await Navigator.push(context, MaterialPageRoute(builder: (_) => DigitalAccountsHubPage(controller: controller)));
       } else if (target == 'wallet') {
         await Navigator.push(context, MaterialPageRoute(builder: (_) => AddFundsPage(controller: controller)));
       } else if (target == 'support') {
