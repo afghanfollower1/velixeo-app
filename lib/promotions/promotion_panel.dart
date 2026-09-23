@@ -753,7 +753,7 @@ class _PromotionOrderPageState extends State<PromotionOrderPage> {
           TextField(
             controller: adCode,
             decoration: InputDecoration(
-              labelText: t('کد اجازه تبلیغ متا *', 'Partnership ad code *'),
+              labelText: t('کد Partnership (اختیاری)', 'Partnership ad code (optional)'),
               hintText: 'adcode-...',
               suffixIcon: IconButton(onPressed: showCodeHelp, icon: const Icon(Icons.help_outline_rounded)),
             ),
@@ -763,7 +763,7 @@ class _PromotionOrderPageState extends State<PromotionOrderPage> {
             child: TextButton.icon(
               onPressed: showCodeHelp,
               icon: const Icon(Icons.help_outline_rounded, size: 17),
-              label: Text(t('چطور کد را بگیرم؟', 'How do I get this code?')),
+              label: Text(t('روش جایگزین: استفاده از کد Partnership', 'Fallback: use a Partnership code')),
             ),
           ),
           DropdownButtonFormField<String>(
