@@ -158,7 +158,7 @@ class _PremiumPanelPageState extends State<PremiumPanelPage> {
     }];
     return Scaffold(
       appBar: AppBar(
-        title: Text(t('پریمیوم و اشتراک‌ها', 'Premium & Subscriptions')),
+        title: Text(t('اکانت‌های پریمیوم', 'Premium Accounts')),
       ),
       body: RefreshIndicator(
         onRefresh: load,
@@ -171,7 +171,7 @@ class _PremiumPanelPageState extends State<PremiumPanelPage> {
               controller: search,
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search_rounded),
-                hintText: t('جستجوی تلگرام، VPN، نتفلیکس...', 'Search Telegram, VPN, Netflix...'),
+                hintText: t('جستجوی تلگرام پریمیوم، اسنپ‌چت پلاس...', 'Search Telegram Premium, Snapchat+...'),
                 suffixIcon: search.text.isEmpty
                     ? null
                     : IconButton(onPressed: search.clear, icon: const Icon(Icons.close_rounded)),
@@ -661,8 +661,10 @@ class _PremiumBanner extends StatelessWidget {
               Image.network(
                 image,
                 fit: BoxFit.cover,
-                cacheWidth: 1080,
+                cacheWidth: ((MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context)).clamp(640, 1280)).round(),
                 filterQuality: FilterQuality.low,
+                gaplessPlayback: true,
+                loadingBuilder: (context, child, progress) => progress == null ? child : const SizedBox.shrink(),
                 errorBuilder: (_, __, ___) => const SizedBox.shrink(),
               ),
             Container(decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xC8121631), Color(0x33121631)]))),
@@ -676,7 +678,7 @@ class _PremiumBanner extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          title?.trim().isNotEmpty == true ? title! : t('پریمیوم و اشتراک‌ها', 'Premium & Subscriptions'),
+                          title?.trim().isNotEmpty == true ? title! : t('اکانت‌های پریمیوم', 'Premium Accounts'),
                           style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900),
                         ),
                         const SizedBox(height: 7),
@@ -684,8 +686,8 @@ class _PremiumBanner extends StatelessWidget {
                           subtitle?.trim().isNotEmpty == true
                               ? subtitle!
                               : t(
-                                  'پکیج را انتخاب کنید، از کیف پول پرداخت کنید و فعال‌سازی توسط تیم ما انجام می‌شود.',
-                                  'Choose a package, pay from your wallet, and our team completes the activation.',
+                                  'پکیج پریمیوم را انتخاب کنید، از کیف پول پرداخت کنید و فعال‌سازی توسط تیم ما انجام می‌شود.',
+                                  'Choose a premium package, pay from your wallet, and our team completes the activation.',
                                 ),
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,

@@ -183,6 +183,7 @@ export function registerPremiumRoutes(
       banner,
       products: services
         .map(premiumPublicProduct)
+        .filter((product) => ['MESSAGING', 'SOCIAL', 'OTHER'].includes(product.group))
         .filter((product) => product.packages.length > 0),
     };
   });

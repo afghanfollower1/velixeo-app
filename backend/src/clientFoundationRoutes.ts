@@ -1,8 +1,10 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import {
   NotificationAudience,
+  NotificationType,
   OrderStatus,
   PrismaClient,
+  ServiceCategory,
   SupportStatus,
 } from '@prisma/client';
 import { z } from 'zod';
@@ -116,7 +118,7 @@ export function registerClientFoundationRoutes(
 ) {
   app.get('/api/v1/catalog/services', async () => {
     const services = await prisma.service.findMany({
-      where: { enabled: true },
+      where: { enabled: true, category: { notIn: [ServiceCategory.PROMOTION, ServiceCategory.MOBILE_TOPUP] } },
       orderBy: [{ featured: 'desc' }, { category: 'asc' }, { sortOrder: 'asc' }],
       select: {
         id: true,
@@ -149,6 +151,7 @@ export function registerClientFoundationRoutes(
       where: {
         enabled: true,
         AND: [
+          { OR: [{ actionUrl: null }, { actionUrl: { notIn: ['velixeo://promotions', 'velixeo://promotion'] } }] },
           { OR: [{ startsAt: null }, { startsAt: { lte: now } }] },
           { OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
         ],
@@ -169,6 +172,7 @@ export function registerClientFoundationRoutes(
       const notifications = await prisma.notification.findMany({
         where: {
           enabled: true,
+          type: { not: NotificationType.PROMOTION },
           publishAt: { lte: now },
           AND: [
             { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
@@ -210,6 +214,7 @@ export function registerClientFoundationRoutes(
       where: {
         id: params.data.id,
         enabled: true,
+        type: { not: NotificationType.PROMOTION },
         publishAt: { lte: now },
         AND: [
           { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
@@ -238,6 +243,7 @@ export function registerClientFoundationRoutes(
     const visible = await prisma.notification.findMany({
       where: {
         enabled: true,
+        type: { not: NotificationType.PROMOTION },
         publishAt: { lte: now },
         AND: [
           { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
@@ -299,7 +305,7 @@ export function registerClientFoundationRoutes(
   app.get('/api/v1/orders', { preHandler: authenticate }, async (request) => {
     const claims = request.user as JwtClaims;
     const orders = await prisma.order.findMany({
-      where: { userId: claims.sub },
+      where: { userId: claims.sub, category: { not: ServiceCategory.PROMOTION } },
       include: {
         service: {
           select: { slug: true, titleFa: true, titleEn: true, category: true },

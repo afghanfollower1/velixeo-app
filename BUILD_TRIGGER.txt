@@ -1,14 +1,15 @@
-Trigger signed Android build - VELIXEO v0.9.8 - 2026-09-23.
+Trigger signed Android build - VELIXEO v0.9.9 - 2026-09-23.
 Release scope:
-1) Promotions adds official Meta/Instagram account connection using Meta OAuth.
-2) Customer credentials are entered only on Meta's official login page; VELIXEO never stores Instagram/Facebook passwords or OTPs.
-3) Authorized access tokens are encrypted server-side with AES-256-GCM.
-4) Connected Facebook Page and Instagram Professional account IDs, usernames, Page tasks, granted permissions and ad-account metadata are stored for fulfillment.
-5) Customer can load and select their own Instagram posts/Reels inside VELIXEO.
-6) Promotion orders snapshot the selected Instagram account and media ID.
-7) Telegram paid-order invoices include the connected Instagram account, selected media and ADVERTISE readiness.
-8) Promotions Admin adds an Instagram Connections workspace with customer/account/Page/permission details and no secret-token exposure.
-9) Partnership Ad Code remains an optional fallback.
-10) Manual Meta campaign fulfillment remains the current execution mode; automatic Marketing API campaign creation is not enabled yet.
-11) Production Instagram login requires META_APP_ID, META_APP_SECRET and META_REDIRECT_URI from a Meta Business App.
-12) Backend and Flutter validation passed before this release trigger.
+1) Promotions is removed from the customer app and Admin UI for now.
+2) Promotions/Meta connection APIs are disabled; historical database/orders are preserved rather than deleted.
+3) Promotion services, banners, notifications and customer-order history are hidden from customer-facing surfaces.
+4) Shared Admin Orders/Banners/Notifications no longer surface Promotions records.
+5) Premium is now strictly for premium subscriptions such as Telegram Premium, Snapchat+ and similar services.
+6) VPN, Netflix, streaming, licenses, AI/digital products belong in the separate Digital Accounts section.
+7) Added a dedicated Digital Accounts app hub driven by DIGITAL_ACCOUNT catalog items.
+8) Mobile Top-up remains visible only as Coming soon until official telecom provider APIs are connected.
+9) Admin Mobile Top-up is also a Coming soon page; unused provider/product controls are hidden for now.
+10) Home/service loading is staged so catalog and banners render before heavier order/notification data.
+11) Payment capability/history calls are deferred until the Add Funds screen is opened.
+12) Home, Social, Virtual Numbers and Premium banner image decoding/loading was optimized for the actual device width.
+13) Backend and Flutter validation passed before this release trigger.

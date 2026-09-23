@@ -1238,6 +1238,10 @@ class _SocialPromoBanner extends StatelessWidget {
               Image.network(
                 banner.imageUrl,
                 fit: BoxFit.cover,
+                cacheWidth: ((MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context)).clamp(640, 1280)).round(),
+                filterQuality: FilterQuality.low,
+                gaplessPlayback: true,
+                loadingBuilder: (context, child, progress) => progress == null ? child : const SizedBox.shrink(),
                 errorBuilder: (_, __, ___) => const DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(

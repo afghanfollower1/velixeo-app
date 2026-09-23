@@ -8,6 +8,7 @@ import '../social/social_models.dart';
 import '../support/support_models.dart';
 import '../virtual_numbers/virtual_number_models.dart';
 import '../premium/premium_models.dart';
+// Compatibility only: Promotions UI/routes are disabled, but these types keep the dormant source compiling.
 import '../promotions/promotion_models.dart';
 import '../referrals/referral_models.dart';
 
@@ -459,6 +460,9 @@ class ApiService {
     if (response.statusCode != 200) _throwResponse(response);
   }
 
+  // Dormant compatibility methods. The Promotions screen is not linked into the app,
+  // and the backend Promotions routes are not registered. Keeping these methods
+  // allows the retained source files to pass static analysis for possible future reuse.
   Future<List<MetaConnection>> metaConnections() async {
     final response = await _send('GET', '/api/v1/promotions/meta/connections', auth: true);
     if (response.statusCode != 200) _throwResponse(response);
