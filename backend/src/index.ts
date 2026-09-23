@@ -25,8 +25,6 @@ import { registerSocialRoutes } from './socialRoutes.js';
 import { startSocialAutoSync } from './socialSync.js';
 import { registerVirtualNumberRoutes } from './virtualNumberRoutes.js';
 import { registerPremiumRoutes } from './premiumRoutes.js';
-import { registerPromotionRoutes } from './promotionRoutes.js';
-import { registerMetaConnectionRoutes } from './metaConnectionRoutes.js';
 import { normalizeCurrencyCode } from './currency.js';
 import {
   recordReferralRegistration,
@@ -504,7 +502,6 @@ app.addHook('onRequest', async (request, reply) => {
     const section = category === 'PREMIUM' ? 'premium'
       : category === 'MOBILE_TOPUP' ? 'topup'
       : category === 'DIGITAL_ACCOUNT' ? 'accounts'
-      : category === 'PROMOTION' ? 'promotions'
       : 'social';
     return reply.code(303).redirect('/admin/v3?section=' + section);
   }
@@ -1531,8 +1528,6 @@ registerHesabPayWebhookRoutes(app, prisma, authenticate);
 registerSocialRoutes(app, prisma, authenticate, adminWebUser);
 registerVirtualNumberRoutes(app, prisma, authenticate, adminWebUser);
 registerPremiumRoutes(app, prisma, authenticate);
-registerPromotionRoutes(app, prisma, authenticate);
-registerMetaConnectionRoutes(app, prisma, authenticate);
 registerReferralRoutes(app, prisma, authenticate);
 startSocialAutoSync(prisma, app.log as any);
 startNotificationPushScheduler(prisma, app.log as any);
