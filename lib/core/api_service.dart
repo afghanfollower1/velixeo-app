@@ -458,52 +458,6 @@ class ApiService {
     if (response.statusCode != 200) _throwResponse(response);
   }
 
-  Future<List<PromotionOrder>> promotionOrders() async {
-    final response = await _send('GET', '/api/v1/promotions/orders', auth: true);
-    if (response.statusCode != 200) _throwResponse(response);
-    final rows = (_decodeObject(response)['orders'] as List<dynamic>?) ?? const [];
-    return rows
-        .whereType<Map>()
-        .map((item) => PromotionOrder.fromJson(Map<String, dynamic>.from(item)))
-        .toList(growable: false);
-  }
-
-  Future<PromotionOrderResult> createPromotionOrder({
-    required String serviceId,
-    required String packageId,
-    required String postUrl,
-    required String partnershipAdCode,
-    required String objective,
-    required List<String> targetCountries,
-    required String audienceNotes,
-    required String websiteUrl,
-    required String clientRequestId,
-    String? metaConnectionId,
-    String? instagramMediaId,
-  }) async {
-    final response = await _send(
-      'POST',
-      '/api/v1/promotions/orders',
-      auth: true,
-      body: {
-        'serviceId': serviceId,
-        'packageId': packageId,
-        'postUrl': postUrl,
-        'partnershipAdCode': partnershipAdCode,
-        'objective': objective,
-        'targetCountries': targetCountries,
-        'audienceNotes': audienceNotes,
-        'websiteUrl': websiteUrl,
-        if (metaConnectionId?.isNotEmpty == true) 'metaConnectionId': metaConnectionId,
-        if (instagramMediaId?.isNotEmpty == true) 'instagramMediaId': instagramMediaId,
-        'clientRequestId': clientRequestId,
-        'termsAccepted': true,
-      },
-    );
-    if (response.statusCode != 200 && response.statusCode != 201) _throwResponse(response);
-    return PromotionOrderResult.fromJson(_decodeObject(response));
-  }
-
   Future<PremiumCatalog> premiumCatalog() async {
     final response = await _send('GET', '/api/v1/premium/catalog');
     if (response.statusCode != 200) _throwResponse(response);
