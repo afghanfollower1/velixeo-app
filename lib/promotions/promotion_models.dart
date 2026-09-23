@@ -207,3 +207,79 @@ class PromotionOrderResult {
         idempotent: (json['idempotent'] as bool?) ?? false,
       );
 }
+
+
+class MetaConnection {
+  const MetaConnection({
+    required this.id,
+    required this.status,
+    required this.advertisingReady,
+    this.facebookUserName,
+    this.pageId,
+    this.pageName,
+    this.instagramUserId,
+    this.instagramUsername,
+    this.instagramName,
+    this.instagramProfilePictureUrl,
+    this.pageTasks = const [],
+    this.permissions = const [],
+  });
+
+  final String id;
+  final String status;
+  final bool advertisingReady;
+  final String? facebookUserName;
+  final String? pageId;
+  final String? pageName;
+  final String? instagramUserId;
+  final String? instagramUsername;
+  final String? instagramName;
+  final String? instagramProfilePictureUrl;
+  final List<String> pageTasks;
+  final List<String> permissions;
+
+  factory MetaConnection.fromJson(Map<String, dynamic> json) => MetaConnection(
+        id: (json['id'] as String?) ?? '',
+        status: (json['status'] as String?) ?? '',
+        advertisingReady: (json['advertisingReady'] as bool?) ?? false,
+        facebookUserName: json['facebookUserName'] as String?,
+        pageId: json['pageId'] as String?,
+        pageName: json['pageName'] as String?,
+        instagramUserId: json['instagramUserId'] as String?,
+        instagramUsername: json['instagramUsername'] as String?,
+        instagramName: json['instagramName'] as String?,
+        instagramProfilePictureUrl: json['instagramProfilePictureUrl'] as String?,
+        pageTasks: ((json['pageTasks'] as List<dynamic>?) ?? const []).map((e) => '$e').toList(growable: false),
+        permissions: ((json['permissions'] as List<dynamic>?) ?? const []).map((e) => '$e').toList(growable: false),
+      );
+}
+
+class MetaMedia {
+  const MetaMedia({
+    required this.id,
+    required this.mediaType,
+    required this.permalink,
+    required this.thumbnailUrl,
+    this.caption = '',
+    this.mediaProductType = '',
+    this.mediaUrl = '',
+  });
+
+  final String id;
+  final String mediaType;
+  final String mediaProductType;
+  final String mediaUrl;
+  final String thumbnailUrl;
+  final String permalink;
+  final String caption;
+
+  factory MetaMedia.fromJson(Map<String, dynamic> json) => MetaMedia(
+        id: (json['id'] as String?) ?? '',
+        mediaType: (json['mediaType'] as String?) ?? '',
+        mediaProductType: (json['mediaProductType'] as String?) ?? '',
+        mediaUrl: (json['mediaUrl'] as String?) ?? '',
+        thumbnailUrl: (json['thumbnailUrl'] as String?) ?? '',
+        permalink: (json['permalink'] as String?) ?? '',
+        caption: (json['caption'] as String?) ?? '',
+      );
+}

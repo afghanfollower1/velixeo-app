@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/api_service.dart';
 import '../core/models.dart';
@@ -105,8 +106,8 @@ class _PromotionPanelPageState extends State<PromotionPanelPage> {
               icon: Icons.security_rounded,
               title: t('بدون رمز عبور و بدون کارت بانکی', 'No password and no bank card required'),
               body: t(
-                'شما لینک پست و کد رسمی اجازه تبلیغ متا را می‌فرستید؛ هزینه از کیف پول VELIXEO پرداخت می‌شود و تیم ما تبلیغ را از حساب تبلیغاتی خود اجرا می‌کند.',
-                'Share your post link and Meta partnership ad code. Pay from your VELIXEO wallet, and our team launches the ad from our ad account.',
+                'حساب حرفه‌ای Instagram خود را به‌صورت امن متصل کنید، پست را انتخاب کنید و سفارش را از کیف پول پرداخت کنید. مشخصات اتصال و پست برای اجرای تبلیغ در اختیار ادمین قرار می‌گیرد.',
+                'Securely connect your professional Instagram account, choose a post, and pay from your VELIXEO wallet. The authorized account details and selected post are sent to the admin for fulfillment.',
               ),
             ),
             const SizedBox(height: 18),
@@ -203,6 +204,12 @@ class _PromotionOrderPageState extends State<PromotionOrderPage> {
   final websiteUrl = TextEditingController();
   PromotionPackage? selectedPackage;
   String? objective;
+  List<MetaConnection> metaConnections = const [];
+  MetaConnection? selectedMetaConnection;
+  List<MetaMedia> metaMedia = const [];
+  String? selectedMediaId;
+  bool metaLoading = false;
+  bool metaMediaLoading = false;
   bool submitting = false;
   String? error;
 
@@ -221,6 +228,7 @@ class _PromotionOrderPageState extends State<PromotionOrderPage> {
       }
     }
     objective = product.supportedObjectives.isNotEmpty ? product.supportedObjectives.first : 'ENGAGEMENT';
+    WidgetsBinding.instance.addPostFrameCallback((_) => loadMetaConnections());
   }
 
   @override
@@ -231,6 +239,86 @@ class _PromotionOrderPageState extends State<PromotionOrderPage> {
     audienceNotes.dispose();
     websiteUrl.dispose();
     super.dispose();
+  }
+
+  Future<void> loadMetaConnections() async {
+    if (!mounted || metaLoading) return;
+    setState(() => metaLoading = true);
+    try {
+      final rows = await host.api.metaConnections();
+      if (!mounted) return;
+      final previousId = selectedMetaConnection?.id;
+      MetaConnection? selected;
+      if (previousId != null) {
+        for (final item in rows) {
+          if (item.id == previousId) selected = item;
+        }
+      }
+      selected ??= rows.isNotEmpty ? rows.first : null;
+      setState(() {
+        metaConnections = rows;
+        selectedMetaConnection = selected;
+        metaLoading = false;
+      });
+      if (selected != null) await loadMetaMedia(selected.id);
+    } on ApiException catch (e) {
+      if (mounted) setState(() { metaLoading = false; error = errorText(e.code); });
+    } catch (_) {
+      if (mounted) setState(() => metaLoading = false);
+    }
+  }
+
+  Future<void> loadMetaMedia(String connectionId) async {
+    if (!mounted) return;
+    setState(() => metaMediaLoading = true);
+    try {
+      final rows = await host.api.metaMedia(connectionId);
+      if (!mounted) return;
+      setState(() {
+        metaMedia = rows;
+        metaMediaLoading = false;
+      });
+    } on ApiException catch (e) {
+      if (mounted) setState(() { metaMediaLoading = false; error = errorText(e.code); });
+    } catch (_) {
+      if (mounted) setState(() => metaMediaLoading = false);
+    }
+  }
+
+  Future<void> connectInstagram() async {
+    if (metaLoading) return;
+    setState(() { metaLoading = true; error = null; });
+    try {
+      final url = await host.api.startMetaConnection();
+      if (!mounted) return;
+      setState(() => metaLoading = false);
+      final opened = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      if (!opened) throw const ApiException('meta_login_open_failed');
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(t('ورود با اینستاگرام', 'Login with Instagram')),
+          content: Text(t(
+            'ورود در صفحه رسمی Meta انجام می‌شود. بعد از تأیید مجوزها به VELIXEO برگردید و روی «بررسی اتصال» بزنید. رمز عبور شما در VELIXEO ذخیره نمی‌شود.',
+            'Sign in on Meta’s official page. After approving permissions, return to VELIXEO and tap “Check connection”. Your password is never stored by VELIXEO.',
+          )),
+          actions: [
+            FilledButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await loadMetaConnections();
+              },
+              child: Text(t('بررسی اتصال', 'Check connection')),
+            ),
+          ],
+        ),
+      );
+    } on ApiException catch (e) {
+      if (mounted) setState(() { metaLoading = false; error = errorText(e.code); });
+    } catch (_) {
+      if (mounted) setState(() { metaLoading = false; error = t('صفحه ورود Meta باز نشد.', 'Could not open Meta login.'); });
+    }
   }
 
   String newRequestId() {
@@ -267,6 +355,12 @@ class _PromotionOrderPageState extends State<PromotionOrderPage> {
         return t('برای هدف بازدید وب‌سایت، لینک وب‌سایت را وارد کنید.', 'Website URL is required for Website visits.');
       case 'package_unavailable':
         return t('این پکیج فعلاً در دسترس نیست.', 'This package is currently unavailable.');
+      case 'meta_login_not_configured':
+        return t('ورود اینستاگرام هنوز در سرور VELIXEO تنظیم نشده است.', 'Instagram login is not configured on the VELIXEO server yet.');
+      case 'meta_connection_unavailable':
+        return t('اتصال اینستاگرام معتبر نیست؛ دوباره وارد شوید.', 'Instagram connection is unavailable; please reconnect.');
+      case 'meta_media_fetch_failed':
+        return t('پست‌های اینستاگرام دریافت نشد. اتصال را دوباره بررسی کنید.', 'Instagram posts could not be loaded. Please check the connection.');
       default:
         return code.replaceAll('_', ' ');
     }
@@ -304,7 +398,7 @@ class _PromotionOrderPageState extends State<PromotionOrderPage> {
       setState(() => error = t('لینک صحیح پست یا Reel را وارد کنید.', 'Enter a valid post or Reel link.'));
       return;
     }
-    if (product.requirePartnershipAdCode && adCode.text.trim().isEmpty) {
+    if (product.requirePartnershipAdCode && adCode.text.trim().isEmpty && selectedMetaConnection == null) {
       setState(() => error = errorText('partnership_ad_code_required'));
       return;
     }
@@ -328,8 +422,8 @@ class _PromotionOrderPageState extends State<PromotionOrderPage> {
         title: Text(t('تأیید سفارش تبلیغ', 'Confirm promotion order')),
         content: Text(
           t(
-            'مبلغ ${host.money(pkg.priceAfn)} از کیف پول شما کسر می‌شود. تیم VELIXEO ابتدا لینک و کد اجازه تبلیغ را بررسی می‌کند و سپس کمپین را در Meta Ads Manager اجرا می‌کند. نتیجه دقیق تبلیغ تضمین‌شده نیست و به مزایده و مخاطب متا بستگی دارد.',
-            '${host.money(pkg.priceAfn)} will be charged from your wallet. VELIXEO will review the post and partnership permission, then launch the campaign in Meta Ads Manager. Exact performance is not guaranteed and depends on Meta auction and audience conditions.',
+            'مبلغ ${host.money(pkg.priceAfn)} از کیف پول شما کسر می‌شود. حساب و پست انتخاب‌شده همراه سفارش برای ادمین VELIXEO ارسال می‌شود تا تبلیغ بر اساس تنظیمات سفارش اجرا شود. نتیجه دقیق تبلیغ به مزایده Meta بستگی دارد.',
+            '${host.money(pkg.priceAfn)} will be charged from your wallet. Your connected account and selected post will be sent with the order so VELIXEO can prepare the campaign. Exact performance depends on Meta’s ad auction.',
           ),
         ),
         actions: [
@@ -351,6 +445,8 @@ class _PromotionOrderPageState extends State<PromotionOrderPage> {
         targetCountries: targetCountries,
         audienceNotes: audienceNotes.text.trim(),
         websiteUrl: websiteUrl.text.trim(),
+        metaConnectionId: selectedMetaConnection?.id,
+        instagramMediaId: selectedMediaId,
         clientRequestId: newRequestId(),
       );
       await host.refreshBalanceOnly();
@@ -470,6 +566,179 @@ class _PromotionOrderPageState extends State<PromotionOrderPage> {
             _InfoCard(icon: Icons.info_outline_rounded, title: t('قبل از سفارش', 'Before ordering'), body: instructions!),
           ],
           const SizedBox(height: 18),
+          Text(t('حساب اینستاگرام', 'Instagram account'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 9),
+          Container(
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFD),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE1E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (selectedMetaConnection == null) ...[
+                  Text(
+                    t(
+                      'برای انتخاب مستقیم پست‌ها، حساب حرفه‌ای Instagram خود را از صفحه رسمی Meta متصل کنید.',
+                      'Connect your professional Instagram account through Meta to select your posts directly.',
+                    ),
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF66798D), height: 1.45),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: metaLoading ? null : connectInstagram,
+                      icon: metaLoading
+                          ? const SizedBox(width: 17, height: 17, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.login_rounded),
+                      label: Text(t('ورود با اینستاگرام', 'Login with Instagram')),
+                    ),
+                  ),
+                ] else ...[
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 23,
+                        backgroundImage: selectedMetaConnection!.instagramProfilePictureUrl?.isNotEmpty == true
+                            ? NetworkImage(selectedMetaConnection!.instagramProfilePictureUrl!)
+                            : null,
+                        child: selectedMetaConnection!.instagramProfilePictureUrl?.isNotEmpty == true
+                            ? null
+                            : const Icon(Icons.camera_alt_rounded),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(
+                            '@${selectedMetaConnection!.instagramUsername ?? 'instagram'}',
+                            style: const TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                          Text(
+                            selectedMetaConnection!.pageName ?? t('حساب متصل', 'Connected account'),
+                            style: const TextStyle(fontSize: 10.5, color: Color(0xFF748396)),
+                          ),
+                        ]),
+                      ),
+                      Icon(
+                        selectedMetaConnection!.advertisingReady ? Icons.verified_rounded : Icons.info_outline_rounded,
+                        color: selectedMetaConnection!.advertisingReady ? const Color(0xFF18A875) : const Color(0xFFF0A326),
+                      ),
+                    ],
+                  ),
+                  if (metaConnections.length > 1) ...[
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedMetaConnection!.id,
+                      decoration: InputDecoration(labelText: t('حساب متصل', 'Connected account')),
+                      items: metaConnections.map((item) => DropdownMenuItem(
+                        value: item.id,
+                        child: Text('@${item.instagramUsername ?? item.pageName ?? item.id.substring(0, 6)}'),
+                      )).toList(growable: false),
+                      onChanged: (id) async {
+                        if (id == null) return;
+                        MetaConnection? next;
+                        for (final item in metaConnections) {
+                          if (item.id == id) next = item;
+                        }
+                        if (next == null) return;
+                        setState(() {
+                          selectedMetaConnection = next;
+                          selectedMediaId = null;
+                          metaMedia = const [];
+                        });
+                        await loadMetaMedia(next.id);
+                      },
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: metaLoading ? null : loadMetaConnections,
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: Text(t('بررسی اتصال', 'Check connection')),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: metaLoading ? null : connectInstagram,
+                        icon: const Icon(Icons.add_link_rounded),
+                        label: Text(t('اتصال حساب دیگر', 'Connect another')),
+                      ),
+                    ),
+                  ]),
+                ],
+              ],
+            ),
+          ),
+          if (selectedMetaConnection != null) ...[
+            const SizedBox(height: 14),
+            Text(t('انتخاب پست یا Reel', 'Choose a post or Reel'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 8),
+            if (metaMediaLoading)
+              const Center(child: Padding(padding: EdgeInsets.all(18), child: CircularProgressIndicator()))
+            else if (metaMedia.isEmpty)
+              _InfoCard(
+                icon: Icons.photo_library_outlined,
+                title: t('پستی دریافت نشد', 'No posts loaded'),
+                body: t('روی «بررسی اتصال» بزنید یا لینک پست را پایین به‌صورت دستی وارد کنید.', 'Check the connection again or enter the post URL manually below.'),
+              )
+            else
+              SizedBox(
+                height: 118,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: metaMedia.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final media = metaMedia[index];
+                    final selected = selectedMediaId == media.id;
+                    return InkWell(
+                      onTap: () => setState(() {
+                        selectedMediaId = media.id;
+                        postUrl.text = media.permalink;
+                      }),
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        width: 96,
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: selected ? const Color(0xFF1686FF) : const Color(0xFFE2E8F0),
+                            width: selected ? 2 : 1,
+                          ),
+                        ),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: media.thumbnailUrl.isNotEmpty
+                                  ? Image.network(media.thumbnailUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image_outlined))
+                                  : const Icon(Icons.image_outlined),
+                            ),
+                            if (selected)
+                              const Align(
+                                alignment: Alignment.topRight,
+                                child: Padding(
+                                  padding: EdgeInsets.all(5),
+                                  child: CircleAvatar(radius: 10, backgroundColor: Color(0xFF1686FF), child: Icon(Icons.check, size: 13, color: Colors.white)),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+          const SizedBox(height: 18),
           Text(t('اطلاعات تبلیغ', 'Promotion details'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
           const SizedBox(height: 10),
           TextField(
@@ -484,7 +753,7 @@ class _PromotionOrderPageState extends State<PromotionOrderPage> {
           TextField(
             controller: adCode,
             decoration: InputDecoration(
-              labelText: t('کد اجازه تبلیغ متا *', 'Partnership ad code *'),
+              labelText: t('کد Partnership (اختیاری)', 'Partnership ad code (optional)'),
               hintText: 'adcode-...',
               suffixIcon: IconButton(onPressed: showCodeHelp, icon: const Icon(Icons.help_outline_rounded)),
             ),
@@ -494,7 +763,7 @@ class _PromotionOrderPageState extends State<PromotionOrderPage> {
             child: TextButton.icon(
               onPressed: showCodeHelp,
               icon: const Icon(Icons.help_outline_rounded, size: 17),
-              label: Text(t('چطور کد را بگیرم؟', 'How do I get this code?')),
+              label: Text(t('روش جایگزین: استفاده از کد Partnership', 'Fallback: use a Partnership code')),
             ),
           ),
           DropdownButtonFormField<String>(

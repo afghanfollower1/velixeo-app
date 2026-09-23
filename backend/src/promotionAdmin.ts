@@ -50,6 +50,7 @@ function tabs(active: string) {
     ['banner','Banner'],
     ['packages','Packages'],
     ['orders','Orders'],
+    ['connections','Instagram Connections'],
     ['meta','Meta Setup'],
   ].map(([key,label])=>`<a class="tab ${active===key?'active':''}" href="${href(key)}">${label}</a>`).join('')}</div>`;
 }
@@ -106,7 +107,7 @@ function productForm(service: any | null) {
       <div class="field"><label>راهنمای فارسی</label><textarea name="instructionsFa">${esc(meta.instructionsFa)}</textarea></div>
     </div>
     <div class="field"><label>Supported objectives</label><div class="actions">${objectiveOptions.map(([value,label])=>`<label class="check"><input type="checkbox" name="objective_${value}" ${meta.supportedObjectives.includes(value as any)?'checked':''}> ${label}</label>`).join('')}</div></div>
-    <label class="check"><input type="checkbox" name="requirePartnershipAdCode" ${meta.requirePartnershipAdCode?'checked':''}> Require Partnership Ad Code before payment</label>
+    <label class="check"><input type="checkbox" name="requirePartnershipAdCode" ${meta.requirePartnershipAdCode?'checked':''}> Fallback only: require Partnership Ad Code when no Instagram account is connected</label>
     <div class="cardhead" style="margin-top:18px"><div><h3>Promotion Packages</h3><span class="muted">Separate customer price, ad budget and service fee for clear accounting.</span></div><button type="button" class="btn ghost" onclick="promotionAddPackage()">+ Add package</button></div>
     <div id="promotion-packages">${packages.map(packageRow).join('')}</div>
     <div class="actions" style="margin-top:14px"><label class="check"><input type="checkbox" name="enabled" ${service?.enabled===false?'':'checked'}> Visible in app</label><label class="check"><input type="checkbox" name="featured" ${service?.featured?'checked':''}> Featured</label></div>
@@ -185,7 +186,7 @@ async function refundOrder(prisma: PrismaClient, orderId: string, reason: string
 }
 
 export async function promotionAdminPage(prisma: PrismaClient, tab: string, edit: string) {
-  const active = ['overview','banner','packages','orders','meta'].includes(tab) ? tab : 'overview';
+  const active = ['overview','banner','packages','orders','connections','meta'].includes(tab) ? tab : 'overview';
   const tabHtml = tabs(active);
 
   if (active === 'banner') {
@@ -193,10 +194,10 @@ export async function promotionAdminPage(prisma: PrismaClient, tab: string, edit
     return { tabs:tabHtml, body:`<div class="grid eq"><div class="card"><div class="cardhead"><div><h2>Promotions banner</h2><span class="muted">Explains Instagram/Facebook promotion when users enter this section.</span></div>${banner?.enabled?pill('Live','ok'):pill('Fallback available','info')}</div>
     <form method="post" action="/admin/v3/promotions/banner"><input type="hidden" name="id" value="${esc(banner?.id||'')}">
     <div class="forms"><div class="field"><label>English title</label><input name="titleEn" value="${esc(banner?.titleEn||'Promote your content without a bank card')}"></div><div class="field"><label>عنوان فارسی</label><input name="titleFa" value="${esc(banner?.titleFa||'بدون ویزاکارت، محتوایت را تبلیغ کن')}"></div></div>
-    <div class="forms"><div class="field"><label>English subtitle</label><textarea name="subtitleEn">${esc(banner?.subtitleEn||'Choose a package, share your post link and partnership ad code, and VELIXEO launches the Meta ad.')}</textarea></div><div class="field"><label>توضیح فارسی</label><textarea name="subtitleFa">${esc(banner?.subtitleFa||'پکیج را انتخاب کن، لینک پست و کد اجازه تبلیغ را بفرست؛ VELIXEO تبلیغ متا را اجرا می‌کند.')}</textarea></div></div>
+    <div class="forms"><div class="field"><label>English subtitle</label><textarea name="subtitleEn">${esc(banner?.subtitleEn||'Choose a package, connect Instagram securely, select your post, and VELIXEO prepares the promotion.')}</textarea></div><div class="field"><label>توضیح فارسی</label><textarea name="subtitleFa">${esc(banner?.subtitleFa||'پکیج را انتخاب کن، اینستاگرام را امن متصل کن، پستت را انتخاب کن؛ VELIXEO تبلیغ را آماده و اجرا می‌کند.')}</textarea></div></div>
     <div class="field"><label>Banner image URL (optional)</label><input name="imageUrl" value="${esc(banner?.imageUrl||'')}"></div><div class="field"><label>Sort order</label><input type="number" name="sortOrder" value="${esc(banner?.sortOrder??10)}"></div>
     <label class="check"><input type="checkbox" name="enabled" ${banner?.enabled===false?'':'checked'}> Show banner</label><button class="btn">Save Promotions banner</button></form></div>
-    <div class="card"><h2>Version 1 model</h2><div class="notice">Customer pays from VELIXEO Wallet. The admin validates the Partnership Ad Code and launches the campaign manually in Meta Ads Manager. No customer password is collected.</div></div></div>` };
+    <div class="card"><h2>Version 1 model</h2><div class="notice">Customer connects Instagram through official Meta OAuth, selects a post and pays from VELIXEO Wallet. The admin receives the authorized account details and fulfills the promotion. Customer passwords are never collected.</div></div></div>` };
   }
 
   if (active === 'packages') {
@@ -214,7 +215,7 @@ export async function promotionAdminPage(prisma: PrismaClient, tab: string, edit
     <td><b>#${esc(order.publicOrderNumber?.toString()||order.id.slice(0,8))}</b><br><span class="muted">${dt(order.createdAt)}</span></td>
     <td><b>${esc(order.user.fullName||'—')}</b><br><span class="muted">${esc(order.user.email||order.user.phone||'—')}</span></td>
     <td><b>${esc(input.platform||'—')}</b><br><span class="muted">${esc(pkg.titleEn||pkg.titleFa||pkg.id||'—')} · ${esc(pkg.durationDays||'—')} days</span></td>
-    <td><div><b>Post:</b> <a href="${esc(input.postUrl||'#')}" target="_blank" rel="noreferrer">Open link</a></div><div style="margin-top:5px"><b>Ad code:</b> <span class="mono">${esc(input.partnershipAdCode||'—')}</span></div></td>
+    <td><div><b>Instagram:</b> ${input.instagramUsername?'@'+esc(input.instagramUsername):'—'} ${input.metaAdvertisingReady?pill('ADVERTISE','ok'):''}</div><div class="muted">${esc(input.instagramPageName||'')} ${input.metaConnectionId?'· '+esc(String(input.metaConnectionId).slice(0,8)):''}</div><div style="margin-top:5px"><b>Post:</b> <a href="${esc(input.postUrl||'#')}" target="_blank" rel="noreferrer">Open link</a></div><div style="margin-top:5px"><b>Media ID:</b> <span class="mono">${esc(input.instagramMediaId||'—')}</span></div><div style="margin-top:5px"><b>Ad code fallback:</b> <span class="mono">${esc(input.partnershipAdCode||'—')}</span></div></td>
     <td><div><b>${esc(input.objective||'—')}</b></div><div class="muted">${esc(Array.isArray(input.targetCountries)?input.targetCountries.join(', '):'—')}</div><div class="muted">${esc(input.audienceNotes||'')}</div></td>
     <td class="money">${money(order.totalAmountAfn)}</td><td>${pill(state,state==='COMPLETED'?'ok':state==='REFUNDED'?'bad':state==='ACTIVE'?'ok':state==='NEED_INFORMATION'?'warn':'info')}</td>
     <td style="min-width:330px">${open?`<form method="post" action="/admin/v3/promotions/order-status"><input type="hidden" name="orderId" value="${order.id}">
@@ -225,11 +226,40 @@ export async function promotionAdminPage(prisma: PrismaClient, tab: string, edit
     <button class="btn">Update order</button></form>`:`<span class="muted">Closed · ${esc(state)}</span>`}</td></tr>`}).join('')||'<tr><td colspan="8" class="empty">No promotion orders yet.</td></tr>'}</tbody></table></div></div>` };
   }
 
+  if (active === 'connections') {
+    const rows = await prisma.metaConnection.findMany({
+      include: { user: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 250,
+    });
+    return { tabs:tabHtml, body:`<div class="card"><div class="cardhead"><div><h2>Instagram connections</h2><span class="muted">Official Meta OAuth connections. Passwords are never stored or shown here.</span></div>${pill(`${rows.filter(r=>r.status==='CONNECTED').length} connected`,'info')}</div>
+    <div class="tablewrap"><table class="table" style="min-width:1450px"><thead><tr><th>Customer</th><th>Instagram</th><th>Facebook Page</th><th>Advertising access</th><th>Granted permissions</th><th>Customer ad accounts</th><th>Status</th><th>Updated</th></tr></thead><tbody>${rows.map(row=>{
+      const tasks=Array.isArray(row.pageTasks)?row.pageTasks.map(String):[];
+      const perms=Array.isArray(row.permissions)?row.permissions.map(String):[];
+      const ads=Array.isArray(row.adAccounts)?row.adAccounts as any[]:[];
+      const ready=tasks.includes('ADVERTISE');
+      const igUrl=row.instagramUsername?`https://www.instagram.com/${encodeURIComponent(row.instagramUsername)}/`:'';
+      return `<tr>
+      <td><b>${esc(row.user.fullName||'—')}</b><br><span class="muted">${esc(row.user.email||row.user.phone||'—')}</span></td>
+      <td><b>${row.instagramUsername?'@'+esc(row.instagramUsername):'—'}</b><br><span class="muted mono">${esc(row.instagramUserId||'—')}</span>${igUrl?`<br><a href="${igUrl}" target="_blank" rel="noreferrer">Open Instagram</a>`:''}</td>
+      <td><b>${esc(row.pageName||'—')}</b><br><span class="muted mono">${esc(row.pageId||'—')}</span></td>
+      <td>${ready?pill('ADVERTISE granted','ok'):pill('No ADVERTISE task','warn')}<br><span class="muted">${esc(tasks.join(', ')||'No page tasks')}</span></td>
+      <td><span class="muted">${esc(perms.join(', ')||'—')}</span></td>
+      <td>${ads.length?ads.map(a=>`<div><b>${esc(a.name||a.id||'Ad account')}</b> <span class="mono">${esc(a.id||'')}</span></div>`).join(''):'<span class="muted">None returned</span>'}</td>
+      <td>${row.status==='CONNECTED'?pill('Connected','ok'):pill(row.status,'bad')}</td>
+      <td>${dt(row.updatedAt)}<br><span class="muted">Validated ${dt(row.lastValidatedAt)}</span></td>
+      </tr>`;
+    }).join('')||'<tr><td colspan="8" class="empty">No Instagram accounts connected yet.</td></tr>'}</tbody></table></div></div>` };
+  }
+
   if (active === 'meta') {
-    return { tabs:tabHtml, body:`<div class="grid eq"><div class="card"><div class="cardhead"><h2>Meta Ads setup — Version 1</h2>${pill('Manual fulfillment','info')}</div>
-    <div class="notice"><b>No Meta Developer App is required for version 1.</b> Use your existing Meta Business Portfolio + Ad Account + payment method. Customers give content-level advertising permission with a Partnership Ad Code; you never need their password.</div>
-    <ol style="line-height:2"><li>Create or use your Meta Business Portfolio.</li><li>Add your Facebook Page and professional Instagram account.</li><li>Create/add your Ad Account and payment method.</li><li>Make sure your admin profile has permission to create/edit ads.</li><li>Customer sends post URL + Partnership Ad Code in VELIXEO.</li><li>Open Ads Manager → Create → at Ad level enable Partnership ad → Enter partnership ad code → paste code → choose your business identity → publish.</li></ol></div>
-    <div class="card"><h2>Later automation</h2><p class="muted">After the manual flow is stable, connect a Meta Developer App + Marketing API. The current order data already stores platform, objective, targeting, package budget, post URL and authorization code so the fulfillment layer can later be automated without redesigning customer checkout.</p></div></div>` };
+    const metaConfigured = Boolean(process.env.META_APP_ID && process.env.META_APP_SECRET && process.env.META_REDIRECT_URI && process.env.ADMIN_SECRET_ENCRYPTION_KEY);
+    return { tabs:tabHtml, body:`<div class="grid eq"><div class="card"><div class="cardhead"><h2>Meta / Instagram Login</h2>${metaConfigured?pill('Configured','ok'):pill('Needs setup','warn')}</div>
+    <div class="notice"><b>VELIXEO uses official Meta OAuth.</b> Customers sign in on Meta's own page. Their password and OTP are never captured by VELIXEO. The server stores encrypted access tokens plus the Facebook Page, Instagram Professional account, page tasks and granted permissions.</div>
+    <div class="field"><label>Required Railway variables</label><div class="mono">META_APP_ID<br>META_APP_SECRET<br>META_REDIRECT_URI<br>ADMIN_SECRET_ENCRYPTION_KEY</div></div>
+    <div class="field"><label>Current redirect URI</label><div class="mono">${esc(process.env.META_REDIRECT_URI||'Not configured')}</div></div>
+    <p class="muted">Use a Meta Business App with Instagram API (Facebook Login) and Marketing API. Request only the permissions needed for pages/Instagram and advertising. Instagram must be Professional and linked to a Facebook Page for this flow.</p></div>
+    <div class="card"><h2>Admin fulfillment model</h2><ol style="line-height:2"><li>Customer connects Instagram in the app.</li><li>VELIXEO stores the authorized Instagram/Page IDs and encrypted tokens.</li><li>Customer selects one of their own posts and pays from Wallet.</li><li>The order shows the connected account and media ID in Admin.</li><li>Admin prepares the Meta campaign manually now; Marketing API draft creation can be enabled after Meta App review/Advanced Access.</li></ol><a class="btn ghost" href="${href('connections')}">View Instagram connections</a></div></div>` };
   }
 
   const [products,openOrders,activeOrders,completed,revenue] = await Promise.all([
@@ -240,7 +270,7 @@ export async function promotionAdminPage(prisma: PrismaClient, tab: string, edit
     prisma.order.aggregate({where:{category:ServiceCategory.PROMOTION,status:{notIn:[OrderStatus.REFUNDED,OrderStatus.CANCELLED,OrderStatus.FAILED]}},_sum:{totalAmountAfn:true}}),
   ]);
   return { tabs:tabHtml, body:`<div class="card modulehero"><div class="cardhead"><div><h2>Instagram & Facebook Promotions</h2><p>Wallet-paid Meta advertising without collecting customer passwords or cards.</p></div></div><div class="kpis"><div><b>${products}</b><small>Products</small></div><div><b>${openOrders}</b><small>Pending</small></div><div><b>${activeOrders}</b><small>Processing / Active</small></div><div><b>${money(revenue._sum.totalAmountAfn||0n)}</b><small>Paid sales</small></div></div></div>
-  <div class="grid eq"><div class="card"><h2>Version 1 workflow</h2><div class="notice">Package → Post link → Partnership Ad Code → Targeting → Wallet payment → Telegram admin invoice → manual campaign in Meta Ads Manager → status/result back to customer.</div><a class="btn" href="${href('packages')}">Create promotion packages</a></div><div class="card"><h2>Fulfillment</h2><p class="muted">${completed} completed campaigns. Use Need information if the post/code is invalid, Active after publishing in Meta, and Refund if the campaign cannot be launched.</p><a class="btn ghost" href="${href('orders')}">Open promotion queue</a></div></div>` };
+  <div class="grid eq"><div class="card"><h2>Version 1 workflow</h2><div class="notice">Package → targeting → Login with Instagram → select own post → Wallet payment → Telegram/admin invoice → manual Meta campaign → status/result back to customer.</div><a class="btn" href="${href('packages')}">Create promotion packages</a></div><div class="card"><h2>Fulfillment</h2><p class="muted">${completed} completed campaigns. Use Need information if the post/code is invalid, Active after publishing in Meta, and Refund if the campaign cannot be launched.</p><a class="btn ghost" href="${href('orders')}">Open promotion queue</a></div></div>` };
 }
 
 export function registerPromotionAdminRoutes(app: FastifyInstance, prisma: PrismaClient, resolveAdmin: AdminResolver) {
