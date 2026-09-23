@@ -587,6 +587,17 @@ const translations: Record<string, string> = {
   'Choose a package, connect Instagram securely, select your post, and VELIXEO prepares the promotion.': 'پکیج را انتخاب کنید، اینستاگرام را به‌صورت امن متصل کنید، پست را انتخاب کنید و VELIXEO تبلیغ را آماده می‌کند.',
   'Customer connects Instagram through official Meta OAuth, selects a post and pays from VELIXEO Wallet. The admin receives the authorized account details and fulfills the promotion. Customer passwords are never collected.': 'مشتری از طریق Meta OAuth رسمی اینستاگرام را متصل می‌کند، پست را انتخاب کرده و از کیف پول VELIXEO پرداخت می‌کند. ادمین مشخصات مجاز حساب را دریافت کرده و تبلیغ را اجرا می‌کند. رمز مشتری هرگز دریافت یا ذخیره نمی‌شود.',
 
+  // Service separation / coming soon
+  'Premium Accounts': 'اکانت‌های پریمیوم',
+  'Telegram Premium, Snapchat+ and other premium subscriptions': 'تلگرام پریمیوم، اسنپ‌چت پلاس و سایر اشتراک‌های پریمیوم',
+  'Coming soon — waiting for official telecom APIs': 'به‌زودی — در انتظار API رسمی شرکت‌های مخابراتی',
+  'Netflix, VPN, streaming, licenses and digital account delivery': 'نتفلیکس، VPN، سرویس‌های استریم، لایسنس‌ها و تحویل اکانت‌های دیجیتال',
+  'Coming soon — telecom provider APIs are not connected yet.': 'به‌زودی — API شرکت‌های مخابراتی هنوز متصل نشده است.',
+  'Coming soon.': 'به‌زودی.',
+  'This module stays disabled until official mobile operator APIs are connected and tested. No top-up products or provider routes are required for now.': 'این بخش تا زمان اتصال و آزمایش API رسمی اپراتورهای موبایل غیرفعال می‌ماند. فعلاً نیازی به افزودن محصول یا مسیر Provider برای شارژ نیست.',
+  'Premium Accounts Workspace': 'فضای مدیریت اکانت‌های پریمیوم',
+  'Premium-only services such as Telegram Premium, Snapchat+ and similar subscriptions. Netflix, VPN and other digital accounts belong in Digital Accounts.': 'این بخش فقط برای خدمات پریمیوم مانند تلگرام پریمیوم، اسنپ‌چت پلاس و اشتراک‌های مشابه است. نتفلیکس، VPN و سایر اکانت‌های دیجیتال باید در بخش اکانت‌های دیجیتال قرار بگیرند.',
+
   // Referrals
   'Referral Commission Settings': 'تنظیمات کمیسیون دعوت',
   'Enable Invite Friends commission': 'فعال‌سازی کمیسیون دعوت دوستان',
