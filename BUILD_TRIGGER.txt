@@ -1,17 +1,14 @@
-Trigger signed Android build - VELIXEO v0.9.7 - 2026-09-21.
+Trigger signed Android build - VELIXEO v0.9.8 - 2026-09-23.
 Release scope:
-1) Adds the first dedicated Instagram & Facebook Promotions module.
-2) Customers can choose a promotion package, provide a post/Reel URL and a Meta Partnership Ad Code without sharing passwords.
-3) Promotion checkout collects objective, target countries, optional audience notes and optional website URL.
-4) Wallet payment and promotion order creation are atomic; unpaid orders never enter the admin queue.
-5) Telegram admin invoices include platform, post, authorization code, objective, targeting, package, duration and ad budget.
-6) Admin gets a dedicated Promotions workspace with Overview, Banner, Packages, Orders and Meta Setup.
-7) Promotion order lifecycle supports permission review, need information, ready to launch, active, completed and refund.
-8) Admin can record Meta Campaign ID, Meta Ad ID and bilingual result summaries.
-9) Refunds are idempotent and return the paid amount to the customer wallet.
-10) Customers receive bilingual lifecycle notifications.
-11) Promotions has a bilingual server-controlled banner plus a built-in fallback hero.
-12) The app explains exactly how customers can obtain a Partnership Ad Code.
-13) Mobile Top-up remains Coming Soon until official telecom APIs are available.
-14) Meta Marketing API automation is intentionally deferred; v1 uses manual Ads Manager fulfillment.
-15) Backend and Flutter validations passed before this release trigger.
+1) Promotions adds official Meta/Instagram account connection using Meta OAuth.
+2) Customer credentials are entered only on Meta's official login page; VELIXEO never stores Instagram/Facebook passwords or OTPs.
+3) Authorized access tokens are encrypted server-side with AES-256-GCM.
+4) Connected Facebook Page and Instagram Professional account IDs, usernames, Page tasks, granted permissions and ad-account metadata are stored for fulfillment.
+5) Customer can load and select their own Instagram posts/Reels inside VELIXEO.
+6) Promotion orders snapshot the selected Instagram account and media ID.
+7) Telegram paid-order invoices include the connected Instagram account, selected media and ADVERTISE readiness.
+8) Promotions Admin adds an Instagram Connections workspace with customer/account/Page/permission details and no secret-token exposure.
+9) Partnership Ad Code remains an optional fallback.
+10) Manual Meta campaign fulfillment remains the current execution mode; automatic Marketing API campaign creation is not enabled yet.
+11) Production Instagram login requires META_APP_ID, META_APP_SECRET and META_REDIRECT_URI from a Meta Business App.
+12) Backend and Flutter validation passed before this release trigger.
