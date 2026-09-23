@@ -50,6 +50,7 @@ function tabs(active: string) {
     ['banner','Banner'],
     ['packages','Packages'],
     ['orders','Orders'],
+    ['connections','Instagram Connections'],
     ['meta','Meta Setup'],
   ].map(([key,label])=>`<a class="tab ${active===key?'active':''}" href="${href(key)}">${label}</a>`).join('')}</div>`;
 }
@@ -106,7 +107,7 @@ function productForm(service: any | null) {
       <div class="field"><label>راهنمای فارسی</label><textarea name="instructionsFa">${esc(meta.instructionsFa)}</textarea></div>
     </div>
     <div class="field"><label>Supported objectives</label><div class="actions">${objectiveOptions.map(([value,label])=>`<label class="check"><input type="checkbox" name="objective_${value}" ${meta.supportedObjectives.includes(value as any)?'checked':''}> ${label}</label>`).join('')}</div></div>
-    <label class="check"><input type="checkbox" name="requirePartnershipAdCode" ${meta.requirePartnershipAdCode?'checked':''}> Require Partnership Ad Code before payment</label>
+    <label class="check"><input type="checkbox" name="requirePartnershipAdCode" ${meta.requirePartnershipAdCode?'checked':''}> Fallback only: require Partnership Ad Code when no Instagram account is connected</label>
     <div class="cardhead" style="margin-top:18px"><div><h3>Promotion Packages</h3><span class="muted">Separate customer price, ad budget and service fee for clear accounting.</span></div><button type="button" class="btn ghost" onclick="promotionAddPackage()">+ Add package</button></div>
     <div id="promotion-packages">${packages.map(packageRow).join('')}</div>
     <div class="actions" style="margin-top:14px"><label class="check"><input type="checkbox" name="enabled" ${service?.enabled===false?'':'checked'}> Visible in app</label><label class="check"><input type="checkbox" name="featured" ${service?.featured?'checked':''}> Featured</label></div>
@@ -185,7 +186,7 @@ async function refundOrder(prisma: PrismaClient, orderId: string, reason: string
 }
 
 export async function promotionAdminPage(prisma: PrismaClient, tab: string, edit: string) {
-  const active = ['overview','banner','packages','orders','meta'].includes(tab) ? tab : 'overview';
+  const active = ['overview','banner','packages','orders','connections','meta'].includes(tab) ? tab : 'overview';
   const tabHtml = tabs(active);
 
   if (active === 'banner') {
