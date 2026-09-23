@@ -186,7 +186,7 @@ export function registerClientFoundationRoutes(
         },
         include: {
           reads: {
-            where: { userId: claims.sub, category: { not: ServiceCategory.PROMOTION } },
+            where: { userId: claims.sub },
             select: { readAt: true },
             take: 1,
           },
@@ -305,7 +305,7 @@ export function registerClientFoundationRoutes(
   app.get('/api/v1/orders', { preHandler: authenticate }, async (request) => {
     const claims = request.user as JwtClaims;
     const orders = await prisma.order.findMany({
-      where: { userId: claims.sub },
+      where: { userId: claims.sub, category: { not: ServiceCategory.PROMOTION } },
       include: {
         service: {
           select: { slug: true, titleFa: true, titleEn: true, category: true },
