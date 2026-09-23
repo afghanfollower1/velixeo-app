@@ -121,7 +121,7 @@ export function parsePromotionMetadata(value: Prisma.JsonValue | unknown): Promo
     supportedObjectives: supportedObjectives.length
       ? [...new Set(supportedObjectives)]
       : ['ENGAGEMENT', 'PROFILE_VISITS', 'MESSAGES', 'WEBSITE_VISITS', 'AWARENESS'],
-    requirePartnershipAdCode: bool(raw.requirePartnershipAdCode, true),
+    requirePartnershipAdCode: bool(raw.requirePartnershipAdCode, false),
     packages,
   };
 }
