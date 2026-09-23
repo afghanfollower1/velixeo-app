@@ -174,7 +174,7 @@ export function registerPromotionRoutes(
     if (!meta.supportedObjectives.includes(parsed.data.objective as PromotionObjective)) {
       return reply.code(400).send({ error: 'objective_unavailable' });
     }
-    if (meta.requirePartnershipAdCode && !parsed.data.partnershipAdCode.trim()) {
+    if (meta.requirePartnershipAdCode && !parsed.data.partnershipAdCode.trim() && !parsed.data.metaConnectionId) {
       return reply.code(400).send({ error: 'partnership_ad_code_required' });
     }
     if (parsed.data.objective === 'WEBSITE_VISITS' && !parsed.data.websiteUrl.trim()) {
