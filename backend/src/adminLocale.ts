@@ -584,6 +584,9 @@ const translations: Record<string, string> = {
   'Ad code fallback': 'کد جایگزین Partnership',
   'Package → targeting → Login with Instagram → select own post → Wallet payment → Telegram/admin invoice → manual Meta campaign → status/result back to customer.': 'پکیج → هدف‌گیری → ورود با اینستاگرام → انتخاب پست خود کاربر → پرداخت کیف پول → فاکتور تلگرام/ادمین → اجرای دستی کمپین Meta → نمایش وضعیت و نتیجه به کاربر.',
 
+  'Choose a package, connect Instagram securely, select your post, and VELIXEO prepares the promotion.': 'پکیج را انتخاب کنید، اینستاگرام را به‌صورت امن متصل کنید، پست را انتخاب کنید و VELIXEO تبلیغ را آماده می‌کند.',
+  'Customer connects Instagram through official Meta OAuth, selects a post and pays from VELIXEO Wallet. The admin receives the authorized account details and fulfills the promotion. Customer passwords are never collected.': 'مشتری از طریق Meta OAuth رسمی اینستاگرام را متصل می‌کند، پست را انتخاب کرده و از کیف پول VELIXEO پرداخت می‌کند. ادمین مشخصات مجاز حساب را دریافت کرده و تبلیغ را اجرا می‌کند. رمز مشتری هرگز دریافت یا ذخیره نمی‌شود.',
+
   // Referrals
   'Referral Commission Settings': 'تنظیمات کمیسیون دعوت',
   'Enable Invite Friends commission': 'فعال‌سازی کمیسیون دعوت دوستان',
