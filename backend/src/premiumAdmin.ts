@@ -178,7 +178,7 @@ function productForm(service: any | null) {
       <div class="field"><label>عنوان فارسی</label><input name="titleFa" value="${esc(service?.titleFa || '')}" required placeholder="تلگرام پریمیوم"></div>
       <div class="field"><label>Slug</label><input class="mono" name="slug" value="${esc(service?.slug || '')}" placeholder="telegram-premium"></div>
       <div class="field"><label>Category</label><select name="group">
-        ${['MESSAGING','SOCIAL','VPN','STREAMING','AI','OTHER'].map(group => `<option value="${group}" ${meta.group === group ? 'selected' : ''}>${group}</option>`).join('')}
+        ${['MESSAGING','SOCIAL','OTHER'].map(group => `<option value="${group}" ${meta.group === group ? 'selected' : ''}>${group}</option>`).join('')}
       </select></div>
       <div class="field"><label>Fulfillment type</label><select name="deliveryType">
         ${[
@@ -365,7 +365,7 @@ export async function premiumAdminPage(
   ]);
   return {
     tabs: tabHtml,
-    body: `<div class="card modulehero"><div class="cardhead"><div><h2>Premium & Subscriptions Workspace</h2><p>Manual activation and manual-delivery products with wallet payment, bilingual forms and admin fulfillment.</p></div></div><div class="kpis"><div><b>${products.length}</b><small>Products</small></div><div><b>${products.filter(p => p.enabled).length}</b><small>Live</small></div><div><b>${openOrders}</b><small>Open orders</small></div><div><b>${money(revenue._sum.totalAmountAfn || 0n)}</b><small>Paid sales</small></div></div></div>
+    body: `<div class="card modulehero"><div class="cardhead"><div><h2>Premium Accounts Workspace</h2><p>Premium-only services such as Telegram Premium, Snapchat+ and similar subscriptions. Netflix, VPN and other digital accounts belong in Digital Accounts.</p></div></div><div class="kpis"><div><b>${products.length}</b><small>Products</small></div><div><b>${products.filter(p => p.enabled).length}</b><small>Live</small></div><div><b>${openOrders}</b><small>Open orders</small></div><div><b>${money(revenue._sum.totalAmountAfn || 0n)}</b><small>Paid sales</small></div></div></div>
     <div class="grid eq"><div class="card"><div class="cardhead"><h2>How this module works</h2>${pill('No provider API required','info')}</div><div class="notice">Product → package → dynamic customer form → wallet payment → paid order queue → Telegram admin invoice → manual fulfillment → customer notification.</div><a class="btn" href="${href('products')}">Manage products & packages</a></div><div class="card"><div class="cardhead"><h2>Fulfillment</h2>${pill(`${completedOrders} completed`,'ok')}</div><p class="muted">Use Processing while working on an order, Need information when the customer data is incomplete, Completed after activation/delivery, or Reject + refund when the service cannot be fulfilled.</p><a class="btn ghost" href="${href('orders')}">Open fulfillment queue</a></div></div>`,
   };
 }
