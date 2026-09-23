@@ -226,6 +226,32 @@ export async function promotionAdminPage(prisma: PrismaClient, tab: string, edit
     <button class="btn">Update order</button></form>`:`<span class="muted">Closed · ${esc(state)}</span>`}</td></tr>`}).join('')||'<tr><td colspan="8" class="empty">No promotion orders yet.</td></tr>'}</tbody></table></div></div>` };
   }
 
+  if (active === 'connections') {
+    const rows = await prisma.metaConnection.findMany({
+      include: { user: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 250,
+    });
+    return { tabs:tabHtml, body:`<div class="card"><div class="cardhead"><div><h2>Instagram connections</h2><span class="muted">Official Meta OAuth connections. Passwords are never stored or shown here.</span></div>${pill(`${rows.filter(r=>r.status==='CONNECTED').length} connected`,'info')}</div>
+    <div class="tablewrap"><table class="table" style="min-width:1450px"><thead><tr><th>Customer</th><th>Instagram</th><th>Facebook Page</th><th>Advertising access</th><th>Granted permissions</th><th>Customer ad accounts</th><th>Status</th><th>Updated</th></tr></thead><tbody>${rows.map(row=>{
+      const tasks=Array.isArray(row.pageTasks)?row.pageTasks.map(String):[];
+      const perms=Array.isArray(row.permissions)?row.permissions.map(String):[];
+      const ads=Array.isArray(row.adAccounts)?row.adAccounts as any[]:[];
+      const ready=tasks.includes('ADVERTISE');
+      const igUrl=row.instagramUsername?`https://www.instagram.com/${encodeURIComponent(row.instagramUsername)}/`:'';
+      return `<tr>
+      <td><b>${esc(row.user.fullName||'—')}</b><br><span class="muted">${esc(row.user.email||row.user.phone||'—')}</span></td>
+      <td><b>${row.instagramUsername?'@'+esc(row.instagramUsername):'—'}</b><br><span class="muted mono">${esc(row.instagramUserId||'—')}</span>${igUrl?`<br><a href="${igUrl}" target="_blank" rel="noreferrer">Open Instagram</a>`:''}</td>
+      <td><b>${esc(row.pageName||'—')}</b><br><span class="muted mono">${esc(row.pageId||'—')}</span></td>
+      <td>${ready?pill('ADVERTISE granted','ok'):pill('No ADVERTISE task','warn')}<br><span class="muted">${esc(tasks.join(', ')||'No page tasks')}</span></td>
+      <td><span class="muted">${esc(perms.join(', ')||'—')}</span></td>
+      <td>${ads.length?ads.map(a=>`<div><b>${esc(a.name||a.id||'Ad account')}</b> <span class="mono">${esc(a.id||'')}</span></div>`).join(''):'<span class="muted">None returned</span>'}</td>
+      <td>${row.status==='CONNECTED'?pill('Connected','ok'):pill(row.status,'bad')}</td>
+      <td>${dt(row.updatedAt)}<br><span class="muted">Validated ${dt(row.lastValidatedAt)}</span></td>
+      </tr>`;
+    }).join('')||'<tr><td colspan="8" class="empty">No Instagram accounts connected yet.</td></tr>'}</tbody></table></div></div>` };
+  }
+
   if (active === 'meta') {
     return { tabs:tabHtml, body:`<div class="grid eq"><div class="card"><div class="cardhead"><h2>Meta Ads setup — Version 1</h2>${pill('Manual fulfillment','info')}</div>
     <div class="notice"><b>No Meta Developer App is required for version 1.</b> Use your existing Meta Business Portfolio + Ad Account + payment method. Customers give content-level advertising permission with a Partnership Ad Code; you never need their password.</div>
