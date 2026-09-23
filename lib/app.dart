@@ -326,15 +326,6 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
       if (!authenticated) return;
       try { orders = await api.orders(); } catch (_) {}
     }
-    Future<void> loadPaymentCapabilities() async {
-      if (!authenticated) return;
-      try { paymentCapabilities = await api.paymentCapabilities(); } catch (_) {}
-    }
-    Future<void> loadPayments() async {
-      if (!authenticated) return;
-      try { payments = await api.payments(); } catch (_) {}
-    }
-
     // Load the data that paints the home/services screen first so the app feels
     // lighter and remote banners can appear without waiting for order/payment history.
     await Future.wait([
@@ -348,8 +339,6 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
     await Future.wait([
       loadNotifications(),
       loadOrders(),
-      loadPaymentCapabilities(),
-      loadPayments(),
     ]);
   }
 
