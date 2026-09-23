@@ -16,14 +16,13 @@ import 'social/social_panel.dart';
 import 'support/support_page.dart';
 import 'virtual_numbers/virtual_number_panel.dart';
 import 'premium/premium_panel.dart';
-import 'promotions/promotion_panel.dart';
 import 'referrals/referral_page.dart';
 
 // FIGMA_ENGLISH_V1 — UI implementation based on the approved English Figma file.
 
 String tr(bool fa, String faText, String enText) => fa ? faText : enText;
 
-class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNumberPanelHost, PremiumPanelHost, PromotionPanelHost, SupportPanelHost, ReferralPanelHost {
+class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNumberPanelHost, PremiumPanelHost, SupportPanelHost, ReferralPanelHost {
   AppController(this.api, this.googleAuth);
 
   final ApiService api;
@@ -314,10 +313,10 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
       try { walletEntries = await api.walletEntries(); } catch (_) {}
     }
     Future<void> loadCatalog() async {
-      try { catalogServices = await api.catalogServices(); } catch (_) {}
+      try { catalogServices = (await api.catalogServices()).where((service) => service.category != 'PROMOTION').toList(growable: false); } catch (_) {}
     }
     Future<void> loadBanners() async {
-      try { banners = await api.banners(); } catch (_) {}
+      try { banners = (await api.banners()).where((banner) => !const ['velixeo://promotions', 'velixeo://promotion'].contains(banner.actionUrl?.trim().toLowerCase())).toList(growable: false); } catch (_) {}
     }
     Future<void> loadNotifications() async {
       if (!authenticated) return;
@@ -336,11 +335,17 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
       try { payments = await api.payments(); } catch (_) {}
     }
 
+    // Load the data that paints the home/services screen first so the app feels
+    // lighter and remote banners can appear without waiting for order/payment history.
     await Future.wait([
       loadRates(),
       loadWallet(),
       loadCatalog(),
       loadBanners(),
+    ]);
+    if (authenticated) notifyListeners();
+
+    await Future.wait([
       loadNotifications(),
       loadOrders(),
       loadPaymentCapabilities(),
@@ -2281,8 +2286,8 @@ Widget _serviceDestination(AppController c, ServiceItem service) {
   if (service.en == 'Social Media') return SocialPanelPage(host: c);
   if (service.en == 'Virtual Numbers') return VirtualNumberPanelPage(host: c);
   if (service.en == 'Premium') return PremiumPanelPage(host: c);
-  if (service.en == 'Promotions') return PromotionPanelPage(host: c);
   if (service.en == 'Mobile Top-up') return ComingSoonServicePage(controller: c, service: service);
+  if (service.en == 'Digital Accounts') return DigitalAccountsHubPage(controller: c);
   return ServicePreviewPage(controller: c, service: service);
 }
 
@@ -2290,7 +2295,6 @@ Widget _catalogDestination(AppController c, CatalogService service) {
   if (service.category == 'SOCIAL') return SocialPanelPage(host: c);
   if (service.category == 'VIRTUAL_NUMBER') return VirtualNumberPanelPage(host: c);
   if (service.category == 'PREMIUM') return PremiumPanelPage(host: c, initialServiceId: service.id);
-  if (service.category == 'PROMOTION') return PromotionPanelPage(host: c, initialServiceId: service.id);
   return CatalogServicePage(controller: c, service: service);
 }
 
@@ -2347,10 +2351,6 @@ class _MainShellState extends State<MainShell> {
         break;
       case 'premium':
         Navigator.push(context, MaterialPageRoute(builder: (_) => PremiumPanelPage(host: widget.controller, initialServiceId: data['entityId'])));
-        break;
-      case 'promotions':
-      case 'promotion':
-        Navigator.push(context, MaterialPageRoute(builder: (_) => PromotionPanelPage(host: widget.controller, initialServiceId: data['entityId'])));
         break;
       default:
         Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationsPage(controller: widget.controller)));
@@ -2439,7 +2439,6 @@ class HomePage extends StatelessWidget {
     ServiceItem('پریمیوم', 'Premium', Icons.workspace_premium_rounded, Color(0xFFF3A523)),
     ServiceItem('شارژ موبایل', 'Mobile Top-up', Icons.sim_card_rounded, Color(0xFF12B8A6)),
     ServiceItem('اکانت دیجیتال', 'Digital Accounts', Icons.account_circle_rounded, Color(0xFF5B6EF5)),
-    ServiceItem('پروموشن', 'Promotions', Icons.campaign_rounded, Color(0xFFE84D93)),
   ];
 
   Color _statusColor(String status) {
@@ -2705,8 +2704,6 @@ IconData catalogIcon(String category) {
       return Icons.manage_accounts_rounded;
     case 'MOBILE_TOPUP':
       return Icons.sim_card_rounded;
-    case 'PROMOTION':
-      return Icons.campaign_rounded;
     default:
       return Icons.trending_up_rounded;
   }
@@ -2722,8 +2719,6 @@ Color catalogColor(String category) {
       return const Color(0xFF6366F1);
     case 'MOBILE_TOPUP':
       return const Color(0xFF14B8A6);
-    case 'PROMOTION':
-      return const Color(0xFFEC4899);
     default:
       return const Color(0xFF8B5CF6);
   }
@@ -2949,6 +2944,123 @@ class ServicesPage extends StatelessWidget {
                 );
               }),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class DigitalAccountsHubPage extends StatelessWidget {
+  const DigitalAccountsHubPage({super.key, required this.controller});
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller;
+    final items = c.catalogServices
+        .where((service) => service.category == 'DIGITAL_ACCOUNT')
+        .toList(growable: false);
+    return Scaffold(
+      appBar: AppBar(title: Text(tr(c.fa, 'اکانت‌های دیجیتال', 'Digital Accounts'))),
+      body: RefreshIndicator(
+        onRefresh: c.refreshAccount,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 30),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF3F51D7), Color(0xFF6D63FF)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          tr(c.fa, 'اکانت‌ها و خدمات دیجیتال', 'Digital accounts & services'),
+                          style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900),
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          tr(
+                            c.fa,
+                            'نتفلیکس، VPN، سرویس‌های استریم، ابزارهای آنلاین، لایسنس‌ها و اکانت‌های دیجیتال از این بخش مدیریت می‌شوند.',
+                            'Netflix, VPN, streaming services, online tools, licenses and other digital accounts belong here.',
+                          ),
+                          style: const TextStyle(color: Color(0xFFE9E9FF), fontSize: 11.5, height: 1.45),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: .14), borderRadius: BorderRadius.circular(18)),
+                    child: const Icon(Icons.manage_accounts_rounded, color: Colors.white, size: 30),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            if (items.isEmpty)
+              EmptyCard(
+                icon: Icons.manage_accounts_outlined,
+                title: tr(c.fa, 'هنوز اکانت دیجیتال اضافه نشده', 'No digital accounts yet'),
+                subtitle: tr(
+                  c.fa,
+                  'محصولات این بخش از پنل ادمین Digital Accounts اضافه می‌شوند.',
+                  'Products for this section are created from Digital Accounts in Admin.',
+                ),
+              )
+            else
+              ...items.map((service) {
+                final color = catalogColor(service.category);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: SoftCard(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => CatalogServicePage(controller: c, service: service)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(color: color.withValues(alpha: .10), borderRadius: BorderRadius.circular(15)),
+                          child: Icon(Icons.manage_accounts_rounded, color: color),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(c.fa ? service.titleFa : service.titleEn, style: const TextStyle(fontWeight: FontWeight.w900)),
+                              const SizedBox(height: 3),
+                              Text(
+                                service.basePriceAfn == null
+                                    ? tr(c.fa, 'قیمت و تحویل از پنل ادمین مدیریت می‌شود', 'Pricing and delivery are managed from Admin')
+                                    : tr(c.fa, 'از ${c.money(service.basePriceAfn!)}', 'From ${c.money(service.basePriceAfn!)}'),
+                                style: const TextStyle(fontSize: 11.5, color: Color(0xFF607487)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded),
+                      ],
+                    ),
+                  ),
+                );
+              }),
           ],
         ),
       ),
@@ -3240,8 +3352,6 @@ IconData _notificationIcon(String type) {
       return Icons.account_balance_wallet_rounded;
     case 'SUPPORT':
       return Icons.support_agent_rounded;
-    case 'PROMOTION':
-      return Icons.campaign_rounded;
     case 'ACCOUNT':
       return Icons.manage_accounts_rounded;
     default:
@@ -3260,8 +3370,6 @@ Color _notificationColor(String type) {
       return const Color(0xFF16A873);
     case 'SUPPORT':
       return const Color(0xFF7457E8);
-    case 'PROMOTION':
-      return const Color(0xFFE9508B);
     case 'ACCOUNT':
       return const Color(0xFFF29A2E);
     default:
@@ -3277,7 +3385,6 @@ String _notificationTypeLabel(String type) {
     case 'PAYMENT': return 'Payment';
     case 'WALLET': return 'Wallet';
     case 'SUPPORT': return 'Support';
-    case 'PROMOTION': return 'Promotion';
     case 'ACCOUNT': return 'Account';
     default: return 'System';
   }
@@ -3355,7 +3462,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
       ('ORDER', 'Orders'),
       ('WALLET', 'Wallet'),
       ('SUPPORT', 'Support'),
-      ('PROMOTION', 'Offers'),
       ('SYSTEM', 'System'),
     ];
     return AnimatedBuilder(
@@ -3626,8 +3732,6 @@ class RemoteBannerCard extends StatelessWidget {
         await Navigator.push(context, MaterialPageRoute(builder: (_) => VirtualNumberPanelPage(host: controller)));
       } else if (target == 'premium') {
         await Navigator.push(context, MaterialPageRoute(builder: (_) => PremiumPanelPage(host: controller)));
-      } else if (target == 'promotions' || target == 'promotion') {
-        await Navigator.push(context, MaterialPageRoute(builder: (_) => PromotionPanelPage(host: controller)));
       } else if (target == 'wallet') {
         await Navigator.push(context, MaterialPageRoute(builder: (_) => AddFundsPage(controller: controller)));
       } else if (target == 'support') {
@@ -3662,7 +3766,7 @@ class RemoteBannerCard extends StatelessWidget {
               Image.network(
                 banner.imageUrl,
                 fit: BoxFit.cover,
-                cacheWidth: 1080,
+                cacheWidth: ((MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context)).clamp(640, 1280)).round(),
                 filterQuality: FilterQuality.low,
                 gaplessPlayback: true,
                 loadingBuilder: (context, child, progress) => progress == null
