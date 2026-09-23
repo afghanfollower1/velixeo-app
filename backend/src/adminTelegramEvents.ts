@@ -134,6 +134,10 @@ export async function sendAdminOrderAlert(
     const packageTitle = pkg.titleEn ?? pkg.titleFa ?? pkg.id;
     if (packageTitle) details.push(`Package: ${clean(packageTitle)}`);
     if (rawInput.platform) details.push(`Platform: ${clean(rawInput.platform)}`);
+    if (rawInput.instagramUsername) details.push(`Instagram: @${clean(rawInput.instagramUsername, 120)}`);
+    if (rawInput.instagramPageName) details.push(`Facebook Page: ${clean(rawInput.instagramPageName, 180)}`);
+    if (rawInput.instagramMediaId) details.push(`Instagram media ID: ${clean(rawInput.instagramMediaId, 160)}`);
+    if (rawInput.metaAdvertisingReady) details.push('Meta page task: ADVERTISE ✅');
     if (rawInput.postUrl) details.push(`Post: ${clean(rawInput.postUrl, 1000)}`);
     if (rawInput.partnershipAdCode) details.push(`Ad code: ${clean(rawInput.partnershipAdCode, 1200)}`);
     if (rawInput.objective) details.push(`Objective: ${clean(rawInput.objective)}`);
