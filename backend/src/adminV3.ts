@@ -4,7 +4,6 @@ import { registerAdminV3 as registerFigmaAdminV3 } from './adminFigmaEnglish.js'
 import { registerAdminSocialProviderManager } from './adminSocialProviderManager.js';
 import { registerAdminLocale } from './adminLocale.js';
 import { registerPremiumAdminRoutes } from './premiumAdmin.js';
-import { registerPromotionAdminRoutes } from './promotionAdmin.js';
 
 type AdminIdentity = {
   id: string;
@@ -22,6 +21,5 @@ export function registerAdminV3(
   registerAdminLocale(app);
   registerAdminSocialProviderManager(app, prisma, resolveAdmin);
   registerPremiumAdminRoutes(app, prisma, resolveAdmin);
-  registerPromotionAdminRoutes(app, prisma, resolveAdmin);
   registerFigmaAdminV3(app, prisma, resolveAdmin);
 }
