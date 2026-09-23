@@ -158,6 +158,8 @@ model User {
   notificationReads      NotificationRead[]
   pushDevices            PushDevice[]
   verificationChallenges VerificationChallenge[]
+  metaConnections        MetaConnection[]
+  metaOAuthSessions      MetaOAuthSession[]
   auditLogs              AdminAuditLog[]        @relation("AdminAuditLogs")
 }
 
@@ -533,6 +535,55 @@ model SupportMessage {
   senderUser User?         @relation("SupportSender", fields: [senderUserId], references: [id], onDelete: SetNull)
 
   @@index([ticketId, createdAt])
+}
+
+model MetaConnection {
+  id                         String   @id @default(uuid())
+  userId                     String
+  status                     String   @default("CONNECTED")
+  facebookUserId             String?
+  facebookUserName           String?
+  pageId                     String?
+  pageName                   String?
+  pageTasks                  Json?
+  instagramUserId            String?
+  instagramUsername          String?
+  instagramName              String?
+  instagramProfilePictureUrl String?
+  permissions                Json?
+  adAccounts                 Json?
+  metadata                   Json?
+  userTokenCiphertext        String?
+  userTokenIv                String?
+  userTokenTag               String?
+  pageTokenCiphertext        String?
+  pageTokenIv                String?
+  pageTokenTag               String?
+  tokenExpiresAt             DateTime?
+  lastValidatedAt            DateTime?
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, instagramUserId])
+  @@index([userId, status, updatedAt])
+  @@index([instagramUserId])
+}
+
+model MetaOAuthSession {
+  id         String    @id @default(uuid())
+  userId     String
+  stateHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  metadata   Json?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt, consumedAt])
 }
 
 model SystemSetting {
