@@ -1914,32 +1914,6 @@ class _InfoRow extends StatelessWidget {
       );
 }
 
-class _TabButton extends StatelessWidget {
-  const _TabButton({required this.label, required this.icon, required this.selected, required this.onTap});
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(13),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 2),
-          decoration: BoxDecoration(
-            color: selected ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(13),
-            boxShadow: selected ? const [BoxShadow(color: Color(0x10102235), blurRadius: 12)] : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [Icon(icon, size: 15, color: selected ? const Color(0xFF38BDF8) : const Color(0xFF74818B)), const SizedBox(width: 3), Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: selected ? const Color(0xFF102235) : const Color(0xFF74818B))))],
-          ),
-        ),
-      );
-}
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.icon, required this.title, required this.subtitle});
