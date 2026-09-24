@@ -68,9 +68,75 @@ const shell = (body: string, title = 'VELIXEO Admin') => `<!doctype html>
 <body>${body}</body>
 </html>`;
 
-export function adminLoginHtml(error?: string) {
-  return shell(`<section class="login"><div class="login-card"><div class="brand"><div class="logo">V</div><div><b>VELIXEO</b><div class="sub">Secure Admin Console</div></div></div><h2>Admin sign in</h2><div class="sub">Secure server-side authentication for VELIXEO management.</div><form method="post" action="/admin/login" autocomplete="on"><div class="field"><label for="identifier">Email or phone</label><input id="identifier" name="identifier" autocomplete="username" required></div><div class="field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required></div><button class="primary wide" type="submit">Sign in to Admin</button>${error ? `<div class="err">${esc(error)}</div>` : ''}</form></div></section>`);
+
+export function adminLoginHtmlFa(error?: string) {
+  return \`<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ورود مدیریت — VELIXEO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:"Vazirmatn",Tahoma,Arial,sans-serif;background:#F6F9FC;color:#24343D}
+body{direction:rtl}.vx-login{min-height:100vh;display:grid;place-items:center;padding:24px;position:relative;overflow:hidden}
+.vx-login:before{content:"";position:absolute;width:440px;height:440px;border-radius:50%;background:#EDF8FD;right:-170px;top:-180px}
+.vx-login:after{content:"";position:absolute;width:360px;height:360px;border-radius:50%;background:#F0F8FC;left:-170px;bottom:-190px}
+.vx-card{position:relative;z-index:1;width:min(440px,100%);background:#fff;border:1px solid #EEF2F5;border-radius:22px;padding:28px;box-shadow:0 18px 55px rgba(27,72,113,.06)}
+.vx-brand{display:flex;align-items:center;gap:12px;margin-bottom:26px}.vx-logo{width:48px;height:48px;border-radius:16px;background:#EDF8FD;color:#318EB6;display:grid;place-items:center;font:800 20px Inter,Arial,sans-serif}
+.vx-brand b{display:block;font:700 19px Inter,Arial,sans-serif;letter-spacing:.7px}.vx-brand small{display:block;color:#97A8B1;font-size:10px;margin-top:3px}
+h1{font-size:22px;line-height:1.65;margin:0 0 5px;font-weight:800}p{margin:0;color:#74818B;font-size:12px;line-height:1.9}
+.vx-field{margin-top:15px}.vx-field label{display:block;color:#687C91;font-size:11px;margin-bottom:6px}.vx-field input{width:100%;height:48px;border:1px solid #DFE8ED;border-radius:12px;background:#fff;padding:0 14px;outline:0;font:400 13px "Vazirmatn",Tahoma,sans-serif;text-align:right}
+.vx-field input:focus{border-color:#38BDF8;box-shadow:0 0 0 3px rgba(56,189,248,.09)}.vx-field input[name=identifier]{direction:ltr;text-align:left}
+.vx-submit{width:100%;height:46px;margin-top:20px;border:0;border-radius:13px;background:#38BDF8;color:#183B4B;font:700 13px "Vazirmatn",Tahoma,sans-serif;cursor:pointer;box-shadow:0 5px 15px rgba(56,189,248,.16)}.vx-submit:hover{background:#7DD3FC}
+.vx-error{margin-top:13px;padding:11px 12px;border-radius:12px;background:#FCEEF0;border:1px solid #F2D8DD;color:#C54152;font-size:11px;line-height:1.7}
+.vx-lang{position:fixed;z-index:2;left:18px;bottom:18px;display:flex;gap:4px;background:#fff;border:1px solid #E7EEF2;border-radius:12px;padding:5px;box-shadow:0 8px 30px rgba(20,60,100,.1)}
+.vx-lang button{border:0;border-radius:8px;background:transparent;color:#74818B;padding:7px 10px;cursor:pointer;font:600 11px Inter,Arial,sans-serif}.vx-lang button.active{background:#38BDF8;color:#183B4B}
+@media(max-width:520px){.vx-login{padding:16px}.vx-card{padding:23px 20px}.vx-lang{left:12px;bottom:12px}}
+</style>
+</head>
+<body><main class="vx-login"><section class="vx-card"><div class="vx-brand"><div class="vx-logo">V</div><div><b>VELIXEO</b><small>Admin Console</small></div></div><h1>ورود به پنل مدیریت</h1><p>برای مدیریت امن VELIXEO وارد حساب مدیر شوید.</p><form method="post" action="/admin/login" autocomplete="on"><div class="vx-field"><label for="identifier">ایمیل یا شماره تلفن</label><input id="identifier" name="identifier" autocomplete="username" required></div><div class="vx-field"><label for="password">رمز عبور</label><input id="password" name="password" type="password" autocomplete="current-password" required></div><button class="vx-submit" type="submit">ورود به مدیریت</button>\${error ? \`<div class="vx-error">\${esc(error)}</div>\` : ''}</form></section></main><div class="vx-lang"><button type="button" data-lang="en">EN</button><button type="button" class="active" data-lang="fa">فارسی</button></div><script>document.querySelectorAll('[data-lang]').forEach(b=>b.onclick=()=>{document.cookie='velixeo_admin_lang='+b.dataset.lang+'; Path=/admin; Max-Age=31536000; SameSite=Lax';location.reload()})</script></body>
+</html>\`;
 }
+
+export function adminLoginHtmlEn(error?: string) {
+  return \`<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Admin Sign In — VELIXEO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:"Inter",Arial,sans-serif;background:#F6F9FC;color:#24343D}
+body{direction:ltr}.vx-login{min-height:100vh;display:grid;place-items:center;padding:24px;position:relative;overflow:hidden}
+.vx-login:before{content:"";position:absolute;width:440px;height:440px;border-radius:50%;background:#EDF8FD;left:-170px;top:-180px}
+.vx-login:after{content:"";position:absolute;width:360px;height:360px;border-radius:50%;background:#F0F8FC;right:-170px;bottom:-190px}
+.vx-card{position:relative;z-index:1;width:min(440px,100%);background:#fff;border:1px solid #EEF2F5;border-radius:22px;padding:28px;box-shadow:0 18px 55px rgba(27,72,113,.06)}
+.vx-brand{display:flex;align-items:center;gap:12px;margin-bottom:26px}.vx-logo{width:48px;height:48px;border-radius:16px;background:#EDF8FD;color:#318EB6;display:grid;place-items:center;font-size:20px;font-weight:800}
+.vx-brand b{display:block;font-size:19px;font-weight:700;letter-spacing:.7px}.vx-brand small{display:block;color:#97A8B1;font-size:10px;margin-top:3px}
+h1{font-size:22px;line-height:1.4;margin:0 0 7px;font-weight:700}p{margin:0;color:#74818B;font-size:12px;line-height:1.65}
+.vx-field{margin-top:15px}.vx-field label{display:block;color:#687C91;font-size:11px;margin-bottom:6px}.vx-field input{width:100%;height:48px;border:1px solid #DFE8ED;border-radius:12px;background:#fff;padding:0 14px;outline:0;font:400 13px "Inter",Arial,sans-serif;text-align:left}
+.vx-field input:focus{border-color:#38BDF8;box-shadow:0 0 0 3px rgba(56,189,248,.09)}
+.vx-submit{width:100%;height:46px;margin-top:20px;border:0;border-radius:13px;background:#38BDF8;color:#183B4B;font:600 13px "Inter",Arial,sans-serif;cursor:pointer;box-shadow:0 5px 15px rgba(56,189,248,.16)}.vx-submit:hover{background:#7DD3FC}
+.vx-error{margin-top:13px;padding:11px 12px;border-radius:12px;background:#FCEEF0;border:1px solid #F2D8DD;color:#C54152;font-size:11px;line-height:1.55}
+.vx-lang{position:fixed;z-index:2;right:18px;bottom:18px;display:flex;gap:4px;background:#fff;border:1px solid #E7EEF2;border-radius:12px;padding:5px;box-shadow:0 8px 30px rgba(20,60,100,.1)}
+.vx-lang button{border:0;border-radius:8px;background:transparent;color:#74818B;padding:7px 10px;cursor:pointer;font:600 11px "Inter",Arial,sans-serif}.vx-lang button.active{background:#38BDF8;color:#183B4B}
+@media(max-width:520px){.vx-login{padding:16px}.vx-card{padding:23px 20px}.vx-lang{right:12px;bottom:12px}}
+</style>
+</head>
+<body><main class="vx-login"><section class="vx-card"><div class="vx-brand"><div class="vx-logo">V</div><div><b>VELIXEO</b><small>Admin Console</small></div></div><h1>Admin sign in</h1><p>Sign in with an administrator account to securely manage VELIXEO.</p><form method="post" action="/admin/login" autocomplete="on"><div class="vx-field"><label for="identifier">Email or phone</label><input id="identifier" name="identifier" autocomplete="username" required></div><div class="vx-field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required></div><button class="vx-submit" type="submit">Sign in to Admin</button>\${error ? \`<div class="vx-error">\${esc(error)}</div>\` : ''}</form></section></main><div class="vx-lang"><button type="button" class="active" data-lang="en">EN</button><button type="button" data-lang="fa">فارسی</button></div><script>document.querySelectorAll('[data-lang]').forEach(b=>b.onclick=()=>{document.cookie='velixeo_admin_lang='+b.dataset.lang+'; Path=/admin; Max-Age=31536000; SameSite=Lax';location.reload()})</script></body>
+</html>\`;
+}
+
+export function adminLoginHtml(error?: string) {
+  return adminLoginHtmlEn(error);
+}
+
 
 function usersTable(users: AdminUserRow[]) {
   if (!users.length) return '<div class="sub" style="margin-top:14px">No users found.</div>';
