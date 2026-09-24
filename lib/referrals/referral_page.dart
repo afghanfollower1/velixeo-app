@@ -84,24 +84,25 @@ class _InviteFriendsPageState extends State<InviteFriendsPage>{
                 Container(
                   padding:const EdgeInsets.all(20),
                   decoration:BoxDecoration(
-                    gradient:const LinearGradient(colors:[Color(0xFF28B6F6),Color(0xFF0878CB)]),
+                    gradient:const LinearGradient(colors:[Color(0xFFEFFAFF),Color(0xFFDEF4FD)]),
+                    border:Border.all(color:Color(0xFFDCEEF8)),
                     borderRadius:BorderRadius.circular(22),
                   ),
                   child:Row(children:[
                     Container(
                       width:86,height:86,
-                      decoration:BoxDecoration(color:Colors.white.withValues(alpha:.14),borderRadius:BorderRadius.circular(25)),
-                      child:const Icon(Icons.card_giftcard_rounded,size:48,color:Colors.white),
+                      decoration:BoxDecoration(color:Color(0xFFEAF7FD),borderRadius:BorderRadius.circular(25)),
+                      child:const Icon(Icons.card_giftcard_rounded,size:48,color:Color(0xFF58B3D6)),
                     ),
                     const SizedBox(width:16),
                     Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                      Text(t('دوستانت را دعوت کن، کمیسیون بگیر','Invite friends, earn commission'),style:const TextStyle(color:Colors.white,fontSize:19,fontWeight:FontWeight.w900)),
+                      Text(t('دوستانت را دعوت کن، کمیسیون بگیر','Invite friends, earn commission'),style:const TextStyle(color:Color(0xFF2C5366),fontSize:19,fontWeight:FontWeight.w700)),
                       const SizedBox(height:6),
                       Text(
                         s.rewardPercent>0
                           ?t('از هر شارژ موفق کیف پول کاربر دعوت‌شده ${percent(s.rewardPercent)}٪ کمیسیون بگیر.','Earn ${percent(s.rewardPercent)}% commission from every verified wallet top-up made by an invited user.')
                           :t('لینک اختصاصی خودت را به اشتراک بگذار. فعلاً نرخ کمیسیون ۰٪ است.','Share your personal invitation link. Commission is currently 0%.'),
-                        style:const TextStyle(color:Color(0xFFE6F7FF),fontSize:11.5,height:1.45),
+                        style:const TextStyle(color:Color(0xFF7293A5),fontSize:11.5,height:1.6),
                       ),
                     ])),
                   ]),
