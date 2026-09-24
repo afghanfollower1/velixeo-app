@@ -10518,137 +10518,489 @@ class _SecurityPageState extends State<SecurityPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return widget.controller.fa
-        ? Directionality(
-            textDirection: TextDirection.rtl,
-            child: _buildSecurityView(context),
-          )
-        : Directionality(
-            textDirection: TextDirection.ltr,
-            child: _buildSecurityView(context),
-          );
-  }
+  Widget build(BuildContext context) => c.fa
+      ? _buildPersianSecurity(context)
+      : _buildEnglishSecurity(context);
 
-  Widget _buildSecurityView(BuildContext context) {
+  Widget _buildPersianSecurity(BuildContext context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: _buildSecurityPage(
+          context,
+          appBarTitle: 'امنیت و ورود',
+          heading: 'امنیتت، زیر نظر تو',
+          subtitle: 'راه‌های ورود و تأیید حسابت را مدیریت کن.',
+          progressTitle: 'یک قدم تا حساب امن‌تر',
+          progressBody: 'تأیید شماره و ورود دومرحله‌ای را تکمیل کن.',
+          verificationTitle: 'روش‌های تأیید',
+          emailTitle: 'ایمیل',
+          noEmail: 'ایمیلی ثبت نشده است',
+          phoneTitle: 'WhatsApp',
+          noPhone: 'شماره‌ای ثبت نشده است',
+          twoFactorTitle: 'ورود دومرحله‌ای',
+          twoFactorLabel: 'تأیید دومرحله‌ای',
+          twoFactorBody:
+              'پس از رمز عبور، یک کد تأیید دیگر درخواست می‌شود.',
+          enabledLabel: 'فعال',
+          disabledLabel: 'غیرفعال',
+          enableLabel: 'فعال کردن',
+          disableLabel: 'غیرفعال کردن',
+          passwordSetLabel: 'تعیین رمز عبور',
+          passwordChangeLabel: 'تغییر رمز عبور',
+          fa: true,
+        ),
+      );
+
+  Widget _buildEnglishSecurity(BuildContext context) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: _buildSecurityPage(
+          context,
+          appBarTitle: 'Security & login',
+          heading: 'Your security, your control',
+          subtitle: 'Manage your sign-in and verification options.',
+          progressTitle: 'One step to a safer account',
+          progressBody: 'Verify your phone and enable two-factor sign-in.',
+          verificationTitle: 'Verification methods',
+          emailTitle: 'Email',
+          noEmail: 'No email registered',
+          phoneTitle: 'WhatsApp',
+          noPhone: 'No mobile number registered',
+          twoFactorTitle: 'Two-factor authentication',
+          twoFactorLabel: 'Two-factor sign-in',
+          twoFactorBody:
+              'A verification code is required after your password.',
+          enabledLabel: 'Enabled',
+          disabledLabel: 'Disabled',
+          enableLabel: 'Enable two-factor',
+          disableLabel: 'Disable two-factor',
+          passwordSetLabel: 'Set password',
+          passwordChangeLabel: 'Change password',
+          fa: false,
+        ),
+      );
+
+  Widget _buildSecurityPage(
+    BuildContext context, {
+    required String appBarTitle,
+    required String heading,
+    required String subtitle,
+    required String progressTitle,
+    required String progressBody,
+    required String verificationTitle,
+    required String emailTitle,
+    required String noEmail,
+    required String phoneTitle,
+    required String noPhone,
+    required String twoFactorTitle,
+    required String twoFactorLabel,
+    required String twoFactorBody,
+    required String enabledLabel,
+    required String disabledLabel,
+    required String enableLabel,
+    required String disableLabel,
+    required String passwordSetLabel,
+    required String passwordChangeLabel,
+    required bool fa,
+  }) {
     final s = state;
+    if (s == null) {
+      return Scaffold(
+        appBar: AppBar(title: Text(appBarTitle)),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final completed = [
+      s.emailVerified,
+      s.phoneVerified,
+      s.twoFactorEnabled,
+    ].where((value) => value).length;
+    final progress = completed / 3;
+
     return Scaffold(
-      appBar: AppBar(title: Text(tr(c.fa, 'امنیت و ورود', 'Security & login'))),
-      body: s == null
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      appBar: AppBar(title: Text(appBarTitle)),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+        children: [
+          Text(
+            heading,
+            style: const TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w700,
+              color: VelixeoBrand.ink,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 11,
+              color: VelixeoBrand.muted,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFEEF2F5)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Color(0xFFEEF9FD), Color(0xFFE4F4FC)]),
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 54,
-                        height: 54,
-                        decoration: BoxDecoration(color: const Color(0xFFE6F4FA), borderRadius: BorderRadius.circular(17)),
-                        child: const Icon(Icons.shield_rounded, color: Color(0xFF4B9FC1), size: 29),
+                Row(
+                  children: [
+                    Container(
+                      width: 43,
+                      height: 43,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEAF7FD),
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      const SizedBox(width: 13),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(tr(c.fa, 'حفاظت از حساب VELIXEO', 'Protect your VELIXEO account'), style: const TextStyle(color: Color(0xFF2C5366), fontWeight: FontWeight.w700, fontSize: 16)),
-                            const SizedBox(height: 4),
-                            Text(
-                              s.twoFactorEnabled
-                                  ? tr(c.fa, 'احراز دو مرحله‌ای فعال است.', 'Two-step verification is enabled.')
-                                  : tr(c.fa, 'با فعال‌کردن 2FA یک لایه امنیتی دیگر اضافه کنید.', 'Add another layer of protection with 2FA.'),
-                              style: const TextStyle(color: Color(0xFF7293A5), fontSize: 11, height: 1.55),
+                      child: const Icon(
+                        Icons.shield_outlined,
+                        color: Color(0xFF59A8C9),
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            progressTitle,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: VelixeoBrand.ink,
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            progressBody,
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              height: 1.5,
+                              color: VelixeoBrand.muted,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 18),
-                SettingsTile(
-                  icon: Icons.password_rounded,
-                  title: s.hasPassword ? tr(c.fa, 'رمز عبور', 'Password') : tr(c.fa, 'تنظیم رمز عبور', 'Set password'),
-                  value: s.hasPassword ? tr(c.fa, 'فعال', 'Active') : tr(c.fa, 'تنظیم نشده', 'Not set'),
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => s.hasPassword
-                            ? ChangePasswordPage(controller: c)
-                            : SetPasswordPage(controller: c),
-                      ),
-                    );
-                    await load();
-                  },
-                ),
-                _SecurityVerificationCard(
-                  icon: Icons.alternate_email_rounded,
-                  title: tr(c.fa, 'تأیید ایمیل', 'Email verification'),
-                  subtitle: s.email ?? tr(c.fa, 'ایمیلی ثبت نشده است', 'No email registered'),
-                  verified: s.emailVerified,
-                  channelReady: s.verification.email,
-                  sending: emailSending,
-                  onSend: busy || s.emailVerified || s.email?.isNotEmpty != true ? null : sendSecurityEmailCode,
-                  challenge: emailChallenge,
-                  otpController: emailOtp,
-                  verifying: emailVerifying,
-                  onConfirm: confirmSecurityEmailCode,
-                  fa: c.fa,
-                ),
-                const SizedBox(height: 10),
-                _SecurityVerificationCard(
-                  icon: Icons.phone_iphone_rounded,
-                  title: tr(c.fa, 'تأیید شماره موبایل', 'Mobile verification'),
-                  subtitle: s.phone ?? tr(c.fa, 'شماره‌ای ثبت نشده است', 'No mobile number registered'),
-                  verified: s.phoneVerified,
-                  channelReady: s.verification.whatsapp,
-                  sending: phoneSending,
-                  onSend: busy || s.phoneVerified || s.phone?.isNotEmpty != true ? null : sendSecurityPhoneCode,
-                  challenge: phoneChallenge,
-                  otpController: phoneOtp,
-                  verifying: phoneVerifying,
-                  onConfirm: confirmSecurityPhoneCode,
-                  fa: c.fa,
-                ),
-                SettingsTile(
-                  icon: Icons.phonelink_lock_rounded,
-                  title: tr(c.fa, 'احراز هویت دو مرحله‌ای', 'Two-step verification'),
-                  value: s.twoFactorEnabled ? (s.twoFactorMethod ?? 'ON') : 'OFF',
-                  onTap: busy ? null : (s.twoFactorEnabled ? disableTwoFactor : enableTwoFactor),
-                ),
-                const SizedBox(height: 16),
-                SoftCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(tr(c.fa, 'کانال‌های OTP', 'OTP channels'), style: const TextStyle(fontWeight: FontWeight.w900)),
-                      const SizedBox(height: 10),
-                      _SecurityChannelRow(label: 'Email', enabled: s.verification.email, free: true),
-                      _SecurityChannelRow(label: 'WhatsApp', enabled: s.verification.whatsapp, free: true),
-                      const SizedBox(height: 8),
-                      Text(
-                        tr(
-                          c.fa,
-                          'فقط کانال‌هایی که روی سرور تنظیم شده‌اند قابل انتخاب هستند.',
-                          'Only channels configured on the backend can be selected.',
-                        ),
-                        style: const TextStyle(fontSize: 10.5, color: Color(0xFF7D8D9E), height: 1.45),
-                      ),
-                    ],
+                const SizedBox(height: 15),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(99),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 7,
+                    backgroundColor: const Color(0xFFEAF0F4),
+                    color: VelixeoBrand.sky,
                   ),
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 22),
+          Text(
+            verificationTitle,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: VelixeoBrand.ink,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _SecurityVerificationCard(
+            icon: Icons.alternate_email_rounded,
+            title: emailTitle,
+            subtitle: s.email ?? noEmail,
+            verified: s.emailVerified,
+            channelReady: s.verification.email,
+            sending: emailSending,
+            onSend: busy ||
+                    s.emailVerified ||
+                    s.email?.isNotEmpty != true
+                ? null
+                : sendSecurityEmailCode,
+            challenge: emailChallenge,
+            otpController: emailOtp,
+            verifying: emailVerifying,
+            onConfirm: confirmSecurityEmailCode,
+            fa: fa,
+          ),
+          const SizedBox(height: 10),
+          _SecurityVerificationCard(
+            icon: Icons.chat_outlined,
+            title: phoneTitle,
+            subtitle: s.phone ?? noPhone,
+            verified: s.phoneVerified,
+            channelReady: s.verification.whatsapp,
+            sending: phoneSending,
+            onSend: busy ||
+                    s.phoneVerified ||
+                    s.phone?.isNotEmpty != true
+                ? null
+                : sendSecurityPhoneCode,
+            challenge: phoneChallenge,
+            otpController: phoneOtp,
+            verifying: phoneVerifying,
+            onConfirm: confirmSecurityPhoneCode,
+            fa: fa,
+          ),
+          const SizedBox(height: 22),
+          Text(
+            twoFactorTitle,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: VelixeoBrand.ink,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(17),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(19),
+              border: Border.all(color: const Color(0xFFEEF2F5)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        twoFactorLabel,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: VelixeoBrand.ink,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: s.twoFactorEnabled
+                            ? const Color(0xFFEAF8F1)
+                            : const Color(0xFFF1F4F6),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        s.twoFactorEnabled
+                            ? enabledLabel
+                            : disabledLabel,
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          color: s.twoFactorEnabled
+                              ? VelixeoBrand.green
+                              : const Color(0xFF7A8992),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  twoFactorBody,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    height: 1.55,
+                    color: VelixeoBrand.muted,
+                  ),
+                ),
+                if (s.twoFactorEnabled &&
+                    s.twoFactorMethod?.isNotEmpty == true) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F9FB),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.verified_user_outlined,
+                          size: 15,
+                          color: Color(0xFF5A9FBE),
+                        ),
+                        const SizedBox(width: 7),
+                        Text(
+                          s.twoFactorMethod!,
+                          textDirection: TextDirection.ltr,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF5E7887),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: s.twoFactorEnabled
+                      ? OutlinedButton(
+                          onPressed: busy ? null : disableTwoFactor,
+                          child: Text(disableLabel),
+                        )
+                      : FilledButton(
+                          onPressed: busy ? null : enableTwoFactor,
+                          child: Text(enableLabel),
+                        ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          _SecurityPasswordMenu(
+            hasPassword: s.hasPassword,
+            direction:
+                fa ? TextDirection.rtl : TextDirection.ltr,
+            setLabel: passwordSetLabel,
+            changeLabel: passwordChangeLabel,
+            onSet: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SetPasswordPage(controller: c),
+                ),
+              );
+              await load();
+            },
+            onChange: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ChangePasswordPage(controller: c),
+                ),
+              );
+              await load();
+            },
+          ),
+        ],
+      ),
     );
   }
+
+}
+
+class _SecurityPasswordMenu extends StatelessWidget {
+  const _SecurityPasswordMenu({
+    required this.hasPassword,
+    required this.direction,
+    required this.setLabel,
+    required this.changeLabel,
+    required this.onSet,
+    required this.onChange,
+  });
+
+  final bool hasPassword;
+  final TextDirection direction;
+  final String setLabel;
+  final String changeLabel;
+  final VoidCallback onSet;
+  final VoidCallback onChange;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(19),
+          border: Border.all(color: const Color(0xFFEEF2F5)),
+        ),
+        child: Column(
+          children: [
+            _SecurityPasswordRow(
+              label: setLabel,
+              direction: direction,
+              enabled: !hasPassword,
+              onTap: onSet,
+            ),
+            Container(height: 1, color: const Color(0xFFF0F4F7)),
+            _SecurityPasswordRow(
+              label: changeLabel,
+              direction: direction,
+              enabled: hasPassword,
+              onTap: onChange,
+            ),
+          ],
+        ),
+      );
+}
+
+class _SecurityPasswordRow extends StatelessWidget {
+  const _SecurityPasswordRow({
+    required this.label,
+    required this.direction,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final String label;
+  final TextDirection direction;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: enabled ? onTap : null,
+        child: SizedBox(
+          height: 58,
+          child: Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F8FC),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.lock_outline_rounded,
+                  size: 17,
+                  color: Color(0xFF65AACA),
+                ),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: enabled
+                        ? const Color(0xFF506D7E)
+                        : const Color(0xFFB1BDC4),
+                  ),
+                ),
+              ),
+              Icon(
+                direction == TextDirection.rtl
+                    ? Icons.chevron_left_rounded
+                    : Icons.chevron_right_rounded,
+                size: 16,
+                color: enabled
+                    ? const Color(0xFF99ADBA)
+                    : const Color(0xFFD0D8DD),
+              ),
+            ],
+          ),
+        ),
+      );
 }
 
 class _SecurityVerificationCard extends StatelessWidget {
