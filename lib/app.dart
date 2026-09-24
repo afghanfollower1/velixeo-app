@@ -3372,8 +3372,8 @@ class HomePage extends StatelessWidget {
   final VoidCallback? onProfileTap;
 
   static const services = [
-    ServiceItem('شبکه‌های اجتماعی', 'Social Media', Icons.favorite_rounded, Color(0xFF38BDF8)),
-    ServiceItem('شماره مجازی', 'Virtual Numbers', Icons.phone_iphone_rounded, Color(0xFF38BDF8)),
+    ServiceItem('شبکه‌های اجتماعی', 'Social Media', Icons.favorite_rounded, VelixeoBrand.sky),
+    ServiceItem('شماره مجازی', 'Virtual Numbers', Icons.phone_iphone_rounded, VelixeoBrand.sky),
     ServiceItem('اشتراک پریمیوم', 'Premium', Icons.workspace_premium_rounded, Color(0xFF9580CA)),
     ServiceItem('شارژ سیم‌کارت', 'Mobile Top-up', Icons.sim_card_rounded, Color(0xFFD19353)),
     ServiceItem('حساب‌های دیجیتال', 'Digital Accounts', Icons.layers_rounded, Color(0xFF68A386)),
@@ -4723,7 +4723,7 @@ class _ServicesLiveList extends StatelessWidget {
         children: [
           _ServiceListCard(
             icon: Icons.favorite_rounded,
-            color: const Color(0xFF38BDF8),
+            color: VelixeoBrand.sky,
             title: fa ? 'شبکه‌های اجتماعی' : 'Social Media',
             subtitle: fa
                 ? 'سفارش، پیگیری، جبران ریزش و سفارش دوره‌ای'
@@ -4736,7 +4736,7 @@ class _ServicesLiveList extends StatelessWidget {
           ),
           _ServiceListCard(
             icon: Icons.phone_iphone_rounded,
-            color: const Color(0xFF38BDF8),
+            color: VelixeoBrand.sky,
             title: fa ? 'شماره مجازی' : 'Virtual Numbers',
             subtitle: fa
                 ? 'خرید شماره، دریافت پیامک و مدیریت شماره‌ها'
@@ -4803,7 +4803,7 @@ class _ServicesLiveList extends StatelessWidget {
       widgets.add(
         _ServiceListCard(
           icon: Icons.favorite_rounded,
-          color: const Color(0xFF38BDF8),
+          color: VelixeoBrand.sky,
           title: fa ? 'شبکه‌های اجتماعی' : 'Social Media',
           subtitle: fa
               ? 'سفارش جدید، پیگیری، جبران و لغو'
@@ -5500,7 +5500,7 @@ class CatalogServicePage extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 9,
-                        color: Color(0xFFAD670D),
+                        color: VelixeoBrand.orange,
                       ),
                     ),
                   ),
@@ -5555,7 +5555,7 @@ class CatalogServicePage extends StatelessWidget {
                   const Icon(
                     Icons.info_outline_rounded,
                     size: 17,
-                    color: Color(0xFFAD670D),
+                    color: VelixeoBrand.orange,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -5661,7 +5661,7 @@ Widget _buildEnglishDigitalPage(
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 9,
-                        color: Color(0xFFAD670D),
+                        color: VelixeoBrand.orange,
                       ),
                     ),
                   ),
@@ -5716,7 +5716,7 @@ Widget _buildEnglishDigitalPage(
                   const Icon(
                     Icons.info_outline_rounded,
                     size: 17,
-                    color: Color(0xFFAD670D),
+                    color: VelixeoBrand.orange,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -6877,7 +6877,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               if (c.unreadNotificationCount > 0) ...[
                                 const SizedBox(width: 10),
                                 FilledButton(
-                                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFF38BDF8), foregroundColor: const Color(0xFF183B4B), minimumSize: const Size(86, 58), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                                  style: FilledButton.styleFrom(backgroundColor: VelixeoBrand.sky, foregroundColor: const Color(0xFF183B4B), minimumSize: const Size(86, 58), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
                                   onPressed: c.markAllNotificationsRead,
                                   child: Text(tr(c.fa, 'خواندن همه', 'Read all'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                                 ),
@@ -7141,7 +7141,7 @@ Widget _buildEnglishNotificationsView(BuildContext context) {
                               if (c.unreadNotificationCount > 0) ...[
                                 const SizedBox(width: 10),
                                 FilledButton(
-                                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFF38BDF8), foregroundColor: const Color(0xFF183B4B), minimumSize: const Size(86, 58), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                                  style: FilledButton.styleFrom(backgroundColor: VelixeoBrand.sky, foregroundColor: const Color(0xFF183B4B), minimumSize: const Size(86, 58), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
                                   onPressed: c.markAllNotificationsRead,
                                   child: Text(tr(c.fa, 'خواندن همه', 'Read all'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                                 ),
