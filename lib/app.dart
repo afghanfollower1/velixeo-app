@@ -4937,124 +4937,413 @@ class DigitalAccountsHubPage extends StatelessWidget {
 
 
 class CatalogServicePage extends StatelessWidget {
-  const CatalogServicePage({super.key, required this.controller, required this.service});
+  const CatalogServicePage({
+    super.key,
+    required this.controller,
+    required this.service,
+  });
   final AppController controller;
   final CatalogService service;
 
   @override
   Widget build(BuildContext context) {
+    if (service.category == 'DIGITAL_ACCOUNT') {
+      return controller.fa
+          ? _buildDigitalPersian(context)
+          : _buildDigitalEnglish(context);
+    }
+    return _buildGeneric(context);
+  }
+
+  Widget _buildDigitalPersian(BuildContext context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: _buildDigitalPage(
+          context,
+          appBarTitle: 'جزئیات حساب دیجیتال',
+          heading: service.titleFa,
+          subtitle: 'جزئیات و وضعیت دسترسی این محصول.',
+          integrationBadge: 'در انتظار اتصال تأمین‌کننده',
+          basePriceLabel: 'قیمت پایه',
+          livePriceLabel: 'قیمت لحظه‌ای',
+          rangeLabel: 'محدودهٔ سفارش',
+          integrationLabel: 'وضعیت اتصال',
+          notAvailable: 'هنوز اعلام نشده',
+          notConnected: 'متصل نیست',
+          notice: 'خرید پس از اتصال تأمین‌کننده فعال می‌شود.',
+          disabledAction: 'خرید فعلاً غیرفعال است',
+          backAction: 'بازگشت به حساب‌های دیجیتال',
+          description: service.descriptionFa,
+        ),
+      );
+
+  Widget _buildDigitalEnglish(BuildContext context) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: _buildDigitalPage(
+          context,
+          appBarTitle: 'Digital product details',
+          heading: service.titleEn,
+          subtitle: 'Product details and availability.',
+          integrationBadge: 'Awaiting provider integration',
+          basePriceLabel: 'Base price',
+          livePriceLabel: 'Live price',
+          rangeLabel: 'Order range',
+          integrationLabel: 'Integration status',
+          notAvailable: 'Not available yet',
+          notConnected: 'Not connected',
+          notice: 'Purchase will be enabled after provider integration.',
+          disabledAction: 'Purchase currently unavailable',
+          backAction: 'Back to digital accounts',
+          description: service.descriptionEn,
+        ),
+      );
+
+  Widget _buildDigitalPage(
+    BuildContext context, {
+    required String appBarTitle,
+    required String heading,
+    required String subtitle,
+    required String integrationBadge,
+    required String basePriceLabel,
+    required String livePriceLabel,
+    required String rangeLabel,
+    required String integrationLabel,
+    required String notAvailable,
+    required String notConnected,
+    required String notice,
+    required String disabledAction,
+    required String backAction,
+    required String? description,
+  }) =>
+      Scaffold(
+        appBar: AppBar(title: Text(appBarTitle)),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+          children: [
+            Text(
+              heading,
+              style: const TextStyle(
+                fontSize: 21,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 11,
+                color: VelixeoBrand.muted,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 25),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4FAFF),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEAF8F4),
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: const Icon(
+                      Icons.manage_accounts_rounded,
+                      color: Color(0xFF69AE9B),
+                      size: 37,
+                    ),
+                  ),
+                  const SizedBox(height: 13),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF4DF),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      integrationBadge,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: Color(0xFFAD670D),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (description?.trim().isNotEmpty == true) ...[
+              const SizedBox(height: 16),
+              Text(
+                description!,
+                style: const TextStyle(
+                  fontSize: 11,
+                  height: 1.7,
+                  color: VelixeoBrand.muted,
+                ),
+              ),
+            ],
+            const SizedBox(height: 15),
+            _PaymentDetailCard(
+              rows: [
+                (
+                  basePriceLabel,
+                  service.basePriceAfn == null
+                      ? notAvailable
+                      : controller.money(
+                          service.basePriceAfn!,
+                          showBase: true,
+                        ),
+                ),
+                (livePriceLabel, '—'),
+                (
+                  rangeLabel,
+                  service.minQty == null && service.maxQty == null
+                      ? '—'
+                      : (service.minQty?.toString() ?? '—') +
+                          ' – ' +
+                          (service.maxQty?.toString() ?? '—'),
+                ),
+                (integrationLabel, notConnected),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF6E8),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    size: 17,
+                    color: Color(0xFFAD670D),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      notice,
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        height: 1.55,
+                        color: Color(0xFF8A682B),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 15),
+            FilledButton.icon(
+              onPressed: null,
+              icon: const Icon(Icons.lock_outline_rounded, size: 17),
+              label: Text(disabledAction),
+            ),
+            const SizedBox(height: 9),
+            OutlinedButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(backAction),
+            ),
+          ],
+        ),
+      );
+
+  Widget _buildGeneric(BuildContext context) {
     final fa = controller.fa;
     final color = catalogColor(service.category);
     final description = fa ? service.descriptionFa : service.descriptionEn;
-    return Scaffold(
-      appBar: AppBar(title: Text(fa ? service.titleFa : service.titleEn)),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-        children: [
-          Container(
-            height: 150,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: .10),
-              borderRadius: BorderRadius.circular(26),
-            ),
-            child: Center(child: Icon(catalogIcon(service.category), size: 72, color: color)),
-          ),
-          const SizedBox(height: 20),
-          if (description?.trim().isNotEmpty == true)
-            Text(description!, style: const TextStyle(color: VelixeoDesign.muted, height: 1.55)),
-          const SizedBox(height: 14),
-          SoftCard(
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Text(tr(fa, 'قیمت پایه', 'Base price')),
-                    const Spacer(),
-                    Text(
-                      service.basePriceAfn == null ? tr(fa, 'قیمت زنده', 'Live price') : controller.money(service.basePriceAfn!, showBase: true),
-                      style: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                  ],
+    return Directionality(
+      textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        appBar: AppBar(title: Text(fa ? service.titleFa : service.titleEn)),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+          children: [
+            Container(
+              height: 150,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: .10),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Center(
+                child: Icon(
+                  catalogIcon(service.category),
+                  size: 64,
+                  color: color,
                 ),
-                if (service.minQty != null || service.maxQty != null) ...[
-                  const Divider(height: 24),
-                  Row(
-                    children: [
-                      Text(tr(fa, 'محدوده سفارش', 'Order range')),
-                      const Spacer(),
-                      Text('${service.minQty ?? '—'} – ${service.maxQty ?? '—'}'),
-                    ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            if (description?.trim().isNotEmpty == true)
+              Text(
+                description!,
+                style: const TextStyle(
+                  color: VelixeoBrand.muted,
+                  height: 1.6,
+                ),
+              ),
+            const SizedBox(height: 14),
+            _PaymentDetailCard(
+              rows: [
+                (
+                  fa ? 'قیمت پایه' : 'Base price',
+                  service.basePriceAfn == null
+                      ? (fa ? 'قیمت زنده' : 'Live price')
+                      : controller.money(
+                          service.basePriceAfn!,
+                          showBase: true,
+                        ),
+                ),
+                if (service.minQty != null || service.maxQty != null)
+                  (
+                    fa ? 'محدوده سفارش' : 'Order range',
+                    (service.minQty?.toString() ?? '—') +
+                        ' – ' +
+                        (service.maxQty?.toString() ?? '—'),
                   ),
-                ],
               ],
             ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            tr(
-              fa,
-              'این خدمت از پنل مدیریت VELIXEO کنترل می‌شود. خرید زمانی فعال می‌شود که Provider واقعی برای همین Service Route متصل و تست شود.',
-              'This service is controlled from VELIXEO Admin. Purchasing will activate only after a real provider route is connected and verified.',
-            ),
-            style: const TextStyle(color: VelixeoDesign.muted, height: 1.5),
-          ),
-          const SizedBox(height: 22),
-          PrimaryButton(label: tr(fa, 'خرید پس از اتصال Provider فعال می‌شود', 'Purchase unlocks after provider integration'), onPressed: null),
-        ],
-      ),
-    );
-  }
-}
-
-class ComingSoonServicePage extends StatelessWidget {
-  const ComingSoonServicePage({super.key, required this.controller, required this.service});
-
-  final AppController controller;
-  final ServiceItem service;
-
-  @override
-  Widget build(BuildContext context) {
-    final fa = controller.fa;
-    return Scaffold(
-      appBar: AppBar(title: Text(fa ? service.fa : service.en)),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 104,
-                height: 104,
-                decoration: BoxDecoration(
-                  color: service.color.withValues(alpha: .10),
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Icon(service.icon, size: 52, color: service.color),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                tr(fa, 'به‌زودی', 'Coming soon'),
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                tr(
-                  fa,
-                  'بخش شارژ موبایل پس از اتصال رسمی به API شرکت‌های مخابراتی فعال خواهد شد.',
-                  'Mobile Top-up will become available after official telecom provider APIs are connected.',
-                ),
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: VelixeoDesign.muted, height: 1.6),
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );
   }
 }
+
+
+class ComingSoonServicePage extends StatelessWidget {
+  const ComingSoonServicePage({
+    super.key,
+    required this.controller,
+    required this.service,
+  });
+
+  final AppController controller;
+  final ServiceItem service;
+
+  @override
+  Widget build(BuildContext context) => controller.fa
+      ? _buildPersian(context)
+      : _buildEnglish(context);
+
+  Widget _buildPersian(BuildContext context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: _buildPage(
+          context,
+          badge: 'به‌زودی',
+          title: 'شارژ موبایل',
+          body:
+              'این سرویس بعد از اتصال API رسمی شرکت‌های مخابراتی فعال می‌شود.',
+          action: 'مشاهدهٔ خدمات فعال',
+        ),
+      );
+
+  Widget _buildEnglish(BuildContext context) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: _buildPage(
+          context,
+          badge: 'Coming soon',
+          title: 'Mobile top-up',
+          body:
+              'This service will be available after the official telecom APIs are connected.',
+          action: 'Explore available services',
+        ),
+      );
+
+  Widget _buildPage(
+    BuildContext context, {
+    required String badge,
+    required String title,
+    required String body,
+    required String action,
+  }) =>
+      Scaffold(
+        appBar: AppBar(),
+        body: SafeArea(
+          top: false,
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                children: [
+                  Container(
+                    width: 74,
+                    height: 74,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEAF7FD),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: const Icon(
+                      Icons.phone_iphone_rounded,
+                      color: Color(0xFF5BA8C8),
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF4DF),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      badge,
+                      style: const TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFB58036),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 17),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 23,
+                      fontWeight: FontWeight.w700,
+                      color: VelixeoBrand.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    body,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      height: 2,
+                      color: VelixeoBrand.muted,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(action),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
 
 class ServicePreviewPage extends StatelessWidget {
   const ServicePreviewPage({super.key, required this.controller, required this.service});
