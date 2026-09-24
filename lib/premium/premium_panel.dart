@@ -823,7 +823,7 @@ Widget _buildPersianPage(BuildContext context) {
           ),
         ],
       ),
-    ))
+    ));
   }
 
 Widget _buildEnglishPage(BuildContext context) {
@@ -966,7 +966,7 @@ Widget _buildEnglishPage(BuildContext context) {
           ),
         ],
       ),
-    ))
+    ));
   }
 }
 
