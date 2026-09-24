@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// VELIXEO design system — ported from velixeo-design.zip (2026-09-23).
 abstract final class VelixeoDesign {
@@ -30,9 +29,9 @@ abstract final class VelixeoDesign {
       ),
       scaffoldBackgroundColor: background,
     );
-    final localized = persian
-        ? GoogleFonts.vazirmatnTextTheme(base.textTheme)
-        : GoogleFonts.interTextTheme(base.textTheme);
+    final localized = base.textTheme.apply(
+      fontFamily: persian ? 'Vazirmatn' : 'Inter',
+    );
 
     return base.copyWith(
       textTheme: localized.apply(bodyColor: ink, displayColor: ink),
