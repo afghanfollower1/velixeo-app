@@ -3198,10 +3198,10 @@ class _MainShellState extends State<MainShell> {
     final c = widget.controller;
     final pages = [
       HomePage(controller: c, onProfileTap: () => setState(() => index = 4)),
-      ServicesPage(controller: c),
-      OrdersPage(controller: c),
-      WalletPage(controller: c),
-      ProfilePage(controller: c),
+      ServicesPage(controller: c, onBack: () => setState(() => index = 0)),
+      OrdersPage(controller: c, onBack: () => setState(() => index = 0)),
+      WalletPage(controller: c, onBack: () => setState(() => index = 0)),
+      ProfilePage(controller: c, onBack: () => setState(() => index = 0)),
     ];
 
     final navigation = c.fa
@@ -4485,18 +4485,20 @@ Widget _buildEnglishPage(BuildContext context) {
 }
 
 class ServicesPage extends StatelessWidget {
-  const ServicesPage({super.key, required this.controller});
+  const ServicesPage({super.key, required this.controller, this.onBack});
   final AppController controller;
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) => controller.fa
-      ? _PersianServicesPage(controller: controller)
-      : _EnglishServicesPage(controller: controller);
+      ? _PersianServicesPage(controller: controller, onBack: onBack)
+      : _EnglishServicesPage(controller: controller, onBack: onBack);
 }
 
 class _PersianServicesPage extends StatelessWidget {
-  const _PersianServicesPage({required this.controller});
+  const _PersianServicesPage({required this.controller, this.onBack});
   final AppController controller;
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -4572,8 +4574,9 @@ class _PersianServicesPage extends StatelessWidget {
 }
 
 class _EnglishServicesPage extends StatelessWidget {
-  const _EnglishServicesPage({required this.controller});
+  const _EnglishServicesPage({required this.controller, this.onBack});
   final AppController controller;
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -6200,13 +6203,14 @@ Widget _buildEnglishPage(BuildContext context) {
 }
 
 class OrdersPage extends StatelessWidget {
-  const OrdersPage({super.key, required this.controller});
+  const OrdersPage({super.key, required this.controller, this.onBack});
   final AppController controller;
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) => controller.fa
-      ? _PersianOrdersPage(controller: controller)
-      : _EnglishOrdersPage(controller: controller);
+      ? _PersianOrdersPage(controller: controller, onBack: onBack)
+      : _EnglishOrdersPage(controller: controller, onBack: onBack);
 }
 
 String _orderStatusLabel(String status, bool fa) {
@@ -6250,8 +6254,9 @@ Color _orderStatusTone(String status) {
 }
 
 class _PersianOrdersPage extends StatelessWidget {
-  const _PersianOrdersPage({required this.controller});
+  const _PersianOrdersPage({required this.controller, this.onBack});
   final AppController controller;
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -6314,8 +6319,9 @@ class _PersianOrdersPage extends StatelessWidget {
 }
 
 class _EnglishOrdersPage extends StatelessWidget {
-  const _EnglishOrdersPage({required this.controller});
+  const _EnglishOrdersPage({required this.controller, this.onBack});
   final AppController controller;
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -7405,13 +7411,14 @@ class RemoteBannerCard extends StatelessWidget {
 }
 
 class WalletPage extends StatelessWidget {
-  const WalletPage({super.key, required this.controller});
+  const WalletPage({super.key, required this.controller, this.onBack});
   final AppController controller;
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) => controller.fa
-      ? _PersianWalletPage(controller: controller)
-      : _EnglishWalletPage(controller: controller);
+      ? _PersianWalletPage(controller: controller, onBack: onBack)
+      : _EnglishWalletPage(controller: controller, onBack: onBack);
 }
 
 String _walletEntryStatus(WalletEntry entry, bool fa) {
@@ -7452,8 +7459,9 @@ String _walletEntryTitle(WalletEntry entry, bool fa) {
 }
 
 class _PersianWalletPage extends StatelessWidget {
-  const _PersianWalletPage({required this.controller});
+  const _PersianWalletPage({required this.controller, this.onBack});
   final AppController controller;
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -7546,8 +7554,9 @@ class _PersianWalletPage extends StatelessWidget {
 }
 
 class _EnglishWalletPage extends StatelessWidget {
-  const _EnglishWalletPage({required this.controller});
+  const _EnglishWalletPage({required this.controller, this.onBack});
   final AppController controller;
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -9368,8 +9377,9 @@ class _PaymentDetailCard extends StatelessWidget {
 }
 
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key, required this.controller});
+  const ProfilePage({super.key, required this.controller, this.onBack});
   final AppController controller;
+  final VoidCallback? onBack;
 
   Future<void> _changeLanguage(BuildContext context, AppLang lang) async {
     Navigator.pop(context);
