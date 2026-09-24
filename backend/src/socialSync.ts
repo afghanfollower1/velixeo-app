@@ -254,6 +254,9 @@ export async function syncSocialProviderCatalog(
       const refillOverride = typeof currentRouteMeta._velixeoRefillOverride === 'boolean'
         ? currentRouteMeta._velixeoRefillOverride
         : null;
+      const dripFeedOverride = typeof currentRouteMeta._velixeoDripFeedOverride === 'boolean'
+        ? currentRouteMeta._velixeoDripFeedOverride
+        : null;
       const providerRate = new Prisma.Decimal(row.rate || '0');
       const providerRateScaled = decimalToScaled(providerRate);
       const costAfn = fx == null
@@ -275,7 +278,9 @@ export async function syncSocialProviderCatalog(
           ...row.raw,
           _velixeoCatalogIndex: catalogIndex,
           _providerRefillDetected: row.refill,
+          _providerDripFeedDetected: row.dripfeed,
           ...(refillOverride == null ? {} : { _velixeoRefillOverride: refillOverride }),
+          ...(dripFeedOverride == null ? {} : { _velixeoDripFeedOverride: dripFeedOverride }),
         } as Prisma.InputJsonValue,
       };
 
