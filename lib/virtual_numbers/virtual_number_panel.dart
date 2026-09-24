@@ -618,7 +618,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     }
   }
 
-  Widget _virtualBody() {
+  Widget _persianVirtualBody() {
     if (error != null) {
       return _Notice(text: errorLabel(error!), danger: true);
     }
@@ -630,9 +630,26 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
         ),
       );
     }
-    if (tab == 0) return manualPanel();
-    if (tab == 1) return smartPanel();
-    return numbersPanel();
+    if (tab == 0) return persianManualPanel();
+    if (tab == 1) return persianSmartPanel();
+    return persianNumbersPanel();
+  }
+
+Widget _englishVirtualBody() {
+    if (error != null) {
+      return _Notice(text: errorLabel(error!), danger: true);
+    }
+    if (catalog.services.isEmpty) {
+      return _Notice(
+        text: t(
+          'هنوز سرویس شماره مجازی از پنل ادمین فعال نشده است.',
+          'No virtual-number service is enabled in Admin yet.',
+        ),
+      );
+    }
+    if (tab == 0) return englishManualPanel();
+    if (tab == 1) return englishSmartPanel();
+    return englishNumbersPanel();
   }
 
   Widget _buildPersianVirtual(BuildContext context) {
@@ -682,7 +699,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
                       onChanged: _changeTab,
                     ),
                     const SizedBox(height: 16),
-                    _virtualBody(),
+                    _persianVirtualBody(),
                   ],
                 ),
               ),
@@ -737,7 +754,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
                       onChanged: _changeTab,
                     ),
                     const SizedBox(height: 16),
-                    _virtualBody(),
+                    _englishVirtualBody(),
                   ],
                 ),
               ),
@@ -746,7 +763,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
   }
 
 
-  Widget serviceSelector() {
+  Widget persianServiceSelector() {
     final service=selectedService;
     return InkWell(
       onTap:chooseService,
@@ -765,7 +782,26 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     );
   }
 
-  Widget countrySelector() {
+Widget englishServiceSelector() {
+    final service=selectedService;
+    return InkWell(
+      onTap:chooseService,
+      borderRadius:BorderRadius.circular(14),
+      child:InputDecorator(
+        decoration:InputDecoration(
+          labelText:t('سرویس','Service'),
+          prefixIcon:service==null?const Icon(Icons.apps_rounded):Padding(
+            padding:const EdgeInsets.all(8),
+            child:_BrandBadge(service:service,size:34),
+          ),
+          suffixIcon:const Icon(Icons.search_rounded),
+        ),
+        child:Text(service==null?t('انتخاب سرویس','Choose service'):serviceName(service),overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w800)),
+      ),
+    );
+  }
+
+  Widget persianCountrySelector() {
     final country=selectedCountry;
     return InkWell(
       onTap:selectedService==null||loadingCountries?null:chooseCountry,
@@ -796,21 +832,61 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     );
   }
 
-  Widget selectors() {
+Widget englishCountrySelector() {
+    final country=selectedCountry;
+    return InkWell(
+      onTap:selectedService==null||loadingCountries?null:chooseCountry,
+      borderRadius:BorderRadius.circular(14),
+      child:InputDecorator(
+        decoration:InputDecoration(
+          labelText:t('کشور','Country'),
+          prefixIcon:loadingCountries
+              ?const Padding(
+                  padding:EdgeInsets.all(14),
+                  child:SizedBox.square(dimension:18,child:CircularProgressIndicator(strokeWidth:2)),
+                )
+              :country==null
+                  ?const Icon(Icons.public_rounded)
+                  :Center(widthFactor:1.8,child:Text(_countryFlag(country),style:const TextStyle(fontSize:25))),
+          suffixIcon:loadingCountries?null:const Icon(Icons.search_rounded),
+        ),
+        child:Text(
+          loadingCountries
+              ?t('در حال دریافت کشورهای فعال…','Loading available countries…')
+              :country==null
+                  ?t('کشوری موجود نیست','No country available')
+                  :'${_countryDisplayName(country)} • ${host.money(country.minPriceAfn)}',
+          overflow:TextOverflow.ellipsis,
+          style:const TextStyle(fontWeight:FontWeight.w800),
+        ),
+      ),
+    );
+  }
+
+  Widget persianSelectors() {
     if(selectedService==null)return const SizedBox.shrink();
     return Column(children:[
-      serviceSelector(),
+      persianServiceSelector(),
       const SizedBox(height:12),
-      countrySelector(),
+      persianCountrySelector(),
     ]);
   }
 
-  Widget manualPanel() {
+Widget englishSelectors() {
+    if(selectedService==null)return const SizedBox.shrink();
+    return Column(children:[
+      englishServiceSelector(),
+      const SizedBox(height:12),
+      englishCountrySelector(),
+    ]);
+  }
+
+  Widget persianManualPanel() {
     final current=offers;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _PanelCard(child: selectors()),
+        _PanelCard(child: persianSelectors()),
         const SizedBox(height: 14),
         if (loadingOffers)
           const Center(child: Padding(padding: EdgeInsets.all(26), child: CircularProgressIndicator()))
@@ -896,7 +972,129 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     );
   }
 
-  Widget smartPanel() {
+Widget englishManualPanel() {
+    final current=offers;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _PanelCard(child: englishSelectors()),
+        const SizedBox(height: 14),
+        if (loadingOffers)
+          const Center(child: Padding(padding: EdgeInsets.all(26), child: CircularProgressIndicator()))
+        else if (current == null || current.operators.isEmpty)
+          _Notice(text: t('برای این سرویس و کشور فعلاً شماره‌ای موجود نیست.', 'No number is currently available for this service and country.'))
+        else ...[
+          Row(
+            children: [
+              Expanded(
+                child: Text(t('اپراتورها / سرورها', 'Operators / servers'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+              ),
+              Text('${current.operators.length}', style: const TextStyle(color: Color(0xFF74818B), fontWeight:FontWeight.w800)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing:7,
+            runSpacing:7,
+            children:[
+              _SummaryPill(
+                icon:Icons.savings_outlined,
+                label:t('کمترین','Lowest'),
+                value:host.money(current.minPriceAfn,showBase:true),
+              ),
+              _SummaryPill(
+                icon:Icons.trending_up_rounded,
+                label:t('بیشترین','Highest'),
+                value:host.money(current.maxPriceAfn,showBase:true),
+              ),
+              if(current.bestDeliveryPercent!=null)
+                _SummaryPill(
+                  icon:Icons.mark_email_read_outlined,
+                  label:t('بهترین SMS','Best SMS'),
+                  value:'${current.bestDeliveryPercent!.toStringAsFixed(2)}%',
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...current.operators.map((offer) {
+            final tags=<String>[];
+            if(current.lowPrice?.operatorName==offer.operatorName && current.lowPrice?.priceAfn==offer.priceAfn){
+              tags.add(t('ارزان‌ترین','Cheapest'));
+            }
+            if(current.highPrice?.operatorName==offer.operatorName && current.highPrice?.priceAfn==offer.priceAfn && current.maxPriceAfn!=current.minPriceAfn){
+              tags.add(t('بیشترین قیمت','Highest price'));
+            }
+            if(current.bestRate?.operatorName==offer.operatorName &&
+                current.bestRate?.deliveryPercent==offer.deliveryPercent &&
+                (offer.deliveryPercent??0)>0){
+              tags.add(t('پایدارترین','Best delivery'));
+            }
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 9),
+              child: _OfferTile(
+                offer: offer,
+                fa: fa,
+                price: host.money(offer.priceAfn, showBase: true),
+                busy: buying,
+                tags:tags,
+                onBuy: () => buy(operatorName: offer.operatorName, mode: 'BEST_RATE'),
+              ),
+            );
+          }),
+          if(current.anyOperator!=null)...[
+            const SizedBox(height:2),
+            _OfferTile(
+              offer:current.anyOperator!,
+              fa:fa,
+              price:host.money(current.anyOperator!.priceAfn,showBase:true),
+              busy:buying,
+              anyOperator:true,
+              tags:[t('انتخاب خودکار','Auto select')],
+              onBuy:()=>buy(operatorName:'any',mode:'ANY'),
+            ),
+          ],
+          const SizedBox(height:6),
+          _Notice(text:t(
+            'درصد SMS نشان‌دهنده نرخ اخیر تحویل پیام برای همان سرویس، کشور و اپراتور است. قیمت و موجودی لحظه‌ای تغییر می‌کند.',
+            'SMS % is the recent delivery rate for this exact service, country and operator. Price and stock can change live.',
+          )),
+        ],
+      ],
+    );
+  }
+
+  Widget persianSmartPanel() {
+    final service=selectedService;
+    return Column(
+      crossAxisAlignment:CrossAxisAlignment.stretch,
+      children:[
+        _PanelCard(child:serviceSelector()),
+        const SizedBox(height:12),
+        _Notice(
+          text:t(
+            'فقط سرویس را انتخاب کنید. کشور و اپراتور به‌صورت خودکار از میان گزینه‌های زنده 5SIM و براساس بهترین نرخ تحویل SMS انتخاب می‌شود و خرید همان لحظه انجام می‌گردد.',
+            'Choose only the service. The country and operator are selected automatically from live 5SIM offers using the best SMS delivery rate, and the purchase starts immediately.',
+          ),
+        ),
+        const SizedBox(height:12),
+        _SmartCountryCard(
+          icon:Icons.auto_awesome_rounded,
+          fa:fa,
+          title:t('خرید هوشمند 5SIM','5SIM Smart Buy'),
+          subtitle:t(
+            'نیازی به انتخاب کشور یا سرور نیست؛ سیستم بهترین گزینه موجود را خودش انتخاب می‌کند.',
+            'No country or server selection is needed; the best available option is selected automatically.',
+          ),
+          country:null,
+          price:service==null?t('ابتدا سرویس را انتخاب کنید','Choose a service first'):t('انتخاب خودکار کشور و اپراتور','Automatic country & operator'),
+          busy:buying,
+          onTap:service==null?null:smartBuy,
+        ),
+      ],
+    );
+  }
+
+Widget englishSmartPanel() {
     final service=selectedService;
     return Column(
       crossAxisAlignment:CrossAxisAlignment.stretch,
@@ -943,7 +1141,67 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
   int filterCount(String filter)=>
       orders.where((order)=>orderMatches(order,filter)).length;
 
-  Widget numbersPanel() {
+  Widget persianNumbersPanel() {
+    if (orders.isEmpty) {
+      return _Notice(text: t('هنوز شماره‌ای نخریده‌اید.', 'You have not purchased a number yet.'));
+    }
+    final visible=orders.where(orderMatchesFilter).toList(growable:false);
+    final filters=[
+      ('ACTIVE',t('فعال','Active'),Icons.timelapse_rounded,const Color(0xFF38BDF8)),
+      ('COMPLETED',t('تکمیل‌شده','Completed'),Icons.check_circle_rounded,const Color(0xFF16A875)),
+      ('CANCELLED',t('لغوشده','Cancelled'),Icons.cancel_rounded,const Color(0xFFC54152)),
+      ('FAILED',t('ناموفق','Failed'),Icons.error_rounded,const Color(0xFFB42318)),
+      ('ALL',t('همه','All'),Icons.list_alt_rounded,const Color(0xFF74818B)),
+    ];
+    return Column(
+      crossAxisAlignment:CrossAxisAlignment.stretch,
+      children:[
+        SingleChildScrollView(
+          scrollDirection:Axis.horizontal,
+          child:Row(
+            children:filters.map((item){
+              final selected=orderFilter==item.$1;
+              return Padding(
+                padding:const EdgeInsetsDirectional.only(end:8),
+                child:ChoiceChip(
+                  selected:selected,
+                  onSelected:(_)=>setState(()=>orderFilter=item.$1),
+                  avatar:Icon(item.$3,size:17,color:selected?Colors.white:item.$4),
+                  label:Text('${item.$2} ${filterCount(item.$1)}'),
+                  labelStyle:TextStyle(
+                    fontWeight:FontWeight.w800,
+                    color:selected?Colors.white:const Color(0xFF27364A),
+                  ),
+                  selectedColor:item.$4,
+                  side:BorderSide(color:selected?item.$4:const Color(0xFFDCE8F1)),
+                  backgroundColor:Colors.white,
+                  showCheckmark:false,
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height:12),
+        if(visible.isEmpty)
+          _Notice(text:t('در این دسته سفارشی وجود ندارد.','There are no orders in this category.'))
+        else
+          ...visible.map((order) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _OrderCard(
+              order: order,
+              fa: fa,
+              price: host.money(order.totalAmountAfn, showBase: true),
+              onRefresh: isActive(order) ? () => checkOrder(order) : null,
+              onCancel: order.canCancel ? () => cancelOrder(order) : null,
+              onFinish: order.canFinish ? () => finishOrder(order) : null,
+              onBuyNew: () => setState(() => tab = 0),
+            ),
+          )),
+      ],
+    );
+  }
+
+Widget englishNumbersPanel() {
     if (orders.isEmpty) {
       return _Notice(text: t('هنوز شماره‌ای نخریده‌اید.', 'You have not purchased a number yet.'));
     }
