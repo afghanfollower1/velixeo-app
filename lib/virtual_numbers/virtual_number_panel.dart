@@ -682,7 +682,7 @@ Widget _englishVirtualBody() {
                 onRefresh: load,
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
+                  padding: VelixeoFaDesign.pagePadding,
                   children: [
                     virtualBanner == null
                         ? const _InfoHero(fa: true)
@@ -737,7 +737,7 @@ Widget _englishVirtualBody() {
                 onRefresh: load,
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
+                  padding: VelixeoEnDesign.pagePadding,
                   children: [
                     virtualBanner == null
                         ? const _InfoHero(fa: false)
