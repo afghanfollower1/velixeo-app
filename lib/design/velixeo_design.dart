@@ -61,7 +61,7 @@ abstract final class VelixeoEnDesign {
         appBarCenterTitle: false,
         textDirection: direction,
         pageTitleWeight: FontWeight.w700,
-        sectionWeight: FontWeight.w650,
+        sectionWeight: FontWeight.w600,
         bodyHeight: 1.6,
       );
 }
