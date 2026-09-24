@@ -116,7 +116,19 @@ class _SupportPageState extends State<SupportPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    return fa
+        ? Directionality(
+            textDirection: TextDirection.rtl,
+            child: _buildSupportScaffold(context),
+          )
+        : Directionality(
+            textDirection: TextDirection.ltr,
+            child: _buildSupportScaffold(context),
+          );
+  }
+
+  Widget _buildSupportScaffold(BuildContext context) => Scaffold(
         appBar: AppBar(
           title: Text(t('پشتیبانی', 'Support')),
           actions: [IconButton(onPressed: loading ? null : load, icon: const Icon(Icons.refresh_rounded))],
@@ -132,7 +144,7 @@ class _SupportPageState extends State<SupportPage> {
                 onRefresh: load,
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 96),
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 96),
                   children: [
                     Container(
                       padding: const EdgeInsets.all(16),
