@@ -6014,15 +6014,32 @@ Widget _buildEnglishPage(BuildContext context) {
   }
 }
 
-class OrdersPage extends StatelessWidget {
+class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key, required this.controller, this.onBack});
   final AppController controller;
   final VoidCallback? onBack;
 
   @override
-  Widget build(BuildContext context) => controller.fa
-      ? _PersianOrdersPage(controller: controller, onBack: onBack)
-      : _EnglishOrdersPage(controller: controller, onBack: onBack);
+  State<OrdersPage> createState() => _OrdersPageState();
+}
+
+class _OrdersPageState extends State<OrdersPage> {
+  String selectedFilter = 'ALL';
+
+  @override
+  Widget build(BuildContext context) => widget.controller.fa
+      ? _PersianOrdersPage(
+          controller: widget.controller,
+          onBack: widget.onBack,
+          selectedFilter: selectedFilter,
+          onFilterChanged: (value) => setState(() => selectedFilter = value),
+        )
+      : _EnglishOrdersPage(
+          controller: widget.controller,
+          onBack: widget.onBack,
+          selectedFilter: selectedFilter,
+          onFilterChanged: (value) => setState(() => selectedFilter = value),
+        );
 }
 
 String _orderStatusLabel(String status, bool fa) {
@@ -6065,14 +6082,48 @@ Color _orderStatusTone(String status) {
   }
 }
 
+bool _orderMatchesFilter(AppOrder order, String filter) {
+  final status = order.status.toUpperCase();
+  switch (filter) {
+    case 'PROCESSING':
+      return status == 'PROCESSING' || status == 'IN_PROGRESS';
+    case 'COMPLETED':
+      return status == 'COMPLETED';
+    case 'PENDING':
+      return const {
+        'PENDING',
+        'UNPAID',
+        'AWAITING_SMS',
+        'AWAITING_ACTION',
+        'AWAITING_CANCEL',
+      }.contains(status);
+    default:
+      return true;
+  }
+}
+
 class _PersianOrdersPage extends StatelessWidget {
-  const _PersianOrdersPage({required this.controller, this.onBack});
+  const _PersianOrdersPage({
+    required this.controller,
+    this.onBack,
+    required this.selectedFilter,
+    required this.onFilterChanged,
+  });
+
   final AppController controller;
   final VoidCallback? onBack;
+  final String selectedFilter;
+  final ValueChanged<String> onFilterChanged;
 
   @override
   Widget build(BuildContext context) {
     final c = controller;
+    const filterKeys = ['ALL', 'PROCESSING', 'COMPLETED', 'PENDING'];
+    final selectedIndex = filterKeys.indexOf(selectedFilter);
+    final visibleOrders = c.orders
+        .where((order) => _orderMatchesFilter(order, selectedFilter))
+        .toList(growable: false);
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: SafeArea(
@@ -6091,27 +6142,42 @@ class _PersianOrdersPage extends StatelessWidget {
                   badge: c.unreadNotificationCount,
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => NotificationsPage(controller: c)),
+                    MaterialPageRoute(
+                      builder: (_) => NotificationsPage(controller: c),
+                    ),
                   ),
                 ),
               ),
-              const _OrdersFilterStrip(
-                labels: ['همه', 'در حال انجام', 'تکمیل‌شده'],
+              _OrdersFilterStrip(
+                labels: const [
+                  'همه',
+                  'در حال انجام',
+                  'تکمیل‌شده',
+                  'در انتظار',
+                ],
                 direction: TextDirection.rtl,
+                selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
+                onChanged: (index) => onFilterChanged(filterKeys[index]),
               ),
               const SizedBox(height: 16),
-              if (c.orders.isEmpty)
-                const _OrdersEmptyState(
-                  title: 'هنوز سفارشی ثبت نکرده‌ای',
-                  subtitle: 'وقتی خریدی انجام بدهی، وضعیت آن اینجا نمایش داده می‌شود.',
+              if (visibleOrders.isEmpty)
+                _OrdersEmptyState(
+                  title: c.orders.isEmpty
+                      ? 'هنوز سفارشی ثبت نکرده‌ای'
+                      : 'در این وضعیت سفارشی نداری',
+                  subtitle: c.orders.isEmpty
+                      ? 'وقتی خریدی انجام بدهی، وضعیت آن اینجا نمایش داده می‌شود.'
+                      : 'یک وضعیت دیگر را انتخاب کن تا سفارش‌های دیگر را ببینی.',
                 )
               else
-                ...c.orders.map(
+                ...visibleOrders.map(
                   (order) => _OrderPrototypeCard(
                     order: order,
                     controller: c,
                     direction: TextDirection.rtl,
-                    title: order.serviceTitleFa ?? order.serviceSlug ?? order.category,
+                    title: order.serviceTitleFa ??
+                        order.serviceSlug ??
+                        order.category,
                     status: _orderStatusLabel(order.status, true),
                     statusColor: _orderStatusTone(order.status),
                     idLabel: 'شماره سفارش',
@@ -6128,13 +6194,27 @@ class _PersianOrdersPage extends StatelessWidget {
 }
 
 class _EnglishOrdersPage extends StatelessWidget {
-  const _EnglishOrdersPage({required this.controller, this.onBack});
+  const _EnglishOrdersPage({
+    required this.controller,
+    this.onBack,
+    required this.selectedFilter,
+    required this.onFilterChanged,
+  });
+
   final AppController controller;
   final VoidCallback? onBack;
+  final String selectedFilter;
+  final ValueChanged<String> onFilterChanged;
 
   @override
   Widget build(BuildContext context) {
     final c = controller;
+    const filterKeys = ['ALL', 'PROCESSING', 'COMPLETED', 'PENDING'];
+    final selectedIndex = filterKeys.indexOf(selectedFilter);
+    final visibleOrders = c.orders
+        .where((order) => _orderMatchesFilter(order, selectedFilter))
+        .toList(growable: false);
+
     return Directionality(
       textDirection: TextDirection.ltr,
       child: SafeArea(
@@ -6153,27 +6233,37 @@ class _EnglishOrdersPage extends StatelessWidget {
                   badge: c.unreadNotificationCount,
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => NotificationsPage(controller: c)),
+                    MaterialPageRoute(
+                      builder: (_) => NotificationsPage(controller: c),
+                    ),
                   ),
                 ),
               ),
-              const _OrdersFilterStrip(
-                labels: ['All', 'In progress', 'Completed'],
+              _OrdersFilterStrip(
+                labels: const ['All', 'In progress', 'Completed', 'Pending'],
                 direction: TextDirection.ltr,
+                selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
+                onChanged: (index) => onFilterChanged(filterKeys[index]),
               ),
               const SizedBox(height: 16),
-              if (c.orders.isEmpty)
-                const _OrdersEmptyState(
-                  title: 'No orders yet',
-                  subtitle: 'Your purchases and their status will appear here.',
+              if (visibleOrders.isEmpty)
+                _OrdersEmptyState(
+                  title: c.orders.isEmpty
+                      ? 'No orders yet'
+                      : 'No orders in this status',
+                  subtitle: c.orders.isEmpty
+                      ? 'Your purchases and their status will appear here.'
+                      : 'Choose another status to see your other orders.',
                 )
               else
-                ...c.orders.map(
+                ...visibleOrders.map(
                   (order) => _OrderPrototypeCard(
                     order: order,
                     controller: c,
                     direction: TextDirection.ltr,
-                    title: order.serviceTitleEn ?? order.serviceSlug ?? order.category,
+                    title: order.serviceTitleEn ??
+                        order.serviceSlug ??
+                        order.category,
                     status: _orderStatusLabel(order.status, false),
                     statusColor: _orderStatusTone(order.status),
                     idLabel: 'Order ID',
@@ -6190,49 +6280,70 @@ class _EnglishOrdersPage extends StatelessWidget {
 }
 
 class _OrdersFilterStrip extends StatelessWidget {
-  const _OrdersFilterStrip({required this.labels, required this.direction});
+  const _OrdersFilterStrip({
+    required this.labels,
+    required this.direction,
+    required this.selectedIndex,
+    required this.onChanged,
+  });
+
   final List<String> labels;
   final TextDirection direction;
+  final int selectedIndex;
+  final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) => Directionality(
-    textDirection: direction,
-    child: Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0F5F8),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: List.generate(labels.length, (i) {
-          final selected = i == 0;
-          return Expanded(
-            child: Container(
-              height: 36,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: selected ? Colors.white : Colors.transparent,
-                borderRadius: BorderRadius.circular(9),
-                boxShadow: selected
-                    ? const [BoxShadow(color: Color(0x0F536D7B), blurRadius: 8)]
-                    : null,
-              ),
-              child: Text(
-                labels[i],
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                  color: selected
-                      ? const Color(0xFF2E7898)
-                      : const Color(0xFF8799A4),
+        textDirection: direction,
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0F5F8),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: List.generate(labels.length, (i) {
+              final selected = i == selectedIndex;
+              return Expanded(
+                child: InkWell(
+                  onTap: () => onChanged(i),
+                  borderRadius: BorderRadius.circular(9),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    height: 36,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: selected ? Colors.white : Colors.transparent,
+                      borderRadius: BorderRadius.circular(9),
+                      boxShadow: selected
+                          ? const [
+                              BoxShadow(
+                                color: Color(0x0F536D7B),
+                                blurRadius: 8,
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Text(
+                      labels[i],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight:
+                            selected ? FontWeight.w600 : FontWeight.w500,
+                        color: selected
+                            ? const Color(0xFF2E7898)
+                            : const Color(0xFF8799A4),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          );
-        }),
-      ),
-    ),
-  );
+              );
+            }),
+          ),
+        ),
+      );
 }
 
 class _OrderPrototypeCard extends StatelessWidget {
