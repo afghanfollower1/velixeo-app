@@ -449,70 +449,283 @@ class _SupportTicketPageState extends State<SupportTicketPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return fa
-        ? Directionality(
-            textDirection: TextDirection.rtl,
-            child: _buildTicketScaffold(context),
-          )
-        : Directionality(
-            textDirection: TextDirection.ltr,
-            child: _buildTicketScaffold(context),
-          );
-  }
+  Widget build(BuildContext context) => fa
+      ? _buildPersianConversation(context)
+      : _buildEnglishConversation(context);
 
-  Widget _buildTicketScaffold(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(ticket.subject), actions: [IconButton(onPressed: refresh, icon: const Icon(Icons.refresh_rounded))]),
-        body: Column(
+  Widget _buildPersianConversation(BuildContext context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: _buildConversation(
+          context,
+          appBarTitle: 'گفتگوی پشتیبانی',
+          supportLabel: 'پشتیبانی VELIXEO',
+          waitingLabel: 'در انتظار پشتیبانی',
+          closedLabel: 'بسته‌شده',
+          todayLabel: 'امروز',
+          youLabel: 'شما',
+          replyLabel: 'پاسخ شما',
+          sendLabel: 'ارسال پاسخ',
+          closedNotice:
+              'این تیکت بسته شده است. برای موضوع جدید، تیکت تازه‌ای بساز.',
+          newTicketLabel: 'تیکت جدید',
+          refreshLabel: 'به‌روزرسانی گفتگو',
+          faView: true,
+        ),
+      );
+
+  Widget _buildEnglishConversation(BuildContext context) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: _buildConversation(
+          context,
+          appBarTitle: 'Support conversation',
+          supportLabel: 'VELIXEO support',
+          waitingLabel: 'Waiting for support',
+          closedLabel: 'Closed',
+          todayLabel: 'Today',
+          youLabel: 'You',
+          replyLabel: 'Your reply',
+          sendLabel: 'Send reply',
+          closedNotice:
+              'This ticket is closed. Create a new ticket for a new issue.',
+          newTicketLabel: 'New ticket',
+          refreshLabel: 'Refresh conversation',
+          faView: false,
+        ),
+      );
+
+  Widget _buildConversation(
+    BuildContext context, {
+    required String appBarTitle,
+    required String supportLabel,
+    required String waitingLabel,
+    required String closedLabel,
+    required String todayLabel,
+    required String youLabel,
+    required String replyLabel,
+    required String sendLabel,
+    required String closedNotice,
+    required String newTicketLabel,
+    required String refreshLabel,
+    required bool faView,
+  }) {
+    final closed = ticket.status == 'CLOSED';
+    final shortId =
+        ticket.id.length > 8 ? ticket.id.substring(0, 8).toUpperCase() : ticket.id;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(appBarTitle),
+      ),
+      body: RefreshIndicator(
+        onRefresh: refresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 30),
           children: [
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: ticket.messages.length,
-                itemBuilder: (context, index) {
-                  final message = ticket.messages[index];
-                  return Align(
-                    alignment: message.isAdmin ? AlignmentDirectional.centerStart : AlignmentDirectional.centerEnd,
-                    child: Container(
-                      constraints: const BoxConstraints(maxWidth: 320),
-                      margin: const EdgeInsets.only(bottom: 9),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: message.isAdmin ? const Color(0xFFF0F5F8) : const Color(0xFFE4F4FF),
-                        borderRadius: BorderRadius.circular(16),
+            Text(
+              ticket.subject,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF24343D),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              (faView ? 'تیکت شمارهٔ #' : 'Ticket #') + shortId,
+              textDirection: TextDirection.ltr,
+              style: const TextStyle(
+                fontSize: 10.5,
+                color: Color(0xFF74818B),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    supportLabel,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      color: Color(0xFF7C919E),
+                    ),
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: closed
+                        ? const Color(0xFFF0F3F5)
+                        : const Color(0xFFFFF4DF),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    closed ? closedLabel : waitingLabel,
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: closed
+                          ? const Color(0xFF74818B)
+                          : const Color(0xFFAD670D),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Center(
+              child: Text(
+                todayLabel,
+                style: const TextStyle(
+                  fontSize: 9.5,
+                  color: Color(0xFF9BADB8),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...ticket.messages.map((message) {
+              final customer = !message.isAdmin;
+              final time = message.createdAt
+                  .toLocal()
+                  .toString()
+                  .substring(11, 16);
+              return Align(
+                alignment: customer
+                    ? AlignmentDirectional.centerStart
+                    : AlignmentDirectional.centerEnd,
+                child: FractionallySizedBox(
+                  widthFactor: .89,
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.fromLTRB(16, 13, 16, 12),
+                    decoration: BoxDecoration(
+                      color: customer
+                          ? const Color(0xFFEAF7FD)
+                          : const Color(0xFFF1F5F8),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(
+                          !faView && customer ? 5 : 18,
+                        ),
+                        topRight: Radius.circular(
+                          faView && customer
+                              ? 5
+                              : (!faView && !customer ? 5 : 18),
+                        ),
+                        bottomLeft: const Radius.circular(18),
+                        bottomRight: const Radius.circular(18),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(message.isAdmin ? t('پشتیبانی VELIXEO', 'VELIXEO Support') : t('شما', 'You'), style: TextStyle(fontSize: 10, color: message.isAdmin ? const Color(0xFF74818B) : const Color(0xFF38BDF8), fontWeight: FontWeight.w800)),
-                          const SizedBox(height: 4),
-                          Text(message.content, style: const TextStyle(height: 1.45)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (message.isAdmin) ...[
+                          Text(
+                            supportLabel,
+                            style: const TextStyle(
+                              color: Color(0xFF4C7184),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
                         ],
+                        Text(
+                          message.content,
+                          style: TextStyle(
+                            color: customer
+                                ? const Color(0xFF4B7D96)
+                                : const Color(0xFF68818E),
+                            fontSize: 11.5,
+                            height: 1.75,
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          (customer ? youLabel + ' · ' : '') + time,
+                          textDirection: TextDirection.ltr,
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: Color(0xFF91A5B1),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+            if (closed) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2F6F8),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Text(
+                  closedNotice,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    height: 1.6,
+                    color: Color(0xFF718793),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () async {
+                  final created = await Navigator.push<SupportTicket>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => NewSupportTicketPage(host: widget.host),
+                    ),
+                  );
+                  if (created == null || !context.mounted) return;
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SupportTicketPage(
+                        host: widget.host,
+                        initialTicket: created,
                       ),
                     ),
                   );
                 },
+                child: Text(newTicketLabel),
               ),
-            ),
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                child: ticket.status == 'CLOSED'
-                    ? Text(t('این تیکت بسته شده است.', 'This ticket is closed.'), style: const TextStyle(color: Color(0xFF74818B)))
-                    : Row(
-                        children: [
-                          Expanded(child: TextField(controller: reply, minLines: 1, maxLines: 4, decoration: InputDecoration(hintText: t('پاسخ شما...', 'Your reply...')))),
-                          const SizedBox(width: 8),
-                          IconButton.filled(onPressed: busy ? null : send, icon: busy ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send_rounded)),
-                        ],
-                      ),
+            ] else ...[
+              TextField(
+                controller: reply,
+                minLines: 3,
+                maxLines: 6,
+                maxLength: 4000,
+                decoration: InputDecoration(
+                  labelText: replyLabel,
+                  alignLabelWithHint: true,
+                ),
               ),
+              const SizedBox(height: 10),
+              FilledButton.icon(
+                onPressed: busy ? null : send,
+                icon: busy
+                    ? const SizedBox(
+                        width: 15,
+                        height: 15,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.send_rounded, size: 17),
+                label: Text(sendLabel),
+              ),
+            ],
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: refresh,
+              icon: const Icon(Icons.refresh_rounded, size: 17),
+              label: Text(refreshLabel),
             ),
           ],
         ),
-      );
-}
+      ),
+    );
+  }
 
 extension _FirstOrNull<T> on Iterable<T> {
   T? get firstOrNull => isEmpty ? null : first;
