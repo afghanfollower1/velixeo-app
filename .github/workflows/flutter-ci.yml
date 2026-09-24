@@ -6,6 +6,11 @@ on:
       - 'chatgpt/v013-orders-admin-design-20260924'
     paths:
       - '.github/workflows/flutter-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/flutter-ci.yml'
+      - '.github/patches/**'
 
 permissions:
   contents: write
@@ -22,6 +27,7 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
         with:
+          ref: chatgpt/v013-orders-admin-design-20260924
           fetch-depth: 0
 
       - name: Reassemble and apply corrections
