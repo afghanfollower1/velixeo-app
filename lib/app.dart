@@ -9052,164 +9052,383 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return widget.controller.fa
-        ? Directionality(
-            textDirection: TextDirection.rtl,
-            child: _buildEditProfileView(context),
-          )
-        : Directionality(
-            textDirection: TextDirection.ltr,
-            child: _buildEditProfileView(context),
-          );
-  }
+  Widget build(BuildContext context) => c.fa
+      ? _buildPersianEditProfile(context)
+      : _buildEnglishEditProfile(context);
 
-  Widget _buildEditProfileView(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(tr(c.fa, 'ویرایش پروفایل', 'Edit profile'))),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-        children: [
-          Center(
-            child: Column(
-              children: [
-                UserAvatar(user: previewUser(), size: 96, showEditBadge: true, onTap: pickProfilePhoto),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: busy ? null : pickProfilePhoto,
-                      icon: const Icon(Icons.crop_rounded, size: 18),
-                      label: Text(tr(c.fa, 'انتخاب و تنظیم تصویر', 'Choose & adjust photo')),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: busy ? null : chooseAvatar,
-                      icon: const Icon(Icons.face_retouching_natural_rounded, size: 18),
-                      label: Text(tr(c.fa, 'انتخاب آواتار', 'Choose avatar')),
-                    ),
-                  ],
+  Widget _buildPersianEditProfile(BuildContext context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          appBar: AppBar(title: const Text('ویرایش پروفایل')),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+            children: [
+              const Text(
+                'پروفایل، به سبک خودت',
+                style: TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.w700,
+                  color: VelixeoBrand.ink,
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  tr(
-                    c.fa,
-                    'قبل از ذخیره می‌توانید تصویر را جابه‌جا، زوم و دقیقاً وسط کادر تنظیم کنید.',
-                    'Before saving, move and zoom the photo to center your face inside the crop.',
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'اطلاعات شخصی‌ات را به‌روز نگه دار.',
+                style: TextStyle(fontSize: 11, color: VelixeoBrand.muted),
+              ),
+              const SizedBox(height: 20),
+              _ProfilePhotoEditor(
+                user: previewUser(),
+                changeLabel: 'تغییر تصویر',
+                avatarLabel: 'انتخاب آواتار',
+                hint: 'تصویر را جابه‌جا و زوم کن تا دقیقاً وسط کادر قرار بگیرد.',
+                busy: busy,
+                onPhoto: pickProfilePhoto,
+                onAvatar: chooseAvatar,
+              ),
+              const SizedBox(height: 22),
+              TextField(
+                controller: fullName,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'نام کامل',
+                  prefixIcon: Icon(Icons.badge_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: website,
+                keyboardType: TextInputType.url,
+                autocorrect: false,
+                textDirection: TextDirection.ltr,
+                decoration: const InputDecoration(
+                  labelText: 'وب‌سایت',
+                  hintText: 'https://example.com',
+                  prefixIcon: Icon(Icons.language_rounded),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _CountryPickerField(
+                label: 'کشور',
+                emptyLabel: 'انتخاب کشور',
+                countryCode: countryCode,
+                onTap: () => _pickCountry(context),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: email,
+                keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
+                textDirection: TextDirection.ltr,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.alternate_email),
+                  labelText: 'ایمیل',
+                  suffixIcon: verificationSuffix(
+                    verified: emailVerifiedNow,
+                    loading: emailSending,
+                    onPressed: normalizedEmail.isEmpty ? null : sendEmailVerification,
                   ),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 10.5, color: Color(0xFF8291A1)),
+                  helperText: emailVerifiedNow
+                      ? 'ایمیل تأیید‌شده است.'
+                      : 'برای ارسال کد تأیید، روی «تأیید» بزن.',
+                ),
+              ),
+              if (emailChallenge != null) ...[
+                const SizedBox(height: 8),
+                _InlineOtpPanel(
+                  controller: emailOtp,
+                  maskedTarget: emailChallenge!.maskedTarget,
+                  loading: emailVerifying,
+                  onVerify: verifyEmailCode,
+                  fa: true,
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          SectionTitle(tr(c.fa, 'اطلاعات پایه', 'Basic information')),
-          const SizedBox(height: 10),
-          TextField(
-            controller: fullName,
-            textCapitalization: TextCapitalization.words,
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.badge_outlined),
-              labelText: tr(c.fa, 'نام و نام خانوادگی', 'Full name'),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: email,
-            keyboardType: TextInputType.emailAddress,
-            autocorrect: false,
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.alternate_email),
-              labelText: tr(c.fa, 'ایمیل', 'Email'),
-              suffixIcon: verificationSuffix(
-                verified: emailVerifiedNow,
-                loading: emailSending,
-                onPressed: normalizedEmail.isEmpty ? null : sendEmailVerification,
+              const SizedBox(height: 12),
+              TextField(
+                controller: phone,
+                keyboardType: TextInputType.phone,
+                textDirection: TextDirection.ltr,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.phone_iphone_rounded),
+                  labelText: 'شماره تماس',
+                  hintText: '+937XXXXXXXX',
+                  suffixIcon: verificationSuffix(
+                    verified: phoneVerifiedNow,
+                    loading: phoneSending,
+                    onPressed: normalizedPhone.isEmpty ? null : sendPhoneVerification,
+                  ),
+                  helperText: phoneVerifiedNow
+                      ? 'شماره تماس تأیید‌شده است.'
+                      : 'تأیید شماره از طریق WhatsApp انجام می‌شود.',
+                ),
               ),
-              helperText: emailVerifiedNow
-                  ? tr(c.fa, 'ایمیل تأیید شده است.', 'Email verified.')
-                  : tr(c.fa, 'روی Verify بزنید تا کد ۶ رقمی ارسال شود.', 'Tap Verify to receive a 6-digit code.'),
-            ),
-          ),
-          if (emailChallenge != null) ...[
-            const SizedBox(height: 8),
-            _InlineOtpPanel(
-              controller: emailOtp,
-              maskedTarget: emailChallenge!.maskedTarget,
-              loading: emailVerifying,
-              onVerify: verifyEmailCode,
-              fa: c.fa,
-            ),
-          ],
-          const SizedBox(height: 12),
-          TextField(
-            controller: phone,
-            keyboardType: TextInputType.phone,
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.phone_iphone_rounded),
-              labelText: tr(c.fa, 'شماره موبایل', 'Mobile number'),
-              hintText: '+937XXXXXXXX',
-              suffixIcon: verificationSuffix(
-                verified: phoneVerifiedNow,
-                loading: phoneSending,
-                onPressed: normalizedPhone.isEmpty ? null : sendPhoneVerification,
+              if (phoneChallenge != null) ...[
+                const SizedBox(height: 8),
+                _InlineOtpPanel(
+                  controller: phoneOtp,
+                  maskedTarget: phoneChallenge!.maskedTarget,
+                  loading: phoneVerifying,
+                  onVerify: verifyPhoneCode,
+                  fa: true,
+                ),
+              ],
+              const SizedBox(height: 22),
+              FilledButton(
+                onPressed: busy ? null : save,
+                child: Text(busy ? 'در حال ذخیره…' : 'ذخیرهٔ تغییرات'),
               ),
-              helperText: phoneVerifiedNow
-                  ? tr(c.fa, 'شماره موبایل تأیید شده است.', 'Mobile number verified.')
-                  : tr(c.fa, 'شماره را با کد کشور وارد کنید و Verify را بزنید.', 'Enter the number with country code, then tap Verify.'),
-            ),
+            ],
           ),
-          if (phoneChallenge != null) ...[
-            const SizedBox(height: 8),
-            _InlineOtpPanel(
-              controller: phoneOtp,
-              maskedTarget: phoneChallenge!.maskedTarget,
-              loading: phoneVerifying,
-              onVerify: verifyPhoneCode,
-              fa: c.fa,
-            ),
-          ],
-          const SizedBox(height: 12),
-          InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: () => showCountryPicker(
-              context: context,
-              showPhoneCode: true,
-              onSelect: (country) => setState(() {
-                countryCode = country.countryCode;
-                if (phone.text.trim().isEmpty) phone.text = '+${country.phoneCode}';
-              }),
-            ),
-            child: InputDecorator(
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.public_rounded),
-                labelText: tr(c.fa, 'کشور', 'Country'),
+        ),
+      );
+
+  Widget _buildEnglishEditProfile(BuildContext context) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: Scaffold(
+          appBar: AppBar(title: const Text('Edit profile')),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+            children: [
+              const Text(
+                'A profile that feels like you',
+                style: TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.w700,
+                  color: VelixeoBrand.ink,
+                ),
               ),
-              child: Text(countryCode?.isNotEmpty == true ? countryCode! : tr(c.fa, 'انتخاب کشور', 'Choose country')),
-            ),
+              const SizedBox(height: 4),
+              const Text(
+                'Keep your personal details up to date.',
+                style: TextStyle(fontSize: 11, color: VelixeoBrand.muted),
+              ),
+              const SizedBox(height: 20),
+              _ProfilePhotoEditor(
+                user: previewUser(),
+                changeLabel: 'Change picture',
+                avatarLabel: 'Choose avatar',
+                hint: 'Move and zoom the photo until it sits perfectly inside the crop.',
+                busy: busy,
+                onPhoto: pickProfilePhoto,
+                onAvatar: chooseAvatar,
+              ),
+              const SizedBox(height: 22),
+              TextField(
+                controller: fullName,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Full name',
+                  prefixIcon: Icon(Icons.badge_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: website,
+                keyboardType: TextInputType.url,
+                autocorrect: false,
+                decoration: const InputDecoration(
+                  labelText: 'Website',
+                  hintText: 'https://example.com',
+                  prefixIcon: Icon(Icons.language_rounded),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _CountryPickerField(
+                label: 'Country',
+                emptyLabel: 'Choose country',
+                countryCode: countryCode,
+                onTap: () => _pickCountry(context),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: email,
+                keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.alternate_email),
+                  labelText: 'Email',
+                  suffixIcon: verificationSuffix(
+                    verified: emailVerifiedNow,
+                    loading: emailSending,
+                    onPressed: normalizedEmail.isEmpty ? null : sendEmailVerification,
+                  ),
+                  helperText: emailVerifiedNow
+                      ? 'Email verified.'
+                      : 'Tap Verify to receive a 6-digit code.',
+                ),
+              ),
+              if (emailChallenge != null) ...[
+                const SizedBox(height: 8),
+                _InlineOtpPanel(
+                  controller: emailOtp,
+                  maskedTarget: emailChallenge!.maskedTarget,
+                  loading: emailVerifying,
+                  onVerify: verifyEmailCode,
+                  fa: false,
+                ),
+              ],
+              const SizedBox(height: 12),
+              TextField(
+                controller: phone,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.phone_iphone_rounded),
+                  labelText: 'Phone number',
+                  hintText: '+937XXXXXXXX',
+                  suffixIcon: verificationSuffix(
+                    verified: phoneVerifiedNow,
+                    loading: phoneSending,
+                    onPressed: normalizedPhone.isEmpty ? null : sendPhoneVerification,
+                  ),
+                  helperText: phoneVerifiedNow
+                      ? 'Phone number verified.'
+                      : 'Phone verification uses WhatsApp.',
+                ),
+              ),
+              if (phoneChallenge != null) ...[
+                const SizedBox(height: 8),
+                _InlineOtpPanel(
+                  controller: phoneOtp,
+                  maskedTarget: phoneChallenge!.maskedTarget,
+                  loading: phoneVerifying,
+                  onVerify: verifyPhoneCode,
+                  fa: false,
+                ),
+              ],
+              const SizedBox(height: 22),
+              FilledButton(
+                onPressed: busy ? null : save,
+                child: Text(busy ? 'Saving…' : 'Save changes'),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: website,
-            keyboardType: TextInputType.url,
-            autocorrect: false,
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.language_rounded),
-              labelText: tr(c.fa, 'آدرس سایت شما', 'Your website'),
-              hintText: 'https://example.com',
-            ),
-          ),
-          const SizedBox(height: 24),
-          PrimaryButton(
-            label: busy ? tr(c.fa, 'درحال ذخیره...', 'Saving...') : tr(c.fa, 'ذخیره تغییرات', 'Save changes'),
-            onPressed: busy ? null : save,
-          ),
-        ],
-      ),
+        ),
+      );
+
+  Future<void> _pickCountry(BuildContext context) async {
+    showCountryPicker(
+      context: context,
+      showPhoneCode: true,
+      onSelect: (country) => setState(() {
+        countryCode = country.countryCode;
+        if (phone.text.trim().isEmpty) {
+          phone.text = '+' + country.phoneCode;
+        }
+      }),
     );
   }
+
+}
+
+class _ProfilePhotoEditor extends StatelessWidget {
+  const _ProfilePhotoEditor({
+    required this.user,
+    required this.changeLabel,
+    required this.avatarLabel,
+    required this.hint,
+    required this.busy,
+    required this.onPhoto,
+    required this.onAvatar,
+  });
+
+  final AppUser user;
+  final String changeLabel;
+  final String avatarLabel;
+  final String hint;
+  final bool busy;
+  final VoidCallback onPhoto;
+  final VoidCallback onAvatar;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        children: [
+          UserAvatar(
+            user: user,
+            size: 74,
+            showEditBadge: true,
+            onTap: onPhoto,
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            children: [
+              OutlinedButton.icon(
+                onPressed: busy ? null : onPhoto,
+                icon: const Icon(Icons.photo_camera_outlined, size: 17),
+                label: Text(changeLabel),
+              ),
+              TextButton.icon(
+                onPressed: busy ? null : onAvatar,
+                icon: const Icon(
+                  Icons.face_retouching_natural_rounded,
+                  size: 17,
+                ),
+                label: Text(avatarLabel),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            hint,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 10,
+              height: 1.55,
+              color: Color(0xFF8294A1),
+            ),
+          ),
+        ],
+      );
+}
+
+class _CountryPickerField extends StatelessWidget {
+  const _CountryPickerField({
+    required this.label,
+    required this.emptyLabel,
+    required this.countryCode,
+    required this.onTap,
+  });
+
+  final String label;
+  final String emptyLabel;
+  final String? countryCode;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: InputDecorator(
+          decoration: InputDecoration(
+            labelText: label,
+            prefixIcon: const Icon(Icons.public_rounded),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  countryCode?.isNotEmpty == true
+                      ? countryCode!
+                      : emptyLabel,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: countryCode?.isNotEmpty == true
+                        ? VelixeoBrand.ink
+                        : const Color(0xFF99A4AB),
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: Color(0xFF8B9CA6),
+              ),
+            ],
+          ),
+        ),
+      );
 }
 
 class _InlineOtpPanel extends StatelessWidget {
