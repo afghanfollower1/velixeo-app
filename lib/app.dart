@@ -2795,7 +2795,7 @@ class _TwoFactorLoginPageState extends State<TwoFactorLoginPage>
     final whatsappInbound = challenge?.isWhatsAppInbound == true;
 
     return Scaffold(
-      appBar: AppBar(title: Text(tr(c.fa, 'تأیید ورود', 'Verify sign-in'))),
+      appBar: const VelixeoFaAppBar(title: 'تأیید ورود', subtitle: 'هویت خود را برای ادامه تأیید کن.'),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
@@ -2940,7 +2940,7 @@ Widget _buildEnglishTwoFactorView(BuildContext context) {
     final whatsappInbound = challenge?.isWhatsAppInbound == true;
 
     return Scaffold(
-      appBar: AppBar(title: Text(tr(c.fa, 'تأیید ورود', 'Verify sign-in'))),
+      appBar: const VelixeoEnAppBar(title: 'Verify sign-in', subtitle: 'Confirm your identity to continue.'),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
@@ -4381,7 +4381,7 @@ Widget _buildPersianPage(BuildContext context) {
     final categories = HomePage.services.where((item) => q.isEmpty || matches(item.fa) || matches(item.en)).toList(growable: false);
     final live = c.catalogServices.where((item) => q.isEmpty || matches(item.titleFa) || matches(item.titleEn) || matches(item.slug) || matches(item.category)).toList(growable: false);
     return Scaffold(
-      appBar: AppBar(title: Text(tr(c.fa, 'جستجوی خدمات', 'Search services'))),
+      appBar: const VelixeoFaAppBar(title: 'جستجوی خدمات', subtitle: 'سرویس، شبکه یا دستهٔ موردنظرت را پیدا کن.'),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -4435,7 +4435,7 @@ Widget _buildEnglishPage(BuildContext context) {
     final categories = HomePage.services.where((item) => q.isEmpty || matches(item.fa) || matches(item.en)).toList(growable: false);
     final live = c.catalogServices.where((item) => q.isEmpty || matches(item.titleFa) || matches(item.titleEn) || matches(item.slug) || matches(item.category)).toList(growable: false);
     return Scaffold(
-      appBar: AppBar(title: Text(tr(c.fa, 'جستجوی خدمات', 'Search services'))),
+      appBar: const VelixeoEnAppBar(title: 'Search Services', subtitle: 'Find a service, platform or category.'),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -4860,7 +4860,7 @@ class DigitalAccountsHubPage extends StatelessWidget {
         .where((service) => service.category == 'DIGITAL_ACCOUNT')
         .toList(growable: false);
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: VelixeoFaAppBar(title: title, subtitle: 'VPN، استریم، لایسنس و حساب‌های دیجیتال.'),
       body: RefreshIndicator(
         onRefresh: c.refreshAccount,
         child: ListView(
@@ -5026,7 +5026,7 @@ Widget _buildEnglishPage(
         .where((service) => service.category == 'DIGITAL_ACCOUNT')
         .toList(growable: false);
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: VelixeoEnAppBar(title: title, subtitle: 'VPN, streaming, licenses and digital accounts.'),
       body: RefreshIndicator(
         onRefresh: c.refreshAccount,
         child: ListView(
@@ -5258,7 +5258,7 @@ class CatalogServicePage extends StatelessWidget {
     required String? description,
   }) =>
       Scaffold(
-        appBar: AppBar(title: Text(appBarTitle)),
+        appBar: VelixeoFaAppBar(title: appBarTitle, subtitle: subtitle),
         body: ListView(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
           children: [
@@ -5419,7 +5419,7 @@ Widget _buildEnglishDigitalPage(
     required String? description,
   }) =>
       Scaffold(
-        appBar: AppBar(title: Text(appBarTitle)),
+        appBar: VelixeoEnAppBar(title: appBarTitle, subtitle: subtitle),
         body: ListView(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
           children: [
@@ -5569,7 +5569,7 @@ Widget _buildEnglishDigitalPage(
     return Directionality(
       textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
-        appBar: AppBar(title: Text(fa ? service.titleFa : service.titleEn)),
+        appBar: VelixeoFaAppBar(title: service.titleFa, subtitle: description),
         body: ListView(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
           children: [
@@ -5630,7 +5630,7 @@ Widget _buildEnglishGeneric(BuildContext context) {
     return Directionality(
       textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
-        appBar: AppBar(title: Text(fa ? service.titleFa : service.titleEn)),
+        appBar: VelixeoEnAppBar(title: service.titleEn, subtitle: description),
         body: ListView(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
           children: [
@@ -5733,7 +5733,7 @@ class ComingSoonServicePage extends StatelessWidget {
     required String action,
   }) =>
       Scaffold(
-        appBar: AppBar(),
+        appBar: VelixeoFaAppBar(title: title, subtitle: body),
         body: SafeArea(
           top: false,
           child: Center(
@@ -5816,7 +5816,7 @@ Widget _buildEnglishPage(
     required String action,
   }) =>
       Scaffold(
-        appBar: AppBar(),
+        appBar: VelixeoEnAppBar(title: title, subtitle: body),
         body: SafeArea(
           top: false,
           child: Center(
@@ -5906,7 +5906,7 @@ class ServicePreviewPage extends StatelessWidget {
 Widget _buildPersianPage(BuildContext context) {
     final fa = controller.fa;
     return Scaffold(
-      appBar: AppBar(title: Text(fa ? service.fa : service.en)),
+      appBar: VelixeoFaAppBar(title: service.fa, subtitle: 'جزئیات سرویس و وضعیت اتصال'),
       body: ListView(
         padding: VelixeoFaDesign.pagePadding,
         children: [
@@ -5961,7 +5961,7 @@ Widget _buildPersianPage(BuildContext context) {
 Widget _buildEnglishPage(BuildContext context) {
     final fa = controller.fa;
     return Scaffold(
-      appBar: AppBar(title: Text(fa ? service.fa : service.en)),
+      appBar: VelixeoEnAppBar(title: service.en, subtitle: 'Service details and integration status'),
       body: ListView(
         padding: VelixeoEnDesign.pagePadding,
         children: [
@@ -7932,16 +7932,7 @@ class _AddFundsPageState extends State<AddFundsPage>
     final value = int.tryParse(amount.text.trim()) ?? 0;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(appBarTitle),
-        actions: [
-          IconButton(
-            tooltip: refreshLabel,
-            onPressed: busy ? null : refresh,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-        ],
-      ),
+      appBar: VelixeoFaAppBar(title: appBarTitle, subtitle: subtitle, actions: [IconButton(tooltip: refreshLabel, onPressed: busy ? null : refresh, icon: const Icon(Icons.refresh_rounded))]),
       body: RefreshIndicator(
         onRefresh: refresh,
         child: ListView(
@@ -8240,16 +8231,7 @@ Widget _buildEnglishAddFundsPage(
     final value = int.tryParse(amount.text.trim()) ?? 0;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(appBarTitle),
-        actions: [
-          IconButton(
-            tooltip: refreshLabel,
-            onPressed: busy ? null : refresh,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-        ],
-      ),
+      appBar: VelixeoEnAppBar(title: appBarTitle, subtitle: subtitle, actions: [IconButton(tooltip: refreshLabel, onPressed: busy ? null : refresh, icon: const Icon(Icons.refresh_rounded))]),
       body: RefreshIndicator(
         onRefresh: refresh,
         child: ListView(
@@ -8630,9 +8612,7 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
         ? payment.externalId!
         : payment.id;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(fa ? 'وضعیت پرداخت' : 'Payment status'),
-      ),
+      appBar: const VelixeoFaAppBar(title: 'وضعیت پرداخت', subtitle: 'نتیجهٔ تراکنش و وضعیت کیف پول.'),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 26, 20, 30),
         children: [
@@ -8761,9 +8741,7 @@ Widget _buildEnglishPage(BuildContext context, bool fa) {
         ? payment.externalId!
         : payment.id;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(fa ? 'وضعیت پرداخت' : 'Payment status'),
-      ),
+      appBar: const VelixeoEnAppBar(title: 'Payment Status', subtitle: 'Transaction result and wallet status.'),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 26, 20, 30),
         children: [
@@ -8937,7 +8915,7 @@ class PaymentHistoryPage extends StatelessWidget {
   }) {
     final payments = controller.payments;
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: VelixeoFaAppBar(title: title, subtitle: subtitle),
       body: RefreshIndicator(
         onRefresh: controller.refreshPaymentsAndWallet,
         child: ListView(
@@ -8994,7 +8972,7 @@ Widget _buildEnglishPage(
   }) {
     final payments = controller.payments;
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: VelixeoEnAppBar(title: title, subtitle: subtitle),
       body: RefreshIndicator(
         onRefresh: controller.refreshPaymentsAndWallet,
         child: ListView(
@@ -9827,7 +9805,7 @@ class _ServerStatusPageState extends State<ServerStatusPage> {
       fa ? 'پشتیبانی' : 'Support',
     ];
     return Scaffold(
-      appBar: AppBar(title: Text(fa ? 'وضعیت سرورها' : 'Server status')),
+      appBar: const VelixeoFaAppBar(title: 'وضعیت سرورها', subtitle: 'سلامت خدمات VELIXEO را اینجا ببین.'),
       body: ListView(
         padding: VelixeoFaDesign.pagePadding,
         children: [
@@ -9983,7 +9961,7 @@ Widget _buildEnglishPage(BuildContext context, bool fa) {
       fa ? 'پشتیبانی' : 'Support',
     ];
     return Scaffold(
-      appBar: AppBar(title: Text(fa ? 'وضعیت سرورها' : 'Server status')),
+      appBar: const VelixeoEnAppBar(title: 'Server Status', subtitle: 'Check the health of VELIXEO services.'),
       body: ListView(
         padding: VelixeoEnDesign.pagePadding,
         children: [
@@ -10188,7 +10166,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
         );
 
   Widget _buildPersianPage(BuildContext context, bool fa) => Scaffold(
-        appBar: AppBar(title: Text(fa ? 'حذف حساب' : 'Delete account')),
+        appBar: const VelixeoFaAppBar(title: 'حذف حساب', subtitle: 'قبل از حذف دائمی، جزئیات را بررسی کن.'),
         body: ListView(
           padding: VelixeoFaDesign.pagePadding,
           children: [
@@ -10365,7 +10343,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
       );
 
 Widget _buildEnglishPage(BuildContext context, bool fa) => Scaffold(
-        appBar: AppBar(title: Text(fa ? 'حذف حساب' : 'Delete account')),
+        appBar: const VelixeoEnAppBar(title: 'Delete Account', subtitle: 'Review the details before permanent deletion.'),
         body: ListView(
           padding: VelixeoEnDesign.pagePadding,
           children: [
@@ -11232,7 +11210,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Widget _buildPersianEditProfile(BuildContext context) => Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(
-          appBar: AppBar(title: const Text('ویرایش پروفایل')),
+          appBar: const VelixeoFaAppBar(title: 'ویرایش پروفایل', subtitle: 'اطلاعات شخصی‌ات را به‌روز نگه دار.'),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
             children: [
@@ -11358,7 +11336,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Widget _buildEnglishEditProfile(BuildContext context) => Directionality(
         textDirection: TextDirection.ltr,
         child: Scaffold(
-          appBar: AppBar(title: const Text('Edit profile')),
+          appBar: const VelixeoEnAppBar(title: 'Edit Profile', subtitle: 'Keep your personal details up to date.'),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
             children: [
@@ -12364,14 +12342,7 @@ Widget _buildPersianPage(BuildContext context) {
     return Directionality(
       textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: Icon(
-              fa ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded,
-            ),
-          ),
-        ),
+        appBar: VelixeoFaAppBar(title: 'تأیید کد', subtitle: deliveryMessage),
         body: SafeArea(
           top: false,
           child: ListView(
@@ -12503,14 +12474,7 @@ Widget _buildEnglishPage(BuildContext context) {
     return Directionality(
       textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: Icon(
-              fa ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded,
-            ),
-          ),
-        ),
+        appBar: VelixeoEnAppBar(title: 'Verify Code', subtitle: deliveryMessage),
         body: SafeArea(
           top: false,
           child: ListView(
@@ -14047,7 +14011,7 @@ class _SetPasswordPageState extends State<SetPasswordPage> {
     required bool fa,
   }) =>
       Scaffold(
-        appBar: AppBar(title: Text(appBarTitle)),
+        appBar: VelixeoFaAppBar(title: appBarTitle, subtitle: subtitle),
         body: ListView(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
           children: [
@@ -14119,7 +14083,7 @@ Widget _buildEnglishPage(
     required bool fa,
   }) =>
       Scaffold(
-        appBar: AppBar(title: Text(appBarTitle)),
+        appBar: VelixeoEnAppBar(title: appBarTitle, subtitle: subtitle),
         body: ListView(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
           children: [
@@ -14297,7 +14261,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     required bool fa,
   }) =>
       Scaffold(
-        appBar: AppBar(title: Text(appBarTitle)),
+        appBar: VelixeoFaAppBar(title: appBarTitle, subtitle: subtitle),
         body: ListView(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
           children: [
@@ -14380,7 +14344,7 @@ Widget _buildEnglishPage(
     required bool fa,
   }) =>
       Scaffold(
-        appBar: AppBar(title: Text(appBarTitle)),
+        appBar: VelixeoEnAppBar(title: appBarTitle, subtitle: subtitle),
         body: ListView(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
           children: [
