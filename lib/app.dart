@@ -9689,60 +9689,228 @@ class _WhatsAppInboundDialogState extends State<_WhatsAppInboundDialog>
   }
 }
 
+
 Future<String?> showOtpDialog(
   BuildContext context,
   VerificationChallenge challenge,
   bool fa,
-) async {
-  final code = TextEditingController();
-  final result = await showDialog<String>(
-    context: context,
-    barrierDismissible: false,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(tr(fa, 'کد تأیید', 'Verification code')),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(tr(
-            fa,
-            'کد ۶ رقمی به ${challenge.maskedTarget} ارسال شد.',
-            'A 6-digit code was sent to ${challenge.maskedTarget}.',
-          )),
-          const SizedBox(height: 16),
-          TextField(
-            controller: code,
-            autofocus: true,
-            keyboardType: TextInputType.number,
-            maxLength: 6,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 8),
-            decoration: const InputDecoration(counterText: '', hintText: '••••••'),
-            onSubmitted: (value) {
-              if (RegExp(r'^\d{6}$').hasMatch(value.trim())) Navigator.pop(dialogContext, value.trim());
-            },
-          ),
-          const SizedBox(height: 8),
-          Text(
-            tr(fa, 'این کد تا ۱۰ دقیقه معتبر است.', 'This code expires in 10 minutes.'),
-            style: const TextStyle(fontSize: 11, color: Color(0xFF7A8B9D)),
-          ),
-        ],
+) {
+  return Navigator.push<String>(
+    context,
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => _OtpVerificationPage(
+        challenge: challenge,
+        fa: fa,
       ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(tr(fa, 'لغو', 'Cancel'))),
-        FilledButton(
-          onPressed: () {
-            if (RegExp(r'^\d{6}$').hasMatch(code.text.trim())) Navigator.pop(dialogContext, code.text.trim());
-          },
-          child: Text(tr(fa, 'تأیید', 'Verify')),
-        ),
-      ],
     ),
   );
-  code.dispose();
-  return result;
 }
+
+class _OtpVerificationPage extends StatefulWidget {
+  const _OtpVerificationPage({
+    required this.challenge,
+    required this.fa,
+  });
+
+  final VerificationChallenge challenge;
+  final bool fa;
+
+  @override
+  State<_OtpVerificationPage> createState() => _OtpVerificationPageState();
+}
+
+class _OtpVerificationPageState extends State<_OtpVerificationPage> {
+  final controllers = List.generate(6, (_) => TextEditingController());
+  final focuses = List.generate(6, (_) => FocusNode());
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) focuses.first.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    for (final controller in controllers) {
+      controller.dispose();
+    }
+    for (final focus in focuses) {
+      focus.dispose();
+    }
+    super.dispose();
+  }
+
+  String get code => controllers.map((controller) => controller.text).join();
+
+  void onDigit(int index, String value) {
+    final digit = value.replaceAll(RegExp(r'\D'), '');
+    if (digit.isEmpty) {
+      controllers[index].clear();
+      if (index > 0) focuses[index - 1].requestFocus();
+      setState(() {});
+      return;
+    }
+    controllers[index].text = digit.substring(digit.length - 1);
+    controllers[index].selection = TextSelection.collapsed(
+      offset: controllers[index].text.length,
+    );
+    if (index < focuses.length - 1) {
+      focuses[index + 1].requestFocus();
+    } else {
+      focuses[index].unfocus();
+    }
+    setState(() {});
+  }
+
+  void verify() {
+    if (!RegExp(r'^\d{6}$').hasMatch(code)) return;
+    Navigator.pop(context, code);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fa = widget.fa;
+    final deliveryMessage = fa
+        ? 'کد ۶ رقمی به ' + widget.challenge.maskedTarget + ' ارسال شد.'
+        : 'A 6-digit code was sent to ' + widget.challenge.maskedTarget + '.';
+    return Directionality(
+      textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: Icon(
+              fa ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded,
+            ),
+          ),
+        ),
+        body: SafeArea(
+          top: false,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
+            children: [
+              Center(
+                child: Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEAF7FD),
+                    borderRadius: BorderRadius.circular(23),
+                  ),
+                  child: const Icon(
+                    Icons.mark_email_read_outlined,
+                    color: Color(0xFF4BA6CB),
+                    size: 31,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                fa ? 'حسابت را تأیید کن' : 'Verify your account',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: VelixeoBrand.ink,
+                ),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                deliveryMessage,
+                textDirection: TextDirection.ltr,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 11,
+                  height: 1.65,
+                  color: VelixeoBrand.muted,
+                ),
+              ),
+              const SizedBox(height: 26),
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(6, (index) {
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        right: index == 5 ? 0 : 7,
+                      ),
+                      child: SizedBox(
+                        width: 42,
+                        height: 52,
+                        child: TextField(
+                          controller: controllers[index],
+                          focusNode: focuses[index],
+                          autofocus: index == 0,
+                          keyboardType: TextInputType.number,
+                          textInputAction: index == 5
+                              ? TextInputAction.done
+                              : TextInputAction.next,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(1),
+                          ],
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          decoration: InputDecoration(
+                            contentPadding: EdgeInsets.zero,
+                            counterText: '',
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: VelixeoBrand.line,
+                              ),
+                            ),
+                          ),
+                          onChanged: (value) => onDigit(index, value),
+                          onSubmitted: (_) {
+                            if (index == 5) verify();
+                          },
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                fa
+                    ? 'این کد تا ۱۰ دقیقه معتبر است.'
+                    : 'This code expires in 10 minutes.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: Color(0xFF8294A1),
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed:
+                    RegExp(r'^\d{6}$').hasMatch(code) ? verify : null,
+                child: Text(fa ? 'تأیید و ادامه' : 'Verify and continue'),
+              ),
+              const SizedBox(height: 10),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(fa ? 'بازگشت' : 'Go back'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 
 class SecurityPage extends StatefulWidget {
   const SecurityPage({super.key, required this.controller});
