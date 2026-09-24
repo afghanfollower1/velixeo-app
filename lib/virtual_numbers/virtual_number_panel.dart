@@ -596,7 +596,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
             Text(_countryDisplayName(item),style:const TextStyle(fontWeight:FontWeight.w800)),
             Text('${host.money(item.minPriceAfn)} • ${item.availableCount} ${t('موجود','available')}',style:const TextStyle(fontSize:10.5,color:Color(0xFF718399))),
           ])),
-          if(item.maxRate!=null)Text('${item.maxRate!.toStringAsFixed(1)}%',style:const TextStyle(fontWeight:FontWeight.w800,color:Color(0xFF18A875))),
+          if(item.maxRate!=null)Text('${item.maxRate!.toStringAsFixed(1)}%',style:const TextStyle(fontWeight:FontWeight.w800,color:Color(0xFF158365))),
         ]),
       ),
     );
@@ -614,7 +614,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
             child: Center(
               child: Text(
                 host.money(host.balanceAfn, showBase: true),
-                style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF0D78C8)),
+                style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF38BDF8)),
               ),
             ),
           ),
@@ -743,7 +743,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
               Expanded(
                 child: Text(t('اپراتورها / سرورها', 'Operators / servers'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
               ),
-              Text('${current.operators.length}', style: const TextStyle(color: Color(0xFF607487), fontWeight:FontWeight.w800)),
+              Text('${current.operators.length}', style: const TextStyle(color: Color(0xFF74818B), fontWeight:FontWeight.w800)),
             ],
           ),
           const SizedBox(height: 8),
@@ -870,11 +870,11 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     }
     final visible=orders.where(orderMatchesFilter).toList(growable:false);
     final filters=[
-      ('ACTIVE',t('فعال','Active'),Icons.timelapse_rounded,const Color(0xFF1686FF)),
+      ('ACTIVE',t('فعال','Active'),Icons.timelapse_rounded,const Color(0xFF38BDF8)),
       ('COMPLETED',t('تکمیل‌شده','Completed'),Icons.check_circle_rounded,const Color(0xFF16A875)),
-      ('CANCELLED',t('لغوشده','Cancelled'),Icons.cancel_rounded,const Color(0xFFE65454)),
+      ('CANCELLED',t('لغوشده','Cancelled'),Icons.cancel_rounded,const Color(0xFFC54152)),
       ('FAILED',t('ناموفق','Failed'),Icons.error_rounded,const Color(0xFFB42318)),
-      ('ALL',t('همه','All'),Icons.list_alt_rounded,const Color(0xFF607487)),
+      ('ALL',t('همه','All'),Icons.list_alt_rounded,const Color(0xFF74818B)),
     ];
     return Column(
       crossAxisAlignment:CrossAxisAlignment.stretch,
@@ -1063,7 +1063,7 @@ String _serviceInitials(VirtualService service) {
 
 Color _serviceFallbackColor(VirtualService service) {
   const palette = [
-    Color(0xFF1686FF), Color(0xFF805AD5), Color(0xFF16A875),
+    Color(0xFF38BDF8), Color(0xFF805AD5), Color(0xFF16A875),
     Color(0xFFE86A33), Color(0xFFDB3F71), Color(0xFF2D7D9A),
     Color(0xFF6B7280), Color(0xFF8B5CF6),
   ];
@@ -1252,13 +1252,13 @@ class _SmartCountryCard extends StatelessWidget {
       padding:const EdgeInsets.all(16),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         Row(children:[
-          CircleAvatar(backgroundColor:const Color(0xFFE4F4FF),child:Icon(icon,color:const Color(0xFF0D78C8))),
+          CircleAvatar(backgroundColor:const Color(0xFFE4F4FF),child:Icon(icon,color:const Color(0xFF38BDF8))),
           const SizedBox(width:11),
           Expanded(child:Text(title,style:const TextStyle(fontWeight:FontWeight.w900,fontSize:15))),
-          Text(price,style:const TextStyle(fontWeight:FontWeight.w900,color:Color(0xFF0D78C8))),
+          Text(price,style:const TextStyle(fontWeight:FontWeight.w900,color:Color(0xFF38BDF8))),
         ]),
         const SizedBox(height:7),
-        Text(subtitle,style:const TextStyle(color:Color(0xFF607487),fontSize:11.5,height:1.4)),
+        Text(subtitle,style:const TextStyle(color:Color(0xFF74818B),fontSize:11.5,height:1.4)),
         if(country!=null)...[
           const SizedBox(height:12),
           Container(
@@ -1316,9 +1316,9 @@ class _SummaryPill extends StatelessWidget {
       border:Border.all(color:const Color(0xFFDCE8F1)),
     ),
     child:Row(mainAxisSize:MainAxisSize.min,children:[
-      Icon(icon,size:14,color:const Color(0xFF1686FF)),
+      Icon(icon,size:14,color:const Color(0xFF38BDF8)),
       const SizedBox(width:5),
-      Text('$label: ',style:const TextStyle(fontSize:10.5,color:Color(0xFF607487),fontWeight:FontWeight.w700)),
+      Text('$label: ',style:const TextStyle(fontSize:10.5,color:Color(0xFF74818B),fontWeight:FontWeight.w700)),
       Text(value,style:const TextStyle(fontSize:10.5,fontWeight:FontWeight.w900,color:Color(0xFF102235))),
     ]),
   );
@@ -1351,7 +1351,7 @@ class _OfferTile extends StatelessWidget {
             children: [
               CircleAvatar(
                 backgroundColor: anyOperator?const Color(0xFFEAF7FF):const Color(0xFFE4F4FF),
-                child: Icon(anyOperator?Icons.shuffle_rounded:Icons.cell_tower_rounded, color: const Color(0xFF0D78C8)),
+                child: Icon(anyOperator?Icons.shuffle_rounded:Icons.cell_tower_rounded, color: const Color(0xFF38BDF8)),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1372,16 +1372,16 @@ class _OfferTile extends StatelessWidget {
                       runSpacing:5,
                       crossAxisAlignment:WrapCrossAlignment.center,
                       children: [
-                        Text('${offer.count} ${fa ? 'موجود' : 'available'}', style: const TextStyle(fontSize: 11, color: Color(0xFF607487))),
+                        Text('${offer.count} ${fa ? 'موجود' : 'available'}', style: const TextStyle(fontSize: 11, color: Color(0xFF74818B))),
                         if (offer.deliveryPercent != null)
                           Row(mainAxisSize:MainAxisSize.min,children:[
-                            const Icon(Icons.mark_email_read_outlined,size:14,color:Color(0xFF1686FF)),
+                            const Icon(Icons.mark_email_read_outlined,size:14,color:Color(0xFF38BDF8)),
                             const SizedBox(width:3),
                             Text(
                               '${offer.deliveryPercent!.toStringAsFixed(2)}% SMS',
                               style: TextStyle(
                                 fontSize: 11,
-                                color:(offer.deliveryPercent??0)>0?const Color(0xFF18A875):const Color(0xFF607487),
+                                color:(offer.deliveryPercent??0)>0?const Color(0xFF158365):const Color(0xFF74818B),
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -1389,7 +1389,7 @@ class _OfferTile extends StatelessWidget {
                         ...tags.map((tag)=>Container(
                           padding:const EdgeInsets.symmetric(horizontal:7,vertical:3),
                           decoration:BoxDecoration(color:const Color(0xFFEAF6FF),borderRadius:BorderRadius.circular(999)),
-                          child:Text(tag,style:const TextStyle(fontSize:9.5,fontWeight:FontWeight.w800,color:Color(0xFF0D78C8))),
+                          child:Text(tag,style:const TextStyle(fontSize:9.5,fontWeight:FontWeight.w800,color:Color(0xFF38BDF8))),
                         )),
                       ],
                     ),
@@ -1400,7 +1400,7 @@ class _OfferTile extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(price, style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF0D78C8),fontSize:15)),
+                  Text(price, style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF38BDF8),fontSize:15)),
                   const SizedBox(height: 7),
                   FilledButton.tonal(
                     onPressed: busy ? null : onBuy,
@@ -1460,9 +1460,9 @@ class _OrderCard extends StatelessWidget {
     switch(order.status){
       case 'COMPLETED': return const Color(0xFF16A875);
       case 'CANCELLED':
-      case 'REFUNDED': return const Color(0xFFE65454);
+      case 'REFUNDED': return const Color(0xFFC54152);
       case 'FAILED': return const Color(0xFFB42318);
-      default:return const Color(0xFF1686FF);
+      default:return const Color(0xFF38BDF8);
     }
   }
 
@@ -1517,7 +1517,7 @@ class _OrderCard extends StatelessWidget {
                 decoration: BoxDecoration(color: const Color(0xFFF5FAFE), borderRadius: BorderRadius.circular(14)),
                 child: Row(
                   children: [
-                    const Icon(Icons.phone_android_rounded, color: Color(0xFF0D78C8)),
+                    const Icon(Icons.phone_android_rounded, color: Color(0xFF38BDF8)),
                     const SizedBox(width: 10),
                     Expanded(child: Text(order.phone!, textDirection: TextDirection.ltr, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16))),
                     IconButton(onPressed: () => copy(context, order.phone!, fa ? 'شماره کپی شد.' : 'Number copied.'), icon: const Icon(Icons.copy_rounded)),
@@ -1527,18 +1527,18 @@ class _OrderCard extends StatelessWidget {
             const SizedBox(height: 9),
             Row(
               children: [
-                Text('${fa ? 'کشور' : 'Country'}: ${_orderCountryName(order.country)}', style: const TextStyle(fontSize: 12, color: Color(0xFF607487))),
+                Text('${fa ? 'کشور' : 'Country'}: ${_orderCountryName(order.country)}', style: const TextStyle(fontSize: 12, color: Color(0xFF74818B))),
                 const Spacer(),
                 if (!terminal) Text('⏱ $remaining', style: const TextStyle(fontWeight: FontWeight.w900)),
                 const SizedBox(width: 8),
-                Text(price, style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF0D78C8))),
+                Text(price, style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF38BDF8))),
               ],
             ),
             if (order.sms.isEmpty && !terminal) ...[
               const SizedBox(height: 14),
               LinearProgressIndicator(borderRadius: BorderRadius.circular(99)),
               const SizedBox(height: 7),
-              Text(fa ? 'در انتظار دریافت پیامک…' : 'Waiting for the SMS…', style: const TextStyle(color: Color(0xFF607487), fontSize: 12)),
+              Text(fa ? 'در انتظار دریافت پیامک…' : 'Waiting for the SMS…', style: const TextStyle(color: Color(0xFF74818B), fontSize: 12)),
             ],
             if (order.sms.isNotEmpty) ...[
               const SizedBox(height: 14),
@@ -1565,7 +1565,7 @@ class _OrderCard extends StatelessWidget {
             ],
             if (hasMeaningfulFailure) ...[
               const SizedBox(height: 8),
-              Text(order.failureReason!, style: const TextStyle(color: Color(0xFFE65454), fontSize: 11)),
+              Text(order.failureReason!, style: const TextStyle(color: Color(0xFFC54152), fontSize: 11)),
             ],
             const SizedBox(height: 10),
             Wrap(
