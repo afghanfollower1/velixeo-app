@@ -1,14 +1,17 @@
-Trigger signed Android build - VELIXEO v0.10.0 - 2026-09-24.
+Trigger signed Android build - VELIXEO v0.11.0 - 2026-09-24.
 Release scope:
-1) Apply the supplied VELIXEO 2026 design system across the Flutter app and Admin V3.
-2) Use Vazirmatn for Persian and Inter for English; both fonts are bundled in the APK for offline-reliable rendering.
-3) Implement RTL Persian and LTR English styling, typography, spacing, cards, inputs, buttons and navigation consistently.
-4) Redesign Splash, language selection, sign-in/register, Home, Services, Orders, Wallet, Profile and Notifications.
-5) Align Social Media, Virtual Numbers, Premium, Digital Accounts, Referral and Support surfaces with the same light Sky design language.
-6) Restyle /admin/v3 to the supplied white-sidebar/light-dashboard design while preserving real controls and data.
-7) Rename Banners & Advertising to Banners / بنرها.
-8) Remove the retired Promotions customer/admin source and compatibility API methods; historical Promotion data stays safely hidden.
-9) Keep Premium and Digital Accounts separate; keep Mobile Top-up as Coming Soon.
-10) Preserve existing provider, wallet, payment, OTP, order, refill, drip-feed and backend behavior.
-11) Version: 0.10.0+30.
-12) Flutter Analyze and Backend CI passed on the final design branch before merge.
+1) Complete the supplied velixeo-design(1).zip UI/UX across the full product surface.
+2) App coverage: 41/41 primary routes/screens.
+3) Admin coverage: 53/53 screens/subscreens, including real Order Detail.
+4) Persian and English are independent presentation systems, not one translated page tree.
+5) Persian: RTL + Vazirmatn + locale-owned layout metrics.
+6) English: LTR + Inter + locale-owned layout metrics.
+7) Lock prototype palette: #38BDF8 sky, #F6F9FC background, #24343D ink, #74818B muted, #E7EEF2 line, semantic green/orange/red.
+8) Preserve real provider, wallet, HesabPay, OTP/2FA, order, refill, drip-feed, support, referral and updater behavior.
+9) Promotions stay removed from customer/admin active UI; historical data stays hidden safely.
+10) Premium remains membership-only (Telegram Premium, Snapchat+ and similar). Digital Accounts remains separate.
+11) Mobile Top-up remains Coming Soon until official telecom APIs are connected.
+12) Admin FA/EN use independent server-selected presentation shells; Admin mobile uses responsive drawer navigation.
+13) Production signing key and in-app GitHub release updater remain unchanged.
+14) Version: 0.11.0+31.
+15) Final release requires Flutter CI, Backend CI and signed preview APK to pass before merge.
