@@ -67,7 +67,19 @@ class _InviteFriendsPageState extends State<InviteFriendsPage>{
   }
 
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
+    return fa
+        ? Directionality(
+            textDirection: TextDirection.rtl,
+            child: _buildReferralScaffold(context),
+          )
+        : Directionality(
+            textDirection: TextDirection.ltr,
+            child: _buildReferralScaffold(context),
+          );
+  }
+
+  Widget _buildReferralScaffold(BuildContext context){
     final s=summary;
     return Scaffold(
       appBar:AppBar(title:Text(t('دعوت از دوستان','Invite friends'))),
@@ -77,7 +89,7 @@ class _InviteFriendsPageState extends State<InviteFriendsPage>{
           onRefresh:load,
           child:ListView(
             physics:const AlwaysScrollableScrollPhysics(),
-            padding:const EdgeInsets.fromLTRB(16,8,16,28),
+            padding:const EdgeInsets.fromLTRB(20,8,20,28),
             children:[
               if(error!=null) _Notice(text:t('اطلاعات دعوت دریافت نشد. دوباره تلاش کنید.','Could not load referral information. Try again.')),
               if(s!=null)...[
