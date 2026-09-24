@@ -7671,6 +7671,12 @@ class ProfilePage extends StatelessWidget {
                   '',
                   () => Navigator.push(context, MaterialPageRoute(builder: (_) => SupportPage(host: c))),
                 ),
+                _ProfileMenuData(
+                  Icons.monitor_heart_outlined,
+                  'وضعیت سرورها',
+                  '',
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => ServerStatusPage(controller: c))),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -7681,7 +7687,7 @@ class ProfilePage extends StatelessWidget {
                   Icons.person_remove_alt_1_rounded,
                   'حذف حساب',
                   '',
-                  () => _deleteAccount(context, true),
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => DeleteAccountPage(controller: c))),
                   danger: true,
                 ),
                 _ProfileMenuData(
@@ -7782,6 +7788,12 @@ class ProfilePage extends StatelessWidget {
                   '',
                   () => Navigator.push(context, MaterialPageRoute(builder: (_) => SupportPage(host: c))),
                 ),
+                _ProfileMenuData(
+                  Icons.monitor_heart_outlined,
+                  'Server status',
+                  '',
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => ServerStatusPage(controller: c))),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -7792,7 +7804,7 @@ class ProfilePage extends StatelessWidget {
                   Icons.person_remove_alt_1_rounded,
                   'Delete account',
                   '',
-                  () => _deleteAccount(context, false),
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => DeleteAccountPage(controller: c))),
                   danger: true,
                 ),
                 _ProfileMenuData(
@@ -8009,6 +8021,474 @@ class _ProfileMenuCard extends StatelessWidget {
       ),
     ),
   );
+}
+
+
+class ServerStatusPage extends StatefulWidget {
+  const ServerStatusPage({super.key, required this.controller});
+  final AppController controller;
+
+  @override
+  State<ServerStatusPage> createState() => _ServerStatusPageState();
+}
+
+class _ServerStatusPageState extends State<ServerStatusPage> {
+  bool checking = true;
+  bool online = true;
+  DateTime? checkedAt;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(check());
+  }
+
+  Future<void> check() async {
+    if (mounted) setState(() => checking = true);
+    final result = await widget.controller.api.health();
+    if (!mounted) return;
+    setState(() {
+      online = result;
+      checking = false;
+      checkedAt = DateTime.now();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.controller.fa
+      ? Directionality(
+          textDirection: TextDirection.rtl,
+          child: _buildPage(context, true),
+        )
+      : Directionality(
+          textDirection: TextDirection.ltr,
+          child: _buildPage(context, false),
+        );
+
+  Widget _buildPage(BuildContext context, bool fa) {
+    final tone = online ? VelixeoBrand.green : VelixeoBrand.red;
+    final services = <String>[
+      fa ? 'هستهٔ برنامه' : 'Application core',
+      fa ? 'سفارش‌های اجتماعی' : 'Social orders',
+      fa ? 'شماره و پیامک' : 'Numbers & SMS',
+      fa ? 'پرداخت HesabPay' : 'HesabPay payments',
+      fa ? 'پشتیبانی' : 'Support',
+    ];
+    return Scaffold(
+      appBar: AppBar(title: Text(fa ? 'وضعیت سرورها' : 'Server status')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+        children: [
+          Text(
+            fa ? 'همه‌چیز، زیر نظر' : 'Keeping an eye on everything',
+            style: const TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w700,
+              color: VelixeoBrand.ink,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            fa
+                ? 'وضعیت خدمات VELIXEO را اینجا ببین.'
+                : 'Check the status of VELIXEO services.',
+            style: const TextStyle(fontSize: 11, color: VelixeoBrand.muted),
+          ),
+          const SizedBox(height: 18),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFEEF2F5)),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: tone.withValues(alpha: .10),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: checking
+                      ? const Padding(
+                          padding: EdgeInsets.all(20),
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          online
+                              ? Icons.check_rounded
+                              : Icons.wifi_off_rounded,
+                          color: tone,
+                          size: 30,
+                        ),
+                ),
+                const SizedBox(height: 13),
+                Text(
+                  checking
+                      ? (fa ? 'در حال بررسی…' : 'Checking…')
+                      : online
+                          ? (fa
+                              ? 'خدمات در دسترس هستند'
+                              : 'Services are available')
+                          : (fa
+                              ? 'اتصال برقرار نیست'
+                              : 'Services are unavailable'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: VelixeoBrand.ink,
+                  ),
+                ),
+                if (checkedAt != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    (fa ? 'آخرین بررسی: ' : 'Last check: ') +
+                        checkedAt!
+                            .toLocal()
+                            .toString()
+                            .substring(0, 16),
+                    textDirection: TextDirection.ltr,
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      color: VelixeoBrand.muted,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...services.map(
+            (name) => Container(
+              margin: const EdgeInsets.only(bottom: 9),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 15,
+                vertical: 15,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFEEF2F5)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: Color(0xFF506D7E),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: checking
+                          ? const Color(0xFFACB8BF)
+                          : tone,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    checking
+                        ? (fa ? 'در حال بررسی' : 'Checking')
+                        : online
+                            ? (fa ? 'در دسترس' : 'Available')
+                            : (fa ? 'نامشخص' : 'Unknown'),
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      color: VelixeoBrand.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 7),
+          OutlinedButton.icon(
+            onPressed: checking ? null : check,
+            icon: const Icon(Icons.refresh_rounded, size: 17),
+            label: Text(fa ? 'بررسی دوباره' : 'Check again'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class DeleteAccountPage extends StatefulWidget {
+  const DeleteAccountPage({super.key, required this.controller});
+  final AppController controller;
+
+  @override
+  State<DeleteAccountPage> createState() => _DeleteAccountPageState();
+}
+
+class _DeleteAccountPageState extends State<DeleteAccountPage> {
+  final password = TextEditingController();
+  final reason = TextEditingController();
+  bool understood = false;
+  bool busy = false;
+
+  AppController get c => widget.controller;
+
+  @override
+  void dispose() {
+    password.dispose();
+    reason.dispose();
+    super.dispose();
+  }
+
+  Future<void> deleteNow() async {
+    setState(() => busy = true);
+    final error = await c.deleteAccount(
+      password: password.text.trim().isEmpty ? null : password.text,
+      reason: reason.text.trim().isEmpty ? null : reason.text,
+    );
+    if (!mounted) return;
+    setState(() => busy = false);
+    if (error == null) {
+      Navigator.popUntil(context, (route) => route.isFirst);
+      return;
+    }
+    final fa = c.fa;
+    final message = error == 'incorrect_current_password'
+        ? (fa ? 'رمز عبور فعلی نادرست است.' : 'The current password is incorrect.')
+        : (fa
+            ? 'حذف حساب انجام نشد. دوباره تلاش کنید.'
+            : 'Account deletion failed. Please try again.');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => c.fa
+      ? Directionality(
+          textDirection: TextDirection.rtl,
+          child: _buildPage(context, true),
+        )
+      : Directionality(
+          textDirection: TextDirection.ltr,
+          child: _buildPage(context, false),
+        );
+
+  Widget _buildPage(BuildContext context, bool fa) => Scaffold(
+        appBar: AppBar(title: Text(fa ? 'حذف حساب' : 'Delete account')),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+          children: [
+            Text(
+              fa ? 'قبل از خداحافظی…' : 'Before you go…',
+              style: const TextStyle(
+                fontSize: 21,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              fa
+                  ? 'حذف حساب، نیاز به بررسی دقیق دارد.'
+                  : 'Please review the details before deleting your account.',
+              style: const TextStyle(
+                fontSize: 11,
+                color: VelixeoBrand.muted,
+              ),
+            ),
+            const SizedBox(height: 17),
+            Container(
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF1F2),
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(color: const Color(0xFFF7DDE0)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: VelixeoBrand.red,
+                    size: 19,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      fa
+                          ? 'حذف حساب دائمی است و امکان بازگردانی آن وجود ندارد.'
+                          : 'Account deletion is permanent and cannot be undone.',
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        height: 1.6,
+                        color: VelixeoBrand.red,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(17),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(19),
+                border: Border.all(color: const Color(0xFFEEF2F5)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    fa ? 'چه اتفاقی می‌افتد؟' : 'What happens next?',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _DeleteInfoRow(
+                    text: fa
+                        ? 'دسترسی به حساب و خدماتت از بین می‌رود.'
+                        : 'You will lose access to your account and services.',
+                  ),
+                  _DeleteInfoRow(
+                    text: fa
+                        ? 'پیش از حذف، سفارش‌ها و موجودی کیف پول باید تعیین تکلیف شوند.'
+                        : 'Open orders and your wallet balance should be resolved first.',
+                  ),
+                  _DeleteInfoRow(
+                    text: fa
+                        ? 'سوابق لازم برای امنیت و حسابداری طبق سیاست سرویس نگهداری می‌شوند.'
+                        : 'Records required for security and accounting are retained.',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            _PaymentDetailCard(
+              rows: [
+                (
+                  fa ? 'موجودی فعلی' : 'Current balance',
+                  c.money(c.balanceAfn, showBase: true),
+                ),
+                (
+                  fa ? 'سفارش‌های ثبت‌شده' : 'Recorded orders',
+                  '\${c.orders.length}',
+                ),
+              ],
+            ),
+            if (c.user?.hasPassword == true) ...[
+              const SizedBox(height: 13),
+              TextField(
+                controller: password,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText:
+                      fa ? 'رمز عبور فعلی' : 'Current password',
+                ),
+              ),
+            ],
+            const SizedBox(height: 13),
+            TextField(
+              controller: reason,
+              maxLength: 300,
+              maxLines: 3,
+              decoration: InputDecoration(
+                labelText:
+                    fa ? 'دلیل (اختیاری)' : 'Reason (optional)',
+              ),
+            ),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              value: understood,
+              onChanged: (value) =>
+                  setState(() => understood = value == true),
+              title: Text(
+                fa
+                    ? 'می‌دانم این عمل حساب فعلی را به‌صورت دائمی حذف می‌کند.'
+                    : 'I understand this permanently deletes my current account.',
+                style: const TextStyle(fontSize: 10.5),
+              ),
+            ),
+            const SizedBox(height: 7),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => SupportPage(host: c)),
+              ),
+              icon: const Icon(Icons.support_agent_rounded, size: 17),
+              label: Text(
+                fa ? 'گفتگو با پشتیبانی' : 'Contact support',
+              ),
+            ),
+            const SizedBox(height: 10),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: VelixeoBrand.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: !understood || busy ? null : deleteNow,
+              icon: busy
+                  ? const SizedBox(
+                      width: 15,
+                      height: 15,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.delete_outline_rounded, size: 18),
+              label: Text(
+                busy
+                    ? (fa ? 'در حال حذف…' : 'Deleting…')
+                    : (fa ? 'بررسی و حذف حساب' : 'Review and delete account'),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _DeleteInfoRow extends StatelessWidget {
+  const _DeleteInfoRow({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 9),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 2),
+              child: Icon(
+                Icons.check_circle_outline_rounded,
+                size: 14,
+                color: Color(0xFF7FA4B4),
+              ),
+            ),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(
+                text,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  height: 1.55,
+                  color: VelixeoBrand.muted,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
 }
 
 class EditProfilePage extends StatefulWidget {
