@@ -44,6 +44,13 @@ import {
 } from './socialSync.js';
 import { normalizeCurrencyCode } from './currency.js';
 import { premiumAdminPage } from './premiumAdmin.js';
+import {
+  adminLangFromRequest,
+  adminLocaleChrome,
+  adminPersianLabel,
+  localizeAdminContentFa,
+  type AdminLang,
+} from './adminLocale.js';
 
 type AdminIdentity = { id: string; fullName: string | null; email: string | null; phone: string | null };
 type AdminResolver = (request: FastifyRequest) => Promise<AdminIdentity | null>;
@@ -92,6 +99,25 @@ const meta:Record<Section,[string,string]>={
  settings:['Settings','Exchange rates, languages, security and system status'], audit:['Audit Log','Trace all administrative changes and sensitive actions'],
 };
 
+const metaFa:Record<Section,[string,string]>={
+ dashboard:['داشبورد','نمای کلی کسب‌وکار و عملکرد امروز'],
+ users:['کاربران','مدیریت حساب‌ها، دسترسی و کیف پول'],
+ referrals:['دعوت دوستان','لینک‌های دعوت، پاداش‌ها و پیگیری کاربران دعوت‌شده'],
+ social:['شبکه‌های اجتماعی','ارائه‌دهندگان، کاتالوگ، دسته‌بندی‌ها، قیمت‌گذاری و مسیریابی'],
+ virtual:['شماره مجازی و پیامک','ارائه‌دهندگان، سرویس‌ها، کشورها، قیمت‌گذاری و سفارش‌های پیامکی'],
+ premium:['اشتراک‌های پریمیوم','تلگرام پریمیوم، اسنپ‌چت پلاس و سایر اشتراک‌های پریمیوم'],
+ topup:['شارژ سیم‌کارت','به‌زودی — در انتظار API رسمی اپراتورها'],
+ accounts:['اکانت‌های دیجیتال','نتفلیکس، VPN، استریم، لایسنس و تحویل اکانت دیجیتال'],
+ payments:['پرداخت‌ها و کیف پول','درگاه‌ها، تراکنش‌ها، کیف پول کاربران و بازپرداخت‌ها'],
+ orders:['سفارش‌ها','تمام سفارش‌های مشتریان در VELIXEO'],
+ coupons:['کدهای تخفیف','قوانین تخفیف و میزان استفاده از کدها'],
+ banners:['بنرها','بنرهای اپ، محل نمایش و مسیر دکمه‌ها'],
+ notifications:['اعلان‌ها','اعلان‌های داخل اپ و پیام‌های کاربران'],
+ support:['پشتیبانی','تیکت‌ها، گفتگوها و رسیدگی'],
+ settings:['تنظیمات','نرخ ارز، زبان‌ها، امنیت و وضعیت سیستم'],
+ audit:['گزارش فعالیت‌ها','ثبت تمام تغییرات مدیریتی و عملیات حساس'],
+};
+
 function pill(label:string,kind=''){return `<span class="pill ${kind}">${e(label)}</span>`}
 function state(s:string){const ok=['ACTIVE','COMPLETED','PAID','RESOLVED','SUCCESS'];const bad=['FAILED','SUSPENDED','CANCELLED','REFUNDED','CLOSED'];const warn=['PENDING','PROCESSING','AWAITING_SMS','PARTIAL','PENDING_USER','PENDING_ADMIN'];return pill(s,ok.includes(s)?'ok':bad.includes(s)?'bad':warn.includes(s)?'warn':'info')}
 function nav(section:Section,label:string,icon:string,active:Section){return `<a class="nav ${active===section?'active':''}" href="${href(section)}">${ico(icon)}<span>${e(label)}</span></a>`}
@@ -135,7 +161,47 @@ html[dir=rtl] .table th,html[dir=rtl] .table td,html[lang=fa] .table th,html[lan
 @media(max-width:760px){.layout{display:block}.side{position:relative;height:auto;padding:18px}.main{padding:18px 14px}.topbar{position:relative}.stats{grid-template-columns:1fr 1fr}}
 `;
 
-function shell(a:AdminIdentity,section:Section,body:string,tabs='',msg='',err=false){const [title,sub]=meta[section];return `<!doctype html><html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${e(title)} — VELIXEO Admin</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Vazirmatn:wght@100..900&display=swap" rel="stylesheet"><style>${css}</style></head><body><div class="layout"><aside class="side"><div class="brand"><div class="vlogo">${brandMark}</div><div><b>VELIXEO Admin</b><small>Manage Today, Grow Tomorrow</small></div></div>${nav('dashboard','Dashboard','dashboard',section)}${nav('users','Users','users',section)}${nav('referrals','Invite Friends','users',section)}<div class="cap">Services</div><div class="subnav">${nav('social','Social Media','social',section)}${nav('virtual','Virtual Number & SMS','phone',section)}${nav('premium','Premium Subscriptions','service',section)}${nav('topup','Mobile Top-up','phone',section)}${nav('accounts','Digital Accounts','service',section)}</div><div class="cap">Management</div>${nav('payments','Payments & Wallet','wallet',section)}${nav('orders','Orders','orders',section)}${nav('coupons','Coupons','coupon',section)}${nav('banners','Banners','banner',section)}${nav('notifications','Notifications','bell',section)}${nav('support','Support','support',section)}${nav('settings','Settings','settings',section)}${nav('audit','Audit Log','audit',section)}<form method="post" action="/admin/logout"><button class="logout">Sign out</button></form></aside><main class="main"><header class="topbar"><form class="search" method="get" action="/admin/v3"><input type="hidden" name="section" value="${section}">${ico('search')}<input name="q" placeholder="Search in admin panel..." autocomplete="off"></form><div class="admin"><div class="notif">${ico('bell')}</div><div><b>${e(a.fullName||a.email||'Admin')}</b><small>System Administrator</small></div><div class="avatar">${e((a.fullName||'V').charAt(0).toUpperCase())}</div></div></header><div class="head"><div><h1>${e(title)}</h1><p>${e(sub)}</p></div><div class="crumb">VELIXEO Admin / ${e(title)}</div></div>${tabs}${msg?`<div class="flash ${err?'err':''}">${e(msg)}</div>`:''}${body}<div class="footer"><span>VELIXEO Admin Panel · v1.0 · Built for a bigger future</span><span>Manage smarter. Grow without limits.</span></div></main></div></body></html>`}
+function shell(
+ a:AdminIdentity,
+ section:Section,
+ body:string,
+ tabs='',
+ msg='',
+ err=false,
+ lang:AdminLang='en',
+){
+ const fa=lang==='fa';
+ const [title,sub]=(fa?metaFa:meta)[section];
+ const pageBody=fa?localizeAdminContentFa(body):body;
+ const pageTabs=fa?localizeAdminContentFa(tabs):tabs;
+ const pageMessage=fa?adminPersianLabel(msg):msg;
+ const htmlLang=fa?'fa':'en';
+ const dir=fa?'rtl':'ltr';
+ const designClass=fa?'vx-admin-fa':'vx-admin-en';
+ const bodyClass=fa?'vx-admin-body vx-admin-body-fa':'vx-admin-body vx-admin-body-en';
+ const adminTitle=fa?'مدیریت VELIXEO':'VELIXEO Admin';
+ const adminTagline=fa?'امروز مدیریت کن، فردا رشد کن':'Manage Today, Grow Tomorrow';
+ const adminRole=fa?'مدیر سیستم':'System Administrator';
+ const searchPlaceholder=fa?'جستجو در پنل مدیریت...':'Search in admin panel...';
+ const servicesLabel=fa?'خدمات':'Services';
+ const managementLabel=fa?'مدیریت':'Management';
+ const signOut=fa?'خروج':'Sign out';
+ const footerLeft=fa?'پنل مدیریت VELIXEO · نسخه ۱.۰':'VELIXEO Admin Panel · v1.0 · Built for a bigger future';
+ const footerRight=fa?'هوشمندتر مدیریت کن؛ بدون محدودیت رشد کن.':'Manage smarter. Grow without limits.';
+ const labels:Record<Section,string>=fa?{
+  dashboard:'داشبورد',users:'کاربران',referrals:'دعوت دوستان',social:'شبکه‌های اجتماعی',
+  virtual:'شماره مجازی و پیامک',premium:'اشتراک‌های پریمیوم',topup:'شارژ سیم‌کارت',
+  accounts:'اکانت‌های دیجیتال',payments:'پرداخت‌ها و کیف پول',orders:'سفارش‌ها',
+  coupons:'کدهای تخفیف',banners:'بنرها',notifications:'اعلان‌ها',support:'پشتیبانی',
+  settings:'تنظیمات',audit:'گزارش فعالیت‌ها'
+ }:{
+  dashboard:'Dashboard',users:'Users',referrals:'Invite Friends',social:'Social Media',
+  virtual:'Virtual Number & SMS',premium:'Premium Subscriptions',topup:'Mobile Top-up',
+  accounts:'Digital Accounts',payments:'Payments & Wallet',orders:'Orders',coupons:'Coupons',
+  banners:'Banners',notifications:'Notifications',support:'Support',settings:'Settings',audit:'Audit Log'
+ };
+ return `<!doctype html><html lang="${htmlLang}" dir="${dir}" class="${designClass}" data-vx-design="${htmlLang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${e(title)} — ${e(adminTitle)}</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Vazirmatn:wght@100..900&display=swap" rel="stylesheet"><style>${css}</style></head><body class="${bodyClass}"><div class="layout"><aside class="side"><div class="brand"><div class="vlogo">${brandMark}</div><div><b>${e(adminTitle)}</b><small>${e(adminTagline)}</small></div></div>${nav('dashboard',labels.dashboard,'dashboard',section)}${nav('users',labels.users,'users',section)}${nav('referrals',labels.referrals,'users',section)}<div class="cap">${e(servicesLabel)}</div><div class="subnav">${nav('social',labels.social,'social',section)}${nav('virtual',labels.virtual,'phone',section)}${nav('premium',labels.premium,'service',section)}${nav('topup',labels.topup,'phone',section)}${nav('accounts',labels.accounts,'service',section)}</div><div class="cap">${e(managementLabel)}</div>${nav('payments',labels.payments,'wallet',section)}${nav('orders',labels.orders,'orders',section)}${nav('coupons',labels.coupons,'coupon',section)}${nav('banners',labels.banners,'banner',section)}${nav('notifications',labels.notifications,'bell',section)}${nav('support',labels.support,'support',section)}${nav('settings',labels.settings,'settings',section)}${nav('audit',labels.audit,'audit',section)}<form method="post" action="/admin/logout"><button class="logout">${e(signOut)}</button></form></aside><main class="main"><header class="topbar"><form class="search" method="get" action="/admin/v3"><input type="hidden" name="section" value="${section}">${ico('search')}<input name="q" placeholder="${e(searchPlaceholder)}" autocomplete="off"></form><div class="admin"><div class="notif">${ico('bell')}</div><div><b>${e(a.fullName||a.email||(fa?'مدیر':'Admin'))}</b><small>${e(adminRole)}</small></div><div class="avatar">${e((a.fullName||'V').charAt(0).toUpperCase())}</div></div></header><div class="head"><div><h1>${e(title)}</h1><p>${e(sub)}</p></div><div class="crumb">${e(adminTitle)} / ${e(title)}</div></div>${pageTabs}${pageMessage?`<div class="flash ${err?'err':''}">${e(pageMessage)}</div>`:''}${pageBody}<div class="footer"><span>${e(footerLeft)}</span><span>${e(footerRight)}</span></div></main></div>${adminLocaleChrome(lang)}</body></html>`;
+}
 
 async function needAdmin(req:FastifyRequest,rep:FastifyReply,resolve:AdminResolver){const a=await resolve(req);if(!a){rep.code(303).redirect('/admin/login');return null}return a}
 async function audit(p:PrismaClient,a:string,action:string,type:string,id:string|null,summary:string,metadata?:Prisma.InputJsonValue){await p.adminAuditLog.create({data:{adminUserId:a,action,entityType:type,entityId:id,summary,metadata}})}
@@ -1062,7 +1128,7 @@ async function settings(p:PrismaClient){const rows=await p.exchangeRate.findMany
 async function auditPage(p:PrismaClient){const rows=await p.adminAuditLog.findMany({include:{adminUser:true},orderBy:{createdAt:'desc'},take:260});return `<div class="card"><div class="cardhead"><h2>Audit Log</h2>${pill(`${rows.length} recent events`,'info')}</div><div class="tablewrap"><table class="table"><thead><tr><th>Time</th><th>Admin</th><th>Action</th><th>Entity</th><th>Summary</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${dt(x.createdAt)}</td><td>${e(x.adminUser.fullName||x.adminUser.email||'Admin')}</td><td class="mono">${e(x.action)}</td><td>${e(x.entityType)} ${x.entityId?sid(x.entityId):''}</td><td>${e(x.summary)}</td></tr>`).join('')}</tbody></table></div></div>`}
 
 export function registerAdminV3(app:FastifyInstance,p:PrismaClient,resolve:AdminResolver){
- app.get('/admin/v3',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const s=qstate(req);try{let body='',tabs='';if(s.section==='dashboard')body=await dashboard(p);else if(s.section==='users')body=await usersPage(p,s.q,s.edit);else if(s.section==='referrals')body=await referralsPage(p);else if(s.section==='social'){const r=await socialPage(p,s.tab,s.q,s.edit,s.provider,s.route);body=r.body;tabs=r.tabs}else if(s.section==='virtual'){const r=await virtualModule(p,s.tab,s.edit);body=r.body;tabs=r.tabs}else if(s.section==='premium'){const r=await premiumAdminPage(p,s.tab,s.edit==='new'?'':s.edit);body=r.body;tabs=r.tabs}else if(s.section==='topup'){tabs='';body='<div class="card modulehero"><div class="cardhead"><div><h2>Mobile Top-up</h2><p>Coming soon — telecom provider APIs are not connected yet.</p></div></div></div><div class="card"><div class="notice"><b>Coming soon.</b> This module stays disabled until official mobile operator APIs are connected and tested. No top-up products or provider routes are required for now.</div></div>'}else if(s.section==='accounts'){const r=await genericModule(p,'accounts',ServiceCategory.DIGITAL_ACCOUNT,ProviderKind.GENERIC,s.tab,s.edit);body=r.body;tabs=r.tabs}else if(s.section==='orders'){tabs='';body=s.order?await adminOrderDetail(p,s.order):await allOrders(p,s.q,s.status,s.filter,s.kind,s.page);}else if(s.section==='payments')body=await payments(p,s.q);else if(s.section==='coupons')body=await coupons(p);else if(s.section==='banners')body=await banners(p);else if(s.section==='notifications')body=await notifications(p);else if(s.section==='support')body=await support(p,s.ticket);else if(s.section==='settings')body=await settings(p);else body=await auditPage(p);return rep.type('text/html; charset=utf-8').send(shell(a,s.section,body,tabs,s.msg,s.err))}catch(err){req.log.error(err);return rep.type('text/html; charset=utf-8').send(shell(a,s.section,'<div class="card empty">This section could not be loaded. The error was recorded in server logs.</div>',tabs,err instanceof Error?err.message:'load_failed',true))}});
+ app.get('/admin/v3',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const s=qstate(req);const lang=adminLangFromRequest(req);try{let body='',tabs='';if(s.section==='dashboard')body=await dashboard(p);else if(s.section==='users')body=await usersPage(p,s.q,s.edit);else if(s.section==='referrals')body=await referralsPage(p);else if(s.section==='social'){const r=await socialPage(p,s.tab,s.q,s.edit,s.provider,s.route);body=r.body;tabs=r.tabs}else if(s.section==='virtual'){const r=await virtualModule(p,s.tab,s.edit);body=r.body;tabs=r.tabs}else if(s.section==='premium'){const r=await premiumAdminPage(p,s.tab,s.edit==='new'?'':s.edit);body=r.body;tabs=r.tabs}else if(s.section==='topup'){tabs='';body='<div class="card modulehero"><div class="cardhead"><div><h2>Mobile Top-up</h2><p>Coming soon — telecom provider APIs are not connected yet.</p></div></div></div><div class="card"><div class="notice"><b>Coming soon.</b> This module stays disabled until official mobile operator APIs are connected and tested. No top-up products or provider routes are required for now.</div></div>'}else if(s.section==='accounts'){const r=await genericModule(p,'accounts',ServiceCategory.DIGITAL_ACCOUNT,ProviderKind.GENERIC,s.tab,s.edit);body=r.body;tabs=r.tabs}else if(s.section==='orders'){tabs='';body=s.order?await adminOrderDetail(p,s.order):await allOrders(p,s.q,s.status,s.filter,s.kind,s.page);}else if(s.section==='payments')body=await payments(p,s.q);else if(s.section==='coupons')body=await coupons(p);else if(s.section==='banners')body=await banners(p);else if(s.section==='notifications')body=await notifications(p);else if(s.section==='support')body=await support(p,s.ticket);else if(s.section==='settings')body=await settings(p);else body=await auditPage(p);return rep.type('text/html; charset=utf-8').send(shell(a,s.section,body,tabs,s.msg,s.err,lang))}catch(err){req.log.error(err);return rep.type('text/html; charset=utf-8').send(shell(a,s.section,'<div class="card empty">This section could not be loaded. The error was recorded in server logs.</div>',tabs,err instanceof Error?err.message:'load_failed',true,lang))}});
  app.post('/admin/v3/virtual/banner',async(req,rep)=>{
   const a=await needAdmin(req,rep,resolve);if(!a)return;
   const b=req.body as Body;
