@@ -1007,27 +1007,55 @@ class _InfoHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          gradient: const LinearGradient(colors: [Color(0xFF0B5F9F), Color(0xFF1597DC), Color(0xFF31A8FF)]),
+          borderRadius: BorderRadius.circular(23),
+          gradient: const LinearGradient(
+            colors: [Color(0xFFEEF9FD), Color(0xFFE3F6F6)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(color: const Color(0xFFDCEEF4)),
         ),
         child: Row(
           children: [
             Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(color: Colors.white.withValues(alpha: .16), borderRadius: BorderRadius.circular(17)),
-              child: const Icon(Icons.sms_rounded, color: Colors.white, size: 28),
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE9F7FD),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Icon(
+                Icons.sms_rounded,
+                color: Color(0xFF369FCA),
+                size: 28,
+              ),
             ),
             const SizedBox(width: 13),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(fa ? 'شماره مجازی و دریافت OTP' : 'Virtual numbers & OTP', style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w900)),
+                  Text(
+                    fa ? 'شماره مجازی و دریافت OTP' : 'Virtual numbers & OTP',
+                    style: const TextStyle(
+                      color: Color(0xFF2C5366),
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(fa ? 'قیمت و موجودی به‌صورت زنده بررسی می‌شود.' : 'Live price, stock and delivery rate.', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  Text(
+                    fa
+                        ? 'قیمت، موجودی و نرخ دریافت پیام به‌صورت زنده بررسی می‌شود.'
+                        : 'Live price, stock and SMS delivery rate.',
+                    style: const TextStyle(
+                      color: Color(0xFF7293A5),
+                      fontSize: 11.5,
+                      height: 1.7,
+                    ),
+                  ),
                 ],
               ),
             ),
