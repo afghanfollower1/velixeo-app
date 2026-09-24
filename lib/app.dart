@@ -836,11 +836,70 @@ class SplashPage extends StatelessWidget {
   final bool fa;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => fa
+      ? _buildPersianPage(context)
+      : _buildEnglishPage(context);
+
+Widget _buildPersianPage(BuildContext context) => Scaffold(
         body: SafeArea(
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: VelixeoFaDesign.compactPagePadding,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const _SplashBrandOrb(),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'VELIXEO.',
+                    textDirection: TextDirection.ltr,
+                    style: TextStyle(fontFamily: 'Inter',
+                      fontSize: 29,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 4,
+                      color: VelixeoDesign.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    tr(fa, 'دنیای دیجیتال، در دسترس تو', 'Your digital world, within reach'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF7892A4),
+                    ),
+                  ),
+                  const SizedBox(height: 60),
+                  const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      backgroundColor: Color(0xFFDCF2FB),
+                      color: Color(0xFF36B1E4),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    tr(fa, 'در حال آماده‌سازی…', 'Getting everything ready…'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF7892A4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+Widget _buildEnglishPage(BuildContext context) => Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: VelixeoEnDesign.compactPagePadding,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -4312,7 +4371,65 @@ class _ServiceSearchPageState extends State<ServiceSearchPage> {
   bool matches(String value) => value.toLowerCase().contains(query.text.trim().toLowerCase());
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => widget.controller.fa
+      ? _buildPersianPage(context)
+      : _buildEnglishPage(context);
+
+Widget _buildPersianPage(BuildContext context) {
+    final c = widget.controller;
+    final q = query.text.trim();
+    final categories = HomePage.services.where((item) => q.isEmpty || matches(item.fa) || matches(item.en)).toList(growable: false);
+    final live = c.catalogServices.where((item) => q.isEmpty || matches(item.titleFa) || matches(item.titleEn) || matches(item.slug) || matches(item.category)).toList(growable: false);
+    return Scaffold(
+      appBar: AppBar(title: Text(tr(c.fa, 'جستجوی خدمات', 'Search services'))),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          TextField(
+            controller: query,
+            autofocus: true,
+            decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: tr(c.fa, 'نام سرویس، شبکه یا دسته...', 'Service, platform or category...'), suffixIcon: q.isEmpty ? null : IconButton(onPressed: query.clear, icon: const Icon(Icons.close))),
+          ),
+          const SizedBox(height: 16),
+          if (categories.isEmpty && live.isEmpty)
+            EmptyCard(icon: Icons.search_off_rounded, title: tr(c.fa, 'نتیجه‌ای پیدا نشد', 'No results found'), subtitle: tr(c.fa, 'عبارت دیگری جستجو کنید.', 'Try another search.')),
+          ...categories.map((service) => Padding(
+                padding: const EdgeInsets.only(bottom: 9),
+                child: SoftCard(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _serviceDestination(c, service))),
+                  child: Row(children: [
+                    CircleAvatar(backgroundColor: service.color.withValues(alpha: .10), child: Icon(service.icon, color: service.color)),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(c.fa ? service.fa : service.en, style: const TextStyle(fontWeight: FontWeight.w900))),
+                    const Icon(Icons.chevron_right_rounded),
+                  ]),
+                ),
+              )),
+          if (live.isNotEmpty) ...[
+            const SizedBox(height: 7),
+            SectionTitle(tr(c.fa, 'سرویس‌های فعال', 'Live services')),
+            ...live.map((service) => Padding(
+                  padding: const EdgeInsets.only(bottom: 9),
+                  child: SoftCard(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _catalogDestination(c, service))),
+                    child: Row(children: [
+                      CircleAvatar(backgroundColor: catalogColor(service.category).withValues(alpha: .10), child: Icon(catalogIcon(service.category), color: catalogColor(service.category))),
+                      const SizedBox(width: 12),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(c.fa ? service.titleFa : service.titleEn, style: const TextStyle(fontWeight: FontWeight.w900)),
+                        Text(service.category, style: const TextStyle(fontSize: 10, color: VelixeoDesign.muted)),
+                      ])),
+                      const Icon(Icons.chevron_right_rounded),
+                    ]),
+                  ),
+                )),
+          ],
+        ],
+      ),
+    );
+  }
+
+Widget _buildEnglishPage(BuildContext context) {
     final c = widget.controller;
     final q = query.text.trim();
     final categories = HomePage.services.where((item) => q.isEmpty || matches(item.fa) || matches(item.en)).toList(growable: false);
@@ -5263,7 +5380,7 @@ class CatalogServicePage extends StatelessWidget {
           ? _buildDigitalPersian(context)
           : _buildDigitalEnglish(context);
     }
-    return _buildGeneric(context);
+    return controller.fa ? _buildPersianGeneric(context) : _buildEnglishGeneric(context);
   }
 
   Widget _buildDigitalPersian(BuildContext context) => Directionality(
@@ -5630,7 +5747,68 @@ Widget _buildEnglishDigitalPage(
         ),
       );
 
-  Widget _buildGeneric(BuildContext context) {
+  Widget _buildPersianGeneric(BuildContext context) {
+    final fa = controller.fa;
+    final color = catalogColor(service.category);
+    final description = fa ? service.descriptionFa : service.descriptionEn;
+    return Directionality(
+      textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        appBar: AppBar(title: Text(fa ? service.titleFa : service.titleEn)),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+          children: [
+            Container(
+              height: 150,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: .10),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Center(
+                child: Icon(
+                  catalogIcon(service.category),
+                  size: 64,
+                  color: color,
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            if (description?.trim().isNotEmpty == true)
+              Text(
+                description!,
+                style: const TextStyle(
+                  color: VelixeoBrand.muted,
+                  height: 1.6,
+                ),
+              ),
+            const SizedBox(height: 14),
+            _PaymentDetailCard(
+              rows: [
+                (
+                  fa ? 'قیمت پایه' : 'Base price',
+                  service.basePriceAfn == null
+                      ? (fa ? 'قیمت زنده' : 'Live price')
+                      : controller.money(
+                          service.basePriceAfn!,
+                          showBase: true,
+                        ),
+                ),
+                if (service.minQty != null || service.maxQty != null)
+                  (
+                    fa ? 'محدوده سفارش' : 'Order range',
+                    (service.minQty?.toString() ?? '—') +
+                        ' – ' +
+                        (service.maxQty?.toString() ?? '—'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+Widget _buildEnglishGeneric(BuildContext context) {
     final fa = controller.fa;
     final color = catalogColor(service.category);
     final description = fa ? service.descriptionFa : service.descriptionEn;
@@ -5906,12 +6084,71 @@ class ServicePreviewPage extends StatelessWidget {
   final ServiceItem service;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => controller.fa
+      ? _buildPersianPage(context)
+      : _buildEnglishPage(context);
+
+Widget _buildPersianPage(BuildContext context) {
     final fa = controller.fa;
     return Scaffold(
       appBar: AppBar(title: Text(fa ? service.fa : service.en)),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+        padding: VelixeoFaDesign.pagePadding,
+        children: [
+          Container(
+            height: 170,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [service.color.withValues(alpha: .82), service.color]),
+              borderRadius: BorderRadius.circular(26),
+            ),
+            child: Center(child: Icon(service.icon, size: 82, color: Colors.white)),
+          ),
+          const SizedBox(height: 22),
+          Text(
+            tr(fa, 'زیرساخت این سرویس در مرحله اتصال API است', 'Provider integration is the next step for this service'),
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            tr(
+              fa,
+              'حساب کاربری و کیف پول این نسخه واقعی هستند. برای جلوگیری از سفارش جعلی، خرید این سرویس تا اتصال Provider واقعی غیرفعال نگه داشته شده است.',
+              'Accounts and wallet are live in this build. Purchasing stays disabled until a real provider API is connected, so the app never creates fake orders.',
+            ),
+            style: const TextStyle(color: VelixeoDesign.muted, height: 1.55),
+          ),
+          const SizedBox(height: 22),
+          SoftCard(
+            child: Row(
+              children: [
+                const CircleAvatar(
+                  backgroundColor: Color(0xFFE4F4FF),
+                  child: Icon(Icons.api_rounded, color: VelixeoDesign.sky),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    tr(fa, 'اتصال بک‌اند به API ارائه‌دهنده', 'Backend adapter → Provider API'),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                const Icon(Icons.lock_outline, color: VelixeoDesign.muted),
+              ],
+            ),
+          ),
+          const SizedBox(height: 22),
+          PrimaryButton(label: tr(fa, 'درحال اتصال', 'Integration pending'), onPressed: null),
+        ],
+      ),
+    );
+  }
+
+Widget _buildEnglishPage(BuildContext context) {
+    final fa = controller.fa;
+    return Scaffold(
+      appBar: AppBar(title: Text(fa ? service.fa : service.en)),
+      body: ListView(
+        padding: VelixeoEnDesign.pagePadding,
         children: [
           Container(
             height: 170,
@@ -11785,7 +12022,195 @@ class _WhatsAppInboundDialogState extends State<_WhatsAppInboundDialog>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => widget.fa
+      ? _buildPersianPage(context)
+      : _buildEnglishPage(context);
+
+Widget _buildPersianPage(BuildContext context) {
+    final link = widget.challenge.whatsappLink ?? '';
+    final message = widget.challenge.verificationMessage ?? '';
+
+    return AlertDialog(
+      title: Row(
+        children: [
+          const Icon(Icons.chat_rounded, color: Color(0xFF20A76F)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              tr(widget.fa, 'تأیید با واتساپ', 'Verify with WhatsApp'),
+            ),
+          ),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              tr(
+                widget.fa,
+                'برای ادامه، پیام تأیید باید از همان شماره ${widget.challenge.maskedTarget} ارسال شود. تا زمانی که پیام از همین شماره نرسد، ثبت‌نام یا تأیید انجام نمی‌شود.',
+                'The verification message must be sent from the same number ${widget.challenge.maskedTarget}. Registration or verification will not continue until the message arrives from that exact number.',
+              ),
+              style: const TextStyle(height: 1.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              tr(widget.fa, 'واتساپ روی همین گوشی است', 'WhatsApp is on this phone'),
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: opening ? null : _openWhatsApp,
+                icon: const Icon(Icons.open_in_new_rounded),
+                label: Text(tr(widget.fa, 'باز کردن واتساپ', 'Open WhatsApp')),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                const Expanded(child: Divider()),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    tr(widget.fa, 'واتساپ روی گوشی دیگری است', 'WhatsApp is on another phone'),
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF6E8194)),
+                  ),
+                ),
+                const Expanded(child: Divider()),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              tr(
+                widget.fa,
+                'لینک وریفای را کپی کرده و به گوشی‌ای که WhatsApp روی آن فعال است منتقل کنید. لینک را روی گوشی دوم باز کنید؛ چت رسمی Velixeo با پیام آماده باز می‌شود. پیام را بدون تغییر ارسال کنید.',
+                'Copy the verification link and move it to the phone that has WhatsApp. Open the link on that phone; the official Velixeo chat opens with the message prepared. Send it without editing.',
+              ),
+              style: const TextStyle(fontSize: 11.5, height: 1.45, color: VelixeoDesign.muted),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(11),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F8FB),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFDCE6EF)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tr(widget.fa, 'لینک امن وریفای', 'Secure verification link'),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF6E8194),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                    tr(
+                      widget.fa,
+                      'شماره رسمی داخل لینک قرار دارد و در این صفحه نمایش داده نمی‌شود.',
+                      'The official number is embedded in the link and is not displayed on this screen.',
+                    ),
+                    style: const TextStyle(fontSize: 10.5, color: VelixeoDesign.muted),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: link.trim().isEmpty
+                          ? null
+                          : () => _copy(
+                                link,
+                                tr(widget.fa, 'لینک وریفای کپی شد.', 'Verification link copied.'),
+                              ),
+                      icon: const Icon(Icons.link_rounded, size: 18),
+                      label: Text(tr(widget.fa, 'کپی لینک وریفای', 'Copy verification link')),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            _copyBox(
+              title: tr(widget.fa, 'پیام تأیید — بدون تغییر ارسال کنید', 'Verification message — send without editing'),
+              value: message,
+              buttonLabel: tr(widget.fa, 'کپی پیام تأیید', 'Copy verification message'),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF8E8),
+                borderRadius: BorderRadius.circular(11),
+                border: Border.all(color: const Color(0xFFF3D99B)),
+              ),
+              child: Text(
+                tr(
+                  widget.fa,
+                  'اگر شماره‌ای که وارد کرده‌اید حساب فعال WhatsApp نداشته باشد، ثبت‌نام با موبایل انجام نمی‌شود. اگر پیام را از شماره دیگری بفرستید نیز تأیید رد می‌شود.',
+                  'If the number you entered does not have an active WhatsApp account, mobile registration cannot complete. A message sent from a different number will also be rejected.',
+                ),
+                style: const TextStyle(fontSize: 10.5, height: 1.45, color: Color(0xFF8A650F)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const LinearProgressIndicator(),
+            const SizedBox(height: 10),
+            Text(
+              checking
+                  ? tr(widget.fa, 'در حال بررسی...', 'Checking...')
+                  : tr(widget.fa, 'منتظر پیام واتساپ شما هستیم...', 'Waiting for your WhatsApp message...'),
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF6E8194),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (copiedNotice?.isNotEmpty == true) ...[
+              const SizedBox(height: 7),
+              Text(
+                copiedNotice!,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  color: Color(0xFF18A875),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+            if (error?.isNotEmpty == true) ...[
+              const SizedBox(height: 8),
+              Text(
+                error!,
+                style: const TextStyle(fontSize: 11, color: Colors.redAccent),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(tr(widget.fa, 'لغو', 'Cancel')),
+        ),
+        OutlinedButton.icon(
+          onPressed: checking ? null : _checkNow,
+          icon: const Icon(Icons.refresh_rounded),
+          label: Text(tr(widget.fa, 'بررسی وضعیت', 'Check status')),
+        ),
+      ],
+    );
+  }
+
+Widget _buildEnglishPage(BuildContext context) {
     final link = widget.challenge.whatsappLink ?? '';
     final message = widget.challenge.verificationMessage ?? '';
 
@@ -12052,7 +12477,150 @@ class _OtpVerificationPageState extends State<_OtpVerificationPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => widget.fa
+      ? _buildPersianPage(context)
+      : _buildEnglishPage(context);
+
+Widget _buildPersianPage(BuildContext context) {
+    final fa = widget.fa;
+    final deliveryMessage = fa
+        ? 'کد ۶ رقمی به ' + widget.challenge.maskedTarget + ' ارسال شد.'
+        : 'A 6-digit code was sent to ' + widget.challenge.maskedTarget + '.';
+    return Directionality(
+      textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: Icon(
+              fa ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded,
+            ),
+          ),
+        ),
+        body: SafeArea(
+          top: false,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
+            children: [
+              Center(
+                child: Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEAF7FD),
+                    borderRadius: BorderRadius.circular(23),
+                  ),
+                  child: const Icon(
+                    Icons.mark_email_read_outlined,
+                    color: Color(0xFF4BA6CB),
+                    size: 31,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                fa ? 'حسابت را تأیید کن' : 'Verify your account',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: VelixeoBrand.ink,
+                ),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                deliveryMessage,
+                textDirection: TextDirection.ltr,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 11,
+                  height: 1.65,
+                  color: VelixeoBrand.muted,
+                ),
+              ),
+              const SizedBox(height: 26),
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(6, (index) {
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        right: index == 5 ? 0 : 7,
+                      ),
+                      child: SizedBox(
+                        width: 42,
+                        height: 52,
+                        child: TextField(
+                          controller: controllers[index],
+                          focusNode: focuses[index],
+                          autofocus: index == 0,
+                          keyboardType: TextInputType.number,
+                          textInputAction: index == 5
+                              ? TextInputAction.done
+                              : TextInputAction.next,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(1),
+                          ],
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          decoration: InputDecoration(
+                            contentPadding: EdgeInsets.zero,
+                            counterText: '',
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: VelixeoBrand.line,
+                              ),
+                            ),
+                          ),
+                          onChanged: (value) => onDigit(index, value),
+                          onSubmitted: (_) {
+                            if (index == 5) verify();
+                          },
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                fa
+                    ? 'این کد تا ۱۰ دقیقه معتبر است.'
+                    : 'This code expires in 10 minutes.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: Color(0xFF8294A1),
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed:
+                    RegExp(r'^\d{6}$').hasMatch(code) ? verify : null,
+                child: Text(fa ? 'تأیید و ادامه' : 'Verify and continue'),
+              ),
+              const SizedBox(height: 10),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(fa ? 'بازگشت' : 'Go back'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+Widget _buildEnglishPage(BuildContext context) {
     final fa = widget.fa;
     final deliveryMessage = fa
         ? 'کد ۶ رقمی به ' + widget.challenge.maskedTarget + ' ارسال شد.'
