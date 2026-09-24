@@ -1068,7 +1068,7 @@ Widget englishManualPanel() {
     return Column(
       crossAxisAlignment:CrossAxisAlignment.stretch,
       children:[
-        _PanelCard(child:serviceSelector()),
+        _PanelCard(child:persianServiceSelector()),
         const SizedBox(height:12),
         _Notice(
           text:t(
@@ -1099,7 +1099,7 @@ Widget englishSmartPanel() {
     return Column(
       crossAxisAlignment:CrossAxisAlignment.stretch,
       children:[
-        _PanelCard(child:serviceSelector()),
+        _PanelCard(child:englishServiceSelector()),
         const SizedBox(height:12),
         _Notice(
           text:t(
