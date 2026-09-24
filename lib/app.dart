@@ -10610,40 +10610,112 @@ class _SetPasswordPageState extends State<SetPasswordPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final c = widget.controller;
-    return Scaffold(
-      appBar: AppBar(title: Text(tr(c.fa, 'تنظیم رمز عبور', 'Set password'))),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-        children: [
-          TextField(
-            controller: password,
-            obscureText: hidden,
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.lock_outline_rounded),
-              labelText: tr(c.fa, 'رمز عبور جدید', 'New password'),
-            ),
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: confirm,
-            obscureText: hidden,
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.lock_reset_rounded),
-              labelText: tr(c.fa, 'تکرار رمز عبور', 'Confirm password'),
-              suffixIcon: IconButton(
-                onPressed: () => setState(() => hidden = !hidden),
-                icon: Icon(hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+  Widget build(BuildContext context) => widget.controller.fa
+      ? _buildPersian(context)
+      : _buildEnglish(context);
+
+  Widget _buildPersian(BuildContext context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: _buildPage(
+          context,
+          appBarTitle: 'تعیین رمز عبور',
+          heading: 'یک رمز امن انتخاب کن',
+          subtitle: 'از رمزی استفاده کن که در حساب‌های دیگرت استفاده نمی‌کنی.',
+          newLabel: 'رمز عبور جدید',
+          confirmLabel: 'تکرار رمز عبور جدید',
+          showLabel: hidden ? 'نمایش' : 'پنهان',
+          actionLabel: busy ? 'در حال ذخیره…' : 'ذخیرهٔ رمز عبور',
+          fa: true,
+        ),
+      );
+
+  Widget _buildEnglish(BuildContext context) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: _buildPage(
+          context,
+          appBarTitle: 'Set password',
+          heading: 'Choose a secure password',
+          subtitle: 'Use a password you do not use on other accounts.',
+          newLabel: 'New password',
+          confirmLabel: 'Confirm new password',
+          showLabel: hidden ? 'Show' : 'Hide',
+          actionLabel: busy ? 'Saving…' : 'Save password',
+          fa: false,
+        ),
+      );
+
+  Widget _buildPage(
+    BuildContext context, {
+    required String appBarTitle,
+    required String heading,
+    required String subtitle,
+    required String newLabel,
+    required String confirmLabel,
+    required String showLabel,
+    required String actionLabel,
+    required bool fa,
+  }) =>
+      Scaffold(
+        appBar: AppBar(title: Text(appBarTitle)),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+          children: [
+            Text(
+              heading,
+              style: const TextStyle(
+                fontSize: 21,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
               ),
             ),
-          ),
-          const SizedBox(height: 24),
-          PrimaryButton(label: busy ? 'Saving...' : tr(c.fa, 'تنظیم رمز عبور', 'Set password'), onPressed: busy ? null : submit),
-        ],
-      ),
-    );
-  }
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 11,
+                height: 1.65,
+                color: VelixeoBrand.muted,
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: password,
+              obscureText: hidden,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: newLabel,
+                prefixIcon: const Icon(Icons.lock_outline_rounded),
+                suffixIcon: TextButton(
+                  onPressed: () => setState(() => hidden = !hidden),
+                  child: Text(showLabel),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirm,
+              obscureText: hidden,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: confirmLabel,
+                prefixIcon: const Icon(Icons.lock_reset_rounded),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _PasswordRulesCard(fa: fa),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: busy ||
+                      password.text.length < 8 ||
+                      password.text != confirm.text
+                  ? null
+                  : submit,
+              child: Text(actionLabel),
+            ),
+          ],
+        ),
+      );
+
 }
 
 class ChangePasswordPage extends StatefulWidget {
@@ -10713,43 +10785,183 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final c = widget.controller;
-    return Scaffold(
-      appBar: AppBar(title: Text(tr(c.fa, 'تغییر رمز عبور', 'Change password'))),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-        children: [
-          TextField(
-            controller: current,
-            obscureText: hidden,
-            decoration: InputDecoration(prefixIcon: const Icon(Icons.lock_outline), labelText: tr(c.fa, 'رمز فعلی', 'Current password')),
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: next,
-            obscureText: hidden,
-            decoration: InputDecoration(prefixIcon: const Icon(Icons.password), labelText: tr(c.fa, 'رمز جدید', 'New password')),
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: confirm,
-            obscureText: hidden,
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.lock_reset_outlined),
-              labelText: tr(c.fa, 'تکرار رمز جدید', 'Confirm new password'),
-              suffixIcon: IconButton(
-                onPressed: () => setState(() => hidden = !hidden),
-                icon: Icon(hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+  Widget build(BuildContext context) => widget.controller.fa
+      ? _buildPersian(context)
+      : _buildEnglish(context);
+
+  Widget _buildPersian(BuildContext context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: _buildPage(
+          context,
+          appBarTitle: 'تغییر رمز عبور',
+          heading: 'وقت یک رمز تازه است',
+          subtitle: 'از رمزی استفاده کن که در حساب‌های دیگرت استفاده نمی‌کنی.',
+          currentLabel: 'رمز عبور فعلی',
+          nextLabel: 'رمز عبور جدید',
+          confirmLabel: 'تکرار رمز عبور جدید',
+          showLabel: hidden ? 'نمایش' : 'پنهان',
+          actionLabel: busy ? 'در حال ذخیره…' : 'ذخیرهٔ رمز جدید',
+          fa: true,
+        ),
+      );
+
+  Widget _buildEnglish(BuildContext context) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: _buildPage(
+          context,
+          appBarTitle: 'Change password',
+          heading: 'Time for a fresh password',
+          subtitle: 'Use a password you do not use on other accounts.',
+          currentLabel: 'Current password',
+          nextLabel: 'New password',
+          confirmLabel: 'Confirm new password',
+          showLabel: hidden ? 'Show' : 'Hide',
+          actionLabel: busy ? 'Saving…' : 'Save new password',
+          fa: false,
+        ),
+      );
+
+  Widget _buildPage(
+    BuildContext context, {
+    required String appBarTitle,
+    required String heading,
+    required String subtitle,
+    required String currentLabel,
+    required String nextLabel,
+    required String confirmLabel,
+    required String showLabel,
+    required String actionLabel,
+    required bool fa,
+  }) =>
+      Scaffold(
+        appBar: AppBar(title: Text(appBarTitle)),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+          children: [
+            Text(
+              heading,
+              style: const TextStyle(
+                fontSize: 21,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
               ),
             ),
-          ),
-          const SizedBox(height: 24),
-          PrimaryButton(
-            label: busy ? tr(c.fa, 'لطفاً صبر کنید...', 'Please wait...') : tr(c.fa, 'تغییر رمز', 'Change password'),
-            onPressed: busy ? null : submit,
-          ),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 11,
+                height: 1.65,
+                color: VelixeoBrand.muted,
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: current,
+              obscureText: hidden,
+              decoration: InputDecoration(
+                labelText: currentLabel,
+                prefixIcon: const Icon(Icons.lock_outline_rounded),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: next,
+              obscureText: hidden,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: nextLabel,
+                prefixIcon: const Icon(Icons.password_rounded),
+                suffixIcon: TextButton(
+                  onPressed: () => setState(() => hidden = !hidden),
+                  child: Text(showLabel),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirm,
+              obscureText: hidden,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: confirmLabel,
+                prefixIcon: const Icon(Icons.lock_reset_outlined),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _PasswordRulesCard(fa: fa),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: busy ||
+                      next.text.length < 8 ||
+                      next.text != confirm.text ||
+                      current.text.isEmpty
+                  ? null
+                  : submit,
+              child: Text(actionLabel),
+            ),
+          ],
+        ),
+      );
+
+}
+
+class _PasswordRulesCard extends StatelessWidget {
+  const _PasswordRulesCard({required this.fa});
+  final bool fa;
+
+  @override
+  Widget build(BuildContext context) {
+    final rules = fa
+        ? const [
+            'حداقل ۸ نویسه',
+            'ترکیبی از حرف و عدد',
+            'متفاوت از نام و اطلاعات شخصی',
+          ]
+        : const [
+            'At least 8 characters',
+            'A mix of letters and numbers',
+            'Different from your name and personal details',
+          ];
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFEEF2F5)),
+      ),
+      child: Column(
+        children: rules
+            .map(
+              (rule) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 1),
+                      child: Icon(
+                        Icons.check_rounded,
+                        size: 14,
+                        color: Color(0xFF72BAA2),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        rule,
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          height: 1.5,
+                          color: Color(0xFF7C919E),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
   }
