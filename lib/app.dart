@@ -3619,7 +3619,7 @@ class _PrototypeSearch extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
       child: Container(
         height: 44,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
@@ -5672,6 +5672,18 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   @override
   Widget build(BuildContext context) {
+    return widget.controller.fa
+        ? Directionality(
+            textDirection: TextDirection.rtl,
+            child: _buildNotificationsView(context),
+          )
+        : Directionality(
+            textDirection: TextDirection.ltr,
+            child: _buildNotificationsView(context),
+          );
+  }
+
+  Widget _buildNotificationsView(BuildContext context) {
     final c = widget.controller;
     final filters = <(String, String)>[
       ('ALL', tr(c.fa, 'همه', 'All')),
@@ -5694,16 +5706,16 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 slivers: [
                   SliverToBoxAdapter(
                     child: Container(
-                      margin: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                      margin: const EdgeInsets.fromLTRB(20, 14, 20, 10),
                       padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(26),
                         gradient: const LinearGradient(
-                          colors: [Color(0xFF082D58), Color(0xFF0F70D9), Color(0xFF28B2FF)],
+                          colors: [Color(0xFFEEF9FD), Color(0xFFE5F5FB)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                        boxShadow: const [BoxShadow(color: Color(0x261686FF), blurRadius: 28, offset: Offset(0, 12))],
+                        border: Border.all(color: const Color(0xFFDDEFF6)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5711,7 +5723,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                           Row(
                             children: [
                               IconButton.filledTonal(
-                                style: IconButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: .14), foregroundColor: Colors.white),
+                                style: IconButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF507383)),
                                 onPressed: () => Navigator.pop(context),
                                 icon: const Icon(Icons.arrow_back_rounded),
                               ),
@@ -5730,12 +5742,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                   children: [
                                     Text(
                                       tr(c.fa, 'مرکز اعلان‌ها', 'Notification Center'),
-                                      style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w700),
+                                      style: const TextStyle(color: Color(0xFF2C5366), fontSize: 18, fontWeight: FontWeight.w700),
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
                                       tr(c.fa, 'سفارش‌ها، کیف پول، پشتیبانی و بروزرسانی‌ها', 'Orders, wallet, support & updates'),
-                                      style: const TextStyle(color: Color(0xFFD7EDFF), fontSize: 11.5),
+                                      style: const TextStyle(color: Color(0xFF7293A5), fontSize: 10.5),
                                     ),
                                   ],
                                 ),
@@ -5748,11 +5760,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               Expanded(
                                 child: Container(
                                   padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: .11), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withValues(alpha: .13))),
+                                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: .78), borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE3EFF4))),
                                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text(tr(c.fa, 'خوانده‌نشده', 'Unread'), style: const TextStyle(color: Color(0xFFD6ECFF), fontSize: 10.5)),
+                                    Text(tr(c.fa, 'خوانده‌نشده', 'Unread'), style: const TextStyle(color: Color(0xFF7893A2), fontSize: 10)),
                                     const SizedBox(height: 4),
-                                    Text('${c.unreadNotificationCount}', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
+                                    Text('${c.unreadNotificationCount}', style: const TextStyle(color: Color(0xFF2C5366), fontSize: 23, fontWeight: FontWeight.w700)),
                                   ]),
                                 ),
                               ),
@@ -5760,18 +5772,18 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               Expanded(
                                 child: Container(
                                   padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: .11), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withValues(alpha: .13))),
+                                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: .78), borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE3EFF4))),
                                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text(tr(c.fa, 'مجموع', 'Total'), style: const TextStyle(color: Color(0xFFD6ECFF), fontSize: 10.5)),
+                                    Text(tr(c.fa, 'مجموع', 'Total'), style: const TextStyle(color: Color(0xFF7893A2), fontSize: 10)),
                                     const SizedBox(height: 4),
-                                    Text('${c.notifications.length}', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
+                                    Text('${c.notifications.length}', style: const TextStyle(color: Color(0xFF2C5366), fontSize: 23, fontWeight: FontWeight.w700)),
                                   ]),
                                 ),
                               ),
                               if (c.unreadNotificationCount > 0) ...[
                                 const SizedBox(width: 10),
                                 FilledButton(
-                                  style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF1268C7), minimumSize: const Size(86, 58), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFF38BDF8), foregroundColor: const Color(0xFF183B4B), minimumSize: const Size(86, 58), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
                                   onPressed: c.markAllNotificationsRead,
                                   child: Text(tr(c.fa, 'خواندن همه', 'Read all'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                                 ),
@@ -5786,7 +5798,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     child: SizedBox(
                       height: 48,
                       child: ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
                         scrollDirection: Axis.horizontal,
                         itemCount: filters.length,
                         separatorBuilder: (_, __) => const SizedBox(width: 7),
