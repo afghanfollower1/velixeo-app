@@ -550,6 +550,8 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
     <div class="forms">
       <div class="field"><label>Brand / Network</label><select id="socialBrandSelect" name="brandKey" required><option value="">Choose brand</option>${brandOptions}</select></div>
       <div class="field"><label>VELIXEO Category</label><select id="socialCategorySelect" name="categorySlug" required><option value="">Choose category</option>${categoryOptions}</select></div>
+      <div class="field"><label>Provider Service Type</label><input value="${esc(selected.providerType || 'Default')}" readonly></div>
+      <div class="field"><label>Original Provider Price</label><input value="${esc(selected.providerRate?.toString() || '—')} ${esc(selected.providerCurrency || '')}" readonly></div>
     </div>
     <div class="field"><label>Customer-facing English Name</label><input name="titleEn" value="${esc(isPublished ? selected.service.titleEn : (selected.providerName || selected.service.titleEn))}" required></div>
     <div class="field"><label>Customer-facing Persian Name</label><input name="titleFa" value="${esc(isPublished ? selected.service.titleFa : '')}" placeholder="نام فارسی سرویس"></div>
