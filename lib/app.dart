@@ -4728,89 +4728,349 @@ class OrdersPage extends StatelessWidget {
   const OrdersPage({super.key, required this.controller});
   final AppController controller;
 
-  String statusLabel(bool fa, String status) {
+  @override
+  Widget build(BuildContext context) => controller.fa
+      ? _PersianOrdersPage(controller: controller)
+      : _EnglishOrdersPage(controller: controller);
+}
+
+String _orderStatusLabel(String status, bool fa) {
+  if (fa) {
     switch (status) {
       case 'PROCESSING':
-        return tr(fa, 'در حال انجام', 'Processing');
-      case 'COMPLETED':
-        return tr(fa, 'تکمیل', 'Completed');
-      case 'PARTIAL':
-        return tr(fa, 'نیمه‌کامل', 'Partial');
-      case 'AWAITING_SMS':
-        return tr(fa, 'در انتظار SMS', 'Awaiting SMS');
-      case 'CANCELLED':
-        return tr(fa, 'لغو شده', 'Cancelled');
-      case 'FAILED':
-        return tr(fa, 'ناموفق', 'Failed');
-      case 'REFUNDED':
-        return tr(fa, 'برگشت وجه', 'Refunded');
-      default:
-        return tr(fa, 'در انتظار', 'Pending');
+      case 'IN_PROGRESS': return 'در حال انجام';
+      case 'COMPLETED': return 'تکمیل‌شده';
+      case 'PARTIAL': return 'نیمه‌کامل';
+      case 'AWAITING_SMS': return 'در انتظار پیامک';
+      case 'CANCELLED': return 'لغوشده';
+      case 'FAILED': return 'ناموفق';
+      case 'REFUNDED': return 'بازگشت وجه';
+      default: return 'در انتظار';
     }
   }
+  switch (status) {
+    case 'PROCESSING':
+    case 'IN_PROGRESS': return 'In progress';
+    case 'COMPLETED': return 'Completed';
+    case 'PARTIAL': return 'Partial';
+    case 'AWAITING_SMS': return 'Awaiting SMS';
+    case 'CANCELLED': return 'Cancelled';
+    case 'FAILED': return 'Failed';
+    case 'REFUNDED': return 'Refunded';
+    default: return 'Pending';
+  }
+}
+
+Color _orderStatusTone(String status) {
+  switch (status) {
+    case 'COMPLETED': return VelixeoBrand.green;
+    case 'PROCESSING':
+    case 'IN_PROGRESS':
+    case 'AWAITING_SMS': return const Color(0xFF2D8DB4);
+    case 'FAILED': return VelixeoBrand.red;
+    case 'CANCELLED':
+    case 'REFUNDED': return const Color(0xFF6F7E87);
+    default: return VelixeoBrand.orange;
+  }
+}
+
+class _PersianOrdersPage extends StatelessWidget {
+  const _PersianOrdersPage({required this.controller});
+  final AppController controller;
 
   @override
   Widget build(BuildContext context) {
     final c = controller;
-    return SafeArea(
-      child: RefreshIndicator(
-        onRefresh: c.refreshAccount,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-          children: [
-            Text(tr(c.fa, 'سفارش‌های من', 'My Orders'), style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
-            const SizedBox(height: 18),
-            if (c.orders.isEmpty) ...[
-              const SizedBox(height: 60),
-              const Icon(Icons.receipt_long_outlined, size: 74, color: Color(0xFF9BB1C4)),
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: c.refreshAccount,
+          child: ListView(
+            padding: VelixeoFaDesign.pagePadding,
+            children: [
+              const Text(
+                'سفارش‌ها',
+                style: TextStyle(
+                  fontSize: 23,
+                  fontWeight: FontWeight.w700,
+                  color: VelixeoBrand.ink,
+                ),
+              ),
+              const SizedBox(height: 3),
+              const Text(
+                'وضعیت تمام خریدها و خدماتت را یک‌جا ببین.',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: VelixeoBrand.muted,
+                ),
+              ),
               const SizedBox(height: 18),
-              Text(
-                tr(c.fa, 'هنوز سفارش واقعی ثبت نشده است', 'No live orders yet'),
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+              const _OrdersFilterStrip(
+                labels: ['همه', 'در حال انجام', 'تکمیل‌شده'],
+                direction: TextDirection.rtl,
               ),
-              const SizedBox(height: 8),
-              Text(
-                tr(c.fa, 'بعد از اتصال Provider، سفارش‌های واقعی از Backend همین‌جا نمایش داده می‌شوند.', 'Real backend orders will appear here after provider integration.'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: VelixeoDesign.muted),
+              const SizedBox(height: 16),
+              if (c.orders.isEmpty)
+                const _OrdersEmptyState(
+                  title: 'هنوز سفارشی ثبت نکرده‌ای',
+                  subtitle: 'وقتی خریدی انجام بدهی، وضعیت آن اینجا نمایش داده می‌شود.',
+                )
+              else
+                ...c.orders.map(
+                  (order) => _OrderPrototypeCard(
+                    order: order,
+                    controller: c,
+                    direction: TextDirection.rtl,
+                    title: order.serviceTitleFa ?? order.serviceSlug ?? order.category,
+                    status: _orderStatusLabel(order.status, true),
+                    statusColor: _orderStatusTone(order.status),
+                    idLabel: 'شماره سفارش',
+                    amountLabel: 'مبلغ',
+                    dateLabel: 'تاریخ',
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EnglishOrdersPage extends StatelessWidget {
+  const _EnglishOrdersPage({required this.controller});
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller;
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: c.refreshAccount,
+          child: ListView(
+            padding: VelixeoEnDesign.pagePadding,
+            children: [
+              const Text(
+                'Orders',
+                style: TextStyle(
+                  fontSize: 23,
+                  fontWeight: FontWeight.w700,
+                  color: VelixeoBrand.ink,
+                ),
               ),
-            ] else ...[
-              ...c.orders.map(
-                (order) => Padding(
-                  padding: const EdgeInsets.only(bottom: 11),
-                  child: SoftCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                '${c.fa ? (order.serviceTitleFa ?? order.category) : (order.serviceTitleEn ?? order.category)}${order.isDripRun ? ' · ${tr(c.fa, 'اجرای', 'Run')} ${order.dripRunIndex}/${order.dripRunsAll}' : ''}',
-                                style: const TextStyle(fontWeight: FontWeight.w900),
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                              decoration: BoxDecoration(color: const Color(0xFFEAF6FF), borderRadius: BorderRadius.circular(999)),
-                              child: Text(statusLabel(c.fa, order.status), style: const TextStyle(fontSize: 11, color: VelixeoDesign.sky, fontWeight: FontWeight.w800)),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 9),
-                        Text(c.money(order.totalAmountAfn, showBase: true), style: const TextStyle(fontWeight: FontWeight.w900)),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${order.createdAt.toLocal().toString().substring(0, 16)} • #${order.dripParentOrderId?.substring(0, 8) ?? order.id.substring(0, 8)}${order.isDripRun ? '-R${order.dripRunIndex}' : ''}',
-                          style: const TextStyle(fontSize: 12, color: VelixeoDesign.muted),
-                        ),
-                        if (order.failureReason?.isNotEmpty == true) ...[
-                          const SizedBox(height: 7),
-                          Text(order.failureReason!, style: const TextStyle(fontSize: 12, color: Color(0xFFE65454))),
-                        ],
-                      ],
+              const SizedBox(height: 3),
+              const Text(
+                'Track every purchase and service in one place.',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: VelixeoBrand.muted,
+                ),
+              ),
+              const SizedBox(height: 18),
+              const _OrdersFilterStrip(
+                labels: ['All', 'In progress', 'Completed'],
+                direction: TextDirection.ltr,
+              ),
+              const SizedBox(height: 16),
+              if (c.orders.isEmpty)
+                const _OrdersEmptyState(
+                  title: 'No orders yet',
+                  subtitle: 'Your purchases and their live status will appear here.',
+                )
+              else
+                ...c.orders.map(
+                  (order) => _OrderPrototypeCard(
+                    order: order,
+                    controller: c,
+                    direction: TextDirection.ltr,
+                    title: order.serviceTitleEn ?? order.serviceSlug ?? order.category,
+                    status: _orderStatusLabel(order.status, false),
+                    statusColor: _orderStatusTone(order.status),
+                    idLabel: 'Order ID',
+                    amountLabel: 'Amount',
+                    dateLabel: 'Date',
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OrdersFilterStrip extends StatelessWidget {
+  const _OrdersFilterStrip({required this.labels, required this.direction});
+  final List<String> labels;
+  final TextDirection direction;
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+    textDirection: direction,
+    child: Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F5F8),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: List.generate(labels.length, (i) {
+          final selected = i == 0;
+          return Expanded(
+            child: Container(
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: selected ? Colors.white : Colors.transparent,
+                borderRadius: BorderRadius.circular(9),
+                boxShadow: selected
+                    ? const [BoxShadow(color: Color(0x0F536D7B), blurRadius: 8)]
+                    : null,
+              ),
+              child: Text(
+                labels[i],
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  color: selected
+                      ? const Color(0xFF2E7898)
+                      : const Color(0xFF8799A4),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    ),
+  );
+}
+
+class _OrderPrototypeCard extends StatelessWidget {
+  const _OrderPrototypeCard({
+    required this.order,
+    required this.controller,
+    required this.direction,
+    required this.title,
+    required this.status,
+    required this.statusColor,
+    required this.idLabel,
+    required this.amountLabel,
+    required this.dateLabel,
+  });
+
+  final AppOrder order;
+  final AppController controller;
+  final TextDirection direction;
+  final String title;
+  final String status;
+  final Color statusColor;
+  final String idLabel;
+  final String amountLabel;
+  final String dateLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final id = order.dripParentOrderId ?? order.id;
+    final shortId = id.length > 8 ? id.substring(0, 8).toUpperCase() : id.toUpperCase();
+    final date = order.createdAt.toLocal().toString().substring(0, 16);
+    return Directionality(
+      textDirection: direction,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 11),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(19),
+          border: Border.all(color: const Color(0xFFEDF2F5)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 43,
+                  height: 43,
+                  decoration: BoxDecoration(
+                    color: VelixeoBrand.soft,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    catalogIcon(order.category),
+                    color: const Color(0xFF4AA7CC),
+                    size: 21,
+                  ),
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: VelixeoBrand.ink,
                     ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: .10),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    status,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w500,
+                      color: statusColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Container(height: 1, color: const Color(0xFFF1F4F6)),
+            const SizedBox(height: 11),
+            _OrderDetailLine(
+              label: idLabel,
+              value: '#' + shortId,
+              direction: direction,
+              ltrValue: true,
+            ),
+            const SizedBox(height: 7),
+            _OrderDetailLine(
+              label: amountLabel,
+              value: controller.money(order.totalAmountAfn, showBase: true),
+              direction: direction,
+              ltrValue: true,
+            ),
+            const SizedBox(height: 7),
+            _OrderDetailLine(
+              label: dateLabel,
+              value: date,
+              direction: direction,
+              ltrValue: true,
+            ),
+            if (order.failureReason?.isNotEmpty == true) ...[
+              const SizedBox(height: 11),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF2F3),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  order.failureReason!,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: VelixeoBrand.red,
                   ),
                 ),
               ),
@@ -4820,6 +5080,99 @@ class OrdersPage extends StatelessWidget {
       ),
     );
   }
+}
+
+class _OrderDetailLine extends StatelessWidget {
+  const _OrderDetailLine({
+    required this.label,
+    required this.value,
+    required this.direction,
+    this.ltrValue = false,
+  });
+
+  final String label;
+  final String value;
+  final TextDirection direction;
+  final bool ltrValue;
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+    textDirection: direction,
+    child: Row(
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10.5,
+            color: VelixeoBrand.muted,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          textDirection: ltrValue ? TextDirection.ltr : direction,
+          style: const TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF506D7E),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _OrdersEmptyState extends StatelessWidget {
+  const _OrdersEmptyState({required this.title, required this.subtitle});
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 42),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: const Color(0xFFEEF2F5)),
+    ),
+    child: Column(
+      children: [
+        Container(
+          width: 58,
+          height: 58,
+          decoration: BoxDecoration(
+            color: VelixeoBrand.soft,
+            borderRadius: BorderRadius.circular(19),
+          ),
+          child: const Icon(
+            Icons.receipt_long_outlined,
+            color: Color(0xFF73ACC6),
+            size: 27,
+          ),
+        ),
+        const SizedBox(height: 15),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: VelixeoBrand.ink,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          subtitle,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 10.5,
+            height: 1.6,
+            color: VelixeoBrand.muted,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 IconData _notificationIcon(String type) {
