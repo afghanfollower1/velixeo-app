@@ -11118,26 +11118,6 @@ class _SecurityVerificationCard extends StatelessWidget {
       );
 }
 
-class _SecurityChannelRow extends StatelessWidget {
-  const _SecurityChannelRow({required this.label, required this.enabled, required this.free});
-  final String label;
-  final bool enabled;
-  final bool free;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        child: Row(
-          children: [
-            Icon(enabled ? Icons.check_circle_rounded : Icons.schedule_rounded, color: enabled ? const Color(0xFF18A875) : const Color(0xFFEFAF38), size: 18),
-            const SizedBox(width: 8),
-            Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700))),
-            Text(enabled ? 'READY' : 'PENDING', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: enabled ? const Color(0xFF18A875) : const Color(0xFFEFAF38))),
-          ],
-        ),
-      );
-}
-
 class SetPasswordPage extends StatefulWidget {
   const SetPasswordPage({super.key, required this.controller});
   final AppController controller;
