@@ -508,25 +508,30 @@ class _PremiumProductPageState extends State<PremiumProductPage> {
           Container(
             padding: const EdgeInsets.all(17),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [Color(0xFF6646E8), Color(0xFFFFA02F)]),
+              gradient: const LinearGradient(
+                colors: [Color(0xFFF0F8FF), Color(0xFFEEF1FE)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              border: Border.all(color: const Color(0xFFE3E7F5)),
               borderRadius: BorderRadius.circular(24),
             ),
             child: Row(
               children: [
-                _PremiumProductIcon(product: product, color: Colors.white, size: 64, darkBackground: true),
+                _PremiumProductIcon(product: product, color: const Color(0xFF7E8AC5), size: 64),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(fa ? product.titleFa : product.titleEn, style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900)),
+                      Text(fa ? product.titleFa : product.titleEn, style: const TextStyle(color: Color(0xFF344B63), fontSize: 19, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 5),
                       Text(
                         t(
                           'تحویل ${product.deliveryMinHours} تا ${product.deliveryMaxHours} ساعت',
                           'Delivery in ${product.deliveryMinHours}–${product.deliveryMaxHours} hours',
                         ),
-                        style: const TextStyle(color: Color(0xFFF3EFFF), fontSize: 11.5),
+                        style: const TextStyle(color: Color(0xFF74818B), fontSize: 11.5),
                       ),
                     ],
                   ),
