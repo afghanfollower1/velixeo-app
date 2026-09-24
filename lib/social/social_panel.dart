@@ -551,7 +551,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     return fa ? _buildPersianSocial(context) : _buildEnglishSocial(context);
   }
 
-  Widget _socialTabBody() {
+  Widget _persianSocialTabBody() {
     if (loading) return const Center(child: CircularProgressIndicator());
     if (error != null) {
       return _ErrorState(
@@ -559,10 +559,24 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
         onRetry: load,
       );
     }
-    if (tab == 0) return buildNewOrder();
-    if (tab == 1) return buildOrders();
-    if (tab == 2) return buildRefills();
-    return buildDripFeed();
+    if (tab == 0) return buildPersianNewOrder();
+    if (tab == 1) return buildPersianOrders();
+    if (tab == 2) return buildPersianRefills();
+    return buildPersianDripFeed();
+  }
+
+Widget _englishSocialTabBody() {
+    if (loading) return const Center(child: CircularProgressIndicator());
+    if (error != null) {
+      return _ErrorState(
+        message: t('دریافت خدمات ممکن نشد.', 'Could not load social services.'),
+        onRetry: load,
+      );
+    }
+    if (tab == 0) return buildEnglishNewOrder();
+    if (tab == 1) return buildEnglishOrders();
+    if (tab == 2) return buildEnglishRefills();
+    return buildEnglishDripFeed();
   }
 
   Widget _buildPersianSocial(BuildContext context) {
@@ -591,7 +605,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
               ),
             ),
             const SizedBox(height: 5),
-            Expanded(child: _socialTabBody()),
+            Expanded(child: _persianSocialTabBody()),
           ],
         ),
       ),
@@ -624,7 +638,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
               ),
             ),
             const SizedBox(height: 5),
-            Expanded(child: _socialTabBody()),
+            Expanded(child: _englishSocialTabBody()),
           ],
         ),
       ),
@@ -632,7 +646,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
   }
 
 
-  Widget buildNewOrder() {
+  Widget buildPersianNewOrder() {
     if (catalog.services.isEmpty) {
       return _EmptyState(
         icon: Icons.hub_outlined,
@@ -644,7 +658,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     final service = selectedService;
     if (service != null) {
       return ListView(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+        padding: VelixeoFaDesign.pagePadding,
         children: [
           _WalletStrip(host: host, fa: fa),
           const SizedBox(height: 14),
@@ -660,14 +674,14 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
           if (lastCreatedOrder != null)
             buildOrderSuccess(lastCreatedOrder!)
           else
-            buildOrderForm(service),
+            buildPersianOrderForm(service),
           const SizedBox(height: 24),
         ],
       );
     }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+      padding: VelixeoFaDesign.pagePadding,
       children: [
         _SocialInfoHero(fa: fa),
         const SizedBox(height: 12),
@@ -753,7 +767,321 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     );
   }
 
-  Widget buildOrderForm(SocialService service) {
+Widget buildEnglishNewOrder() {
+    if (catalog.services.isEmpty) {
+      return _EmptyState(
+        icon: Icons.hub_outlined,
+        title: t('هنوز سرویس فعالی وجود ندارد', 'No active services yet'),
+        subtitle: t('سرویس‌ها بعد از Sync و فعال‌سازی از پنل مدیریت اینجا نمایش داده می‌شوند.', 'Services appear here after they are synced and enabled in Admin.'),
+      );
+    }
+
+    final service = selectedService;
+    if (service != null) {
+      return ListView(
+        padding: VelixeoEnDesign.pagePadding,
+        children: [
+          _WalletStrip(host: host, fa: fa),
+          const SizedBox(height: 14),
+          Align(
+            alignment: fa ? Alignment.centerRight : Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: changeService,
+              icon: Icon(fa ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded, size: 18),
+              label: Text(t('تغییر سرویس', 'Change service')),
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (lastCreatedOrder != null)
+            buildOrderSuccess(lastCreatedOrder!)
+          else
+            buildEnglishOrderForm(service),
+          const SizedBox(height: 24),
+        ],
+      );
+    }
+
+    return ListView(
+      padding: VelixeoEnDesign.pagePadding,
+      children: [
+        _SocialInfoHero(fa: fa),
+        const SizedBox(height: 12),
+        _WalletStrip(host: host, fa: fa),
+        if (socialBanner != null) ...[
+          const SizedBox(height: 14),
+          _SocialPromoBanner(banner: socialBanner!, fa: fa),
+        ],
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                t('شبکه‌های اجتماعی', 'Social platforms'),
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+              ),
+            ),
+            if (availableBrands.length > 6)
+              TextButton.icon(
+                onPressed: () => setState(() => showAllBrands = !showAllBrands),
+                icon: Icon(showAllBrands ? Icons.expand_less_rounded : Icons.grid_view_rounded, size: 18),
+                label: Text(t(showAllBrands ? 'نمایش کمتر' : 'سرویس‌های بیشتر', showAllBrands ? 'Show less' : 'More services')),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 80,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: displayedBrands.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final brand = displayedBrands[index];
+              return SizedBox(
+                width: 62,
+                child: _BrandCard(
+                  brand: brand,
+                  fa: fa,
+                  selected: brand.key == selectedPlatform,
+                  onTap: () => setState(() {
+                    selectedPlatform = brand.key;
+                    selectedGroup = null;
+                    selectedService = null;
+                    quote = null;
+                  }),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 18),
+        Text(t('نوع سرویس', 'Service type'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+        const SizedBox(height: 9),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            ChoiceChip(
+              label: Text(t('همه', 'All')),
+              selected: selectedGroup == null,
+              onSelected: (_) => setState(() { selectedGroup = null; selectedService = null; quote = null; }),
+            ),
+            ...availableGroups.map((group) => ChoiceChip(
+                  label: Text(groupLabel(group)),
+                  selected: group == selectedGroup,
+                  onSelected: (_) => setState(() { selectedGroup = group; selectedService = null; quote = null; }),
+                )),
+          ],
+        ),
+        const SizedBox(height: 18),
+        ...visibleServices.map((service) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _ServiceCard(
+                service: service,
+                host: host,
+                fa: fa,
+                selected: selectedService?.id == service.id,
+                onTap: () => selectService(service),
+              ),
+            )),
+      ],
+    );
+  }
+
+  Widget buildPersianOrderForm(SocialService service) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFDCE8F1)),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: const [BoxShadow(color: Color(0x0A102235), blurRadius: 18, offset: Offset(0, 6))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text(t('ثبت سفارش', 'Place order'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
+              if (service.featured) const Icon(Icons.star_rounded, color: Color(0xFFFFA928)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(fa ? service.titleFa : service.titleEn, style: const TextStyle(color: Color(0xFF74818B))),
+          const SizedBox(height: 16),
+          ...service.orderFields
+              .where((field) => field.key != 'runs' && field.key != 'interval')
+              .map((field) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: buildField(field),
+                  )),
+          if (service.orderFields.any((field) => field.key == 'runs' || field.key == 'interval')) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7FAFD),
+                border: Border.all(color: const Color(0xFFDCE8F1)),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: CheckboxListTile(
+                value: dripFeedEnabled,
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: Text(
+                  t('دریپ‌فید (ارسال مرحله‌ای)', 'Drip-feed'),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  t('فقط در صورت نیاز فعال کنید.', 'Enable only if you want scheduled delivery.'),
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF718399)),
+                ),
+                onChanged: (value) {
+                  final enabled = value == true;
+                  if (!enabled) {
+                    fields['runs']?.clear();
+                    fields['interval']?.clear();
+                  }
+                  setState(() {
+                    dripFeedEnabled = enabled;
+                    quote = null;
+                  });
+                  scheduleQuote();
+                },
+              ),
+            ),
+            if (dripFeedEnabled)
+              ...service.orderFields
+                  .where((field) => field.key == 'runs' || field.key == 'interval')
+                  .map((field) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: buildField(field),
+                      )),
+          ],
+          if (service.minQty != null || service.maxQty != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                t('محدوده سفارش: ${service.minQty ?? '—'} تا ${service.maxQty ?? '—'}', 'Order range: ${service.minQty ?? '—'} to ${service.maxQty ?? '—'}'),
+                style: const TextStyle(fontSize: 12, color: Color(0xFF74818B)),
+              ),
+            ),
+          if (service.providerEta?.trim().isNotEmpty == true)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4F7FA),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.schedule_rounded, size: 18, color: Color(0xFF74818B)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${t('زمان تقریبی تکمیل', 'Estimated completion')}: ${service.providerEta!}',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          TextField(
+            controller: coupon,
+            textCapitalization: TextCapitalization.characters,
+            decoration: InputDecoration(
+              labelText: t('کد تخفیف', 'Coupon code'),
+              hintText: t('اختیاری', 'Optional'),
+              prefixIcon: const Icon(Icons.local_offer_outlined),
+              suffixIcon: coupon.text.trim().isEmpty
+                  ? null
+                  : IconButton(onPressed: coupon.clear, icon: const Icon(Icons.close_rounded)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(color: const Color(0xFFF4FAFF), borderRadius: BorderRadius.circular(16)),
+            child: Column(
+              children: [
+                _InfoRow(label: t('نرخ', 'Rate'), value: '${host.money(service.priceRateAfn, showBase: true)} / ${service.priceUnit}'),
+                if (quote != null && quote!.runs > 1) ...[
+                  const SizedBox(height: 8),
+                  _InfoRow(
+                    label: t('تعداد کل', 'Total quantity'),
+                    value: '${quote!.quantity} × ${quote!.runs} = ${quote!.totalQuantity}',
+                    strong: true,
+                  ),
+                ],
+                if (quote != null && quote!.discountAmountAfn > 0) ...[
+                  const SizedBox(height: 8),
+                  _InfoRow(label: t('جمع قبل از تخفیف', 'Subtotal'), value: host.money(quote!.subtotalAmountAfn, showBase: true)),
+                  const SizedBox(height: 8),
+                  _InfoRow(label: t('تخفیف', 'Discount'), value: '- ${host.money(quote!.discountAmountAfn, showBase: true)}'),
+                ],
+                const SizedBox(height: 8),
+                _InfoRow(
+                  label: t('قیمت نهایی', 'Total'),
+                  value: quote == null ? t('پس از تکمیل فرم', 'Complete the form') : host.money(quote!.totalAmountAfn, showBase: true),
+                  strong: true,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              border: Border.all(color: termsAccepted ? const Color(0xFFBFE8D6) : const Color(0xFFDCE8F1)),
+              borderRadius: BorderRadius.circular(14),
+              color: termsAccepted ? const Color(0xFFF0FBF6) : const Color(0xFFFAFCFE),
+            ),
+            child: CheckboxListTile(
+              value: termsAccepted,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              onChanged: (value) => setState(() => termsAccepted = value == true),
+              title: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(t('قوانین و مقررات را خوانده‌ام و می‌پذیرم. ', 'I have read and accept the ')),
+                  InkWell(
+                    onTap: showTerms,
+                    child: Text(
+                      t('مشاهده قوانین', 'terms & conditions'),
+                      style: const TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: FilledButton.icon(
+              onPressed: submitting || !termsAccepted ? null : submitOrder,
+              icon: submitting
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.lock_outline_rounded),
+              label: Text(submitting ? t('در حال ثبت...', 'Placing order...') : t('پرداخت از کیف پول و ثبت سفارش', 'Pay from wallet & place order')),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            t('مبلغ سفارش در سرور دوباره محاسبه می‌شود و Provider مستقیماً از داخل اپ قابل مشاهده نیست.', 'The server recalculates the price before purchase; provider details are never exposed in the app.'),
+            style: const TextStyle(fontSize: 11, color: Color(0xFF7D92A4), height: 1.4),
+          ),
+        ],
+      ),
+    );
+  }
+
+Widget buildEnglishOrderForm(SocialService service) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -998,7 +1326,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     );
   }
 
-  Widget buildOrders() {
+  Widget buildPersianOrders() {
     final cards = <Widget>[];
     for (final order in orders) {
       if (order.isDripFeed) {
@@ -1054,7 +1382,63 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     );
   }
 
-  Widget buildRefills() {
+Widget buildEnglishOrders() {
+    final cards = <Widget>[];
+    for (final order in orders) {
+      if (order.isDripFeed) {
+        for (final run in order.dripRuns) {
+          cards.add(
+            _DripRunOrderCard(
+              order: order,
+              run: run,
+              host: host,
+              fa: fa,
+              statusLabel: statusLabel,
+              onRefresh: refreshOrder,
+            ),
+          );
+        }
+      } else {
+        cards.add(
+          _OrderCard(
+            order: order,
+            host: host,
+            fa: fa,
+            statusLabel: statusLabel,
+            onRefresh: refreshOrder,
+            onRefill: requestRefill,
+            onCancel: cancelOrder,
+            onRefreshAction: refreshRefill,
+          ),
+        );
+      }
+    }
+
+    if (cards.isEmpty) {
+      return _EmptyState(
+        icon: Icons.receipt_long_outlined,
+        title: t('هنوز سفارش شبکه اجتماعی ندارید', 'No social orders yet'),
+        subtitle: t('بعد از ثبت سفارش، هر اجرای Drip-feed نیز به‌صورت یک سفارش جداگانه در همین بخش نمایش داده می‌شود.', 'After ordering, every drip-feed run is also shown here as its own order row.'),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: () async {
+        orders = await host.api.socialOrders();
+        if (mounted) setState(() {});
+      },
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: cards.length,
+        itemBuilder: (context, index) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: cards[index],
+        ),
+      ),
+    );
+  }
+
+  Widget buildPersianRefills() {
     final rows = <({SocialOrder order, SocialOrderAction action})>[];
     for (final order in orders) {
       for (final action in order.actions) {
@@ -1108,7 +1492,139 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     );
   }
 
-  Widget buildDripFeed() {
+Widget buildEnglishRefills() {
+    final rows = <({SocialOrder order, SocialOrderAction action})>[];
+    for (final order in orders) {
+      for (final action in order.actions) {
+        if (action.action == 'REFILL') rows.add((order: order, action: action));
+      }
+    }
+    if (rows.isEmpty) {
+      return _EmptyState(
+        icon: Icons.restart_alt_rounded,
+        title: t('هنوز درخواست جبران ندارید', 'No refill requests yet'),
+        subtitle: t('درخواست‌های جبران ریزش و وضعیت واقعی آن‌ها از ارائه‌دهنده در این بخش نمایش داده می‌شود.', 'Refill requests and their live provider status appear here.'),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: autoSyncOrders,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: rows.length,
+        itemBuilder: (context, index) {
+          final row = rows[index];
+          final action = row.action;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: const Color(0xFFDCE8F1)),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Expanded(child: Text(fa ? (row.order.serviceTitleFa ?? 'سرویس') : (row.order.serviceTitleEn ?? 'Service'), style: const TextStyle(fontWeight: FontWeight.w700))),
+                  _StatusBadge(label: refillStatusLabel(action.status), status: action.status),
+                ]),
+                const SizedBox(height: 10),
+                _InfoRow(label: t('شناسه سفارش', 'Order ID'), value: row.order.displayOrderId),
+                if (action.providerReference?.isNotEmpty == true) ...[
+                  const SizedBox(height: 7),
+                  _InfoRow(label: t('شناسه جبران', 'Refill ID'), value: action.providerReference!),
+                ],
+                const SizedBox(height: 7),
+                _InfoRow(label: t('تاریخ درخواست', 'Requested'), value: action.createdAt.toLocal().toString().substring(0, 16)),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget buildPersianDripFeed() {
+    final rows = orders.where((order) => order.isDripFeed).toList(growable: false);
+    if (rows.isEmpty) {
+      return _EmptyState(
+        icon: Icons.schedule_send_rounded,
+        title: t('هنوز سفارش Drip-feed ندارید', 'No drip-feed orders yet'),
+        subtitle: t('سفارش‌های مرحله‌ای، تعداد هر اجرا، Runs، Interval و وضعیت زنده Provider در این بخش نمایش داده می‌شود.', 'Scheduled orders, per-run quantity, runs, interval and live provider status appear here.'),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: autoSyncOrders,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: rows.length,
+        itemBuilder: (context, index) {
+          final order = rows[index];
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: const Color(0xFFDCE8F1)),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Expanded(child: Text(fa ? (order.serviceTitleFa ?? 'سرویس') : (order.serviceTitleEn ?? 'Service'), style: const TextStyle(fontWeight: FontWeight.w700))),
+                  _StatusBadge(label: dripFeedStatusLabel(order.dripFeedStatus), status: order.dripFeedStatus),
+                ]),
+                const SizedBox(height: 10),
+                _InfoRow(label: t('شناسه سفارش', 'Order ID'), value: order.displayOrderId),
+                const SizedBox(height: 7),
+                _InfoRow(label: t('تعداد هر اجرا', 'Per run'), value: '${order.dripFeedUnitQuantity}'),
+                const SizedBox(height: 7),
+                _InfoRow(label: t('اجرا شده / کل اجرا', 'Runs'), value: '${order.dripFeedRunsCurrent} / ${order.dripFeedRunsAll}'),
+                const SizedBox(height: 7),
+                _InfoRow(label: t('فاصله زمانی', 'Interval'), value: '${order.dripFeedInterval} ${t('دقیقه', 'min')}'),
+                const SizedBox(height: 7),
+                _InfoRow(label: t('تعداد کل', 'Total quantity'), value: '${order.dripFeedUnitQuantity} × ${order.dripFeedRunsAll} = ${order.dripFeedTotalQuantity}', strong: true),
+                if (order.startCount != null || order.remains != null) ...[
+                  const Divider(height: 22),
+                  Wrap(
+                    spacing: 18,
+                    children: [
+                      if (order.startCount != null) Text('${t('شروع', 'Start')}: ${order.startCount}'),
+                      if (order.remains != null) Text('${t('باقی‌مانده', 'Remains')}: ${order.remains}'),
+                    ],
+                  ),
+                ],
+                const Divider(height: 22),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () => refreshOrder(order),
+                      icon: const Icon(Icons.sync_rounded, size: 17),
+                      label: Text(t('بروزرسانی وضعیت', 'Refresh status')),
+                    ),
+                    if (order.canCancel)
+                      OutlinedButton.icon(
+                        onPressed: () => cancelOrder(order),
+                        icon: const Icon(Icons.cancel_outlined, size: 17),
+                        label: Text(t('لغو', 'Cancel')),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+Widget buildEnglishDripFeed() {
     final rows = orders.where((order) => order.isDripFeed).toList(growable: false);
     if (rows.isEmpty) {
       return _EmptyState(
