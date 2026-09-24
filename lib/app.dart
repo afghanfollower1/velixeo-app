@@ -6553,8 +6553,28 @@ class _AddFundsPageState extends State<AddFundsPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && checkoutOpened) {
       checkoutOpened = false;
-      c.refreshPaymentsAndWallet();
-      if (mounted) setState(() {});
+      unawaited(_handleCheckoutReturn());
+    }
+  }
+
+  Future<void> _handleCheckoutReturn() async {
+    await c.refreshPaymentsAndWallet();
+    if (!mounted) return;
+    setState(() {});
+    final payment = c.payments.isEmpty ? null : c.payments.first;
+    if (payment == null) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PaymentResultPage(
+          controller: c,
+          payment: payment,
+        ),
+      ),
+    );
+    if (mounted) {
+      await c.refreshPaymentsAndWallet();
+      setState(() {});
     }
   }
 
@@ -6670,10 +6690,20 @@ class _AddFundsPageState extends State<AddFundsPage>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(tr(c.fa, 'افزایش موجودی', 'Add Funds')),
+        title: Text(c.fa ? 'افزایش موجودی' : 'Add Funds'),
         actions: [
           IconButton(
-            tooltip: tr(c.fa, 'تازه‌سازی', 'Refresh'),
+            tooltip: c.fa ? 'تاریخچهٔ پرداخت' : 'Payment history',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PaymentHistoryPage(controller: c),
+              ),
+            ),
+            icon: const Icon(Icons.history_rounded),
+          ),
+          IconButton(
+            tooltip: c.fa ? 'تازه‌سازی' : 'Refresh',
             onPressed: busy ? null : refresh,
             icon: const Icon(Icons.refresh_rounded),
           ),
@@ -6803,6 +6833,15 @@ class _AddFundsPageState extends State<AddFundsPage>
                 (payment) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: SoftCard(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PaymentResultPage(
+                          controller: c,
+                          payment: payment,
+                        ),
+                      ),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -6862,6 +6901,504 @@ class _AddFundsPageState extends State<AddFundsPage>
       ),
     );
   }
+}
+
+
+class PaymentResultPage extends StatefulWidget {
+  const PaymentResultPage({
+    super.key,
+    required this.controller,
+    required this.payment,
+  });
+
+  final AppController controller;
+  final AppPayment payment;
+
+  @override
+  State<PaymentResultPage> createState() => _PaymentResultPageState();
+}
+
+class _PaymentResultPageState extends State<PaymentResultPage> {
+  late AppPayment payment = widget.payment;
+  bool checking = false;
+
+  AppController get c => widget.controller;
+
+  Color get tone {
+    if (payment.status == 'PAID') return VelixeoBrand.green;
+    if (payment.status == 'FAILED') return VelixeoBrand.red;
+    if (payment.status == 'CANCELLED') return const Color(0xFF6F7E87);
+    return VelixeoBrand.orange;
+  }
+
+  IconData get resultIcon {
+    if (payment.status == 'PAID') return Icons.check_rounded;
+    if (payment.status == 'FAILED') return Icons.error_outline_rounded;
+    if (payment.status == 'CANCELLED') return Icons.close_rounded;
+    return Icons.schedule_rounded;
+  }
+
+  String title(bool fa) {
+    switch (payment.status) {
+      case 'PAID':
+        return fa ? 'پرداخت موفق بود' : 'Payment successful';
+      case 'FAILED':
+        return fa ? 'پرداخت تأیید نشد' : 'Payment could not be verified';
+      case 'CANCELLED':
+        return fa ? 'پرداخت لغو شد' : 'Payment cancelled';
+      case 'REFUNDED':
+        return fa ? 'پرداخت برگشت داده شد' : 'Payment refunded';
+      default:
+        return fa ? 'در حال تأیید پرداخت' : 'Verifying your payment';
+    }
+  }
+
+  String subtitle(bool fa) {
+    switch (payment.status) {
+      case 'PAID':
+        return fa
+            ? 'موجودی کیف پول پس از تأیید سرور افزایش یافته است.'
+            : 'Your wallet was credited after server verification.';
+      case 'FAILED':
+        return fa
+            ? 'اگر مبلغ کسر شده، با شمارهٔ پیگیری به پشتیبانی پیام بده.'
+            : 'If you were charged, contact support with your reference.';
+      case 'CANCELLED':
+        return fa
+            ? 'موجودی کیف پول تغییر نکرده است.'
+            : 'Your wallet balance has not changed.';
+      default:
+        return fa
+            ? 'تأیید نهایی ممکن است کمی زمان ببرد.'
+            : 'Final verification may take a moment.';
+    }
+  }
+
+  Future<void> checkAgain() async {
+    setState(() => checking = true);
+    await c.refreshPaymentsAndWallet();
+    if (!mounted) return;
+    final refreshed = c.payments.where((item) => item.id == payment.id);
+    if (refreshed.isNotEmpty) payment = refreshed.first;
+    setState(() => checking = false);
+  }
+
+  @override
+  Widget build(BuildContext context) => c.fa
+      ? _buildPersian(context)
+      : _buildEnglish(context);
+
+  Widget _buildPersian(BuildContext context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: _buildPage(context, true),
+      );
+
+  Widget _buildEnglish(BuildContext context) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: _buildPage(context, false),
+      );
+
+  Widget _buildPage(BuildContext context, bool fa) {
+    final ref = payment.externalId?.trim().isNotEmpty == true
+        ? payment.externalId!
+        : payment.id;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(fa ? 'وضعیت پرداخت' : 'Payment status'),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 26, 20, 30),
+        children: [
+          Center(
+            child: Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: tone.withValues(alpha: .10),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Icon(resultIcon, size: 34, color: tone),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            title(fa),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: VelixeoBrand.ink,
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            subtitle(fa),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              height: 1.7,
+              color: VelixeoBrand.muted,
+            ),
+          ),
+          const SizedBox(height: 24),
+          _PaymentDetailCard(
+            rows: [
+              (
+                fa ? 'مبلغ' : 'Amount',
+                c.money(payment.amountAfn, showBase: true),
+              ),
+              (fa ? 'درگاه' : 'Gateway', payment.gateway),
+              (fa ? 'شمارهٔ پیگیری' : 'Reference', ref),
+              (
+                fa ? 'زمان' : 'Time',
+                payment.createdAt.toLocal().toString().substring(0, 16),
+              ),
+            ],
+          ),
+          if (payment.failureReason?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF1F2),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Text(
+                payment.failureReason!,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  height: 1.55,
+                  color: VelixeoBrand.red,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 18),
+          if (!['PAID', 'FAILED', 'CANCELLED', 'REFUNDED']
+              .contains(payment.status))
+            FilledButton.icon(
+              onPressed: checking ? null : checkAgain,
+              icon: checking
+                  ? const SizedBox(
+                      width: 15,
+                      height: 15,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh_rounded, size: 18),
+              label: Text(fa ? 'بررسی دوباره' : 'Check again'),
+            )
+          else if (payment.status == 'PAID')
+            FilledButton(
+              onPressed: () => Navigator.popUntil(
+                context,
+                (route) => route.isFirst,
+              ),
+              child: Text(fa ? 'مشاهدهٔ کیف پول' : 'View wallet'),
+            )
+          else
+            FilledButton(
+              onPressed: () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => AddFundsPage(controller: c)),
+              ),
+              child: Text(fa ? 'تلاش دوباره' : 'Try again'),
+            ),
+          const SizedBox(height: 10),
+          OutlinedButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PaymentHistoryPage(controller: c),
+              ),
+            ),
+            child: Text(fa ? 'تاریخچهٔ پرداخت' : 'Payment history'),
+          ),
+          if (payment.status == 'FAILED') ...[
+            const SizedBox(height: 10),
+            TextButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => SupportPage(host: c)),
+              ),
+              icon: const Icon(Icons.support_agent_rounded, size: 18),
+              label: Text(fa ? 'تماس با پشتیبانی' : 'Contact support'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class PaymentHistoryPage extends StatelessWidget {
+  const PaymentHistoryPage({super.key, required this.controller});
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) => controller.fa
+      ? _buildPersian(context)
+      : _buildEnglish(context);
+
+  Widget _buildPersian(BuildContext context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: _buildPage(
+          context,
+          title: 'تاریخچهٔ پرداخت‌ها',
+          heading: 'پرداخت‌ها، شفاف و مرتب',
+          subtitle: 'جزئیات افزایش موجودی را مرور کن.',
+          emptyTitle: 'هنوز پرداختی نداری',
+          emptyBody: 'بعد از افزایش موجودی، جزئیات اینجا ثبت می‌شود.',
+          detailsLabel: 'جزئیات',
+          fa: true,
+        ),
+      );
+
+  Widget _buildEnglish(BuildContext context) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: _buildPage(
+          context,
+          title: 'Payment history',
+          heading: 'Your payments, clearly organized',
+          subtitle: 'Review your wallet top-ups.',
+          emptyTitle: 'No payments yet',
+          emptyBody: 'Your top-up history will appear here.',
+          detailsLabel: 'Details',
+          fa: false,
+        ),
+      );
+
+  Widget _buildPage(
+    BuildContext context, {
+    required String title,
+    required String heading,
+    required String subtitle,
+    required String emptyTitle,
+    required String emptyBody,
+    required String detailsLabel,
+    required bool fa,
+  }) {
+    final payments = controller.payments;
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: RefreshIndicator(
+        onRefresh: controller.refreshPaymentsAndWallet,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+          children: [
+            Text(
+              heading,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 11,
+                color: VelixeoBrand.muted,
+              ),
+            ),
+            const SizedBox(height: 20),
+            if (payments.isEmpty)
+              EmptyCard(
+                icon: Icons.payments_outlined,
+                title: emptyTitle,
+                subtitle: emptyBody,
+              )
+            else
+              ...payments.map(
+                (payment) => _PaymentHistoryCard(
+                  payment: payment,
+                  controller: controller,
+                  fa: fa,
+                  detailsLabel: detailsLabel,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PaymentHistoryCard extends StatelessWidget {
+  const _PaymentHistoryCard({
+    required this.payment,
+    required this.controller,
+    required this.fa,
+    required this.detailsLabel,
+  });
+
+  final AppPayment payment;
+  final AppController controller;
+  final bool fa;
+  final String detailsLabel;
+
+  Color get tone {
+    if (payment.status == 'PAID') return VelixeoBrand.green;
+    if (payment.status == 'FAILED') return VelixeoBrand.red;
+    if (payment.status == 'CANCELLED') return const Color(0xFF6F7E87);
+    return VelixeoBrand.orange;
+  }
+
+  String get status {
+    switch (payment.status) {
+      case 'PAID':
+        return fa ? 'موفق' : 'Successful';
+      case 'FAILED':
+        return fa ? 'ناموفق' : 'Failed';
+      case 'CANCELLED':
+        return fa ? 'لغوشده' : 'Cancelled';
+      case 'REFUNDED':
+        return fa ? 'بازگشت وجه' : 'Refunded';
+      default:
+        return fa ? 'در انتظار' : 'Pending';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFEEF2F5)),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    controller.money(payment.amountAfn, showBase: true),
+                    textDirection: TextDirection.ltr,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: VelixeoBrand.ink,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: tone.withValues(alpha: .10),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    status,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      color: tone,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 11),
+            Container(height: 1, color: const Color(0xFFF2F5F7)),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    payment.gateway +
+                        ' · ' +
+                        payment.createdAt
+                            .toLocal()
+                            .toString()
+                            .substring(0, 16),
+                    textDirection: TextDirection.ltr,
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      color: VelixeoBrand.muted,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PaymentResultPage(
+                        controller: controller,
+                        payment: payment,
+                      ),
+                    ),
+                  ),
+                  icon: Icon(
+                    fa
+                        ? Icons.chevron_left_rounded
+                        : Icons.chevron_right_rounded,
+                    size: 15,
+                  ),
+                  label: Text(detailsLabel),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+}
+
+class _PaymentDetailCard extends StatelessWidget {
+  const _PaymentDetailCard({required this.rows});
+  final List<(String, String)> rows;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(19),
+          border: Border.all(color: const Color(0xFFEEF2F5)),
+        ),
+        child: Column(
+          children: List.generate(rows.length, (index) {
+            final row = rows[index];
+            return Container(
+              constraints: const BoxConstraints(minHeight: 51),
+              decoration: BoxDecoration(
+                border: index == rows.length - 1
+                    ? null
+                    : const Border(
+                        bottom: BorderSide(color: Color(0xFFF1F4F6)),
+                      ),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    row.$1,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      color: VelixeoBrand.muted,
+                    ),
+                  ),
+                  const Spacer(),
+                  Flexible(
+                    child: Text(
+                      row.$2,
+                      textDirection: TextDirection.ltr,
+                      textAlign: TextAlign.end,
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF4E6978),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ),
+      );
 }
 
 class ProfilePage extends StatelessWidget {
