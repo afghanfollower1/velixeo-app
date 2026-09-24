@@ -768,7 +768,7 @@ async function orderSettingsPage(prisma: PrismaClient, admin: AdminIdentity, req
         <div class="cardhead"><h2>How it works</h2>${pill('Server enforced','ok')}</div>
         <div class="notice"><b>Provider/API ID:</b> customers see the order number returned by the SMM provider, but it is labeled only as “Order ID”.</div>
         <div class="notice"><b>VELIXEO Sequential ID:</b> customers see a VELIXEO number starting from your chosen value, such as 100063, 100064, 100065… Provider IDs remain private for status, refill and cancellation.</div>
-        <div class="notice"><b>Refill:</b> no manual capability switch is needed. Sync reads the provider API <span class="mono">refill</span> flag automatically. A refill button appears only for completed eligible orders and disappears when the configured window expires.</div>
+        <div class="notice"><b>Refill:</b> Sync reads the provider API <span class="mono">refill</span> flag automatically when a service is added. You can then manually enable or disable refill per VELIXEO service; that override is preserved on future provider syncs.</div>
         <div class="notice"><b>Cancel:</b> the provider API <span class="mono">cancel</span> flag is also synchronized automatically and the button is hidden for terminal/partial orders.</div>
       </div>
     </div>`,
@@ -789,6 +789,7 @@ export function registerAdminSocialProviderManager(
     const redirects: Record<string, string> = {
       providers: '/admin/v3/social/providers',
       catalog: '/admin/v3/social/provider-services',
+      'provider-services': '/admin/v3/social/provider-services',
       brands: '/admin/v3/social/brands',
       categories: '/admin/v3/social/categories',
       services: '/admin/v3/social/my-services',
@@ -970,8 +971,6 @@ export function registerAdminSocialProviderManager(
   app.get('/admin/v3/social/provider-services', async (request, reply) => {
     const admin = await requireAdmin(request, reply, resolveAdmin);
     if (!admin) return;
-    const q = query(request);
-    if (!q.provider) return reply.code(303).redirect('/admin/v3/social/providers');
     return reply.type('text/html; charset=utf-8').send(await providerServicesPage(prisma, admin, request));
   });
 
