@@ -5765,7 +5765,7 @@ class _PersianWalletPage extends StatelessWidget {
                 'تراکنش‌های اخیر',
                 style: TextStyle(
                   fontSize: 15,
-                  fontWeight: FontWeight.w650,
+                  fontWeight: FontWeight.w600,
                   color: VelixeoBrand.ink,
                 ),
               ),
@@ -6049,7 +6049,7 @@ class _WalletTransactionCard extends StatelessWidget {
               textDirection: TextDirection.ltr,
               style: TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w650,
+                fontWeight: FontWeight.w600,
                 color: tone,
               ),
             ),
