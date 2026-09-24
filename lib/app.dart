@@ -6451,262 +6451,610 @@ class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key, required this.controller});
   final AppController controller;
 
-  @override
-  Widget build(BuildContext context) {
-    final c = controller;
-    final identity = c.user?.email ?? c.user?.phone ?? '—';
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-        children: [
-          Text(tr(c.fa, 'پروفایل', 'Profile'), style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
-          const SizedBox(height: 18),
-          SoftCard(
-            child: Row(
+  Future<void> _changeLanguage(BuildContext context, AppLang lang) async {
+    Navigator.pop(context);
+    await controller.setLanguage(lang);
+  }
+
+  void _showLanguageSheet(BuildContext context, bool fa) {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) => Directionality(
+        textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                UserAvatar(
-                  user: c.user,
-                  size: 60,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EditProfilePage(controller: c))),
+                ListTile(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+                  title: const Text('فارسی'),
+                  subtitle: const Text('Vazirmatn · RTL'),
+                  trailing: controller.fa ? const Icon(Icons.check_rounded, color: VelixeoBrand.sky) : null,
+                  onTap: () => _changeLanguage(sheetContext, AppLang.fa),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(c.user?.fullName?.trim().isNotEmpty == true ? c.user!.fullName! : tr(c.fa, 'کاربر VELIXEO', 'VELIXEO User'), style: const TextStyle(fontWeight: FontWeight.w900)),
-                      Text(identity, style: const TextStyle(fontSize: 12, color: VelixeoDesign.muted)),
-                      const SizedBox(height: 3),
-                      Text(c.user?.role ?? 'USER', style: const TextStyle(fontSize: 11, color: Color(0xFF18A875), fontWeight: FontWeight.w700)),
-                    ],
-                  ),
+                ListTile(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+                  title: const Text('English'),
+                  subtitle: const Text('Inter · LTR'),
+                  trailing: !controller.fa ? const Icon(Icons.check_rounded, color: VelixeoBrand.sky) : null,
+                  onTap: () => _changeLanguage(sheetContext, AppLang.en),
                 ),
-                const Icon(Icons.verified_user_outlined, color: Color(0xFF18A875)),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          SettingsTile(
-            icon: Icons.manage_accounts_outlined,
-            title: tr(c.fa, 'ویرایش پروفایل', 'Edit profile'),
-            value: c.user?.fullName ?? '',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => EditProfilePage(controller: c)),
-            ),
+        ),
+      ),
+    );
+  }
+
+  void _showCurrencySheet(BuildContext context, bool fa) {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) => Directionality(
+        textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: DisplayCurrency.values.map((value) {
+              final title = value == DisplayCurrency.afn
+                  ? (fa ? 'افغانی · AFN' : 'AFN · Afghani')
+                  : value == DisplayCurrency.usd
+                      ? (fa ? 'دالر · USD' : 'USD · Dollar')
+                      : (fa ? 'تومان · TOMAN' : 'TOMAN · Toman');
+              return ListTile(
+                title: Text(title),
+                trailing: controller.currency == value
+                    ? const Icon(Icons.check_rounded, color: VelixeoBrand.sky)
+                    : null,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  controller.setCurrency(value);
+                },
+              );
+            }).toList(),
           ),
-          SettingsTile(
-            icon: Icons.security_rounded,
-            title: tr(c.fa, 'امنیت و ورود', 'Security & login'),
-            value: c.user?.twoFactorEnabled == true ? '2FA ON' : '',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => SecurityPage(controller: c)),
-            ),
-          ),
-          SettingsTile(
-            icon: Icons.language,
-            title: tr(c.fa, 'زبان', 'Language'),
-            value: c.fa ? 'فارسی' : 'English',
-            onTap: () => showModalBottomSheet(
-              context: context,
-              builder: (_) => SafeArea(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ListTile(
-                      title: const Text('فارسی'),
-                      trailing: c.fa ? const Icon(Icons.check, color: VelixeoDesign.sky) : null,
-                      onTap: () {
-                        Navigator.pop(context);
-                        c.setLanguage(AppLang.fa);
-                      },
-                    ),
-                    ListTile(
-                      title: const Text('English'),
-                      trailing: !c.fa ? const Icon(Icons.check, color: VelixeoDesign.sky) : null,
-                      onTap: () {
-                        Navigator.pop(context);
-                        c.setLanguage(AppLang.en);
-                      },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteAccount(BuildContext context, bool fa) async {
+    final c = controller;
+    final passwordController = TextEditingController();
+    final reasonController = TextEditingController();
+    var confirmDelete = false;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Directionality(
+        textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
+        child: StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text(fa ? 'حذف حساب VELIXEO' : 'Delete VELIXEO account'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    fa
+                        ? 'حساب غیرفعال و اطلاعات شخصی پروفایل حذف می‌شود. سوابق مالی و سفارش‌ها برای امنیت و حسابداری نگهداری می‌شوند.'
+                        : 'Your account will be disabled and personal profile data removed. Financial and order records are retained for security and accounting.',
+                    style: const TextStyle(height: 1.6),
+                  ),
+                  if (c.user?.hasPassword == true) ...[
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: passwordController,
+                      obscureText: true,
+                      decoration: InputDecoration(
+                        labelText: fa ? 'رمز عبور فعلی' : 'Current password',
+                      ),
                     ),
                   ],
-                ),
-              ),
-            ),
-          ),
-          SettingsTile(
-            icon: Icons.currency_exchange,
-            title: tr(c.fa, 'واحد نمایش قیمت', 'Display currency'),
-            value: c.currency.name.toUpperCase(),
-            onTap: () => showModalBottomSheet(
-              context: context,
-              builder: (_) => SafeArea(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: DisplayCurrency.values
-                      .map(
-                        (value) => ListTile(
-                          title: Text(value == DisplayCurrency.afn
-                              ? 'AFN • افغانی'
-                              : value == DisplayCurrency.usd
-                                  ? 'USD • Dollar'
-                                  : 'TOMAN • تومان'),
-                          trailing: c.currency == value ? const Icon(Icons.check, color: VelixeoDesign.sky) : null,
-                          onTap: () {
-                            Navigator.pop(context);
-                            c.setCurrency(value);
-                          },
-                        ),
-                      )
-                      .toList(),
-                ),
-              ),
-            ),
-          ),
-          SettingsTile(
-            icon: Icons.group_add_rounded,
-            title: tr(c.fa, 'دعوت از دوستان', 'Invite friends'),
-            value: '',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => InviteFriendsPage(host: c)),
-            ),
-          ),
-          SettingsTile(
-            icon: Icons.support_agent_rounded,
-            title: tr(c.fa, 'پشتیبانی و تیکت', 'Support & tickets'),
-            value: '',
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SupportPage(host: c))),
-          ),
-          SettingsTile(
-            icon: Icons.cloud_done_outlined,
-            title: tr(c.fa, 'وضعیت سرور', 'Server status'),
-            value: 'LIVE',
-            onTap: () {},
-          ),
-          SettingsTile(
-            icon: Icons.person_remove_alt_1_rounded,
-            title: tr(c.fa, 'حذف حساب', 'Delete account'),
-            value: '',
-            onTap: () async {
-              final passwordController = TextEditingController();
-              final reasonController = TextEditingController();
-              var confirmDelete = false;
-              final confirmed = await showDialog<bool>(
-                context: context,
-                barrierDismissible: false,
-                builder: (dialogContext) => StatefulBuilder(
-                  builder: (context, setDialogState) => AlertDialog(
-                    title: Text(tr(c.fa, 'حذف حساب VELIXEO', 'Delete VELIXEO account')),
-                    content: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            tr(
-                              c.fa,
-                              'حساب شما غیرفعال و اطلاعات شخصی پروفایل حذف می‌شود. سوابق مالی و سفارش‌ها برای امنیت و حسابداری نگهداری می‌شوند. حذف حساب به‌تنهایی شماره شما را بلاک نمی‌کند و در آینده می‌توانید دوباره ثبت‌نام کنید.',
-                              'Your account will be disabled and personal profile data removed. Financial and order records are retained for security and accounting. Deleting your account does not blacklist your phone number, so you may register again later.',
-                            ),
-                            style: const TextStyle(height: 1.5),
-                          ),
-                          if (c.user?.hasPassword == true) ...[
-                            const SizedBox(height: 14),
-                            TextField(
-                              controller: passwordController,
-                              obscureText: true,
-                              decoration: InputDecoration(
-                                labelText: tr(c.fa, 'رمز عبور فعلی', 'Current password'),
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: reasonController,
-                            maxLength: 300,
-                            decoration: InputDecoration(
-                              labelText: tr(c.fa, 'دلیل (اختیاری)', 'Reason (optional)'),
-                            ),
-                          ),
-                          CheckboxListTile(
-                            contentPadding: EdgeInsets.zero,
-                            value: confirmDelete,
-                            onChanged: (value) => setDialogState(() => confirmDelete = value == true),
-                            title: Text(
-                              tr(
-                                c.fa,
-                                'می‌دانم این عمل حساب فعلی را حذف می‌کند.',
-                                'I understand this deletes my current account.',
-                              ),
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: reasonController,
+                    maxLength: 300,
+                    decoration: InputDecoration(
+                      labelText: fa ? 'دلیل (اختیاری)' : 'Reason (optional)',
                     ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(dialogContext, false),
-                        child: Text(tr(c.fa, 'لغو', 'Cancel')),
-                      ),
-                      FilledButton(
-                        style: FilledButton.styleFrom(backgroundColor: VelixeoDesign.red),
-                        onPressed: !confirmDelete ||
-                                (c.user?.hasPassword == true && passwordController.text.isEmpty)
-                            ? null
-                            : () => Navigator.pop(dialogContext, true),
-                        child: Text(tr(c.fa, 'حذف حساب', 'Delete account')),
-                      ),
-                    ],
                   ),
-                ),
-              );
-              final password = passwordController.text;
-              final reason = reasonController.text;
-              passwordController.dispose();
-              reasonController.dispose();
-              if (confirmed != true || !context.mounted) return;
-              final error = await c.deleteAccount(
-                password: password.isEmpty ? null : password,
-                reason: reason,
-              );
-              if (!context.mounted || error == null) return;
-              final message = error == 'incorrect_current_password'
-                  ? tr(c.fa, 'رمز عبور فعلی نادرست است.', 'The current password is incorrect.')
-                  : tr(c.fa, 'حذف حساب انجام نشد. دوباره تلاش کنید.', 'Account deletion failed. Please try again.');
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-            },
-          ),
-          SettingsTile(
-            icon: Icons.logout_rounded,
-            title: tr(c.fa, 'خروج از حساب', 'Sign out'),
-            value: '',
-            onTap: () => showDialog(
-              context: context,
-              builder: (_) => AlertDialog(
-                title: Text(tr(c.fa, 'خروج از حساب؟', 'Sign out?')),
-                content: Text(tr(c.fa, 'برای ورود دوباره باید اطلاعات حساب را وارد کنید.', 'You will need to sign in again.')),
-                actions: [
-                  TextButton(onPressed: () => Navigator.pop(context), child: Text(tr(c.fa, 'لغو', 'Cancel'))),
-                  FilledButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      c.logout();
-                    },
-                    child: Text(tr(c.fa, 'خروج', 'Sign out')),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: confirmDelete,
+                    onChanged: (value) => setDialogState(() => confirmDelete = value == true),
+                    title: Text(
+                      fa
+                          ? 'می‌دانم این عمل حساب فعلی را حذف می‌کند.'
+                          : 'I understand this deletes my current account.',
+                      style: const TextStyle(fontSize: 12),
+                    ),
                   ),
                 ],
               ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: Text(fa ? 'لغو' : 'Cancel'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: VelixeoBrand.red),
+                onPressed: !confirmDelete ||
+                        (c.user?.hasPassword == true && passwordController.text.isEmpty)
+                    ? null
+                    : () => Navigator.pop(dialogContext, true),
+                child: Text(fa ? 'حذف حساب' : 'Delete account'),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          Center(child: Text('VELIXEO · ${tr(c.fa, 'نسخه', 'Version')} 0.10.0', style: const TextStyle(color: Color(0xFF8AA0B4), fontSize: 12))),
-        ],
+        ),
+      ),
+    );
+    final password = passwordController.text;
+    final reason = reasonController.text;
+    passwordController.dispose();
+    reasonController.dispose();
+    if (confirmed != true || !context.mounted) return;
+    final error = await c.deleteAccount(
+      password: password.isEmpty ? null : password,
+      reason: reason,
+    );
+    if (!context.mounted || error == null) return;
+    final message = error == 'incorrect_current_password'
+        ? (fa ? 'رمز عبور فعلی نادرست است.' : 'The current password is incorrect.')
+        : (fa ? 'حذف حساب انجام نشد. دوباره تلاش کنید.' : 'Account deletion failed. Please try again.');
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _signOut(BuildContext context, bool fa) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Directionality(
+        textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
+        child: AlertDialog(
+          title: Text(fa ? 'خروج از حساب؟' : 'Sign out?'),
+          content: Text(
+            fa
+                ? 'برای ورود دوباره باید اطلاعات حسابت را وارد کنی.'
+                : 'You will need to sign in again.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(fa ? 'لغو' : 'Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                controller.logout();
+              },
+              child: Text(fa ? 'خروج' : 'Sign out'),
+            ),
+          ],
+        ),
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) => controller.fa
+      ? _buildPersian(context)
+      : _buildEnglish(context);
+
+  Widget _buildPersian(BuildContext context) {
+    final c = controller;
+    final identity = c.user?.email ?? c.user?.phone ?? '—';
+    final name = c.user?.fullName?.trim().isNotEmpty == true
+        ? c.user!.fullName!
+        : 'کاربر VELIXEO';
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: SafeArea(
+        child: ListView(
+          padding: VelixeoFaDesign.pagePadding,
+          children: [
+            const Text(
+              'پروفایل',
+              style: TextStyle(
+                fontSize: 23,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
+              ),
+            ),
+            const SizedBox(height: 14),
+            _ProfileIdentityHeader(
+              controller: c,
+              direction: TextDirection.rtl,
+              name: name,
+              identity: identity,
+              verifiedLabel: 'تأیید‌شده',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => EditProfilePage(controller: c)),
+              ),
+            ),
+            const SizedBox(height: 18),
+            _ProfileMenuCard(
+              direction: TextDirection.rtl,
+              rows: [
+                _ProfileMenuData(
+                  Icons.manage_accounts_outlined,
+                  'ویرایش پروفایل',
+                  c.user?.fullName ?? '',
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => EditProfilePage(controller: c))),
+                ),
+                _ProfileMenuData(
+                  Icons.security_rounded,
+                  'امنیت و ورود',
+                  c.user?.twoFactorEnabled == true ? '2FA' : '',
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => SecurityPage(controller: c))),
+                ),
+                _ProfileMenuData(
+                  Icons.language_rounded,
+                  'زبان',
+                  'فارسی',
+                  () => _showLanguageSheet(context, true),
+                ),
+                _ProfileMenuData(
+                  Icons.currency_exchange_rounded,
+                  'واحد نمایش قیمت',
+                  c.currency.name.toUpperCase(),
+                  () => _showCurrencySheet(context, true),
+                ),
+                _ProfileMenuData(
+                  Icons.group_add_rounded,
+                  'دعوت از دوستان',
+                  '',
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => InviteFriendsPage(host: c))),
+                ),
+                _ProfileMenuData(
+                  Icons.support_agent_rounded,
+                  'پشتیبانی و تیکت',
+                  '',
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => SupportPage(host: c))),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _ProfileMenuCard(
+              direction: TextDirection.rtl,
+              rows: [
+                _ProfileMenuData(
+                  Icons.person_remove_alt_1_rounded,
+                  'حذف حساب',
+                  '',
+                  () => _deleteAccount(context, true),
+                  danger: true,
+                ),
+                _ProfileMenuData(
+                  Icons.logout_rounded,
+                  'خروج از حساب',
+                  '',
+                  () => _signOut(context, true),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            const Center(
+              child: Text(
+                'VELIXEO · نسخه 0.10',
+                textDirection: TextDirection.ltr,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  color: Color(0xFF9AAAB3),
+                  fontSize: 9.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEnglish(BuildContext context) {
+    final c = controller;
+    final identity = c.user?.email ?? c.user?.phone ?? '—';
+    final name = c.user?.fullName?.trim().isNotEmpty == true
+        ? c.user!.fullName!
+        : 'VELIXEO User';
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: SafeArea(
+        child: ListView(
+          padding: VelixeoEnDesign.pagePadding,
+          children: [
+            const Text(
+              'Profile',
+              style: TextStyle(
+                fontSize: 23,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
+              ),
+            ),
+            const SizedBox(height: 14),
+            _ProfileIdentityHeader(
+              controller: c,
+              direction: TextDirection.ltr,
+              name: name,
+              identity: identity,
+              verifiedLabel: 'Verified',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => EditProfilePage(controller: c)),
+              ),
+            ),
+            const SizedBox(height: 18),
+            _ProfileMenuCard(
+              direction: TextDirection.ltr,
+              rows: [
+                _ProfileMenuData(
+                  Icons.manage_accounts_outlined,
+                  'Edit profile',
+                  c.user?.fullName ?? '',
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => EditProfilePage(controller: c))),
+                ),
+                _ProfileMenuData(
+                  Icons.security_rounded,
+                  'Security & login',
+                  c.user?.twoFactorEnabled == true ? '2FA' : '',
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => SecurityPage(controller: c))),
+                ),
+                _ProfileMenuData(
+                  Icons.language_rounded,
+                  'Language',
+                  'English',
+                  () => _showLanguageSheet(context, false),
+                ),
+                _ProfileMenuData(
+                  Icons.currency_exchange_rounded,
+                  'Display currency',
+                  c.currency.name.toUpperCase(),
+                  () => _showCurrencySheet(context, false),
+                ),
+                _ProfileMenuData(
+                  Icons.group_add_rounded,
+                  'Invite friends',
+                  '',
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => InviteFriendsPage(host: c))),
+                ),
+                _ProfileMenuData(
+                  Icons.support_agent_rounded,
+                  'Support & tickets',
+                  '',
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => SupportPage(host: c))),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _ProfileMenuCard(
+              direction: TextDirection.ltr,
+              rows: [
+                _ProfileMenuData(
+                  Icons.person_remove_alt_1_rounded,
+                  'Delete account',
+                  '',
+                  () => _deleteAccount(context, false),
+                  danger: true,
+                ),
+                _ProfileMenuData(
+                  Icons.logout_rounded,
+                  'Sign out',
+                  '',
+                  () => _signOut(context, false),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            const Center(
+              child: Text(
+                'VELIXEO · Version 0.10',
+                style: TextStyle(
+                  fontSize: 9.5,
+                  color: Color(0xFF9AAAB3),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileIdentityHeader extends StatelessWidget {
+  const _ProfileIdentityHeader({
+    required this.controller,
+    required this.direction,
+    required this.name,
+    required this.identity,
+    required this.verifiedLabel,
+    required this.onTap,
+  });
+
+  final AppController controller;
+  final TextDirection direction;
+  final String name;
+  final String identity;
+  final String verifiedLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+    textDirection: direction,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFEEF2F5)),
+        ),
+        child: Column(
+          children: [
+            UserAvatar(user: controller.user, size: 74, onTap: onTap),
+            const SizedBox(height: 10),
+            Text(
+              name,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              identity,
+              textDirection: TextDirection.ltr,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 10.5,
+                color: VelixeoBrand.muted,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEAF7F0),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.verified_rounded, size: 13, color: VelixeoBrand.green),
+                  const SizedBox(width: 4),
+                  Text(
+                    verifiedLabel,
+                    style: const TextStyle(
+                      fontSize: 9,
+                      color: VelixeoBrand.green,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _ProfileMenuData {
+  const _ProfileMenuData(
+    this.icon,
+    this.title,
+    this.value,
+    this.onTap, {
+    this.danger = false,
+  });
+
+  final IconData icon;
+  final String title;
+  final String value;
+  final VoidCallback onTap;
+  final bool danger;
+}
+
+class _ProfileMenuCard extends StatelessWidget {
+  const _ProfileMenuCard({required this.direction, required this.rows});
+  final TextDirection direction;
+  final List<_ProfileMenuData> rows;
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+    textDirection: direction,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFEEF2F5)),
+      ),
+      child: Column(
+        children: List.generate(rows.length, (i) {
+          final row = rows[i];
+          final color = row.danger ? const Color(0xFFCF7880) : const Color(0xFF506D7E);
+          return InkWell(
+            onTap: row.onTap,
+            child: Container(
+              minHeight: 61,
+              decoration: BoxDecoration(
+                border: i == rows.length - 1
+                    ? null
+                    : const Border(
+                        bottom: BorderSide(color: Color(0xFFF0F4F7)),
+                      ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: row.danger
+                          ? const Color(0xFFFFF1F2)
+                          : const Color(0xFFF1F8FC),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      row.icon,
+                      size: 17,
+                      color: row.danger
+                          ? const Color(0xFFD5848A)
+                          : const Color(0xFF65AACA),
+                    ),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Text(
+                      row.title,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: color,
+                      ),
+                    ),
+                  ),
+                  if (row.value.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(start: 7),
+                      child: Text(
+                        row.value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 9.5,
+                          color: Color(0xFF9AAAB4),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 5),
+                  Icon(
+                    direction == TextDirection.rtl
+                        ? Icons.chevron_left_rounded
+                        : Icons.chevron_right_rounded,
+                    size: 15,
+                    color: const Color(0xFF99ADBA),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ),
+    ),
+  );
 }
 
 class EditProfilePage extends StatefulWidget {
