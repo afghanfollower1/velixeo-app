@@ -6672,39 +6672,77 @@ class _AddFundsPageState extends State<AddFundsPage>
   }
 
   @override
-  Widget build(BuildContext context) {
-    return widget.controller.fa
-        ? Directionality(
-            textDirection: TextDirection.rtl,
-            child: _buildAddFundsView(context),
-          )
-        : Directionality(
-            textDirection: TextDirection.ltr,
-            child: _buildAddFundsView(context),
-          );
-  }
+  Widget build(BuildContext context) => c.fa
+      ? _buildPersianAddFunds(context)
+      : _buildEnglishAddFunds(context);
 
-  Widget _buildAddFundsView(BuildContext context) {
+  Widget _buildPersianAddFunds(BuildContext context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: _buildAddFundsPage(
+          context,
+          appBarTitle: 'افزایش موجودی',
+          heading: 'کیف پولت را آماده کن',
+          subtitle: 'پرداخت امن، برای خدماتی که نیاز داری.',
+          walletLabel: 'موجودی کیف پول',
+          amountLabel: 'مبلغ به افغانی',
+          methodTitle: 'روش پرداخت',
+          methodSubtitle: 'پرداخت از طریق درگاه امن',
+          serverNotice:
+              'موجودی پس از تأیید نهایی پرداخت توسط سرور افزایش می‌یابد.',
+          summaryLabel: 'مبلغ پرداخت',
+          actionLabel: busy ? 'در حال ایجاد پرداخت…' : 'ادامه با HesabPay',
+          inactiveLabel: 'درگاه هنوز فعال نیست',
+          historyLabel: 'تاریخچهٔ پرداخت‌ها',
+          refreshLabel: 'تازه‌سازی',
+        ),
+      );
+
+  Widget _buildEnglishAddFunds(BuildContext context) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: _buildAddFundsPage(
+          context,
+          appBarTitle: 'Add funds',
+          heading: 'Top up your wallet',
+          subtitle: 'A secure payment for the services you need.',
+          walletLabel: 'Wallet balance',
+          amountLabel: 'Amount in AFN',
+          methodTitle: 'Payment method',
+          methodSubtitle: 'Pay through the secure gateway',
+          serverNotice:
+              'Your balance is credited after the server verifies the payment.',
+          summaryLabel: 'Payment amount',
+          actionLabel: busy ? 'Creating payment…' : 'Continue with HesabPay',
+          inactiveLabel: 'Gateway not active yet',
+          historyLabel: 'Payment history',
+          refreshLabel: 'Refresh',
+        ),
+      );
+
+  Widget _buildAddFundsPage(
+    BuildContext context, {
+    required String appBarTitle,
+    required String heading,
+    required String subtitle,
+    required String walletLabel,
+    required String amountLabel,
+    required String methodTitle,
+    required String methodSubtitle,
+    required String serverNotice,
+    required String summaryLabel,
+    required String actionLabel,
+    required String inactiveLabel,
+    required String historyLabel,
+    required String refreshLabel,
+  }) {
     final configured = c.paymentCapabilities.hesabPayConfigured;
-    final environment = c.paymentCapabilities.hesabPayEnvironment;
-    final recent = c.payments.take(8).toList(growable: false);
+    final value = int.tryParse(amount.text.trim()) ?? 0;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(c.fa ? 'افزایش موجودی' : 'Add Funds'),
+        title: Text(appBarTitle),
         actions: [
           IconButton(
-            tooltip: c.fa ? 'تاریخچهٔ پرداخت' : 'Payment history',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => PaymentHistoryPage(controller: c),
-              ),
-            ),
-            icon: const Icon(Icons.history_rounded),
-          ),
-          IconButton(
-            tooltip: c.fa ? 'تازه‌سازی' : 'Refresh',
+            tooltip: refreshLabel,
             onPressed: busy ? null : refresh,
             icon: const Icon(Icons.refresh_rounded),
           ),
@@ -6714,20 +6752,152 @@ class _AddFundsPageState extends State<AddFundsPage>
         onRefresh: refresh,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
           children: [
-            SoftCard(
+            Text(
+              heading,
+              style: const TextStyle(
+                fontSize: 21,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 11,
+                color: VelixeoBrand.muted,
+              ),
+            ),
+            const SizedBox(height: 17),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F8FC),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: const Color(0xFFE4F0F6)),
+              ),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    backgroundColor: configured
-                        ? const Color(0xFFE4F8EF)
-                        : const Color(0xFFFFF4DE),
-                    child: Icon(
-                      configured ? Icons.verified_rounded : Icons.schedule_rounded,
-                      color: configured
-                          ? const Color(0xFF18A875)
-                          : const Color(0xFFEFAF38),
+                  const Icon(
+                    Icons.account_balance_wallet_outlined,
+                    size: 17,
+                    color: Color(0xFF5BA8C8),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      walletLabel,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF76909F),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    c.money(c.balanceAfn, showBase: true),
+                    textDirection: TextDirection.ltr,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF287FA7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 17),
+            TextField(
+              controller: amount,
+              keyboardType: TextInputType.number,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: amountLabel,
+                suffixText: 'AFN',
+              ),
+            ),
+            const SizedBox(height: 10),
+            GridView.count(
+              crossAxisCount: 4,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 1.75,
+              children: [200, 500, 1000, 2000]
+                  .map(
+                    (preset) => OutlinedButton(
+                      onPressed: busy
+                          ? null
+                          : () => setState(() {
+                                amount.text = preset.toString();
+                              }),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: value == preset
+                            ? const Color(0xFFEAF8FE)
+                            : Colors.white,
+                        side: BorderSide(
+                          color: value == preset
+                              ? VelixeoBrand.sky
+                              : VelixeoBrand.line,
+                        ),
+                        padding: EdgeInsets.zero,
+                      ),
+                      child: Text(
+                        preset.toString(),
+                        textDirection: TextDirection.ltr,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: value == preset
+                              ? const Color(0xFF2D8DB4)
+                              : const Color(0xFF687F8D),
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              methodTitle,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: VelixeoBrand.ink,
+              ),
+            ),
+            const SizedBox(height: 9),
+            Container(
+              padding: const EdgeInsets.all(17),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: configured
+                      ? const Color(0xFFBDE5D1)
+                      : VelixeoBrand.line,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEDF7F1),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: const Text(
+                      'H',
+                      textDirection: TextDirection.ltr,
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        color: Color(0xFF4B9771),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 23,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -6735,173 +6905,127 @@ class _AddFundsPageState extends State<AddFundsPage>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('HesabPay • حساب‌پی', style: TextStyle(fontWeight: FontWeight.w900)),
+                        const Text(
+                          'HesabPay',
+                          textDirection: TextDirection.ltr,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: VelixeoBrand.ink,
+                          ),
+                        ),
                         const SizedBox(height: 3),
                         Text(
-                          configured
-                              ? tr(c.fa, 'آماده پرداخت • ${environment ?? '—'}', 'Ready • ${environment ?? '—'}')
-                              : tr(c.fa, 'منتظر تنظیم امن در سرور', 'Waiting for secure server configuration'),
-                          style: const TextStyle(fontSize: 12, color: VelixeoDesign.muted),
+                          configured ? methodSubtitle : inactiveLabel,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: VelixeoBrand.muted,
+                          ),
                         ),
                       ],
+                    ),
+                  ),
+                  Container(
+                    width: 17,
+                    height: 17,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: configured
+                            ? const Color(0xFF41B5E4)
+                            : const Color(0xFFCFDDE5),
+                        width: configured ? 5 : 1,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F8FC),
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(color: const Color(0xFFE4F0F6)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.shield_outlined,
+                    color: Color(0xFF65AACA),
+                    size: 17,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      serverNotice,
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        height: 1.6,
+                        color: Color(0xFF66808F),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFEEF2F5)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      summaryLabel,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: VelixeoBrand.muted,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    c.money(value),
+                    textDirection: TextDirection.ltr,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: VelixeoBrand.ink,
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 16),
-            SoftCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    tr(c.fa, 'مبلغ شارژ کیف پول', 'Wallet top-up amount'),
-                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: amount,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: tr(c.fa, 'مبلغ به افغانی', 'Amount in AFN'),
-                      suffixText: 'AFN',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [100, 500, 1000, 5000]
-                        .map(
-                          (value) => OutlinedButton(
-                            onPressed: busy
-                                ? null
-                                : () => setState(() => amount.text = '$value'),
-                            child: Text('$value AFN'),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                  const SizedBox(height: 16),
-                  PrimaryButton(
-                    label: busy
-                        ? tr(c.fa, 'درحال ایجاد پرداخت…', 'Creating payment…')
-                        : configured
-                            ? tr(c.fa, 'پرداخت با حساب‌پی', 'Pay with HesabPay')
-                            : tr(c.fa, 'درگاه هنوز فعال نیست', 'Gateway not active yet'),
-                    onPressed: configured && !busy ? startPayment : null,
-                  ),
-                ],
-              ),
+            FilledButton(
+              onPressed:
+                  configured && !busy && value > 0 ? startPayment : null,
+              child: Text(configured ? actionLabel : inactiveLabel),
             ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAF6FF),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFD4EBFA)),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.shield_outlined, color: VelixeoDesign.sky),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      tr(
-                        c.fa,
-                        'بازگشت از صفحه پرداخت به‌تنهایی موجودی را تغییر نمی‌دهد. کیف پول فقط بعد از تأیید امضای Webhook در Backend و تطبیق دقیق مبلغ شارژ می‌شود.',
-                        'Returning from checkout never credits the wallet by itself. Balance changes only after the backend verifies the webhook signature and exact amount.',
-                      ),
-                      style: const TextStyle(color: Color(0xFF49657A), height: 1.5, fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            SectionTitle(tr(c.fa, 'پرداخت‌های اخیر', 'Recent payments')),
-            if (recent.isEmpty)
-              EmptyCard(
-                icon: Icons.payments_outlined,
-                title: tr(c.fa, 'هنوز پرداختی ثبت نشده', 'No payments yet'),
-                subtitle: tr(c.fa, 'تلاش‌های پرداخت و وضعیت تأییدشده آن‌ها اینجا نمایش داده می‌شود.', 'Payment attempts and their verified status will appear here.'),
-              )
-            else
-              ...recent.map(
-                (payment) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: SoftCard(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PaymentResultPage(
-                          controller: c,
-                          payment: payment,
-                        ),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                c.money(payment.amountAfn, showBase: true),
-                                style: const TextStyle(fontWeight: FontWeight.w900),
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: statusColor(payment.status).withValues(alpha: .10),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                statusLabel(payment.status),
-                                style: TextStyle(
-                                  color: statusColor(payment.status),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 7),
-                        Text(
-                          '${payment.gateway} • ${payment.createdAt.toLocal().toString().substring(0, 16)} • #${payment.id.substring(0, 8)}',
-                          style: const TextStyle(fontSize: 11, color: VelixeoDesign.muted),
-                        ),
-                        if (payment.status == 'PAID' && payment.verifiedAt != null) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            tr(c.fa, 'تأیید سرور انجام شده و کیف پول شارژ شده است.', 'Server verified; wallet credit completed.'),
-                            style: const TextStyle(fontSize: 11, color: Color(0xFF18A875)),
-                          ),
-                        ],
-                        if (payment.failureReason?.trim().isNotEmpty == true) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            payment.failureReason!,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 11, color: Color(0xFFE65454)),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
+            const SizedBox(height: 9),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PaymentHistoryPage(controller: c),
                 ),
               ),
+              icon: const Icon(Icons.history_rounded, size: 17),
+              label: Text(historyLabel),
+            ),
           ],
         ),
       ),
     );
   }
+
 }
 
 
