@@ -754,15 +754,21 @@ async function adminOrderDetail(p:PrismaClient,id:string){
       service:{include:{routes:{include:{provider:true},orderBy:{priority:'asc'}}}},
     },
   });
-  if(!o)return `<div class="card empty"><h3>Order not found</h3><p class="muted">The requested VELIXEO order could not be found.</p><a class="btn ghost" href="/admin/v3?section=orders">Back to orders</a></div>`;
+  if(!o)return '<div class="card empty"><h3>Order not found</h3><p class="muted">The requested VELIXEO order could not be found.</p><a class="btn ghost" href="/admin/v3?section=orders">Back to orders</a></div>';
   const input=jsonObj(o.input),output=jsonObj(o.output),meta=adminOrderMeta(o),link=orderLink(o);
   const systemId=orderDisplaySystemId(o);
   const providerServiceId=orderProviderServiceId(o);
   const margin=Number(o.totalAmountAfn??0)-Number(o.providerCostAfn??0);
   const safeJson=(value:unknown)=>e(JSON.stringify(value??{},null,2));
+  const targetHtml=link
+    ? '<a href="'+e(link)+'" target="_blank" rel="noopener noreferrer">'+e(link)+'</a>'
+    : '—';
+  const actionRows=o.actions.map(x=>
+    '<tr><td>'+dt(x.createdAt)+'</td><td class="mono">'+e(x.action)+'</td><td>'+state(x.status)+'</td><td class="mono">'+e(x.providerReference||'—')+'</td></tr>'
+  ).join('')||'<tr><td colspan="4" class="empty">No order actions recorded yet.</td></tr>';
   return `
   <div class="order-detail-head">
-    <div><a class="btn ghost" href="/admin/v3?section=orders">← Back to orders</a><h2 style="margin:16px 0 3px">Order #${e(systemId)}</h2><div class="muted mono">${e(o.id)}</div></div>
+    <div><a class="btn ghost" href="/admin/v3?section=orders">&larr; Back to orders</a><h2 style="margin:16px 0 3px">Order #${e(systemId)}</h2><div class="muted mono">${e(o.id)}</div></div>
     <div class="actions">${state(o.status)}${meta.drip?pill('Drip-feed','info'):''}${meta.refill?pill('Refill','warn'):''}</div>
   </div>
   <div class="stats">
@@ -778,7 +784,7 @@ async function adminOrderDetail(p:PrismaClient,id:string){
       <div class="info"><small>Provider API Order ID</small><b class="mono">${e(o.providerOrderId||'—')}</b></div>
       <div class="info"><small>Service</small><b>${e(o.service?.titleEn||o.service?.titleFa||o.category)}</b><span class="muted mono">${e(providerServiceId||'—')}</span></div>
       <div class="info"><small>Provider</small><b>${e(o.provider?.name||'No provider')}</b></div>
-      <div class="info"><small>Target / Link</small><b class="mono">${link?`<a href="${e(link)}" target="_blank" rel="noopener noreferrer">${e(link)}</a>`:'—'}</b></div>
+      <div class="info"><small>Target / Link</small><b class="mono">${targetHtml}</b></div>
       <div class="info"><small>Created</small><b>${dt(o.createdAt)}</b></div>
       <div class="info"><small>Completed</small><b>${o.completedAt?dt(o.completedAt):'—'}</b></div>
     </section>
@@ -799,7 +805,7 @@ async function adminOrderDetail(p:PrismaClient,id:string){
   <section class="card">
     <div class="cardhead"><h3>Order Action Log</h3><span class="muted">${o.actions.length} events</span></div>
     <div class="tablewrap"><table class="table"><thead><tr><th>Time</th><th>Action</th><th>Status</th><th>Provider Reference</th></tr></thead><tbody>
-    ${o.actions.map(x=>`<tr><td>${dt(x.createdAt)}</td><td class="mono">${e(x.action)}</td><td>${state(x.status)}</td><td class="mono">${e(x.providerReference||'—')}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">No order actions recorded yet.</td></tr>'}
+    ${actionRows}
     </tbody></table></div>
   </section>`;
 }
