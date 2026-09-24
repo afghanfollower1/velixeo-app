@@ -1852,7 +1852,120 @@ class _SocialOrderSuccessPage extends StatelessWidget {
   final SocialOrder order;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => host.fa
+      ? _buildPersianPage(context)
+      : _buildEnglishPage(context);
+
+Widget _buildPersianPage(BuildContext context) {
+    final fa = host.fa;
+    final title = fa
+        ? (order.serviceTitleFa ?? 'سفارش شبکه اجتماعی')
+        : (order.serviceTitleEn ?? 'Social media order');
+    final target = order.orderLink ?? '—';
+    return Directionality(
+      textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(fa ? 'نتیجهٔ سفارش' : 'Order result'),
+        ),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 26, 20, 30),
+          children: [
+            Center(
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF8F1),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: const Icon(
+                  Icons.check_rounded,
+                  color: Color(0xFF158365),
+                  size: 34,
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              fa ? 'سفارش ثبت شد' : 'Order placed',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF24343D),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              fa
+                  ? 'از اینجا به بعد، مسیر سفارشت را دنبال کن.'
+                  : 'Follow your order from here.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF74818B),
+              ),
+            ),
+            const SizedBox(height: 23),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(19),
+                border: Border.all(color: const Color(0xFFEEF2F5)),
+              ),
+              child: Column(
+                children: [
+                  _SocialSuccessLine(
+                    label: fa ? 'شناسه سفارش' : 'Order ID',
+                    value: order.displayOrderId,
+                    ltr: true,
+                  ),
+                  _SocialSuccessLine(
+                    label: fa ? 'خدمت' : 'Service',
+                    value: title,
+                  ),
+                  _SocialSuccessLine(
+                    label: fa ? 'مقصد' : 'Target',
+                    value: target,
+                    ltr: true,
+                  ),
+                  _SocialSuccessLine(
+                    label: fa ? 'تعداد' : 'Quantity',
+                    value: (order.quantity ?? order.totalQuantity).toString(),
+                    ltr: true,
+                  ),
+                  _SocialSuccessLine(
+                    label: fa ? 'مبلغ کسرشده' : 'Amount deducted',
+                    value: host.money(order.totalAmountAfn, showBase: true),
+                    ltr: true,
+                    last: true,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.receipt_long_rounded, size: 18),
+              label: Text(fa ? 'پیگیری سفارش' : 'Track order'),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton(
+              onPressed: () => Navigator.popUntil(
+                context,
+                (route) => route.isFirst,
+              ),
+              child: Text(fa ? 'بازگشت به خانه' : 'Back to home'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+Widget _buildEnglishPage(BuildContext context) {
     final fa = host.fa;
     final title = fa
         ? (order.serviceTitleFa ?? 'سفارش شبکه اجتماعی')
