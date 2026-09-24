@@ -535,50 +535,89 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
   }
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(t('خدمات شبکه‌های اجتماعی', 'Social Media Services')),
-        actions: [
-          IconButton(onPressed: loading ? null : load, icon: const Icon(Icons.refresh_rounded)),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAF6FF),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  Expanded(child: _TabButton(label: t('سفارش', 'New'), icon: Icons.add_shopping_cart_rounded, selected: tab == 0, onTap: () => setState(() => tab = 0))),
-                  Expanded(child: _TabButton(label: t('سفارش‌ها', 'Orders'), icon: Icons.receipt_long_rounded, selected: tab == 1, onTap: () => setState(() => tab = 1))),
-                  Expanded(child: _TabButton(label: t('جبران', 'Refill'), icon: Icons.restart_alt_rounded, selected: tab == 2, onTap: () => setState(() => tab = 2))),
-                  Expanded(child: _TabButton(label: t('دریپ‌فید', 'Drip-feed'), icon: Icons.schedule_send_rounded, selected: tab == 3, onTap: () => setState(() => tab = 3))),
-                ],
+    return fa ? _buildPersianSocial(context) : _buildEnglishSocial(context);
+  }
+
+  Widget _socialTabBody() {
+    if (loading) return const Center(child: CircularProgressIndicator());
+    if (error != null) {
+      return _ErrorState(
+        message: t('دریافت خدمات ممکن نشد.', 'Could not load social services.'),
+        onRetry: load,
+      );
+    }
+    if (tab == 0) return buildNewOrder();
+    if (tab == 1) return buildOrders();
+    if (tab == 2) return buildRefills();
+    return buildDripFeed();
+  }
+
+  Widget _buildPersianSocial(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('خدمات شبکه‌های اجتماعی'),
+          actions: [
+            IconButton(
+              tooltip: 'تازه‌سازی',
+              onPressed: loading ? null : load,
+              icon: const Icon(Icons.refresh_rounded),
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              child: _SocialTabBar(
+                labels: const ['سفارش', 'سفارش‌ها', 'جبران', 'دریپ‌فید'],
+                selected: tab,
+                direction: TextDirection.rtl,
+                onChanged: (value) => setState(() => tab = value),
               ),
             ),
-          ),
-          Expanded(
-            child: loading
-                ? const Center(child: CircularProgressIndicator())
-                : error != null
-                    ? _ErrorState(message: t('دریافت خدمات ممکن نشد.', 'Could not load social services.'), onRetry: load)
-                    : tab == 0
-                        ? buildNewOrder()
-                        : tab == 1
-                            ? buildOrders()
-                            : tab == 2
-                                ? buildRefills()
-                                : buildDripFeed(),
-          ),
-        ],
+            const SizedBox(height: 5),
+            Expanded(child: _socialTabBody()),
+          ],
+        ),
       ),
     );
   }
+
+  Widget _buildEnglishSocial(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Social Media Services'),
+          actions: [
+            IconButton(
+              tooltip: 'Refresh',
+              onPressed: loading ? null : load,
+              icon: const Icon(Icons.refresh_rounded),
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              child: _SocialTabBar(
+                labels: const ['New order', 'Orders', 'Refill', 'Drip-feed'],
+                selected: tab,
+                direction: TextDirection.ltr,
+                onChanged: (value) => setState(() => tab = value),
+              ),
+            ),
+            const SizedBox(height: 5),
+            Expanded(child: _socialTabBody()),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   Widget buildNewOrder() {
     if (catalog.services.isEmpty) {
@@ -1183,6 +1222,95 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     };
     return fa ? (faLabels[group] ?? group) : (enLabels[group] ?? group);
   }
+}
+
+
+class _SocialTabBar extends StatelessWidget {
+  const _SocialTabBar({
+    required this.labels,
+    required this.selected,
+    required this.direction,
+    required this.onChanged,
+  });
+
+  final List<String> labels;
+  final int selected;
+  final TextDirection direction;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+        textDirection: direction,
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0F5F8),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: List.generate(labels.length, (index) {
+              final active = selected == index;
+              final icons = const [
+                Icons.add_shopping_cart_rounded,
+                Icons.receipt_long_rounded,
+                Icons.restart_alt_rounded,
+                Icons.schedule_send_rounded,
+              ];
+              return Expanded(
+                child: InkWell(
+                  onTap: () => onChanged(index),
+                  borderRadius: BorderRadius.circular(9),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    height: 39,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: active ? Colors.white : Colors.transparent,
+                      borderRadius: BorderRadius.circular(9),
+                      boxShadow: active
+                          ? const [
+                              BoxShadow(
+                                color: Color(0x0F536D7B),
+                                blurRadius: 8,
+                                offset: Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          icons[index],
+                          size: 15,
+                          color: active
+                              ? const Color(0xFF2E8DB5)
+                              : const Color(0xFF8B9BA5),
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            labels[index],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                              color: active
+                                  ? const Color(0xFF2E7898)
+                                  : const Color(0xFF8799A4),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      );
 }
 
 class _WalletStrip extends StatelessWidget {
