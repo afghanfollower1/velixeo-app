@@ -174,8 +174,9 @@ class _PremiumPanelPageState extends State<PremiumPanelPage> {
       for (final product in catalog.products) product.group,
     }];
     return Scaffold(
-      appBar: AppBar(
-        title: Text(t('اکانت‌های پریمیوم', 'Premium Accounts')),
+      appBar: const VelixeoFaAppBar(
+        title: 'اکانت‌های پریمیوم',
+        subtitle: 'تلگرام پریمیوم، اسنپ‌چت پلاس و عضویت‌های ویژه.',
       ),
       body: RefreshIndicator(
         onRefresh: load,
@@ -340,8 +341,9 @@ Widget _buildEnglishPremiumCatalog(BuildContext context) {
       for (final product in catalog.products) product.group,
     }];
     return Scaffold(
-      appBar: AppBar(
-        title: Text(t('اکانت‌های پریمیوم', 'Premium Accounts')),
+      appBar: const VelixeoEnAppBar(
+        title: 'Premium Memberships',
+        subtitle: 'Telegram Premium, Snapchat+ and other premium memberships.',
       ),
       body: RefreshIndicator(
         onRefresh: load,
