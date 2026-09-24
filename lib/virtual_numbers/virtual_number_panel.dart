@@ -657,53 +657,58 @@ Widget _englishVirtualBody() {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('شماره مجازی'),
-          actions: [
-            Padding(
-              padding: const EdgeInsetsDirectional.only(end: 14),
-              child: Center(
-                child: Text(
-                  host.money(host.balanceAfn, showBase: true),
-                  textDirection: TextDirection.ltr,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF338EB4),
+        body: SafeArea(
+          child: loading
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                  onRefresh: load,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: VelixeoFaDesign.pagePadding,
+                    children: [
+                      VelixeoFaPageHeader(
+                        title: 'شماره مجازی',
+                        subtitle: 'یک شماره، برای نیاز تو.',
+                        onBack: () => Navigator.maybePop(context),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: VelixeoBrand.soft,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            host.money(host.balanceAfn, showBase: true),
+                            textDirection: TextDirection.ltr,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF338EB4),
+                            ),
+                          ),
+                        ),
+                      ),
+                      virtualBanner == null
+                          ? const _InfoHero(fa: true)
+                          : _VirtualPromoBanner(banner: virtualBanner!, fa: true),
+                      const SizedBox(height: 16),
+                      _VirtualTabBar(
+                        labels: const ['خرید دستی', 'خرید هوشمند', 'شماره‌های من'],
+                        icons: const [
+                          Icons.tune_rounded,
+                          Icons.auto_awesome_rounded,
+                          Icons.sms_outlined,
+                        ],
+                        selected: tab,
+                        direction: TextDirection.rtl,
+                        onChanged: _changeTab,
+                      ),
+                      const SizedBox(height: 18),
+                      _persianVirtualBody(),
+                    ],
                   ),
                 ),
-              ),
-            ),
-          ],
         ),
-        body: loading
-            ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: load,
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: VelixeoFaDesign.pagePadding,
-                  children: [
-                    virtualBanner == null
-                        ? const _InfoHero(fa: true)
-                        : _VirtualPromoBanner(banner: virtualBanner!, fa: true),
-                    const SizedBox(height: 14),
-                    _VirtualTabBar(
-                      labels: const ['خرید دستی', 'خرید هوشمند', 'شماره‌های من'],
-                      icons: const [
-                        Icons.tune_rounded,
-                        Icons.auto_awesome_rounded,
-                        Icons.sms_outlined,
-                      ],
-                      selected: tab,
-                      direction: TextDirection.rtl,
-                      onChanged: _changeTab,
-                    ),
-                    const SizedBox(height: 16),
-                    _persianVirtualBody(),
-                  ],
-                ),
-              ),
       ),
     );
   }
@@ -712,53 +717,58 @@ Widget _englishVirtualBody() {
     return Directionality(
       textDirection: TextDirection.ltr,
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Virtual Numbers'),
-          actions: [
-            Padding(
-              padding: const EdgeInsetsDirectional.only(end: 14),
-              child: Center(
-                child: Text(
-                  host.money(host.balanceAfn, showBase: true),
-                  textDirection: TextDirection.ltr,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF338EB4),
+        body: SafeArea(
+          child: loading
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                  onRefresh: load,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: VelixeoEnDesign.pagePadding,
+                    children: [
+                      VelixeoEnPageHeader(
+                        title: 'Virtual Numbers',
+                        subtitle: 'One number, for what you need.',
+                        onBack: () => Navigator.maybePop(context),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: VelixeoBrand.soft,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            host.money(host.balanceAfn, showBase: true),
+                            textDirection: TextDirection.ltr,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF338EB4),
+                            ),
+                          ),
+                        ),
+                      ),
+                      virtualBanner == null
+                          ? const _InfoHero(fa: false)
+                          : _VirtualPromoBanner(banner: virtualBanner!, fa: false),
+                      const SizedBox(height: 16),
+                      _VirtualTabBar(
+                        labels: const ['Manual', 'Smart Buy', 'My Numbers'],
+                        icons: const [
+                          Icons.tune_rounded,
+                          Icons.auto_awesome_rounded,
+                          Icons.sms_outlined,
+                        ],
+                        selected: tab,
+                        direction: TextDirection.ltr,
+                        onChanged: _changeTab,
+                      ),
+                      const SizedBox(height: 18),
+                      _englishVirtualBody(),
+                    ],
                   ),
                 ),
-              ),
-            ),
-          ],
         ),
-        body: loading
-            ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: load,
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: VelixeoEnDesign.pagePadding,
-                  children: [
-                    virtualBanner == null
-                        ? const _InfoHero(fa: false)
-                        : _VirtualPromoBanner(banner: virtualBanner!, fa: false),
-                    const SizedBox(height: 14),
-                    _VirtualTabBar(
-                      labels: const ['Manual', 'Smart Buy', 'My Numbers'],
-                      icons: const [
-                        Icons.tune_rounded,
-                        Icons.auto_awesome_rounded,
-                        Icons.sms_outlined,
-                      ],
-                      selected: tab,
-                      direction: TextDirection.ltr,
-                      onChanged: _changeTab,
-                    ),
-                    const SizedBox(height: 16),
-                    _englishVirtualBody(),
-                  ],
-                ),
-              ),
       ),
     );
   }
@@ -1369,7 +1379,7 @@ class _VirtualPromoBanner extends StatelessWidget {
             Container(
               decoration:const BoxDecoration(
                 gradient:LinearGradient(
-                  colors:[Color(0xFF0B5F9F),Color(0xFF1597DC),Color(0xFF31A8FF)],
+                  colors:[Color(0xFFEAF8FE),Color(0xFFF1FCFA)],
                 ),
               ),
             ),
@@ -1388,7 +1398,7 @@ class _VirtualPromoBanner extends StatelessWidget {
                 gradient:LinearGradient(
                   begin:Alignment.centerLeft,
                   end:Alignment.centerRight,
-                  colors:[Color(0xA8001830),Color(0x33001830),Color(0x05001830)],
+                  colors:[Color(0xB8FFFFFF),Color(0x68FFFFFF),Color(0x18FFFFFF)],
                 ),
               ),
             ),
@@ -1403,7 +1413,7 @@ class _VirtualPromoBanner extends StatelessWidget {
                       title!,
                       maxLines:2,
                       overflow:TextOverflow.ellipsis,
-                      style:const TextStyle(color:Colors.white,fontSize:20,fontWeight:FontWeight.w900),
+                      style:const TextStyle(color:Color(0xFF2C5366),fontSize:18,fontWeight:FontWeight.w700),
                     ),
                   if(subtitle?.isNotEmpty==true)...[
                     const SizedBox(height:5),
@@ -1411,7 +1421,7 @@ class _VirtualPromoBanner extends StatelessWidget {
                       subtitle!,
                       maxLines:2,
                       overflow:TextOverflow.ellipsis,
-                      style:const TextStyle(color:Color(0xFFE8F5FF),fontSize:11.5,height:1.35,fontWeight:FontWeight.w600),
+                      style:const TextStyle(color:Color(0xFF7293A5),fontSize:11,height:1.6,fontWeight:FontWeight.w500),
                     ),
                   ],
                 ],
@@ -1430,53 +1440,58 @@ class _InfoHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
+        constraints: const BoxConstraints(minHeight: 148),
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(23),
           gradient: const LinearGradient(
-            colors: [Color(0xFFEEF9FD), Color(0xFFE3F6F6)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            colors: [Color(0xFFEAF8FE), Color(0xFFF1FCFA)],
+            begin: Alignment.topRight,
+            end: Alignment.bottomLeft,
           ),
-          border: Border.all(color: const Color(0xFFDCEEF4)),
+          border: Border.all(color: const Color(0xFFD7EDF5)),
         ),
-        child: Row(
+        child: Stack(
           children: [
-            Container(
-              width: 58,
-              height: 58,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE9F7FD),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: const Icon(
-                Icons.sms_rounded,
-                color: Color(0xFF369FCA),
-                size: 28,
+            PositionedDirectional(
+              end: 0,
+              bottom: -7,
+              child: Container(
+                width: 66,
+                height: 66,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE4F5FC),
+                  borderRadius: BorderRadius.circular(21),
+                ),
+                child: const Icon(
+                  Icons.sms_rounded,
+                  color: Color(0xFF369FCA),
+                  size: 30,
+                ),
               ),
             ),
-            const SizedBox(width: 13),
-            Expanded(
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: 82),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    fa ? 'شماره مجازی و دریافت OTP' : 'Virtual numbers & OTP',
+                    fa ? 'شماره‌های مجازی' : 'Virtual Numbers',
                     style: const TextStyle(
                       color: Color(0xFF2C5366),
-                      fontSize: 17,
+                      fontSize: 18,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 5),
                   Text(
                     fa
-                        ? 'قیمت، موجودی و نرخ دریافت پیام به‌صورت زنده بررسی می‌شود.'
-                        : 'Live price, stock and SMS delivery rate.',
+                        ? 'یک شماره، برای نیاز تو؛ دریافت OTP سریع، قیمت و موجودی زنده.'
+                        : 'One number for what you need — fast OTP with live price and availability.',
                     style: const TextStyle(
                       color: Color(0xFF7293A5),
-                      fontSize: 11.5,
-                      height: 1.7,
+                      fontSize: 11,
+                      height: 1.75,
                     ),
                   ),
                 ],
