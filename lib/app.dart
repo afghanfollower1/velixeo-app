@@ -1230,231 +1230,382 @@ class LanguagePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fa = controller.fa;
-    return Scaffold(
+    return controller.fa
+        ? _PersianLanguagePage(controller: controller)
+        : _EnglishLanguagePage(controller: controller);
+  }
+}
+
+class _PersianLanguagePage extends StatelessWidget {
+  const _PersianLanguagePage({required this.controller});
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+    textDirection: TextDirection.rtl,
+    child: Scaffold(
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 34, 20, 26),
+          padding: const EdgeInsets.fromLTRB(22, 38, 22, 26),
           children: [
-            Text(
-              tr(fa, 'به زبان خودت، راحت‌تر', 'Feel right at home'),
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontSize: 23,
-                    fontWeight: FontWeight.w700,
-                    color: VelixeoDesign.ink,
-                  ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              tr(
-                fa,
-                'زبان دلخواهت را انتخاب کن. هر زمان می‌توانی آن را تغییر بدهی.',
-                'Choose your language. You can change it at any time.',
-              ),
-              style: const TextStyle(
-                fontSize: 14,
-                color: VelixeoDesign.muted,
+            const Text(
+              'به زبان خودت، راحت‌تر',
+              style: TextStyle(
+                fontSize: 23,
+                height: 1.55,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
               ),
             ),
-            const SizedBox(height: 24),
-            LanguageTile(
+            const SizedBox(height: 5),
+            const Text(
+              'زبان دلخواهت را انتخاب کن. هر زمان بخواهی می‌توانی آن را تغییر بدهی.',
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.8,
+                color: VelixeoBrand.muted,
+              ),
+            ),
+            const SizedBox(height: 25),
+            _LanguageChoiceCard(
               title: 'فارسی',
-              subtitle: tr(fa, 'چیدمان راست‌به‌چپ', 'Right-to-left layout'),
-              flag: 'ف',
-              selected: fa,
+              subtitle: 'چیدمان اختصاصی راست‌به‌چپ',
+              mark: 'ف',
+              selected: true,
+              direction: TextDirection.rtl,
               onTap: () => controller.setLanguage(AppLang.fa),
             ),
-            const SizedBox(height: 12),
-            LanguageTile(
-              title: tr(fa, 'انگلیسی', 'English'),
-              subtitle: tr(fa, 'چیدمان چپ‌به‌راست', 'Left-to-right layout'),
-              flag: 'En',
-              selected: !fa,
+            const SizedBox(height: 11),
+            _LanguageChoiceCard(
+              title: 'English',
+              subtitle: 'Left-to-right English interface',
+              mark: 'EN',
+              selected: false,
+              direction: TextDirection.ltr,
               onTap: () => controller.setLanguage(AppLang.en),
             ),
-            const SizedBox(height: 20),
-            SoftCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          tr(fa, 'پیش‌نمایش رابط', 'Interface preview'),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: VelixeoDesign.muted,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 9,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEAF7FE),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          fa ? 'فارسی' : 'English',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF287495),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    tr(fa, 'سلام، نرگس 👋', 'Hi, Narges 👋'),
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    tr(
-                      fa,
-                      'همهٔ خدمات دیجیتال، یک‌جا.',
-                      'All your digital services, in one place.',
-                    ),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: VelixeoDesign.muted,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          tr(fa, 'موجودی', 'Balance'),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: VelixeoDesign.muted,
-                          ),
-                        ),
-                      ),
-                      const Text(
-                        '2,450 AFN',
-                        textDirection: TextDirection.ltr,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF287FA7),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 22),
-            PrimaryButton(
-              label: tr(fa, 'ادامه', 'Continue'),
-              onPressed: () => controller.chooseLanguage(controller.language),
+            const SizedBox(height: 21),
+            const _PersianLanguagePreview(),
+            const SizedBox(height: 23),
+            FilledButton(
+              onPressed: () => controller.chooseLanguage(AppLang.fa),
+              child: const Text('ادامه با فارسی'),
             ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
 }
 
-class LanguageTile extends StatelessWidget {
-  const LanguageTile({
-    super.key,
+class _EnglishLanguagePage extends StatelessWidget {
+  const _EnglishLanguagePage({required this.controller});
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+    textDirection: TextDirection.ltr,
+    child: Scaffold(
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(22, 38, 22, 26),
+          children: [
+            const Text(
+              'Feel right at home',
+              style: TextStyle(
+                fontSize: 23,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
+              ),
+            ),
+            const SizedBox(height: 7),
+            const Text(
+              'Choose the interface that feels natural to you. You can change it anytime.',
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.6,
+                color: VelixeoBrand.muted,
+              ),
+            ),
+            const SizedBox(height: 25),
+            _LanguageChoiceCard(
+              title: 'English',
+              subtitle: 'Designed for left-to-right reading',
+              mark: 'EN',
+              selected: true,
+              direction: TextDirection.ltr,
+              onTap: () => controller.setLanguage(AppLang.en),
+            ),
+            const SizedBox(height: 11),
+            _LanguageChoiceCard(
+              title: 'فارسی',
+              subtitle: 'رابط اختصاصی راست‌به‌چپ',
+              mark: 'ف',
+              selected: false,
+              direction: TextDirection.rtl,
+              onTap: () => controller.setLanguage(AppLang.fa),
+            ),
+            const SizedBox(height: 21),
+            const _EnglishLanguagePreview(),
+            const SizedBox(height: 23),
+            FilledButton(
+              onPressed: () => controller.chooseLanguage(AppLang.en),
+              child: const Text('Continue in English'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _LanguageChoiceCard extends StatelessWidget {
+  const _LanguageChoiceCard({
     required this.title,
     required this.subtitle,
-    required this.flag,
+    required this.mark,
     required this.selected,
+    required this.direction,
     required this.onTap,
   });
+
   final String title;
   final String subtitle;
-  final String flag;
+  final String mark;
   final bool selected;
+  final TextDirection direction;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: selected ? const Color(0xFFEFFAFF) : Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: selected ? VelixeoDesign.sky : VelixeoDesign.line,
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 45,
-                  height: 45,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEAF7FD),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Text(
-                    flag,
-                    textDirection: flag == 'En'
-                        ? TextDirection.ltr
-                        : TextDirection.rtl,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF39AEE0),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF8294A1),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  selected
-                      ? Icons.check_rounded
-                      : (Directionality.of(context) == TextDirection.rtl
-                          ? Icons.chevron_left_rounded
-                          : Icons.chevron_right_rounded),
-                  size: 20,
-                  color: selected
-                      ? VelixeoDesign.sky
-                      : const Color(0xFF9AAAB4),
-                ),
-              ],
+  Widget build(BuildContext context) => Directionality(
+    textDirection: direction,
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 170),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFFEFFAFF) : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected ? VelixeoBrand.sky : VelixeoBrand.line,
             ),
           ),
+          child: Row(
+            children: [
+              Container(
+                width: 45,
+                height: 45,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF7FD),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  mark,
+                  textDirection: direction,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF39AEE0),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w650,
+                        color: VelixeoBrand.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        color: Color(0xFF8294A1),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                selected
+                    ? Icons.check_rounded
+                    : (direction == TextDirection.rtl
+                        ? Icons.chevron_left_rounded
+                        : Icons.chevron_right_rounded),
+                size: 19,
+                color: selected
+                    ? VelixeoBrand.sky
+                    : const Color(0xFF9AAAB4),
+              ),
+            ],
+          ),
         ),
-      );
+      ),
+    ),
+  );
+}
+
+class _PersianLanguagePreview extends StatelessWidget {
+  const _PersianLanguagePreview();
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+    textDirection: TextDirection.rtl,
+    child: Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(21),
+        border: Border.all(color: const Color(0xFFEEF2F5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'پیش‌نمایش رابط فارسی',
+                  style: TextStyle(fontSize: 11, color: VelixeoBrand.muted),
+                ),
+              ),
+              _PreviewTag(label: 'RTL'),
+            ],
+          ),
+          const SizedBox(height: 15),
+          const Text(
+            'سلام، نرگس 👋',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 3),
+          const Text(
+            'همهٔ خدمات دیجیتال، یک‌جا.',
+            style: TextStyle(fontSize: 11, color: VelixeoBrand.muted),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: const [
+              Expanded(
+                child: Text(
+                  'موجودی کیف پول',
+                  style: TextStyle(fontSize: 11, color: VelixeoBrand.muted),
+                ),
+              ),
+              Text(
+                '2,450 AFN',
+                textDirection: TextDirection.ltr,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF287FA7),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _EnglishLanguagePreview extends StatelessWidget {
+  const _EnglishLanguagePreview();
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+    textDirection: TextDirection.ltr,
+    child: Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(21),
+        border: Border.all(color: const Color(0xFFEEF2F5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'English interface preview',
+                  style: TextStyle(fontSize: 11, color: VelixeoBrand.muted),
+                ),
+              ),
+              _PreviewTag(label: 'LTR'),
+            ],
+          ),
+          const SizedBox(height: 15),
+          const Text(
+            'Hi, Narges 👋',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w650),
+          ),
+          const SizedBox(height: 3),
+          const Text(
+            'All your digital services, in one place.',
+            style: TextStyle(fontSize: 11, color: VelixeoBrand.muted),
+          ),
+          const SizedBox(height: 14),
+          const Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Wallet balance',
+                  style: TextStyle(fontSize: 11, color: VelixeoBrand.muted),
+                ),
+              ),
+              Text(
+                '2,450 AFN',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF287FA7),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _PreviewTag extends StatelessWidget {
+  const _PreviewTag({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: const Color(0xFFEAF7FE),
+      borderRadius: BorderRadius.circular(7),
+    ),
+    child: Text(
+      label,
+      textDirection: TextDirection.ltr,
+      style: const TextStyle(
+        fontFamily: 'Inter',
+        fontSize: 9,
+        fontWeight: FontWeight.w600,
+        color: Color(0xFF287495),
+      ),
+    ),
+  );
 }
 
 class AuthPage extends StatefulWidget {
