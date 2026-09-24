@@ -105,8 +105,9 @@ class _SupportPageState extends State<SupportPage> {
   }
 
   Widget _buildPersianSupportScaffold(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: Text(t('پشتیبانی', 'Support')),
+        appBar: VelixeoFaAppBar(
+          title: 'پشتیبانی و تیکت',
+          subtitle: 'سؤال‌ها، گفتگوها و پاسخ‌های پشتیبانی.',
           actions: [IconButton(onPressed: loading ? null : load, icon: const Icon(Icons.refresh_rounded))],
         ),
         body: loading
@@ -239,8 +240,9 @@ class _SupportPageState extends State<SupportPage> {
       );
 
 Widget _buildEnglishSupportScaffold(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: Text(t('پشتیبانی', 'Support')),
+        appBar: VelixeoEnAppBar(
+          title: 'Support & Tickets',
+          subtitle: 'Questions, conversations and support replies.',
           actions: [IconButton(onPressed: loading ? null : load, icon: const Icon(Icons.refresh_rounded))],
         ),
         body: loading
