@@ -386,3 +386,201 @@ abstract final class VelixeoDesign {
   static ThemeData theme(bool persian) =>
       persian ? VelixeoFaDesign.theme : VelixeoEnDesign.theme;
 }
+
+
+class VelixeoFaPageHeader extends StatelessWidget {
+  const VelixeoFaPageHeader({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.onBack,
+    this.leading,
+    this.trailing,
+    this.compact = false,
+  });
+
+  final String title;
+  final String? subtitle;
+  final VoidCallback? onBack;
+  final Widget? leading;
+  final Widget? trailing;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: Padding(
+          padding: EdgeInsets.only(bottom: compact ? 12 : 18),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (onBack != null) ...[
+                _VelixeoHeaderButton(
+                  icon: Icons.arrow_forward_rounded,
+                  onTap: onBack!,
+                ),
+                const SizedBox(width: 12),
+              ] else if (leading != null) ...[
+                leading!,
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: VelixeoBrand.ink,
+                          fontFamily: VelixeoFaDesign.fontFamily,
+                          fontSize: compact ? 18 : 21,
+                          height: 1.55,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (subtitle?.trim().isNotEmpty == true) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: VelixeoBrand.muted,
+                            fontFamily: VelixeoFaDesign.fontFamily,
+                            fontSize: 10.5,
+                            height: 1.75,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              if (trailing != null) ...[
+                const SizedBox(width: 12),
+                trailing!,
+              ],
+            ],
+          ),
+        ),
+      );
+}
+
+class VelixeoEnPageHeader extends StatelessWidget {
+  const VelixeoEnPageHeader({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.onBack,
+    this.leading,
+    this.trailing,
+    this.compact = false,
+  });
+
+  final String title;
+  final String? subtitle;
+  final VoidCallback? onBack;
+  final Widget? leading;
+  final Widget? trailing;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: Padding(
+          padding: EdgeInsets.only(bottom: compact ? 12 : 18),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (onBack != null) ...[
+                _VelixeoHeaderButton(
+                  icon: Icons.arrow_back_rounded,
+                  onTap: onBack!,
+                ),
+                const SizedBox(width: 12),
+              ] else if (leading != null) ...[
+                leading!,
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: VelixeoBrand.ink,
+                          fontFamily: VelixeoEnDesign.fontFamily,
+                          fontSize: compact ? 18 : 21,
+                          height: 1.35,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (subtitle?.trim().isNotEmpty == true) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          subtitle!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: VelixeoBrand.muted,
+                            fontFamily: VelixeoEnDesign.fontFamily,
+                            fontSize: 10.5,
+                            height: 1.5,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              if (trailing != null) ...[
+                const SizedBox(width: 12),
+                trailing!,
+              ],
+            ],
+          ),
+        ),
+      );
+}
+
+class _VelixeoHeaderButton extends StatelessWidget {
+  const _VelixeoHeaderButton({
+    required this.icon,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(13),
+          side: const BorderSide(color: VelixeoBrand.line),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(13),
+          child: SizedBox.square(
+            dimension: 42,
+            child: Icon(
+              icon,
+              size: 20,
+              color: const Color(0xFF5E7582),
+            ),
+          ),
+        ),
+      );
+}
