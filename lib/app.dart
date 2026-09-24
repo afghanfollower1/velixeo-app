@@ -5657,83 +5657,459 @@ class WalletPage extends StatelessWidget {
   const WalletPage({super.key, required this.controller});
   final AppController controller;
 
-  String entryStatus(bool fa, WalletEntry entry) {
-    switch (entry.status) {
-      case 'PENDING':
-        return tr(fa, 'در انتظار', 'Pending');
-      case 'FAILED':
-        return tr(fa, 'ناموفق', 'Failed');
-      case 'REVERSED':
-        return tr(fa, 'برگشت خورده', 'Reversed');
-      default:
-        return tr(fa, 'تکمیل', 'Completed');
-    }
-  }
+  @override
+  Widget build(BuildContext context) => controller.fa
+      ? _PersianWalletPage(controller: controller)
+      : _EnglishWalletPage(controller: controller);
+}
 
-  String entryTitle(bool fa, WalletEntry entry) {
-    if (entry.description.isNotEmpty) return entry.description;
-    switch (entry.type) {
-      case 'MANUAL_CREDIT':
-        return tr(fa, 'افزایش موجودی توسط مدیر', 'Manual wallet credit');
-      case 'MANUAL_DEBIT':
-        return tr(fa, 'کسر موجودی توسط مدیر', 'Manual wallet debit');
-      case 'REFUND':
-        return tr(fa, 'برگشت وجه', 'Refund');
-      case 'PURCHASE':
-        return tr(fa, 'خرید', 'Purchase');
-      default:
-        return tr(fa, 'تراکنش کیف پول', 'Wallet transaction');
+String _walletEntryStatus(WalletEntry entry, bool fa) {
+  if (fa) {
+    switch (entry.status) {
+      case 'PENDING': return 'در انتظار';
+      case 'FAILED': return 'ناموفق';
+      case 'REVERSED': return 'برگشت‌خورده';
+      default: return 'تکمیل‌شده';
     }
   }
+  switch (entry.status) {
+    case 'PENDING': return 'Pending';
+    case 'FAILED': return 'Failed';
+    case 'REVERSED': return 'Reversed';
+    default: return 'Completed';
+  }
+}
+
+String _walletEntryTitle(WalletEntry entry, bool fa) {
+  if (entry.description.isNotEmpty) return entry.description;
+  if (fa) {
+    switch (entry.type) {
+      case 'MANUAL_CREDIT': return 'افزایش موجودی توسط مدیر';
+      case 'MANUAL_DEBIT': return 'کسر موجودی توسط مدیر';
+      case 'REFUND': return 'برگشت وجه';
+      case 'PURCHASE': return 'خرید';
+      default: return 'تراکنش کیف پول';
+    }
+  }
+  switch (entry.type) {
+    case 'MANUAL_CREDIT': return 'Manual wallet credit';
+    case 'MANUAL_DEBIT': return 'Manual wallet debit';
+    case 'REFUND': return 'Refund';
+    case 'PURCHASE': return 'Purchase';
+    default: return 'Wallet transaction';
+  }
+}
+
+class _PersianWalletPage extends StatelessWidget {
+  const _PersianWalletPage({required this.controller});
+  final AppController controller;
 
   @override
   Widget build(BuildContext context) {
     final c = controller;
-    return SafeArea(
-      child: RefreshIndicator(
-        onRefresh: c.refreshAccount,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-          children: [
-            Row(
-              children: [
-                Text(tr(c.fa, 'کیف پول', 'Wallet'), style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
-                const Spacer(),
-                if (c.refreshing) const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            WalletHero(controller: c),
-            const SizedBox(height: 18),
-            PrimaryButton(
-              label: tr(c.fa, 'افزایش موجودی', 'Add funds'),
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddFundsPage(controller: c))),
-            ),
-            const SizedBox(height: 24),
-            SectionTitle(tr(c.fa, 'تراکنش‌های واقعی', 'Live transactions')),
-            if (c.walletEntries.isEmpty)
-              EmptyCard(
-                icon: Icons.history,
-                title: tr(c.fa, 'هنوز تراکنشی ندارید', 'No transactions yet'),
-                subtitle: tr(c.fa, 'تراکنش‌های کیف پول بعد از ایجاد اینجا ثبت می‌شوند.', 'Wallet ledger entries will appear here.'),
-              )
-            else
-              ...c.walletEntries.map(
-                (entry) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: TransactionTile(
-                    title: entryTitle(c.fa, entry),
-                    subtitle: '${entryStatus(c.fa, entry)} • ${entry.createdAt.toLocal().toString().substring(0, 16)} • ${tr(c.fa, 'موجودی بعد', 'Balance after')}: ${entry.balanceAfterAfn} AFN',
-                    amount: '${entry.amountAfn >= 0 ? '+' : ''}${c.money(entry.amountAfn)}',
-                    positive: entry.amountAfn >= 0,
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: c.refreshAccount,
+          child: ListView(
+            padding: VelixeoFaDesign.pagePadding,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'کیف پول',
+                      style: TextStyle(
+                        fontSize: 23,
+                        fontWeight: FontWeight.w700,
+                        color: VelixeoBrand.ink,
+                      ),
+                    ),
                   ),
+                  if (c.refreshing)
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              const Text(
+                'موجودی و تمام تراکنش‌هایت را مدیریت کن.',
+                style: TextStyle(fontSize: 11, color: VelixeoBrand.muted),
+              ),
+              const SizedBox(height: 18),
+              _PrototypeWalletHero(
+                controller: c,
+                label: 'موجودی کیف پول',
+                buttonLabel: 'افزایش موجودی',
+                direction: TextDirection.rtl,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => AddFundsPage(controller: c)),
                 ),
               ),
+              const SizedBox(height: 18),
+              _WalletQuickActions(
+                fa: true,
+                onAddFunds: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => AddFundsPage(controller: c)),
+                ),
+                onHistory: () {},
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'تراکنش‌های اخیر',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w650,
+                  color: VelixeoBrand.ink,
+                ),
+              ),
+              const SizedBox(height: 11),
+              if (c.walletEntries.isEmpty)
+                const _WalletEmptyState(
+                  title: 'هنوز تراکنشی نداری',
+                  subtitle: 'افزایش موجودی، خرید و بازگشت وجه اینجا ثبت می‌شود.',
+                )
+              else
+                ...c.walletEntries.map(
+                  (entry) => _WalletTransactionCard(
+                    entry: entry,
+                    controller: c,
+                    direction: TextDirection.rtl,
+                    title: _walletEntryTitle(entry, true),
+                    status: _walletEntryStatus(entry, true),
+                    balanceLabel: 'موجودی پس از تراکنش',
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EnglishWalletPage extends StatelessWidget {
+  const _EnglishWalletPage({required this.controller});
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller;
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: c.refreshAccount,
+          child: ListView(
+            padding: VelixeoEnDesign.pagePadding,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Wallet',
+                      style: TextStyle(
+                        fontSize: 23,
+                        fontWeight: FontWeight.w700,
+                        color: VelixeoBrand.ink,
+                      ),
+                    ),
+                  ),
+                  if (c.refreshing)
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              const Text(
+                'Manage your balance and every wallet transaction.',
+                style: TextStyle(fontSize: 11, color: VelixeoBrand.muted),
+              ),
+              const SizedBox(height: 18),
+              _PrototypeWalletHero(
+                controller: c,
+                label: 'Available balance',
+                buttonLabel: 'Add funds',
+                direction: TextDirection.ltr,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => AddFundsPage(controller: c)),
+                ),
+              ),
+              const SizedBox(height: 18),
+              _WalletQuickActions(
+                fa: false,
+                onAddFunds: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => AddFundsPage(controller: c)),
+                ),
+                onHistory: () {},
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Recent transactions',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: VelixeoBrand.ink,
+                ),
+              ),
+              const SizedBox(height: 11),
+              if (c.walletEntries.isEmpty)
+                const _WalletEmptyState(
+                  title: 'No transactions yet',
+                  subtitle: 'Top-ups, purchases and refunds will appear here.',
+                )
+              else
+                ...c.walletEntries.map(
+                  (entry) => _WalletTransactionCard(
+                    entry: entry,
+                    controller: c,
+                    direction: TextDirection.ltr,
+                    title: _walletEntryTitle(entry, false),
+                    status: _walletEntryStatus(entry, false),
+                    balanceLabel: 'Balance after',
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WalletQuickActions extends StatelessWidget {
+  const _WalletQuickActions({
+    required this.fa,
+    required this.onAddFunds,
+    required this.onHistory,
+  });
+  final bool fa;
+  final VoidCallback onAddFunds;
+  final VoidCallback onHistory;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: _WalletActionButton(
+          icon: Icons.add_rounded,
+          label: fa ? 'افزایش موجودی' : 'Add funds',
+          onTap: onAddFunds,
+        ),
+      ),
+      const SizedBox(width: 10),
+      Expanded(
+        child: _WalletActionButton(
+          icon: Icons.history_rounded,
+          label: fa ? 'تاریخچه' : 'History',
+          onTap: onHistory,
+        ),
+      ),
+    ],
+  );
+}
+
+class _WalletActionButton extends StatelessWidget {
+  const _WalletActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.transparent,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE8EEF2)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18, color: const Color(0xFF4C9FC1)),
+            const SizedBox(width: 7),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF4B6D7E),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _WalletTransactionCard extends StatelessWidget {
+  const _WalletTransactionCard({
+    required this.entry,
+    required this.controller,
+    required this.direction,
+    required this.title,
+    required this.status,
+    required this.balanceLabel,
+  });
+
+  final WalletEntry entry;
+  final AppController controller;
+  final TextDirection direction;
+  final String title;
+  final String status;
+  final String balanceLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final positive = entry.amountAfn >= 0;
+    final tone = positive ? VelixeoBrand.green : VelixeoBrand.red;
+    return Directionality(
+      textDirection: direction,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFEEF2F5)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: tone.withValues(alpha: .09),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Icon(
+                positive ? Icons.south_west_rounded : Icons.north_east_rounded,
+                color: tone,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: VelixeoBrand.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    status + ' · ' + entry.createdAt.toLocal().toString().substring(0, 16),
+                    textDirection: direction,
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      color: Color(0xFF9AA8B1),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    balanceLabel + ': ' + entry.balanceAfterAfn.toString() + ' AFN',
+                    style: const TextStyle(
+                      fontSize: 9,
+                      color: Color(0xFFA6B1B8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              (positive ? '+' : '') + controller.money(entry.amountAfn),
+              textDirection: TextDirection.ltr,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w650,
+                color: tone,
+              ),
+            ),
           ],
         ),
       ),
     );
   }
+}
+
+class _WalletEmptyState extends StatelessWidget {
+  const _WalletEmptyState({required this.title, required this.subtitle});
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 38),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: const Color(0xFFEEF2F5)),
+    ),
+    child: Column(
+      children: [
+        Container(
+          width: 58,
+          height: 58,
+          decoration: BoxDecoration(
+            color: VelixeoBrand.soft,
+            borderRadius: BorderRadius.circular(19),
+          ),
+          child: const Icon(
+            Icons.account_balance_wallet_outlined,
+            color: Color(0xFF73ACC6),
+            size: 27,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: VelixeoBrand.ink,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          subtitle,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 10.5,
+            color: VelixeoBrand.muted,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class AddFundsPage extends StatefulWidget {
