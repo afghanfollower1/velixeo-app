@@ -177,10 +177,10 @@ async function usersPage(p:PrismaClient,q:string,edit:string){
   <div class="card"><div class="cardhead"><h2>Account Management</h2>${state(selected.status)}</div>
    <form method="post" action="/admin/v3/user"><input type="hidden" name="userId" value="${selected.id}"><div class="forms"><div class="field"><label>Role</label><select name="role"><option ${selected.role==='USER'?'selected':''}>USER</option><option ${selected.role==='ADMIN'?'selected':''}>ADMIN</option></select></div><div class="field"><label>Base Status</label><select name="status"><option ${selected.status==='ACTIVE'?'selected':''}>ACTIVE</option><option ${selected.status==='SUSPENDED'?'selected':''}>SUSPENDED</option></select></div></div><button class="btn">Save Account</button></form>
   </div>
-  <div class="card"><div class="cardhead"><div><h2>Account Security</h2><span class="muted">Same verification state shown in the mobile app</span></div>${selected.emailVerified&&selected.phoneVerified&&selected.twoFactorEnabled?pill('Secure','ok'):pill('Needs attention','warn')}</div>
+  <div class="card"><div class="cardhead"><div><h2>Account Security</h2><span class="muted">Same verification state shown in the mobile app</span></div>${selected.emailVerifiedAt!=null&&selected.phoneVerifiedAt!=null&&selected.twoFactorEnabled?pill('Secure','ok'):pill('Needs attention','warn')}</div>
    <div class="grid eq" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:9px">
-    <div class="notice" style="margin:0"><b>Email</b><br>${selected.emailVerified?pill('Verified','ok'):pill('Not verified','warn')}</div>
-    <div class="notice" style="margin:0"><b>Phone</b><br>${selected.phoneVerified?pill('Verified','ok'):pill('Not verified','warn')}</div>
+    <div class="notice" style="margin:0"><b>Email</b><br>${selected.emailVerifiedAt!=null?pill('Verified','ok'):pill('Not verified','warn')}</div>
+    <div class="notice" style="margin:0"><b>Phone</b><br>${selected.phoneVerifiedAt!=null?pill('Verified','ok'):pill('Not verified','warn')}</div>
     <div class="notice" style="margin:0"><b>Two-factor</b><br>${selected.twoFactorEnabled?pill('Enabled','ok'):pill('Disabled','warn')}</div>
    </div>
   </div>
