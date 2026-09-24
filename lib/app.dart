@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:image_picker/image_picker.dart';
@@ -846,10 +845,10 @@ class SplashPage extends StatelessWidget {
                 children: [
                   const _SplashBrandOrb(),
                   const SizedBox(height: 20),
-                  Text(
+                  const Text(
                     'VELIXEO.',
                     textDirection: TextDirection.ltr,
-                    style: GoogleFonts.inter(
+                    style: TextStyle(fontFamily: 'Inter',
                       fontSize: 29,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 4,
@@ -917,10 +916,10 @@ class _SplashBrandOrb extends StatelessWidget {
               ),
             ],
           ),
-          child: Text(
+          child: const Text(
             'V',
             textDirection: TextDirection.ltr,
-            style: GoogleFonts.inter(
+            style: TextStyle(fontFamily: 'Inter',
               color: Colors.white,
               fontSize: 49,
               height: 1,
@@ -948,7 +947,7 @@ class BrandMark extends StatelessWidget {
             SizedBox(width: size * .18),
             Text(
               'VELIXEO',
-              style: GoogleFonts.inter(
+              style: const TextStyle(fontFamily: 'Inter',
                 fontSize: size * .43,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.7,
