@@ -267,7 +267,19 @@ class _SupportTicketPageState extends State<SupportTicketPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    return fa
+        ? Directionality(
+            textDirection: TextDirection.rtl,
+            child: _buildTicketScaffold(context),
+          )
+        : Directionality(
+            textDirection: TextDirection.ltr,
+            child: _buildTicketScaffold(context),
+          );
+  }
+
+  Widget _buildTicketScaffold(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text(ticket.subject), actions: [IconButton(onPressed: refresh, icon: const Icon(Icons.refresh_rounded))]),
         body: Column(
           children: [
