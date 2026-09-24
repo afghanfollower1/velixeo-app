@@ -261,7 +261,7 @@ class _PremiumPanelPageState extends State<PremiumPanelPage> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: const Color(0xFFE7EEF2)),
+                        border: Border.all(color: VelixeoBrand.line),
                       ),
                       child: Row(
                         children: [
@@ -307,7 +307,7 @@ class _PremiumPanelPageState extends State<PremiumPanelPage> {
                                 ),
                                 Text(
                                   host.money(product.minPriceAfn!),
-                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900, color: Color(0xFF38BDF8)),
+                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900, color: VelixeoBrand.sky),
                                 ),
                               ],
                               const SizedBox(height: 4),
@@ -427,7 +427,7 @@ Widget _buildEnglishPremiumCatalog(BuildContext context) {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: const Color(0xFFE7EEF2)),
+                        border: Border.all(color: VelixeoBrand.line),
                       ),
                       child: Row(
                         children: [
@@ -473,7 +473,7 @@ Widget _buildEnglishPremiumCatalog(BuildContext context) {
                                 ),
                                 Text(
                                   host.money(product.minPriceAfn!),
-                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900, color: Color(0xFF38BDF8)),
+                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900, color: VelixeoBrand.sky),
                                 ),
                               ],
                               const SizedBox(height: 4),
@@ -631,7 +631,7 @@ class _PremiumProductPageState extends State<PremiumProductPage> {
       await showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
-          icon: const Icon(Icons.check_circle_rounded, color: Color(0xFF158365), size: 48),
+          icon: const Icon(Icons.check_circle_rounded, color: VelixeoBrand.green, size: 48),
           title: Text(t('سفارش ثبت شد', 'Order placed')),
           content: Text(
             t(
@@ -718,7 +718,7 @@ Widget _buildPersianPage(BuildContext context) {
                           'تحویل ${product.deliveryMinHours} تا ${product.deliveryMaxHours} ساعت',
                           'Delivery in ${product.deliveryMinHours}–${product.deliveryMaxHours} hours',
                         ),
-                        style: const TextStyle(color: Color(0xFF74818B), fontSize: 11.5),
+                        style: const TextStyle(color: VelixeoBrand.muted, fontSize: 11.5),
                       ),
                     ],
                   ),
@@ -728,7 +728,7 @@ Widget _buildPersianPage(BuildContext context) {
           ),
           if (description?.trim().isNotEmpty == true) ...[
             const SizedBox(height: 14),
-            Text(description!, style: const TextStyle(color: Color(0xFF74818B), height: 1.55)),
+            Text(description!, style: const TextStyle(color: VelixeoBrand.muted, height: 1.55)),
           ],
           const SizedBox(height: 18),
           Text(t('انتخاب پکیج', 'Choose a package'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
@@ -748,7 +748,7 @@ Widget _buildPersianPage(BuildContext context) {
                   decoration: BoxDecoration(
                     color: selected ? const Color(0xFFFFF8E9) : Colors.white,
                     borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: selected ? const Color(0xFFFFA928) : const Color(0xFFE7EEF2), width: selected ? 1.5 : 1),
+                    border: Border.all(color: selected ? const Color(0xFFFFA928) : VelixeoBrand.line, width: selected ? 1.5 : 1),
                   ),
                   child: Row(
                     children: [
@@ -764,10 +764,10 @@ Widget _buildPersianPage(BuildContext context) {
                             ],
                           ]),
                           if (duration.isNotEmpty) Text(duration, style: const TextStyle(fontSize: 10.5, color: Color(0xFF7D8B9B))),
-                          if (!pkg.available) Text(t('ناموجود', 'Out of stock'), style: const TextStyle(fontSize: 10, color: Color(0xFFC54152))),
+                          if (!pkg.available) Text(t('ناموجود', 'Out of stock'), style: const TextStyle(fontSize: 10, color: VelixeoBrand.red)),
                         ]),
                       ),
-                      Text(host.money(pkg.priceAfn), style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF38BDF8))),
+                      Text(host.money(pkg.priceAfn), style: const TextStyle(fontWeight: FontWeight.w900, color: VelixeoBrand.sky)),
                     ],
                   ),
                 ),
@@ -797,9 +797,9 @@ Widget _buildPersianPage(BuildContext context) {
           const SizedBox(height: 18),
           Container(
             padding: const EdgeInsets.all(13),
-            decoration: BoxDecoration(color: const Color(0xFFF6F9FC), borderRadius: BorderRadius.circular(15), border: Border.all(color: const Color(0xFFE4EAF1))),
+            decoration: BoxDecoration(color: VelixeoBrand.background, borderRadius: BorderRadius.circular(15), border: Border.all(color: const Color(0xFFE4EAF1))),
             child: Row(children: [
-              const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF38BDF8)),
+              const Icon(Icons.account_balance_wallet_rounded, color: VelixeoBrand.sky),
               const SizedBox(width: 10),
               Expanded(child: Text(t('موجودی کیف پول', 'Wallet balance'), style: const TextStyle(fontWeight: FontWeight.w800))),
               Text(host.money(host.balanceAfn), style: const TextStyle(fontWeight: FontWeight.w900)),
@@ -861,7 +861,7 @@ Widget _buildEnglishPage(BuildContext context) {
                           'تحویل ${product.deliveryMinHours} تا ${product.deliveryMaxHours} ساعت',
                           'Delivery in ${product.deliveryMinHours}–${product.deliveryMaxHours} hours',
                         ),
-                        style: const TextStyle(color: Color(0xFF74818B), fontSize: 11.5),
+                        style: const TextStyle(color: VelixeoBrand.muted, fontSize: 11.5),
                       ),
                     ],
                   ),
@@ -871,7 +871,7 @@ Widget _buildEnglishPage(BuildContext context) {
           ),
           if (description?.trim().isNotEmpty == true) ...[
             const SizedBox(height: 14),
-            Text(description!, style: const TextStyle(color: Color(0xFF74818B), height: 1.55)),
+            Text(description!, style: const TextStyle(color: VelixeoBrand.muted, height: 1.55)),
           ],
           const SizedBox(height: 18),
           Text(t('انتخاب پکیج', 'Choose a package'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
@@ -891,7 +891,7 @@ Widget _buildEnglishPage(BuildContext context) {
                   decoration: BoxDecoration(
                     color: selected ? const Color(0xFFFFF8E9) : Colors.white,
                     borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: selected ? const Color(0xFFFFA928) : const Color(0xFFE7EEF2), width: selected ? 1.5 : 1),
+                    border: Border.all(color: selected ? const Color(0xFFFFA928) : VelixeoBrand.line, width: selected ? 1.5 : 1),
                   ),
                   child: Row(
                     children: [
@@ -907,10 +907,10 @@ Widget _buildEnglishPage(BuildContext context) {
                             ],
                           ]),
                           if (duration.isNotEmpty) Text(duration, style: const TextStyle(fontSize: 10.5, color: Color(0xFF7D8B9B))),
-                          if (!pkg.available) Text(t('ناموجود', 'Out of stock'), style: const TextStyle(fontSize: 10, color: Color(0xFFC54152))),
+                          if (!pkg.available) Text(t('ناموجود', 'Out of stock'), style: const TextStyle(fontSize: 10, color: VelixeoBrand.red)),
                         ]),
                       ),
-                      Text(host.money(pkg.priceAfn), style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF38BDF8))),
+                      Text(host.money(pkg.priceAfn), style: const TextStyle(fontWeight: FontWeight.w900, color: VelixeoBrand.sky)),
                     ],
                   ),
                 ),
@@ -940,9 +940,9 @@ Widget _buildEnglishPage(BuildContext context) {
           const SizedBox(height: 18),
           Container(
             padding: const EdgeInsets.all(13),
-            decoration: BoxDecoration(color: const Color(0xFFF6F9FC), borderRadius: BorderRadius.circular(15), border: Border.all(color: const Color(0xFFE4EAF1))),
+            decoration: BoxDecoration(color: VelixeoBrand.background, borderRadius: BorderRadius.circular(15), border: Border.all(color: const Color(0xFFE4EAF1))),
             child: Row(children: [
-              const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF38BDF8)),
+              const Icon(Icons.account_balance_wallet_rounded, color: VelixeoBrand.sky),
               const SizedBox(width: 10),
               Expanded(child: Text(t('موجودی کیف پول', 'Wallet balance'), style: const TextStyle(fontWeight: FontWeight.w800))),
               Text(host.money(host.balanceAfn), style: const TextStyle(fontWeight: FontWeight.w900)),
@@ -1026,7 +1026,7 @@ class _PremiumBanner extends StatelessWidget {
                                 ),
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Color(0xFF74818B), fontSize: 11, height: 1.55),
+                          style: const TextStyle(color: VelixeoBrand.muted, fontSize: 11, height: 1.55),
                         ),
                       ],
                     ),
@@ -1097,7 +1097,7 @@ class _PremiumNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = error ? const Color(0xFFC54152) : const Color(0xFF38BDF8);
+    final color = error ? VelixeoBrand.red : VelixeoBrand.sky;
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
@@ -1129,17 +1129,17 @@ class _PremiumOrderCard extends StatelessWidget {
   Color stateColor() {
     switch (order.premiumState) {
       case 'COMPLETED':
-        return const Color(0xFF158365);
+        return VelixeoBrand.green;
       case 'PROCESSING':
-        return const Color(0xFF38BDF8);
+        return VelixeoBrand.sky;
       case 'NEED_INFORMATION':
-        return const Color(0xFFAD670D);
+        return VelixeoBrand.orange;
       case 'REFUNDED':
       case 'FAILED':
       case 'CANCELLED':
-        return const Color(0xFFC54152);
+        return VelixeoBrand.red;
       default:
-        return const Color(0xFFAD670D);
+        return VelixeoBrand.orange;
     }
   }
 
