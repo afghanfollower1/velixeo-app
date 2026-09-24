@@ -2434,44 +2434,87 @@ class _AuthPageState extends State<AuthPage> {
 
 }
 
-class _AuthMethodButton extends StatelessWidget {
-  const _AuthMethodButton({
-    required this.selected,
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-  final bool selected;
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
+class _AuthPasswordHint extends StatelessWidget {
+  const _AuthPasswordHint({required this.text});
+  final String text;
 
   @override
-  Widget build(BuildContext context) => Material(
-        color: selected ? Colors.white : Colors.transparent,
-        borderRadius: BorderRadius.circular(11),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(11),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 11),
-            decoration: selected
-                ? BoxDecoration(
-                    borderRadius: BorderRadius.circular(11),
-                    boxShadow: const [BoxShadow(color: Color(0x0D153F68), blurRadius: 12)],
-                  )
-                : null,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 18, color: selected ? VelixeoDesign.sky : const Color(0xFF7B8B9C)),
-                const SizedBox(width: 7),
-                Text(label, style: TextStyle(fontWeight: FontWeight.w900, color: selected ? VelixeoDesign.sky : const Color(0xFF7B8B9C))),
-              ],
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Padding(
+        padding: EdgeInsets.only(top: 2),
+        child: Icon(Icons.check_circle_outline_rounded, size: 14, color: Color(0xFF72BAA2)),
+      ),
+      const SizedBox(width: 7),
+      Expanded(
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 10,
+            height: 1.55,
+            color: Color(0xFF7C919E),
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+class _AuthVerificationNotice extends StatelessWidget {
+  const _AuthVerificationNotice({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: const Color(0xFFF1F8FC),
+      borderRadius: BorderRadius.circular(13),
+      border: Border.all(color: const Color(0xFFE4F0F6)),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF65AACA)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              fontSize: 10.5,
+              height: 1.55,
+              color: Color(0xFF6E8194),
             ),
           ),
         ),
-      );
+      ],
+    ),
+  );
+}
+
+class _AuthDivider extends StatelessWidget {
+  const _AuthDivider({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      const Expanded(child: Divider()),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10.5,
+            color: Color(0xFF93A3AD),
+          ),
+        ),
+      ),
+      const Expanded(child: Divider()),
+    ],
+  );
 }
 
 class TwoFactorLoginPage extends StatefulWidget {
