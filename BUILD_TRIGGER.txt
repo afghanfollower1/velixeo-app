@@ -1,15 +1,14 @@
-Trigger signed Android build - VELIXEO v0.9.9 - 2026-09-23.
+Trigger signed Android build - VELIXEO v0.10.0 - 2026-09-24.
 Release scope:
-1) Promotions is removed from the customer app and Admin UI for now.
-2) Promotions/Meta connection APIs are disabled; historical database/orders are preserved rather than deleted.
-3) Promotion services, banners, notifications and customer-order history are hidden from customer-facing surfaces.
-4) Shared Admin Orders/Banners/Notifications no longer surface Promotions records.
-5) Premium is now strictly for premium subscriptions such as Telegram Premium, Snapchat+ and similar services.
-6) VPN, Netflix, streaming, licenses, AI/digital products belong in the separate Digital Accounts section.
-7) Added a dedicated Digital Accounts app hub driven by DIGITAL_ACCOUNT catalog items.
-8) Mobile Top-up remains visible only as Coming soon until official telecom provider APIs are connected.
-9) Admin Mobile Top-up is also a Coming soon page; unused provider/product controls are hidden for now.
-10) Home/service loading is staged so catalog and banners render before heavier order/notification data.
-11) Payment capability/history calls are deferred until the Add Funds screen is opened.
-12) Home, Social, Virtual Numbers and Premium banner image decoding/loading was optimized for the actual device width.
-13) Backend and Flutter validation passed before this release trigger.
+1) Apply the supplied VELIXEO 2026 design system across the Flutter app and Admin V3.
+2) Use Vazirmatn for Persian and Inter for English; both fonts are bundled in the APK for offline-reliable rendering.
+3) Implement RTL Persian and LTR English styling, typography, spacing, cards, inputs, buttons and navigation consistently.
+4) Redesign Splash, language selection, sign-in/register, Home, Services, Orders, Wallet, Profile and Notifications.
+5) Align Social Media, Virtual Numbers, Premium, Digital Accounts, Referral and Support surfaces with the same light Sky design language.
+6) Restyle /admin/v3 to the supplied white-sidebar/light-dashboard design while preserving real controls and data.
+7) Rename Banners & Advertising to Banners / بنرها.
+8) Remove the retired Promotions customer/admin source and compatibility API methods; historical Promotion data stays safely hidden.
+9) Keep Premium and Digital Accounts separate; keep Mobile Top-up as Coming Soon.
+10) Preserve existing provider, wallet, payment, OTP, order, refill, drip-feed and backend behavior.
+11) Version: 0.10.0+30.
+12) Flutter Analyze and Backend CI passed on the final design branch before merge.
