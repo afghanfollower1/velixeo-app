@@ -846,7 +846,7 @@ class SplashPage extends StatelessWidget {
                 children: [
                   const _SplashBrandOrb(),
                   const SizedBox(height: 20),
-                  const Text(
+                  Text(
                     'VELIXEO.',
                     textDirection: TextDirection.ltr,
                     style: GoogleFonts.inter(
@@ -917,7 +917,7 @@ class _SplashBrandOrb extends StatelessWidget {
               ),
             ],
           ),
-          child: const Text(
+          child: Text(
             'V',
             textDirection: TextDirection.ltr,
             style: GoogleFonts.inter(
