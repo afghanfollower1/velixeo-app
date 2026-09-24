@@ -754,54 +754,54 @@ async function adminOrderDetail(p:PrismaClient,id:string){
       service:{include:{routes:{include:{provider:true},orderBy:{priority:'asc'}}}},
     },
   });
-  if(!o)return \`<div class="card empty"><h3>Order not found</h3><p class="muted">The requested VELIXEO order could not be found.</p><a class="btn ghost" href="/admin/v3?section=orders">Back to orders</a></div>\`;
+  if(!o)return `<div class="card empty"><h3>Order not found</h3><p class="muted">The requested VELIXEO order could not be found.</p><a class="btn ghost" href="/admin/v3?section=orders">Back to orders</a></div>`;
   const input=jsonObj(o.input),output=jsonObj(o.output),meta=adminOrderMeta(o),link=orderLink(o);
   const systemId=orderDisplaySystemId(o);
   const providerServiceId=orderProviderServiceId(o);
   const margin=Number(o.totalAmountAfn??0)-Number(o.providerCostAfn??0);
   const safeJson=(value:unknown)=>e(JSON.stringify(value??{},null,2));
-  return \`
+  return `
   <div class="order-detail-head">
-    <div><a class="btn ghost" href="/admin/v3?section=orders">← Back to orders</a><h2 style="margin:16px 0 3px">Order #\${e(systemId)}</h2><div class="muted mono">\${e(o.id)}</div></div>
-    <div class="actions">\${state(o.status)}\${meta.drip?pill('Drip-feed','info'):''}\${meta.refill?pill('Refill','warn'):''}</div>
+    <div><a class="btn ghost" href="/admin/v3?section=orders">← Back to orders</a><h2 style="margin:16px 0 3px">Order #${e(systemId)}</h2><div class="muted mono">${e(o.id)}</div></div>
+    <div class="actions">${state(o.status)}${meta.drip?pill('Drip-feed','info'):''}${meta.refill?pill('Refill','warn'):''}</div>
   </div>
   <div class="stats">
-    <div class="stat"><div class="sicon">\${ico('wallet')}</div><div><small>Customer Amount</small><strong>\${money(o.totalAmountAfn)}</strong><div class="delta">VELIXEO sale</div></div></div>
-    <div class="stat"><div class="sicon">\${ico('dashboard')}</div><div><small>Provider Cost</small><strong>\${money(o.providerCostAfn??0n)}</strong><div class="delta">Recorded cost</div></div></div>
-    <div class="stat"><div class="sicon">\${ico('orders')}</div><div><small>Gross Margin</small><strong>\${money(BigInt(Math.trunc(margin)))}</strong><div class="delta">Sale − provider cost</div></div></div>
-    <div class="stat"><div class="sicon">\${ico('service')}</div><div><small>Quantity</small><strong>\${e(o.quantity??meta.total??0)}</strong><div class="delta">\${e(o.category)}</div></div></div>
+    <div class="stat"><div class="sicon">${ico('wallet')}</div><div><small>Customer Amount</small><strong>${money(o.totalAmountAfn)}</strong><div class="delta">VELIXEO sale</div></div></div>
+    <div class="stat"><div class="sicon">${ico('dashboard')}</div><div><small>Provider Cost</small><strong>${money(o.providerCostAfn??0n)}</strong><div class="delta">Recorded cost</div></div></div>
+    <div class="stat"><div class="sicon">${ico('orders')}</div><div><small>Gross Margin</small><strong>${money(BigInt(Math.trunc(margin)))}</strong><div class="delta">Sale − provider cost</div></div></div>
+    <div class="stat"><div class="sicon">${ico('service')}</div><div><small>Quantity</small><strong>${e(o.quantity??meta.total??0)}</strong><div class="delta">${e(o.category)}</div></div></div>
   </div>
   <div class="grid eq">
     <section class="card">
-      <div class="cardhead"><h3>Order & Service</h3>\${state(o.status)}</div>
-      <div class="info"><small>VELIXEO Order ID</small><b class="mono">#\${e(systemId)}</b></div>
-      <div class="info"><small>Provider API Order ID</small><b class="mono">\${e(o.providerOrderId||'—')}</b></div>
-      <div class="info"><small>Service</small><b>\${e(o.service?.titleEn||o.service?.titleFa||o.category)}</b><span class="muted mono">\${e(providerServiceId||'—')}</span></div>
-      <div class="info"><small>Provider</small><b>\${e(o.provider?.name||'No provider')}</b></div>
-      <div class="info"><small>Target / Link</small><b class="mono">\${link?\`<a href="\${e(link)}" target="_blank" rel="noopener noreferrer">\${e(link)}</a>\`:'—'}</b></div>
-      <div class="info"><small>Created</small><b>\${dt(o.createdAt)}</b></div>
-      <div class="info"><small>Completed</small><b>\${o.completedAt?dt(o.completedAt):'—'}</b></div>
+      <div class="cardhead"><h3>Order & Service</h3>${state(o.status)}</div>
+      <div class="info"><small>VELIXEO Order ID</small><b class="mono">#${e(systemId)}</b></div>
+      <div class="info"><small>Provider API Order ID</small><b class="mono">${e(o.providerOrderId||'—')}</b></div>
+      <div class="info"><small>Service</small><b>${e(o.service?.titleEn||o.service?.titleFa||o.category)}</b><span class="muted mono">${e(providerServiceId||'—')}</span></div>
+      <div class="info"><small>Provider</small><b>${e(o.provider?.name||'No provider')}</b></div>
+      <div class="info"><small>Target / Link</small><b class="mono">${link?`<a href="${e(link)}" target="_blank" rel="noopener noreferrer">${e(link)}</a>`:'—'}</b></div>
+      <div class="info"><small>Created</small><b>${dt(o.createdAt)}</b></div>
+      <div class="info"><small>Completed</small><b>${o.completedAt?dt(o.completedAt):'—'}</b></div>
     </section>
     <section class="card">
       <div class="cardhead"><h3>Customer</h3><span class="muted">Real account data</span></div>
-      <div class="info"><small>Name</small><b>\${e(o.user?.fullName||'—')}</b></div>
-      <div class="info"><small>Email</small><b class="mono">\${e(o.user?.email||'—')}</b></div>
-      <div class="info"><small>Phone</small><b class="mono">\${e(o.user?.phone||'—')}</b></div>
-      <div class="info"><small>User ID</small><b class="mono">\${e(o.userId)}</b></div>
+      <div class="info"><small>Name</small><b>${e(o.user?.fullName||'—')}</b></div>
+      <div class="info"><small>Email</small><b class="mono">${e(o.user?.email||'—')}</b></div>
+      <div class="info"><small>Phone</small><b class="mono">${e(o.user?.phone||'—')}</b></div>
+      <div class="info"><small>User ID</small><b class="mono">${e(o.userId)}</b></div>
       <div class="section-title">Admin status control</div>
-      \${orderStatusControls(o)}
+      ${orderStatusControls(o)}
     </section>
   </div>
   <div class="grid eq">
-    <section class="card"><div class="cardhead"><h3>Customer / Provider Input</h3><span class="muted">Stored order payload</span></div><pre class="mono" style="white-space:pre-wrap;overflow:auto;background:#f7fafc;border:1px solid #edf2f5;border-radius:14px;padding:14px;font-size:10px;line-height:1.6">\${safeJson(input)}</pre></section>
-    <section class="card"><div class="cardhead"><h3>Provider Output</h3><span class="muted">Latest stored provider data</span></div><pre class="mono" style="white-space:pre-wrap;overflow:auto;background:#f7fafc;border:1px solid #edf2f5;border-radius:14px;padding:14px;font-size:10px;line-height:1.6">\${safeJson(output)}</pre></section>
+    <section class="card"><div class="cardhead"><h3>Customer / Provider Input</h3><span class="muted">Stored order payload</span></div><pre class="mono" style="white-space:pre-wrap;overflow:auto;background:#f7fafc;border:1px solid #edf2f5;border-radius:14px;padding:14px;font-size:10px;line-height:1.6">${safeJson(input)}</pre></section>
+    <section class="card"><div class="cardhead"><h3>Provider Output</h3><span class="muted">Latest stored provider data</span></div><pre class="mono" style="white-space:pre-wrap;overflow:auto;background:#f7fafc;border:1px solid #edf2f5;border-radius:14px;padding:14px;font-size:10px;line-height:1.6">${safeJson(output)}</pre></section>
   </div>
   <section class="card">
-    <div class="cardhead"><h3>Order Action Log</h3><span class="muted">\${o.actions.length} events</span></div>
+    <div class="cardhead"><h3>Order Action Log</h3><span class="muted">${o.actions.length} events</span></div>
     <div class="tablewrap"><table class="table"><thead><tr><th>Time</th><th>Action</th><th>Status</th><th>Provider Reference</th></tr></thead><tbody>
-    \${o.actions.map(x=>\`<tr><td>\${dt(x.createdAt)}</td><td class="mono">\${e(x.action)}</td><td>\${state(x.status)}</td><td class="mono">\${e(x.providerReference||'—')}</td></tr>\`).join('')||'<tr><td colspan="4" class="empty">No order actions recorded yet.</td></tr>'}
+    ${o.actions.map(x=>`<tr><td>${dt(x.createdAt)}</td><td class="mono">${e(x.action)}</td><td>${state(x.status)}</td><td class="mono">${e(x.providerReference||'—')}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">No order actions recorded yet.</td></tr>'}
     </tbody></table></div>
-  </section>\`;
+  </section>`;
 }
 
 async function allOrders(p:PrismaClient,q:string,statusRaw:string,filterRaw:string,kindRaw:string,pageRaw:number){
