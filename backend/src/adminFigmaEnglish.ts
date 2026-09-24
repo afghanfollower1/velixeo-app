@@ -55,7 +55,7 @@ import {
 type AdminIdentity = { id: string; fullName: string | null; email: string | null; phone: string | null };
 type AdminResolver = (request: FastifyRequest) => Promise<AdminIdentity | null>;
 type Body = Record<string, unknown>;
-type Section = 'dashboard'|'users'|'referrals'|'social'|'virtual'|'premium'|'topup'|'accounts'|'payments'|'orders'|'coupons'|'banners'|'notifications'|'support'|'settings'|'audit';
+export type Section = 'dashboard'|'users'|'referrals'|'social'|'virtual'|'premium'|'topup'|'accounts'|'payments'|'orders'|'coupons'|'banners'|'notifications'|'support'|'settings'|'audit';
 type SocialCategory = { slug:string; titleEn:string; titleFa:string; platform:string; descriptionEn:string; descriptionFa:string; sortOrder:number; enabled:boolean };
 
 const e = (v: unknown) => String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
