@@ -21,6 +21,8 @@ import {
 import { brandSettingKey, defaultBrandIcons, loadSocialBrands, normalizeBrandKey, parseBrand, validateBrandIcon, type SocialBrand } from './socialBrands.js';
 import { getSocialOrderSettings, saveSocialOrderSettings } from './socialOrderSettings.js';
 import { normalizeCurrencyCode } from './currency.js';
+import { renderAdminV3Page } from './adminFigmaEnglish.js';
+import { adminLangFromRequest } from './adminLocale.js';
 
 type AdminIdentity = {
   id: string;
@@ -185,9 +187,38 @@ function icon(name: string) {
   return `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${paths[name] || paths.service}</svg>`;
 }
 
-const css = `
-:root{--blue:#1687f8;--cyan:#31b5ff;--nav:#0b223f;--bg:#f5f8fc;--card:#fff;--text:#12243a;--muted:#718399;--line:#e3eaf3;--green:#18a875;--red:#e65362;--amber:#f2a12b;--purple:#765ff3;--shadow:0 8px 26px rgba(25,67,110,.06)}*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text)}a{color:inherit}.ico{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.layout{display:grid;grid-template-columns:230px minmax(0,1fr);min-height:100vh}.side{background:linear-gradient(180deg,#0b223f,#071b32);color:#fff;padding:20px 14px;position:sticky;top:0;height:100vh}.brand{padding:0 8px 20px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:16px}.brand b{font-size:18px;letter-spacing:.7px}.brand small{display:block;color:#89a7c2;font-size:9px;margin-top:3px}.back{display:flex;gap:8px;align-items:center;color:#bfd2e5;text-decoration:none;padding:10px 11px;border-radius:9px;font-size:11px;margin-bottom:14px}.back:hover{background:rgba(255,255,255,.06)}.nav{display:flex;align-items:center;gap:9px;color:#cbd9e7;text-decoration:none;padding:10px 11px;border-radius:9px;margin:3px 0;font-size:11px}.nav.active,.nav:hover{background:rgba(49,181,255,.16);color:#fff}.main{padding:18px 20px;min-width:0}.top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:15px}.top h1{margin:0;font-size:22px}.top p{margin:5px 0 0;color:var(--muted);font-size:10px}.admin{font-size:10px;color:var(--muted);background:#fff;border:1px solid var(--line);padding:8px 10px;border-radius:9px}.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:15px}.tab{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;text-decoration:none;color:#61758b;font-size:10px}.tab.active{background:var(--blue);border-color:var(--blue);color:#fff}.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:15px;margin-bottom:12px}.cardhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}.cardhead h2,.cardhead h3{font-size:13px;margin:0}.muted{color:var(--muted);font-size:9.5px}.pill{display:inline-flex;padding:4px 8px;border-radius:999px;background:#edf3f8;color:#5d7187;font-size:9px;white-space:nowrap}.pill.ok{background:#e4f8ef;color:#0f845b}.pill.warn{background:#fff1dc;color:#a76a09}.pill.bad{background:#ffecef;color:#b63d4d}.pill.info{background:#e7f2ff;color:#147bd6}.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:8px;padding:9px 12px;background:linear-gradient(135deg,var(--cyan),var(--blue));color:#fff;font-size:10px;font-weight:800;cursor:pointer;text-decoration:none}.btn.ghost{background:#fff;color:#536a82;border:1px solid var(--line)}.btn.danger{background:#fff0f2;color:#bc4050;border:1px solid #ffd7dd}.actions{display:flex;align-items:center;gap:5px;flex-wrap:wrap}.iconbtn{width:31px;height:31px;border-radius:8px;border:1px solid var(--line);background:#fff;color:#65798e;display:inline-grid;place-items:center;cursor:pointer;text-decoration:none;padding:0}.iconbtn:hover{color:var(--blue);border-color:#9dcefa;background:#f4faff}.iconbtn.green{color:#159765}.iconbtn.red{color:#d84b5b}.iconbtn.purple{color:#765ff3}.iconbtn.orange{color:#e89922}.grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(320px,.75fr);gap:12px}.grid.eq{grid-template-columns:1fr 1fr}.tablewrap{overflow:auto;border:1px solid #edf2f7;border-radius:10px}.table{width:100%;border-collapse:collapse;min-width:950px}.table th,.table td{padding:10px 8px;border-bottom:1px solid #edf2f7;text-align:left;font-size:10px;vertical-align:middle}.table th{font-weight:700;color:#7b8da1;background:#fafcff}.table tr:last-child td{border-bottom:0}.table td b{font-size:10.5px}.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.forms{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{margin-bottom:10px}.field label{display:block;font-size:9.5px;color:#63788e;margin-bottom:5px}.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--text);padding:9px;outline:none}.field input,.field select{height:39px}.field textarea{min-height:78px;resize:vertical}.field input:focus,.field select:focus,.field textarea:focus{border-color:#75bcfb;box-shadow:0 0 0 3px rgba(22,135,248,.07)}.check{display:flex;align-items:center;gap:7px;font-size:10px;margin:4px 0 10px}.check input{width:16px;height:16px}.notice{background:#f5faff;border:1px solid #dcebf8;border-radius:9px;padding:10px;font-size:9.5px;color:#5d738a;margin-bottom:12px}.empty{text-align:center;color:var(--muted);padding:28px;font-size:10px}.flash{padding:10px 12px;border-radius:9px;margin-bottom:12px;background:#e7f8ef;border:1px solid #cdeedc;color:#0c855a;font-size:10px}.flash.err{background:#fff0f2;border-color:#ffd7dd;color:#b83c4c}.provider-name{display:flex;align-items:center;gap:8px}.provider-logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(145deg,#47c0ff,#1687f8);display:grid;place-items:center;color:#fff;font-weight:900}.switch{display:inline-flex;align-items:center;gap:6px}.switch form{margin:0}.switch button{width:38px;height:21px;border:0;border-radius:99px;position:relative;cursor:pointer;background:#cbd6e1}.switch button.on{background:#28bdd7}.switch button:after{content:'';position:absolute;top:3px;left:3px;width:15px;height:15px;background:#fff;border-radius:50%;transition:.2s}.switch button.on:after{left:20px}.split-title{display:flex;gap:8px;align-items:center}.price-auto{color:#138a61;font-weight:800}.price-fixed{color:#7359df;font-weight:800}.service-name{max-width:390px;line-height:1.35}.footer{display:flex;justify-content:space-between;color:#99a7b5;font-size:8.5px;padding:10px 2px}.searchbar{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.searchbar input,.searchbar select{height:35px;border:1px solid var(--line);border-radius:8px;padding:0 9px;background:#fff}.source-categories{display:flex;gap:7px;overflow:auto;padding:2px 0 10px;scrollbar-width:thin}.source-category{flex:0 0 auto;display:inline-flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;text-decoration:none;color:#60758b;font-size:9.5px}.source-category:hover{border-color:#9dcefa;background:#f5faff}.source-category.active{background:#eaf5ff;border-color:#79bff8;color:#0d72c9;font-weight:800}.source-category .count{display:inline-grid;place-items:center;min-width:22px;height:20px;padding:0 6px;border-radius:999px;background:#edf3f8;color:#65798e;font-size:8.5px}.source-category.active .count{background:#fff;color:#1687f8}.catalog-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.tiny{font-size:8.5px;color:var(--muted)}@media(max-width:980px){.layout{grid-template-columns:1fr}.side{position:relative;height:auto}.side nav{display:flex;overflow:auto;gap:5px}.nav{white-space:nowrap}.grid,.grid.eq{grid-template-columns:1fr}.main{padding:14px}}@media(max-width:620px){.forms{grid-template-columns:1fr}.top{flex-direction:column}.footer{flex-direction:column;gap:4px}}
-`;
+const socialManagerCss = `
+<style id="velixeo-social-manager-components">
+.provider-name{display:flex;align-items:center;gap:10px}
+.provider-logo{width:36px;height:36px;border-radius:12px;background:#edf8fd;display:grid;place-items:center;color:#369fca;font-weight:800;flex:0 0 auto}
+.switch{display:inline-flex;align-items:center;gap:7px}.switch form{margin:0}
+.switch button{width:40px;height:23px;border:0;border-radius:99px;position:relative;cursor:pointer;background:#cbd6e1;padding:0}
+.switch button.on{background:#38bdf8}
+.switch button:after{content:'';position:absolute;top:3px;left:3px;width:17px;height:17px;background:#fff;border-radius:50%;transition:.2s}
+.switch button.on:after{left:20px}
+.split-title{display:flex;gap:9px;align-items:center}
+.price-auto{color:#158365;font-weight:700}.price-fixed{color:#7661c9;font-weight:700}
+.service-name{max-width:430px;line-height:1.5}
+.searchbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.searchbar input,.searchbar select{height:42px;border:1px solid var(--line);border-radius:12px;padding:0 12px;background:#fff;min-width:170px}
+.source-categories{display:flex;gap:8px;overflow:auto;padding:4px 0 12px;scrollbar-width:thin}
+.source-category{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;text-decoration:none;color:#74818b;font-size:12px}
+.source-category:hover{border-color:#9edcf4;background:#f7fbfd;color:#2288b1}
+.source-category.active{background:#eef9fe;border-color:#9edcf4;color:#2288b1;font-weight:650}
+.source-category .count{display:inline-grid;place-items:center;min-width:24px;height:21px;padding:0 7px;border-radius:8px;background:#f0f3f6;color:#65798e;font-size:10px}
+.source-category.active .count{background:#fff;color:#2288b1}
+.catalog-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tiny{font-size:10px;color:var(--muted);line-height:1.7}
+.iconbtn{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:#fff;color:#65798e;display:inline-grid;place-items:center;cursor:pointer;text-decoration:none;padding:0}
+.iconbtn:hover{color:#2288b1;border-color:#9edcf4;background:#f7fbfd}.iconbtn.green{color:#158365}.iconbtn.red{color:#c54152}.iconbtn.purple{color:#7661c9}.iconbtn.orange{color:#ad670d}
+#route-content .table{min-width:950px}
+#route-content .card{margin-bottom:18px}
+html.vx-admin-fa #route-content .provider-name,html.vx-admin-fa #route-content .split-title,html.vx-admin-fa #route-content .searchbar{direction:rtl}
+html.vx-admin-en #route-content .provider-name,html.vx-admin-en #route-content .split-title,html.vx-admin-en #route-content .searchbar{direction:ltr}
+html.vx-admin-fa #route-content .source-categories{direction:rtl}
+html.vx-admin-en #route-content .source-categories{direction:ltr}
+@media(max-width:680px){.searchbar{align-items:stretch}.searchbar form{width:100%}.searchbar input,.searchbar select{width:100%}#route-content .table{min-width:820px}}
+</style>`;
 
 function pill(label: string, kind = '') {
   return `<span class="pill ${kind}">${esc(label)}</span>`;
@@ -211,6 +242,7 @@ function socialTabs(active: string) {
 }
 
 function shell(input: {
+  request: FastifyRequest;
   admin: AdminIdentity;
   title: string;
   subtitle: string;
@@ -220,18 +252,21 @@ function shell(input: {
   error?: boolean;
   script?: string;
 }) {
-  const navItems = [
-    ['/admin/v3?section=social&tab=overview', 'Overview', 'service', 'overview'],
-    ['/admin/v3/social/providers', 'Providers', 'provider', 'providers'],
-    ['/admin/v3/social/brands', 'Brands', 'category', 'brands'],
-    ['/admin/v3/social/categories', 'Categories', 'category', 'categories'],
-    ['/admin/v3/social/my-services', 'My Services', 'service', 'services'],
-    ['/admin/v3/social/order-settings', 'Order Settings', 'service', 'order-settings'],
-    ['/admin/v3?section=social&tab=routing', 'Routing', 'sync', 'routing'],
-    ['/admin/v3?section=social&tab=orders', 'Orders', 'list', 'orders'],
-    ['/admin/v3?section=social&tab=logs', 'API Logs', 'list', 'logs'],
-  ];
-  return `<!doctype html><html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(input.title)} — VELIXEO Admin</title><style>${css}</style></head><body><div class="layout"><aside class="side"><div class="brand"><b>VELIXEO Admin</b><small>Social Media Control Center</small></div><a class="back" href="/admin/v3">${icon('back')} Main Dashboard</a><nav>${navItems.map(([url,label,ico,key])=>`<a class="nav ${input.active===key?'active':''}" href="${url}">${icon(ico)} ${label}</a>`).join('')}</nav></aside><main class="main"><div class="top"><div><h1>${esc(input.title)}</h1><p>${esc(input.subtitle)}</p></div><div class="admin">${esc(input.admin.fullName || input.admin.email || input.admin.phone || 'Administrator')}</div></div>${socialTabs(input.active)}${input.message?`<div class="flash ${input.error?'err':''}">${esc(input.message)}</div>`:''}${input.body}<div class="footer"><span>VELIXEO Admin · Social Media</span><span>Server-driven catalog · No APK update required</span></div></main></div>${input.script ? `<script>${input.script}</script>` : ''}</body></html>`;
+  const lang = adminLangFromRequest(input.request);
+  const pageBody = socialManagerCss
+    + input.body
+    + (input.script ? `<script id="velixeo-social-manager-script">${input.script}</script>` : '');
+  return renderAdminV3Page(
+    input.admin,
+    'social',
+    pageBody,
+    socialTabs(input.active),
+    input.message ?? '',
+    input.error ?? false,
+    lang,
+    input.title,
+    input.subtitle,
+  );
 }
 
 function query(request: FastifyRequest) {
@@ -297,7 +332,7 @@ async function providersPage(prisma: PrismaClient, admin: AdminIdentity, request
       ? await prisma.provider.findFirst({ where: { id: q.edit, kind: ProviderKind.SOCIAL } })
       : null;
     if (q.edit && !selected) {
-      return shell({ admin, title: 'Providers', subtitle: 'Provider not found', active: 'providers', body: '<div class="card empty">The selected provider does not exist.</div>', message: q.msg, error: q.error });
+      return shell({ request, admin, title: 'Providers', subtitle: 'Provider not found', active: 'providers', body: '<div class="card empty">The selected provider does not exist.</div>', message: q.msg, error: q.error });
     }
     const [meta, rateRows] = await Promise.all([
       selected ? getProviderMeta(prisma, selected.id) : Promise.resolve({ websiteUrl: '', defaultCurrency: 'USD', description: '' }),
@@ -308,6 +343,7 @@ async function providersPage(prisma: PrismaClient, admin: AdminIdentity, request
       : { autoSync: true, syncMinutes: 10, lastSyncAt: null, lastSyncStatus: 'idle' as const, lastSyncError: null, lastServiceCount: 0, lastCreatedCount: 0, lastUpdatedCount: 0 };
     const currencies = rateRows.map(row => row.code);
     return shell({
+      request,
       admin,
       title: selected ? 'Edit Provider' : 'Add New Provider',
       subtitle: selected ? 'Update connection, pricing and synchronization settings.' : 'Add an SMM API provider and connect its service catalog.',
@@ -350,6 +386,7 @@ setInterval(refreshProviderStatuses,60000);
 `;
 
   return shell({
+    request,
     admin,
     title: 'Providers',
     subtitle: 'Add, monitor and manage every SMM API provider from one place.',
@@ -453,6 +490,7 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
   const config = selected ? `<div class="card"><div class="cardhead"><div><h2>${isPublished?'Edit VELIXEO Service':'Add Service to VELIXEO'}</h2><span class="muted">Provider #${esc(selected.providerServiceCode)} · ${esc(selected.provider.name)}</span></div><a class="btn ghost" href="/admin/v3/social/provider-services?provider=${selected.providerId}${activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:''}">Close</a></div><div class="notice"><b>Original provider name:</b> ${esc(selected.providerName || selected.service.titleEn)}<br><b>Provider cost:</b> ${esc(selected.providerRate?.toString() || '—')} ${esc(selected.providerCurrency || '')} · Min ${esc(selected.providerMinQty ?? '—')} · Max ${esc(selected.providerMaxQty ?? '—')}</div><form method="post" action="/admin/v3/social/provider-services/publish"><input type="hidden" name="routeId" value="${selected.id}"><input type="hidden" name="providerId" value="${selected.providerId}"><input type="hidden" name="sourceCategory" value="${esc(activeSourceCategory)}"><div class="field"><label>VELIXEO Category</label><select name="categorySlug" required><option value="">Choose category</option>${categoryOptions}</select></div><div class="field"><label>Customer-facing English Name</label><input name="titleEn" value="${esc(isPublished ? selected.service.titleEn : (selected.providerName || selected.service.titleEn))}" required></div><div class="field"><label>English Description</label><textarea name="descriptionEn">${esc(selected.service.descriptionEn || '')}</textarea></div><div class="forms"><div class="field"><label>Pricing Mode</label><select name="pricingMode"><option value="AUTO_MARKUP" ${currentMode==='AUTO_MARKUP'?'selected':''}>Auto Markup — follows provider price</option><option value="FIXED" ${currentMode==='FIXED'?'selected':''}>Fixed Sale Price</option></select></div><div class="field"><label>Profit / Markup %</label><input name="markup" value="${esc(selected.markupPercent?.toString() ?? selected.provider.defaultMarkupPercent.toString())}" placeholder="30"></div><div class="field"><label>Fixed Sale Price</label><input name="fixedPrice" value="${selected.service.basePriceAfn == null ? '' : esc(selected.service.basePriceAfn.toString())}" placeholder="Only for Fixed mode"></div><div class="field"><label>Fixed Price Currency</label><select name="fixedCurrency"><option>AFN</option><option>USD</option><option>TOMAN</option></select></div><div class="field"><label>Minimum Quantity</label><input type="number" name="minQty" value="${esc(selected.service.minQty ?? selected.providerMinQty ?? '')}"></div><div class="field"><label>Maximum Quantity</label><input type="number" name="maxQty" value="${esc(selected.service.maxQty ?? selected.providerMaxQty ?? '')}"></div><div class="field"><label>Sort Order</label><input type="number" name="sortOrder" value="${esc(selected.service.sortOrder)}"></div><div class="field"><label>Refill / Guarantee Days</label><input type="number" name="refillDays" value="${esc(selected.service.refillDays ?? '')}" placeholder="30"></div></div><label class="check"><input type="checkbox" name="featured" ${selected.service.featured?'checked':''}> Featured service</label><label class="check"><input type="checkbox" name="enabled" ${selected.service.enabled?'checked':''}> Visible to users immediately</label><div class="notice">Leave “Visible to users” OFF to save this as a draft. You can add several services first and publish them later from My Services.</div><button class="btn">${isPublished?'Save Changes':'Add to VELIXEO'}</button></form></div>` : `<div class="card empty">Click the + icon beside any provider service to choose a VELIXEO category, customer name and selling price.</div>`;
 
   return shell({
+    request,
     admin,
     title: provider ? provider.name + ' — Service List' : 'Provider Service List',
     subtitle: 'Fetch this provider’s real catalog, then add selected services to your VELIXEO categories.',
@@ -489,6 +527,7 @@ async function brandsPage(prisma: PrismaClient, admin: AdminIdentity, request: F
   const iconOptions = defaultBrandIcons.map(name => `<option value='${name}' ${selected?.iconType==='DEFAULT'&&selected.iconValue===name?'selected':''}>${name}</option>`).join('');
   const form = showForm ? `<div class='card'><div class='cardhead'><h2>${selected?'Edit Brand':'Add Brand'}</h2><a class='btn ghost' href='/admin/v3/social/brands'>Cancel</a></div><form id='brand-form' method='post' action='/admin/v3/social/brands/save'><input type='hidden' name='originalKey' value='${esc(selected?.key || '')}'><input type='hidden' id='iconUploadData' name='iconUploadData' value=''><div class='forms'><div class='field'><label>Brand Key</label><input class='mono' name='key' value='${esc(selected?.key || '')}' placeholder='INSTAGRAM' required><span class='tiny'>Stable key used by categories and services.</span></div><div class='field'><label>Sort Order</label><input type='number' name='sortOrder' value='${esc(selected?.sortOrder ?? 100)}'></div><div class='field'><label>English Brand Name</label><input name='titleEn' value='${esc(selected?.titleEn || '')}' placeholder='Instagram' required></div><div class='field'><label>Persian Brand Name</label><input name='titleFa' value='${esc(selected?.titleFa || '')}' placeholder='اینستاگرام'></div></div><div class='field'><label>Icon Source</label><select id='iconType' name='iconType'><option value='DEFAULT' ${selected?.iconType!=='URL'&&selected?.iconType!=='UPLOAD'?'selected':''}>VELIXEO default icon library</option><option value='URL' ${selected?.iconType==='URL'?'selected':''}>Image URL</option><option value='UPLOAD' ${selected?.iconType==='UPLOAD'?'selected':''}>Upload PNG / JPG / WebP</option></select></div><div id='icon-default' class='field'><label>Default Icon</label><select name='defaultIcon'>${iconOptions}</select></div><div id='icon-url' class='field'><label>Icon URL</label><input class='mono' name='iconUrl' value='${selected?.iconType==='URL'?esc(selected.iconValue):''}' placeholder='https://.../instagram.png'></div><div id='icon-upload' class='field'><label>Upload Icon</label><input id='iconFile' type='file' accept='image/png,image/jpeg,image/webp'><span class='tiny'>Square icon recommended. Maximum about 400 KB.</span>${selected?.iconType==='UPLOAD'?'<div class="tiny">An uploaded icon is already saved. Choose a file only to replace it.</div>':''}</div><div class='field'><label>Preview</label><div id='brandIconPreview' style='width:64px;height:64px;border:1px solid var(--line);border-radius:14px;display:grid;place-items:center;background:#fff'>${selected?brandPreview(selected):'ICON'}</div></div><label class='check'><input type='checkbox' name='enabled' ${selected?.enabled===false?'':'checked'}> Visible in the customer app</label><button class='btn'>Save Brand</button></form></div>` : `<div class='card'><div class='cardhead'><h2>Brand Structure</h2><span class='muted'>Brand → Category → Service</span></div><div class='notice'>Brands are customer-facing networks such as Instagram, TikTok, Telegram and WhatsApp. Names, icons, order and visibility are server-driven.</div></div>`;
   return shell({
+    request,
     admin, title: 'Brands', subtitle: 'Manage the social networks customers see before choosing a category.', active: 'brands',
     message: q.msg, error: q.error,
     body: `<div class='card'><div class='cardhead'><div><h2>Social Brands</h2><span class='muted'>${brands.length} brands</span></div><a class='btn' href='/admin/v3/social/brands?mode=new'>${icon('plus')} Add Brand</a></div><div class='tablewrap'><table class='table'><thead><tr><th>Brand</th><th>Persian Name</th><th>Categories</th><th>Services</th><th>Sort</th><th>App Status</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="empty">No brands yet.</td></tr>'}</tbody></table></div></div>${form}`,
@@ -529,6 +568,7 @@ async function categoriesPage(prisma: PrismaClient, admin: AdminIdentity, reques
   const form = showForm ? `<div class="card"><div class="cardhead"><h2>${selected?'Edit Category':'Add Category'}</h2><a class="btn ghost" href="/admin/v3/social/categories">Cancel</a></div><form method="post" action="/admin/v3/social/categories/save"><input type="hidden" name="originalSlug" value="${esc(selected?.slug || '')}"><div class="field"><label>Category Slug</label><input class="mono" name="slug" value="${esc(selected?.slug || '')}" placeholder="instagram-followers" required></div><div class="field"><label>Brand</label><select name="platform" required><option value="">Choose brand</option>${brands.map(brand=>`<option value="${esc(brand.key)}" ${brand.key===normalizeBrandKey(selected?.platform||'')?'selected':''}>${esc(brand.titleEn)} · ${esc(brand.key)}</option>`).join('')}</select><span class="tiny">Manage names and icons from Brands.</span></div><div class="field"><label>English Category Name</label><input name="titleEn" value="${esc(selected?.titleEn || '')}" placeholder="Followers" required></div><div class="field"><label>Persian Category Name (optional for now)</label><input name="titleFa" value="${esc(selected?.titleFa || '')}" placeholder="فالوور"></div><div class="field"><label>English Description</label><textarea name="descriptionEn">${esc(selected?.descriptionEn || '')}</textarea></div><div class="field"><label>Sort Order</label><input type="number" name="sortOrder" value="${esc(selected?.sortOrder ?? 100)}"></div><label class="check"><input type="checkbox" name="enabled" ${selected?.enabled===false?'':'checked'}> Visible in the customer app</label><button class="btn">Save Category</button></form></div>` : `<div class="card"><div class="cardhead"><h2>Category Structure</h2><span class="muted">Brand → Category → Services</span></div><div class="notice">Examples: Instagram → Followers, Likes, Views · TikTok → Followers, Views. Create Brands first, then attach categories. Changes are server-driven.</div></div>`;
 
   return shell({
+    request,
     admin,
     title: 'Categories',
     subtitle: 'Create the brand/category structure customers see before choosing a service.',
@@ -567,6 +607,7 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
     return `<tr><td><b>${esc(service.titleEn)}</b><br><span class="mono muted">${esc(service.slug)}</span></td><td>${esc(service.socialPlatform || 'OTHER')} → ${esc(service.socialGroup || '—')}</td><td>${primary ? esc(primary.provider.name) : '—'}${service.routes.length > 1 ? ` +${service.routes.length - 1}` : ''}</td><td>${service.basePriceAfn != null ? `<span class="price-fixed">Fixed · ${money(service.basePriceAfn)}</span>` : '<span class="price-auto">Auto Markup</span>'}</td><td>${service.minQty ?? '—'} – ${service.maxQty ?? '—'}</td><td>${service.featured?pill('Featured','info'):''} ${service.enabled?pill('Live','ok'):pill('Draft / Hidden','warn')}</td><td><div class="actions">${primary ? `<a class="iconbtn" href="/admin/v3/social/provider-services?provider=${primary.providerId}&route=${primary.id}" title="Edit service">${icon('edit')}</a>` : ''}<form method="post" action="/admin/v3/social/my-services/toggle"><input type="hidden" name="id" value="${service.id}"><button class="iconbtn ${service.enabled?'orange':'green'}" title="${service.enabled?'Hide from customer app':'Publish to customer app'}">${icon('eye')}</button></form></div></td></tr>`;
   }).join('');
   return shell({
+    request,
     admin,
     title: 'My Services',
     subtitle: 'Everything you have added to VELIXEO, including drafts that customers cannot see yet.',
@@ -581,6 +622,7 @@ async function orderSettingsPage(prisma: PrismaClient, admin: AdminIdentity, req
   const q = query(request);
   const settings = await getSocialOrderSettings(prisma);
   return shell({
+    request,
     admin,
     title: 'Order Settings',
     subtitle: 'Control customer order IDs, terms and the post-completion refill window.',
