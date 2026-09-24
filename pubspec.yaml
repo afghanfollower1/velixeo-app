@@ -19,7 +19,13 @@ dependencies:
   image_picker: ^1.2.0
   image_cropper: ^12.2.1
   font_awesome_flutter: ^11.0.0
-  google_fonts: ^6.3.0
 
 flutter:
   uses-material-design: true
+  fonts:
+    - family: Vazirmatn
+      fonts:
+        - asset: assets/fonts/Vazirmatn.ttf
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter.ttf
