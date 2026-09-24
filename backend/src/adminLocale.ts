@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 
 const translations: Record<string, string> = {
   // Global navigation / shell
@@ -673,6 +673,71 @@ const statusTranslations: Record<string, string> = {
   SUPPORT: 'پشتیبانی',
   ACCOUNT: 'حساب',
 };
+
+type AdminLang = 'fa' | 'en';
+
+function adminLangFromRequest(request: FastifyRequest): AdminLang {
+  const cookie = String(request.headers.cookie || '');
+  const match = cookie.match(/(?:^|;\s*)velixeo_admin_lang=(fa|en)(?:;|$)/);
+  return match?.[1] === 'fa' ? 'fa' : 'en';
+}
+
+function adminFaNumber(value: string) {
+  return value.replace(/\d/g, digit => '۰۱۲۳۴۵۶۷۸۹'[Number(digit)]);
+}
+
+function adminPersianText(clean: string): string | null {
+  if (translations[clean]) return translations[clean];
+  if (statusTranslations[clean]) return statusTranslations[clean];
+  let m: RegExpMatchArray | null;
+  if ((m = clean.match(/^(\d+) matched$/))) return adminFaNumber(m[1]) + ' مورد مطابق';
+  if ((m = clean.match(/^(\d+) on this page$/))) return adminFaNumber(m[1]) + ' مورد در این صفحه';
+  if ((m = clean.match(/^Page (\d+) \/ (\d+)$/))) return 'صفحه ' + adminFaNumber(m[1]) + ' از ' + adminFaNumber(m[2]);
+  if ((m = clean.match(/^(\d+) changed$/))) return adminFaNumber(m[1]) + ' تغییر';
+  if ((m = clean.match(/^(\d+) shown$/))) return adminFaNumber(m[1]) + ' مورد نمایش داده شده';
+  if ((m = clean.match(/^(\d+) visible$/))) return adminFaNumber(m[1]) + ' فعال';
+  if ((m = clean.match(/^(\d+) configured$/))) return adminFaNumber(m[1]) + ' تنظیم شده';
+  if ((m = clean.match(/^(\d+) total$/))) return adminFaNumber(m[1]) + ' مورد';
+  if ((m = clean.match(/^(\d+) packages$/))) return adminFaNumber(m[1]) + ' پکیج';
+  if ((m = clean.match(/^(\d+) open$/))) return adminFaNumber(m[1]) + ' باز';
+  if ((m = clean.match(/^(\d+) completed$/))) return adminFaNumber(m[1]) + ' تکمیل‌شده';
+  if ((m = clean.match(/^(\d+) recent events$/))) return adminFaNumber(m[1]) + ' رویداد اخیر';
+  if ((m = clean.match(/^(\d+) recent$/))) return adminFaNumber(m[1]) + ' مورد اخیر';
+  if ((m = clean.match(/^(\d+) accounts$/))) return adminFaNumber(m[1]) + ' حساب';
+  if ((m = clean.match(/^(\d+) matched users$/))) return adminFaNumber(m[1]) + ' کاربر مطابق';
+  if ((m = clean.match(/^From (.+)$/))) return 'از ' + m[1];
+  if ((m = clean.match(/^Cost: (.+)$/))) return 'هزینه: ' + m[1];
+  if ((m = clean.match(/^Done: (.+)$/))) return 'تکمیل: ' + m[1];
+  if ((m = clean.match(/^Service API: (.+)$/))) return 'API سرویس: ' + m[1];
+  if ((m = clean.match(/^Balance: (.+)$/))) return 'موجودی: ' + m[1];
+  if ((m = clean.match(/^Delivery (\d+)–(\d+)h$/))) return 'تحویل ' + adminFaNumber(m[1]) + ' تا ' + adminFaNumber(m[2]) + ' ساعت';
+  if ((m = clean.match(/^Live cost \+ (.+)%$/))) return 'هزینه زنده + ' + m[1] + '٪';
+  if ((m = clean.match(/^Fixed (.+)$/))) return 'ثابت ' + m[1];
+  if ((m = clean.match(/^Drip (\d+)\/(\d+)$/))) return 'مرحله ' + adminFaNumber(m[1]) + ' از ' + adminFaNumber(m[2]);
+  return null;
+}
+
+function translateAdminHtmlToPersian(html: string) {
+  let result = html.replace(/>([^<>]+)</g, (whole, raw: string) => {
+    const clean = raw.replace(/\s+/g, ' ').trim();
+    if (!clean) return whole;
+    const value = adminPersianText(clean);
+    if (!value) return whole;
+    const lead = raw.match(/^\s*/)?.[0] || '';
+    const tail = raw.match(/\s*$/)?.[0] || '';
+    return '>' + lead + value + tail + '<';
+  });
+  result = result.replace(/\b(placeholder|title|aria-label)="([^"]*)"/g, (whole, attr: string, raw: string) => {
+    const value = adminPersianText(raw.replace(/\s+/g, ' ').trim());
+    return value ? attr + '="' + value.replaceAll('"', '&quot;') + '"' : whole;
+  });
+  return result;
+}
+
+function markAdminDesignSystem(html: string, lang: AdminLang) {
+  const direction = lang === 'fa' ? 'rtl' : 'ltr';
+  return html.replace(/<html([^>]*)>/i, '<html$1 lang="' + lang + '" dir="' + direction + '" class="vx-admin-' + lang + '">');
+}
 
 function localeInjection() {
   const dictionary = JSON.stringify(translations).replaceAll('<', '\\u003c');
