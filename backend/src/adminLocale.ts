@@ -759,9 +759,9 @@ const statusTranslations: Record<string, string> = {
   ACCOUNT: 'حساب',
 };
 
-type AdminLang = 'fa' | 'en';
+export type AdminLang = 'fa' | 'en';
 
-function adminLangFromRequest(request: FastifyRequest): AdminLang {
+export function adminLangFromRequest(request: FastifyRequest): AdminLang {
   const cookie = String(request.headers.cookie || '');
   const match = cookie.match(/(?:^|;\s*)velixeo_admin_lang=(fa|en)(?:;|$)/);
   return match?.[1] === 'fa' ? 'fa' : 'en';
@@ -802,7 +802,12 @@ function adminPersianText(clean: string): string | null {
   return null;
 }
 
-function localizeAdminContentFa(html: string) {
+export function adminPersianLabel(value: string) {
+  const clean = value.replace(/\s+/g, ' ').trim();
+  return adminPersianText(clean) ?? value;
+}
+
+export function localizeAdminContentFa(html: string) {
   let result = html.replace(/>([^<>]+)</g, (whole, raw: string) => {
     const clean = raw.replace(/\s+/g, ' ').trim();
     if (!clean) return whole;
@@ -837,7 +842,7 @@ function renderAdminEnPresentation(html: string) {
     .replace(/<body([^>]*)>/i, '<body$1 class="vx-admin-body vx-admin-body-en">');
 }
 
-function localeInjection(lang: AdminLang) {
+export function adminLocaleChrome(lang: AdminLang) {
   const fa = lang === 'fa';
   return `<style id="velixeo-admin-design-systems">
   :root{--vx-sky:#38bdf8;--vx-sky-hover:#7dd3fc;--vx-ink:#24343d;--vx-muted:#74818b;--vx-soft:#edf8fd;--vx-bg:#f6f9fc;--vx-line:#e7eef2;--vx-green:#158365;--vx-orange:#ad670d;--vx-red:#c54152}
@@ -980,22 +985,8 @@ function localeInjection(lang: AdminLang) {
   })();</script>`;
 }
 
-export function registerAdminLocale(app: FastifyInstance) {
-  app.addHook('onSend', async (request, reply, payload) => {
-    const url = request.raw.url || '';
-    if (!url.startsWith('/admin')) return payload;
-    if (url.startsWith('/admin/login')) return payload;
-    const contentType = String(reply.getHeader('content-type') || '');
-    if (!contentType.includes('text/html') || typeof payload !== 'string') return payload;
-    if (payload.includes('velixeo-admin-locale-script')) return payload;
-
-    const lang = adminLangFromRequest(request);
-    if (lang === 'fa') {
-      const localized = localizeAdminContentFa(payload);
-      const designed = renderAdminFaPresentation(localized);
-      return designed.replace('</body>', localeInjection('fa') + '</body>');
-    }
-    const designed = renderAdminEnPresentation(payload);
-    return designed.replace('</body>', localeInjection('en') + '</body>');
-  });
+export function registerAdminLocale(_app: FastifyInstance) {
+  // Kept as a compatibility entry point. Admin V3 now selects the language
+  // before rendering and uses independent Persian RTL and English LTR shells.
+  // No response-level translation hook is installed.
 }
