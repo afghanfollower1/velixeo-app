@@ -497,6 +497,16 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
         ? selectedRouteMeta._providerRefillDetected
         : selected.providerRefill)
     : false;
+  const detectedDripFeed = selected
+    ? (typeof selectedRouteMeta._providerDripFeedDetected === 'boolean'
+        ? selectedRouteMeta._providerDripFeedDetected
+        : Boolean(selectedRouteMeta.dripfeed ?? selectedRouteMeta.drip_feed))
+    : false;
+  const dripFeedEnabled = selected
+    ? (typeof selectedRouteMeta._velixeoDripFeedOverride === 'boolean'
+        ? selectedRouteMeta._velixeoDripFeedOverride
+        : detectedDripFeed)
+    : false;
 
   const rows = priced.map(({ route, sale }) => {
     const meta = jsonObject(route.service.metadata);
@@ -509,7 +519,16 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
     const refillState = route.providerRefill
       ? pill(detected ? 'Refill · Auto' : 'Refill · Manual','ok')
       : pill(detected ? 'Refill disabled' : 'No refill');
-    return `<tr><td class="mono">${esc(route.providerServiceCode)}</td><td class="service-name"><b>${esc(route.providerName || route.service.titleEn)}</b><br><span class="tiny">${esc(route.providerType || 'Default')}</span></td><td><b>${esc(route.providerRate?.toString() || '—')}</b> ${esc(route.providerCurrency || '')}</td><td class="money">${sale == null ? '—' : money(sale)}</td><td>${esc(route.providerMinQty ?? '—')} – ${esc(route.providerMaxQty ?? '—')}</td><td>${refillState}</td><td>${route.providerCancel ? pill('Yes','ok') : pill('No')}</td><td>${appState}</td><td><a class="iconbtn ${raw?'green':'purple'}" href="/admin/v3/social/provider-services?provider=${route.providerId}&route=${route.id}${q.q?`&q=${encodeURIComponent(q.q)}`:(!q.q && activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:'')}" title="${raw?'Add this service to VELIXEO':'Edit VELIXEO service'}">${raw?icon('plus'):icon('edit')}</a></td></tr>`;
+    const dripDetected = typeof routeMeta._providerDripFeedDetected === 'boolean'
+      ? routeMeta._providerDripFeedDetected
+      : Boolean(routeMeta.dripfeed ?? routeMeta.drip_feed);
+    const dripEnabled = typeof routeMeta._velixeoDripFeedOverride === 'boolean'
+      ? routeMeta._velixeoDripFeedOverride
+      : dripDetected;
+    const dripState = dripEnabled
+      ? pill(dripDetected ? 'Drip-feed · Auto' : 'Drip-feed · Manual','ok')
+      : pill(dripDetected ? 'Drip-feed disabled' : 'No drip-feed');
+    return `<tr><td class="mono">${esc(route.providerServiceCode)}</td><td class="service-name"><b>${esc(route.providerName || route.service.titleEn)}</b><br><span class="tiny">${esc(route.providerType || 'Default')}</span></td><td><b>${esc(route.providerRate?.toString() || '—')}</b> ${esc(route.providerCurrency || '')}</td><td class="money">${sale == null ? '—' : money(sale)}</td><td>${esc(route.providerMinQty ?? '—')} – ${esc(route.providerMaxQty ?? '—')}</td><td>${refillState}</td><td>${dripState}</td><td>${route.providerCancel ? pill('Yes','ok') : pill('No')}</td><td>${appState}</td><td><a class="iconbtn ${raw?'green':'purple'}" href="/admin/v3/social/provider-services?provider=${route.providerId}&route=${route.id}${q.q?`&q=${encodeURIComponent(q.q)}`:(!q.q && activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:'')}" title="${raw?'Add this service to VELIXEO':'Edit VELIXEO service'}">${raw?icon('plus'):icon('edit')}</a></td></tr>`;
   }).join('');
 
   const brandOptions = brands
@@ -552,7 +571,11 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
       <div><b>Refill / Drop Guarantee</b><div class="meta">Provider API detected: <strong>${detectedRefill ? 'Available' : 'Not available'}</strong>. The switch starts with the provider value, but you can manually enable or disable it for this VELIXEO service.</div></div>
       <label class="toggle"><input type="checkbox" name="refillEnabled" ${selected.providerRefill?'checked':''}> <span>Enabled</span></label>
     </div>
-    <div class="provider-capability">${detectedRefill?pill('Provider supports refill','ok'):pill('Provider reports no refill')}${selected.providerCancel?pill('Provider supports cancel','ok'):pill('No cancel')}</div>
+    <div class="refill-control">
+      <div><b>Drip-feed</b><div class="meta">Provider API detected: <strong>${detectedDripFeed ? 'Available' : 'Not available'}</strong>. It is enabled automatically when supported, and you can override it for this service.</div></div>
+      <label class="toggle"><input type="checkbox" name="dripFeedEnabled" ${dripFeedEnabled?'checked':''}> <span>Enabled</span></label>
+    </div>
+    <div class="provider-capability">${detectedRefill?pill('Provider supports refill','ok'):pill('Provider reports no refill')}${detectedDripFeed?pill('Provider supports drip-feed','ok'):pill('Provider reports no drip-feed')}${selected.providerCancel?pill('Provider supports cancel','ok'):pill('No cancel')}</div>
     <label class="check"><input type="checkbox" name="featured" ${selected.service.featured?'checked':''}> Featured service</label>
     <label class="check"><input type="checkbox" name="enabled" ${selected.service.enabled?'checked':''}> Visible to users immediately</label>
     <div class="notice">Save as draft by leaving “Visible to users” off. Only services you add here appear under Services and in the customer app.</div>
@@ -601,7 +624,7 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
     error: q.error,
     script,
     body: providers.length
-      ? `${providerPicker}<div class="grid"><div class="card"><div class="cardhead"><div class="catalog-title"><h2>${q.q ? 'Search Results' : esc(activeSourceCategory || provider?.name || 'Provider Catalog')}</h2>${!q.q && activeSourceCategory ? pill(sourceCategoryMap.get(activeSourceCategory)?.count?.toLocaleString('en-US') + ' services','info') : ''}</div><span class="muted">${q.q ? priced.length.toLocaleString('en-US') + ' matching services' : sourceIndexRows.length.toLocaleString('en-US') + ' total synced services · ' + sourceCategories.length.toLocaleString('en-US') + ' categories'}</span></div><div class="tablewrap"><table class="table"><thead><tr><th>ID</th><th>Original Service Name</th><th>Provider Cost</th><th>VELIXEO Sale</th><th>Min / Max</th><th>Refill</th><th>Cancel</th><th>App Status</th><th>Add</th></tr></thead><tbody>${rows || `<tr><td colspan="9" class="empty">${provider ? 'No services found. Sync the provider or choose another provider category.' : 'Choose a provider first.'}</td></tr>`}</tbody></table></div></div>${config}</div>`
+      ? `${providerPicker}<div class="grid"><div class="card"><div class="cardhead"><div class="catalog-title"><h2>${q.q ? 'Search Results' : esc(activeSourceCategory || provider?.name || 'Provider Catalog')}</h2>${!q.q && activeSourceCategory ? pill(sourceCategoryMap.get(activeSourceCategory)?.count?.toLocaleString('en-US') + ' services','info') : ''}</div><span class="muted">${q.q ? priced.length.toLocaleString('en-US') + ' matching services' : sourceIndexRows.length.toLocaleString('en-US') + ' total synced services · ' + sourceCategories.length.toLocaleString('en-US') + ' categories'}</span></div><div class="tablewrap"><table class="table"><thead><tr><th>ID</th><th>Original Service Name</th><th>Provider Cost</th><th>VELIXEO Sale</th><th>Min / Max</th><th>Refill</th><th>Drip-feed</th><th>Cancel</th><th>App Status</th><th>Add</th></tr></thead><tbody>${rows || `<tr><td colspan="10" class="empty">${provider ? 'No services found. Sync the provider or choose another provider category.' : 'Choose a provider first.'}</td></tr>`}</tbody></table></div></div>${config}</div>`
       : '<div class="card empty">No Social Media provider exists yet. Add a provider first, then sync its services.</div>',
   });
 }
@@ -1015,6 +1038,7 @@ export function registerAdminSocialProviderManager(
       const oldMeta = jsonObject(route.service.metadata);
       const oldRouteMeta = jsonObject(route.metadata);
       const refillEnabled = checked(body, 'refillEnabled');
+      const dripFeedEnabled = checked(body, 'dripFeedEnabled');
       const titleEn = text(body, 'titleEn') || route.providerName || route.service.titleEn;
       await prisma.$transaction([
         prisma.service.update({
@@ -1056,6 +1080,10 @@ export function registerAdminSocialProviderManager(
                 ? oldRouteMeta._providerRefillDetected
                 : route.providerRefill,
               _velixeoRefillOverride: refillEnabled,
+              _providerDripFeedDetected: typeof oldRouteMeta._providerDripFeedDetected === 'boolean'
+                ? oldRouteMeta._providerDripFeedDetected
+                : Boolean(oldRouteMeta.dripfeed ?? oldRouteMeta.drip_feed),
+              _velixeoDripFeedOverride: dripFeedEnabled,
             } as Prisma.InputJsonValue,
           },
         }),
@@ -1066,6 +1094,7 @@ export function registerAdminSocialProviderManager(
         fixedAfn: fixedPrice?.toString() ?? null,
         visible: checked(body, 'enabled'),
         refillEnabled,
+        dripFeedEnabled,
       });
       return reply.code(303).redirect(`/admin/v3/social/provider-services?provider=${providerId}${sourceCategoryQuery}&msg=${encodeURIComponent(checked(body,'enabled') ? 'Service saved and published to the app.' : 'Service saved as a draft.')}`);
     } catch (error) {
