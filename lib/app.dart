@@ -2524,7 +2524,7 @@ class _MainShellState extends State<MainShell> {
                 ),
               ],
             ),
-            action: SnackBarAction(label: 'OPEN', onPressed: () => _openPushRoute(foreground.data)),
+            action: SnackBarAction(label: widget.controller.fa ? 'باز کردن' : 'Open', onPressed: () => _openPushRoute(foreground.data)),
           ),
         );
       });
@@ -2541,23 +2541,163 @@ class _MainShellState extends State<MainShell> {
       WalletPage(controller: c),
       ProfilePage(controller: c),
     ];
+
+    final navigation = c.fa
+        ? _FaBottomNavigation(
+            index: index,
+            onChanged: (value) => setState(() => index = value),
+          )
+        : _EnBottomNavigation(
+            index: index,
+            onChanged: (value) => setState(() => index = value),
+          );
+
     return Scaffold(
       body: IndexedStack(index: index, children: pages),
-      bottomNavigationBar: DecoratedBox(
+      bottomNavigationBar: navigation,
+    );
+  }
+}
+
+class _BottomNavItemData {
+  const _BottomNavItemData(this.icon, this.activeIcon, this.label);
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+}
+
+class _FaBottomNavigation extends StatelessWidget {
+  const _FaBottomNavigation({required this.index, required this.onChanged});
+  final int index;
+  final ValueChanged<int> onChanged;
+
+  static const items = [
+    _BottomNavItemData(Icons.home_outlined, Icons.home_rounded, 'خانه'),
+    _BottomNavItemData(Icons.grid_view_outlined, Icons.grid_view_rounded, 'خدمات'),
+    _BottomNavItemData(Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'سفارش‌ها'),
+    _BottomNavItemData(Icons.account_balance_wallet_outlined, Icons.account_balance_wallet_rounded, 'کیف پول'),
+    _BottomNavItemData(Icons.person_outline_rounded, Icons.person_rounded, 'پروفایل'),
+  ];
+
+  @override
+  Widget build(BuildContext context) => _PrototypeBottomNavigation(
+        items: items,
+        index: index,
+        onChanged: onChanged,
+        direction: TextDirection.rtl,
+      );
+}
+
+class _EnBottomNavigation extends StatelessWidget {
+  const _EnBottomNavigation({required this.index, required this.onChanged});
+  final int index;
+  final ValueChanged<int> onChanged;
+
+  static const items = [
+    _BottomNavItemData(Icons.home_outlined, Icons.home_rounded, 'Home'),
+    _BottomNavItemData(Icons.grid_view_outlined, Icons.grid_view_rounded, 'Services'),
+    _BottomNavItemData(Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Orders'),
+    _BottomNavItemData(Icons.account_balance_wallet_outlined, Icons.account_balance_wallet_rounded, 'Wallet'),
+    _BottomNavItemData(Icons.person_outline_rounded, Icons.person_rounded, 'Profile'),
+  ];
+
+  @override
+  Widget build(BuildContext context) => _PrototypeBottomNavigation(
+        items: items,
+        index: index,
+        onChanged: onChanged,
+        direction: TextDirection.ltr,
+      );
+}
+
+class _PrototypeBottomNavigation extends StatelessWidget {
+  const _PrototypeBottomNavigation({
+    required this.items,
+    required this.index,
+    required this.onChanged,
+    required this.direction,
+  });
+  final List<_BottomNavItemData> items;
+  final int index;
+  final ValueChanged<int> onChanged;
+  final TextDirection direction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: direction,
+      child: DecoratedBox(
         decoration: const BoxDecoration(
           color: Colors.white,
-          border: Border(top: BorderSide(color: Color(0xFFE9EEF5))),
+          border: Border(top: BorderSide(color: Color(0xFFF0F4F7))),
         ),
-        child: NavigationBar(
-          selectedIndex: index,
-          onDestinationSelected: (value) => setState(() => index = value),
-          destinations: [
-            NavigationDestination(icon: const Icon(Icons.home_outlined), selectedIcon: const Icon(Icons.home_rounded), label: tr(c.fa, 'خانه', 'Home')),
-            NavigationDestination(icon: const Icon(Icons.grid_view_outlined), selectedIcon: const Icon(Icons.grid_view_rounded), label: tr(c.fa, 'خدمات', 'Services')),
-            NavigationDestination(icon: const Icon(Icons.receipt_long_outlined), selectedIcon: const Icon(Icons.receipt_long_rounded), label: tr(c.fa, 'سفارش‌ها', 'Orders')),
-            NavigationDestination(icon: const Icon(Icons.account_balance_wallet_outlined), selectedIcon: const Icon(Icons.account_balance_wallet_rounded), label: tr(c.fa, 'کیف پول', 'Wallet')),
-            NavigationDestination(icon: const Icon(Icons.person_outline_rounded), selectedIcon: const Icon(Icons.person_rounded), label: tr(c.fa, 'پروفایل', 'Profile')),
-          ],
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(6, 12, 6, 8),
+            child: Row(
+              children: List.generate(items.length, (i) {
+                final item = items[i];
+                final selected = i == index;
+                return Expanded(
+                  child: InkWell(
+                    onTap: () => onChanged(i),
+                    borderRadius: BorderRadius.circular(12),
+                    child: SizedBox(
+                      height: 54,
+                      child: Stack(
+                        alignment: Alignment.topCenter,
+                        children: [
+                          if (selected)
+                            Positioned(
+                              top: -12,
+                              child: Container(
+                                width: 18,
+                                height: 3,
+                                decoration: const BoxDecoration(
+                                  color: VelixeoBrand.sky,
+                                  borderRadius: BorderRadius.vertical(
+                                    bottom: Radius.circular(4),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                selected ? item.activeIcon : item.icon,
+                                size: 21,
+                                color: selected
+                                    ? const Color(0xFF329ECA)
+                                    : const Color(0xFF97A5AD),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                item.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  height: 1.2,
+                                  fontWeight: selected
+                                      ? FontWeight.w600
+                                      : FontWeight.w500,
+                                  color: selected
+                                      ? const Color(0xFF329ECA)
+                                      : const Color(0xFF97A5AD),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
         ),
       ),
     );
