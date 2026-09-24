@@ -726,6 +726,7 @@ class _SupportTicketPageState extends State<SupportTicketPage> {
       ),
     );
   }
+}
 
 extension _FirstOrNull<T> on Iterable<T> {
   T? get firstOrNull => isEmpty ? null : first;
