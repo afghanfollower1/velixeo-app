@@ -525,6 +525,12 @@ function routeDripFeedSupported(route: { metadata?: Prisma.JsonValue | null; pro
   const metadata = route.metadata && typeof route.metadata === 'object' && !Array.isArray(route.metadata)
     ? route.metadata as Record<string, unknown>
     : {};
+  if (typeof metadata._velixeoDripFeedOverride === 'boolean') {
+    return metadata._velixeoDripFeedOverride;
+  }
+  if (typeof metadata._providerDripFeedDetected === 'boolean') {
+    return metadata._providerDripFeedDetected;
+  }
   return providerBool(metadata.dripfeed ?? metadata.drip_feed)
     || String(route.providerType ?? '').trim().toLowerCase() === 'drip-feed';
 }
