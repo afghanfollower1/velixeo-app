@@ -211,13 +211,21 @@ const socialManagerCss = `
 .tiny{font-size:10px;color:var(--muted);line-height:1.7}
 .iconbtn{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:#fff;color:#65798e;display:inline-grid;place-items:center;cursor:pointer;text-decoration:none;padding:0}
 .iconbtn:hover{color:#2288b1;border-color:#9edcf4;background:#f7fbfd}.iconbtn.green{color:#158365}.iconbtn.red{color:#c54152}.iconbtn.purple{color:#7661c9}.iconbtn.orange{color:#ad670d}
+.provider-service-link{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid #d9ebf4;border-radius:10px;background:#f6fbfe;color:#2d7f9f;font-size:11px;font-weight:650;white-space:nowrap}
+.provider-service-link:hover{background:#edf8fd;border-color:#9edcf4}
+.provider-picker{display:grid;grid-template-columns:minmax(220px,320px) minmax(220px,1fr) auto;gap:10px;align-items:end}
+.refill-control{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:#fbfdfe;margin:8px 0 14px}
+.refill-control .meta{font-size:11px;color:var(--muted);line-height:1.7}
+.refill-control .toggle{display:inline-flex;align-items:center;gap:9px;font-size:12px;font-weight:650}
+.refill-control .toggle input{width:19px;height:19px;accent-color:#38bdf8}
+.provider-capability{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px}
 #route-content .table{min-width:950px}
 #route-content .card{margin-bottom:18px}
 html.vx-admin-fa #route-content .provider-name,html.vx-admin-fa #route-content .split-title,html.vx-admin-fa #route-content .searchbar{direction:rtl}
 html.vx-admin-en #route-content .provider-name,html.vx-admin-en #route-content .split-title,html.vx-admin-en #route-content .searchbar{direction:ltr}
 html.vx-admin-fa #route-content .source-categories{direction:rtl}
 html.vx-admin-en #route-content .source-categories{direction:ltr}
-@media(max-width:680px){.searchbar{align-items:stretch}.searchbar form{width:100%}.searchbar input,.searchbar select{width:100%}#route-content .table{min-width:820px}}
+@media(max-width:680px){.searchbar{align-items:stretch}.searchbar form{width:100%}.searchbar input,.searchbar select{width:100%}.provider-picker{grid-template-columns:1fr}.provider-picker .btn{width:100%}#route-content .table{min-width:820px}}
 </style>`;
 
 function pill(label: string, kind = '') {
@@ -228,9 +236,10 @@ function socialTabs(active: string) {
   const items = [
     ['/admin/v3?section=social&tab=overview', 'Overview', 'overview'],
     ['/admin/v3/social/providers', 'Providers', 'providers'],
+    ['/admin/v3/social/provider-services', 'Provider Services', 'provider-services'],
+    ['/admin/v3/social/my-services', 'Services', 'services'],
     ['/admin/v3/social/brands', 'Brands', 'brands'],
     ['/admin/v3/social/categories', 'Categories', 'categories'],
-    ['/admin/v3/social/my-services', 'My Services', 'services'],
     ['/admin/v3/social/order-settings', 'Order Settings', 'order-settings'],
     ['/admin/v3?section=social&tab=routing', 'Routing', 'routing'],
     ['/admin/v3?section=social&tab=orders', 'Orders', 'orders'],
