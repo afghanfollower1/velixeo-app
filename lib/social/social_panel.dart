@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import '../core/api_service.dart';
 import '../core/models.dart';
+import '../design/velixeo_design.dart';
 import 'social_models.dart';
 
 abstract class SocialPanelHost {
