@@ -415,7 +415,7 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
   });
   const providerId = q.provider || providers[0]?.id || '';
   const provider = providers.find(item => item.id === providerId) ?? null;
-  const categories = await loadCategories(prisma);
+  const [categories, brands] = await Promise.all([loadCategories(prisma), loadSocialBrands(prisma)]);
 
   const sourceIndexRows = providerId
     ? await prisma.serviceProviderRoute.findMany({
@@ -448,7 +448,9 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
   const where: Prisma.ServiceProviderRouteWhereInput = providerId
     ? {
         providerId,
-        ...(activeSourceCategory ? { providerCategory: activeSourceCategory === 'Uncategorized' ? null : activeSourceCategory } : {}),
+        ...(activeSourceCategory
+          ? { providerCategory: activeSourceCategory === 'Uncategorized' ? null : activeSourceCategory }
+          : {}),
         ...(q.q ? {
           OR: [
             { providerServiceCode: { contains: q.q, mode: 'insensitive' } },
@@ -477,6 +479,7 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
     route,
     sale: await socialRouteSaleRateAfn(prisma, route.service, route),
   })));
+
   const selected = q.route
     ? await prisma.serviceProviderRoute.findFirst({
         where: { id: q.route, provider: { kind: ProviderKind.SOCIAL } },
@@ -484,29 +487,122 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
       })
     : null;
   const selectedMeta = selected ? jsonObject(selected.service.metadata) : {};
+  const selectedRouteMeta = selected ? jsonObject(selected.metadata) : {};
   const isPublished = selected ? selectedMeta.rawCatalog !== true : false;
+  const selectedCategorySlug = String(selectedMeta.categorySlug || selected?.service.socialGroup || '');
+  const selectedCategory = categories.find(item => item.slug === selectedCategorySlug) ?? null;
+  const selectedBrand = normalizeBrandKey(selectedCategory?.platform || selected?.service.socialPlatform || '');
+  const detectedRefill = selected
+    ? (typeof selectedRouteMeta._providerRefillDetected === 'boolean'
+        ? selectedRouteMeta._providerRefillDetected
+        : selected.providerRefill)
+    : false;
 
   const rows = priced.map(({ route, sale }) => {
     const meta = jsonObject(route.service.metadata);
+    const routeMeta = jsonObject(route.metadata);
     const raw = meta.rawCatalog === true;
+    const detected = typeof routeMeta._providerRefillDetected === 'boolean'
+      ? routeMeta._providerRefillDetected
+      : route.providerRefill;
     const appState = raw ? pill('Not added') : route.service.enabled ? pill('Live','ok') : pill('Draft','warn');
-    return `<tr><td class="mono">${esc(route.providerServiceCode)}</td><td class="service-name"><b>${esc(route.providerName || route.service.titleEn)}</b><br><span class="tiny">${esc(route.providerType || 'Default')}</span></td><td><b>${esc(route.providerRate?.toString() || '—')}</b> ${esc(route.providerCurrency || '')}</td><td class="money">${sale == null ? '—' : money(sale)}</td><td>${esc(route.providerMinQty ?? '—')} – ${esc(route.providerMaxQty ?? '—')}</td><td>${route.providerRefill ? pill('Yes','ok') : pill('No')}</td><td>${route.providerCancel ? pill('Yes','ok') : pill('No')}</td><td>${appState}</td><td><a class="iconbtn ${raw?'green':'purple'}" href="/admin/v3/social/provider-services?provider=${route.providerId}&route=${route.id}${q.q?`&q=${encodeURIComponent(q.q)}`:(!q.q && activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:'')}" title="${raw?'Add this service to VELIXEO':'Edit VELIXEO service'}">${raw?icon('plus'):icon('edit')}</a></td></tr>`;
+    const refillState = route.providerRefill
+      ? pill(detected ? 'Refill · Auto' : 'Refill · Manual','ok')
+      : pill(detected ? 'Refill disabled' : 'No refill');
+    return `<tr><td class="mono">${esc(route.providerServiceCode)}</td><td class="service-name"><b>${esc(route.providerName || route.service.titleEn)}</b><br><span class="tiny">${esc(route.providerType || 'Default')}</span></td><td><b>${esc(route.providerRate?.toString() || '—')}</b> ${esc(route.providerCurrency || '')}</td><td class="money">${sale == null ? '—' : money(sale)}</td><td>${esc(route.providerMinQty ?? '—')} – ${esc(route.providerMaxQty ?? '—')}</td><td>${refillState}</td><td>${route.providerCancel ? pill('Yes','ok') : pill('No')}</td><td>${appState}</td><td><a class="iconbtn ${raw?'green':'purple'}" href="/admin/v3/social/provider-services?provider=${route.providerId}&route=${route.id}${q.q?`&q=${encodeURIComponent(q.q)}`:(!q.q && activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:'')}" title="${raw?'Add this service to VELIXEO':'Edit VELIXEO service'}">${raw?icon('plus'):icon('edit')}</a></td></tr>`;
   }).join('');
 
-
-  const categoryOptions = categories.filter(item => item.enabled).map(item => `<option value="${esc(item.slug)}" ${String(selectedMeta.categorySlug || selected?.service.socialGroup || '')===item.slug?'selected':''}>${esc(item.platform)} → ${esc(item.titleEn)}</option>`).join('');
+  const brandOptions = brands
+    .filter(item => item.enabled)
+    .map(item => `<option value="${esc(item.key)}" ${normalizeBrandKey(item.key)===selectedBrand?'selected':''}>${esc(item.titleEn)} · ${esc(item.titleFa)}</option>`)
+    .join('');
+  const categoryOptions = categories
+    .filter(item => item.enabled)
+    .map(item => `<option value="${esc(item.slug)}" data-platform="${esc(normalizeBrandKey(item.platform))}" ${selectedCategorySlug===item.slug?'selected':''}>${esc(item.titleEn)} · ${esc(item.titleFa)}</option>`)
+    .join('');
   const currentMode = selected?.service.basePriceAfn != null ? 'FIXED' : 'AUTO_MARKUP';
-  const config = selected ? `<div class="card"><div class="cardhead"><div><h2>${isPublished?'Edit VELIXEO Service':'Add Service to VELIXEO'}</h2><span class="muted">Provider #${esc(selected.providerServiceCode)} · ${esc(selected.provider.name)}</span></div><a class="btn ghost" href="/admin/v3/social/provider-services?provider=${selected.providerId}${activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:''}">Close</a></div><div class="notice"><b>Original provider name:</b> ${esc(selected.providerName || selected.service.titleEn)}<br><b>Provider cost:</b> ${esc(selected.providerRate?.toString() || '—')} ${esc(selected.providerCurrency || '')} · Min ${esc(selected.providerMinQty ?? '—')} · Max ${esc(selected.providerMaxQty ?? '—')}</div><form method="post" action="/admin/v3/social/provider-services/publish"><input type="hidden" name="routeId" value="${selected.id}"><input type="hidden" name="providerId" value="${selected.providerId}"><input type="hidden" name="sourceCategory" value="${esc(activeSourceCategory)}"><div class="field"><label>VELIXEO Category</label><select name="categorySlug" required><option value="">Choose category</option>${categoryOptions}</select></div><div class="field"><label>Customer-facing English Name</label><input name="titleEn" value="${esc(isPublished ? selected.service.titleEn : (selected.providerName || selected.service.titleEn))}" required></div><div class="field"><label>English Description</label><textarea name="descriptionEn">${esc(selected.service.descriptionEn || '')}</textarea></div><div class="forms"><div class="field"><label>Pricing Mode</label><select name="pricingMode"><option value="AUTO_MARKUP" ${currentMode==='AUTO_MARKUP'?'selected':''}>Auto Markup — follows provider price</option><option value="FIXED" ${currentMode==='FIXED'?'selected':''}>Fixed Sale Price</option></select></div><div class="field"><label>Profit / Markup %</label><input name="markup" value="${esc(selected.markupPercent?.toString() ?? selected.provider.defaultMarkupPercent.toString())}" placeholder="30"></div><div class="field"><label>Fixed Sale Price</label><input name="fixedPrice" value="${selected.service.basePriceAfn == null ? '' : esc(selected.service.basePriceAfn.toString())}" placeholder="Only for Fixed mode"></div><div class="field"><label>Fixed Price Currency</label><select name="fixedCurrency"><option>AFN</option><option>USD</option><option>TOMAN</option></select></div><div class="field"><label>Minimum Quantity</label><input type="number" name="minQty" value="${esc(selected.service.minQty ?? selected.providerMinQty ?? '')}"></div><div class="field"><label>Maximum Quantity</label><input type="number" name="maxQty" value="${esc(selected.service.maxQty ?? selected.providerMaxQty ?? '')}"></div><div class="field"><label>Sort Order</label><input type="number" name="sortOrder" value="${esc(selected.service.sortOrder)}"></div><div class="field"><label>Refill / Guarantee Days</label><input type="number" name="refillDays" value="${esc(selected.service.refillDays ?? '')}" placeholder="30"></div></div><label class="check"><input type="checkbox" name="featured" ${selected.service.featured?'checked':''}> Featured service</label><label class="check"><input type="checkbox" name="enabled" ${selected.service.enabled?'checked':''}> Visible to users immediately</label><div class="notice">Leave “Visible to users” OFF to save this as a draft. You can add several services first and publish them later from My Services.</div><button class="btn">${isPublished?'Save Changes':'Add to VELIXEO'}</button></form></div>` : `<div class="card empty">Click the + icon beside any provider service to choose a VELIXEO category, customer name and selling price.</div>`;
+
+  const config = selected ? `<div class="card"><div class="cardhead"><div><h2>${isPublished?'Edit VELIXEO Service':'Add Service to VELIXEO'}</h2><span class="muted">Provider #${esc(selected.providerServiceCode)} · ${esc(selected.provider.name)}</span></div><a class="btn ghost" href="/admin/v3/social/provider-services?provider=${selected.providerId}${activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:''}">Close</a></div>
+  <div class="notice"><b>Original provider name:</b> ${esc(selected.providerName || selected.service.titleEn)}<br><b>Provider cost:</b> ${esc(selected.providerRate?.toString() || '—')} ${esc(selected.providerCurrency || '')} · Min ${esc(selected.providerMinQty ?? '—')} · Max ${esc(selected.providerMaxQty ?? '—')}</div>
+  <form method="post" action="/admin/v3/social/provider-services/publish">
+    <input type="hidden" name="routeId" value="${selected.id}">
+    <input type="hidden" name="providerId" value="${selected.providerId}">
+    <input type="hidden" name="sourceCategory" value="${esc(activeSourceCategory)}">
+    <div class="forms">
+      <div class="field"><label>Brand / Network</label><select id="socialBrandSelect" name="brandKey" required><option value="">Choose brand</option>${brandOptions}</select></div>
+      <div class="field"><label>VELIXEO Category</label><select id="socialCategorySelect" name="categorySlug" required><option value="">Choose category</option>${categoryOptions}</select></div>
+    </div>
+    <div class="field"><label>Customer-facing English Name</label><input name="titleEn" value="${esc(isPublished ? selected.service.titleEn : (selected.providerName || selected.service.titleEn))}" required></div>
+    <div class="field"><label>Customer-facing Persian Name</label><input name="titleFa" value="${esc(isPublished ? selected.service.titleFa : '')}" placeholder="نام فارسی سرویس"></div>
+    <div class="forms">
+      <div class="field"><label>English Description</label><textarea name="descriptionEn">${esc(selected.service.descriptionEn || '')}</textarea></div>
+      <div class="field"><label>Persian Description</label><textarea name="descriptionFa">${esc(selected.service.descriptionFa || '')}</textarea></div>
+    </div>
+    <div class="forms">
+      <div class="field"><label>Pricing Mode</label><select name="pricingMode"><option value="AUTO_MARKUP" ${currentMode==='AUTO_MARKUP'?'selected':''}>Auto Markup — follows provider price</option><option value="FIXED" ${currentMode==='FIXED'?'selected':''}>Fixed Sale Price</option></select></div>
+      <div class="field"><label>Profit / Markup %</label><input name="markup" value="${esc(selected.markupPercent?.toString() ?? selected.provider.defaultMarkupPercent.toString())}" placeholder="30"></div>
+      <div class="field"><label>Fixed Sale Price</label><input name="fixedPrice" value="${selected.service.basePriceAfn == null ? '' : esc(selected.service.basePriceAfn.toString())}" placeholder="Only for Fixed mode"></div>
+      <div class="field"><label>Fixed Price Currency</label><select name="fixedCurrency"><option>AFN</option><option>USD</option><option>TOMAN</option></select></div>
+      <div class="field"><label>Minimum Quantity</label><input type="number" name="minQty" value="${esc(selected.service.minQty ?? selected.providerMinQty ?? '')}"></div>
+      <div class="field"><label>Maximum Quantity</label><input type="number" name="maxQty" value="${esc(selected.service.maxQty ?? selected.providerMaxQty ?? '')}"></div>
+      <div class="field"><label>Sort Order</label><input type="number" name="sortOrder" value="${esc(selected.service.sortOrder)}"></div>
+      <div class="field"><label>Refill / Guarantee Days</label><input type="number" name="refillDays" min="0" value="${esc(selected.service.refillDays ?? '')}" placeholder="30"></div>
+    </div>
+    <div class="refill-control">
+      <div><b>Refill / Drop Guarantee</b><div class="meta">Provider API detected: <strong>${detectedRefill ? 'Available' : 'Not available'}</strong>. The switch starts with the provider value, but you can manually enable or disable it for this VELIXEO service.</div></div>
+      <label class="toggle"><input type="checkbox" name="refillEnabled" ${selected.providerRefill?'checked':''}> <span>Enabled</span></label>
+    </div>
+    <div class="provider-capability">${detectedRefill?pill('Provider supports refill','ok'):pill('Provider reports no refill')}${selected.providerCancel?pill('Provider supports cancel','ok'):pill('No cancel')}</div>
+    <label class="check"><input type="checkbox" name="featured" ${selected.service.featured?'checked':''}> Featured service</label>
+    <label class="check"><input type="checkbox" name="enabled" ${selected.service.enabled?'checked':''}> Visible to users immediately</label>
+    <div class="notice">Save as draft by leaving “Visible to users” off. Only services you add here appear under Services and in the customer app.</div>
+    <button class="btn">${isPublished?'Save Changes':'Add to VELIXEO'}</button>
+  </form></div>` : `<div class="card empty">Choose a provider service and press + to select its brand, category, pricing and refill settings.</div>`;
+
+  const providerPicker = `<div class="card"><form method="get" action="/admin/v3/social/provider-services" class="provider-picker">
+    <div class="field" style="margin:0"><label>Provider</label><select name="provider">${providers.map(item=>`<option value="${item.id}" ${item.id===providerId?'selected':''}>${esc(item.name)}</option>`).join('')}</select></div>
+    <div class="field" style="margin:0"><label>Search provider services</label><input name="q" value="${esc(q.q)}" placeholder="Service ID, name or provider category"></div>
+    <button class="btn">Show Services</button>
+  </form>
+  ${provider ? `<div class="actions" style="margin-top:12px"><a class="btn ghost" href="/admin/v3/social/providers">Providers</a><form method="post" action="/admin/v3/social/provider-services/sync"><input type="hidden" name="providerId" value="${provider.id}"><button class="btn">${icon('sync')} Get / Refresh All Services</button></form></div>` : ''}
+  <div class="notice" style="margin-top:12px">This area shows the provider catalog only. Nothing is added to VELIXEO until you press + and save the service configuration.</div>
+  ${sourceCategories.length ? `<div class="source-categories">${sourceCategories.map(item => `<a class="source-category ${!q.q && item.name===activeSourceCategory?'active':''}" href="/admin/v3/social/provider-services?provider=${encodeURIComponent(providerId)}&sourceCategory=${encodeURIComponent(item.name)}"><span>${esc(item.name)}</span><span class="count">${item.count.toLocaleString('en-US')}</span></a>`).join('')}</div>` : ''}
+  </div>`;
+
+  const script = selected ? `
+(() => {
+  const brand = document.getElementById('socialBrandSelect');
+  const category = document.getElementById('socialCategorySelect');
+  if (!brand || !category) return;
+  const sync = () => {
+    const value = String(brand.value || '').toUpperCase();
+    let selectedVisible = false;
+    for (const option of Array.from(category.options)) {
+      if (!option.value) { option.hidden = false; continue; }
+      const visible = !value || String(option.dataset.platform || '').toUpperCase() === value;
+      option.hidden = !visible;
+      if (visible && option.selected) selectedVisible = true;
+    }
+    if (!selectedVisible && category.value) category.value = '';
+  };
+  brand.addEventListener('change', sync);
+  sync();
+})();` : undefined;
 
   return shell({
     request,
     admin,
-    title: provider ? provider.name + ' — Service List' : 'Provider Service List',
-    subtitle: 'Fetch this provider’s real catalog, then add selected services to your VELIXEO categories.',
-    active: 'providers',
+    title: 'Provider Services',
+    subtitle: provider
+      ? `${provider.name} catalog — choose a service, then add it to the exact VELIXEO brand and category.`
+      : 'Choose a provider to browse its API service catalog.',
+    active: 'provider-services',
     message: q.msg,
     error: q.error,
-    body: `<div class="card"><div class="cardhead"><div class="searchbar"><a class="btn ghost" href="/admin/v3/social/providers">← Providers</a><form method="get" action="/admin/v3/social/provider-services" class="searchbar"><input type="hidden" name="provider" value="${esc(providerId)}"><input name="q" value="${esc(q.q)}" placeholder="Search all provider services"><button class="btn ghost">Search</button>${q.q ? `<a class="btn ghost" href="/admin/v3/social/provider-services?provider=${encodeURIComponent(providerId)}">Clear</a>` : ''}</form></div>${provider ? `<form method="post" action="/admin/v3/social/provider-services/sync"><input type="hidden" name="providerId" value="${provider.id}"><button class="btn">${icon('sync')} Get / Refresh All Services</button></form>` : ''}</div><div class="notice">Categories below come directly from the provider API. Sync downloads the complete API catalog; nothing is shown to customers until you explicitly add it to VELIXEO.</div>${sourceCategories.length ? `<div class="source-categories">${sourceCategories.map(item => `<a class="source-category ${!q.q && item.name===activeSourceCategory?'active':''}" href="/admin/v3/social/provider-services?provider=${encodeURIComponent(providerId)}&sourceCategory=${encodeURIComponent(item.name)}"><span>${esc(item.name)}</span><span class="count">${item.count.toLocaleString('en-US')}</span></a>`).join('')}</div>` : ''}</div><div class="grid"><div class="card"><div class="cardhead"><div class="catalog-title"><h2>${q.q ? 'Search Results' : esc(activeSourceCategory || provider?.name || 'Provider Catalog')}</h2>${!q.q && activeSourceCategory ? pill(sourceCategoryMap.get(activeSourceCategory)?.count?.toLocaleString('en-US') + ' services','info') : ''}</div><span class="muted">${q.q ? priced.length.toLocaleString('en-US') + ' matching services' : sourceIndexRows.length.toLocaleString('en-US') + ' total synced services · ' + sourceCategories.length.toLocaleString('en-US') + ' categories'}</span></div><div class="tablewrap"><table class="table"><thead><tr><th>ID</th><th>Original Service Name</th><th>Provider Cost</th><th>VELIXEO Sale</th><th>Min / Max</th><th>Refill</th><th>Cancel</th><th>App Status</th><th>Add</th></tr></thead><tbody>${rows || `<tr><td colspan="9" class="empty">${provider ? 'No services found in this provider category. Try Sync or another category.' : 'Add or select a provider first.'}</td></tr>`}</tbody></table></div></div>${config}</div>`,
+    script,
+    body: providers.length
+      ? `${providerPicker}<div class="grid"><div class="card"><div class="cardhead"><div class="catalog-title"><h2>${q.q ? 'Search Results' : esc(activeSourceCategory || provider?.name || 'Provider Catalog')}</h2>${!q.q && activeSourceCategory ? pill(sourceCategoryMap.get(activeSourceCategory)?.count?.toLocaleString('en-US') + ' services','info') : ''}</div><span class="muted">${q.q ? priced.length.toLocaleString('en-US') + ' matching services' : sourceIndexRows.length.toLocaleString('en-US') + ' total synced services · ' + sourceCategories.length.toLocaleString('en-US') + ' categories'}</span></div><div class="tablewrap"><table class="table"><thead><tr><th>ID</th><th>Original Service Name</th><th>Provider Cost</th><th>VELIXEO Sale</th><th>Min / Max</th><th>Refill</th><th>Cancel</th><th>App Status</th><th>Add</th></tr></thead><tbody>${rows || `<tr><td colspan="9" class="empty">${provider ? 'No services found. Sync the provider or choose another provider category.' : 'Choose a provider first.'}</td></tr>`}</tbody></table></div></div>${config}</div>`
+      : '<div class="card empty">No Social Media provider exists yet. Add a provider first, then sync its services.</div>',
   });
 }
 
