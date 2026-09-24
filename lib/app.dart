@@ -2636,9 +2636,9 @@ class HomePage extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Container(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(24),
                 gradient: const LinearGradient(colors: [Color(0xFF8ADDFF), Color(0xFFBCEAFF)], begin: Alignment.topLeft, end: Alignment.bottomRight),
                 boxShadow: const [BoxShadow(color: Color(0x221686FF), blurRadius: 24, offset: Offset(0, 10))],
               ),
@@ -2672,7 +2672,7 @@ class HomePage extends StatelessWidget {
             ] else ...[
               const SizedBox(height: 14),
               Container(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+                padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEDF7FC),
                   borderRadius: BorderRadius.circular(20),
@@ -3217,10 +3217,10 @@ class DigitalAccountsHubPage extends StatelessWidget {
       body: RefreshIndicator(
         onRefresh: c.refreshAccount,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 30),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 30),
           children: [
             Container(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+              padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [Color(0xFFEEFBFA), Color(0xFFE4F4FC)],
@@ -3717,12 +3717,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
   @override
   Widget build(BuildContext context) {
     final c = widget.controller;
-    const filters = <(String, String)>[
-      ('ALL', 'All'),
-      ('ORDER', 'Orders'),
-      ('WALLET', 'Wallet'),
-      ('SUPPORT', 'Support'),
-      ('SYSTEM', 'System'),
+    final filters = <(String, String)>[
+      ('ALL', tr(c.fa, 'همه', 'All')),
+      ('ORDER', tr(c.fa, 'سفارش‌ها', 'Orders')),
+      ('WALLET', tr(c.fa, 'کیف پول', 'Wallet')),
+      ('SUPPORT', tr(c.fa, 'پشتیبانی', 'Support')),
+      ('SYSTEM', tr(c.fa, 'سیستم', 'System')),
     ];
     return AnimatedBuilder(
       animation: c,
@@ -3739,7 +3739,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   SliverToBoxAdapter(
                     child: Container(
                       margin: const EdgeInsets.fromLTRB(14, 14, 14, 10),
-                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+                      padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(26),
                         gradient: const LinearGradient(
@@ -3855,7 +3855,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   if (items.isEmpty)
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+                        padding: const EdgeInsets.all(18),
                         child: EmptyCard(
                           icon: Icons.notifications_none_rounded,
                           title: 'Nothing here yet',
@@ -4050,7 +4050,7 @@ class RemoteBannerCard extends StatelessWidget {
               ),
               Container(color: Colors.black.withValues(alpha: .24)),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+                padding: const EdgeInsets.all(18),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -6484,7 +6484,7 @@ class _SecurityPageState extends State<SecurityPage> {
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
               children: [
                 Container(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+                  padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(colors: [Color(0xFF082D58), VelixeoDesign.sky]),
                     borderRadius: BorderRadius.circular(22),
