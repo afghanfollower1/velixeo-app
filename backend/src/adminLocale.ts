@@ -736,7 +736,7 @@ function translateAdminHtmlToPersian(html: string) {
 
 function markAdminDesignSystem(html: string, lang: AdminLang) {
   const direction = lang === 'fa' ? 'rtl' : 'ltr';
-  return html.replace(/<html([^>]*)>/i, '<html$1 lang="' + lang + '" dir="' + direction + '" class="vx-admin-' + lang + '">');
+  return html.replace(/<html[^>]*>/i, '<html lang="' + lang + '" dir="' + direction + '" class="vx-admin-' + lang + '">');
 }
 
 function localeInjection() {
