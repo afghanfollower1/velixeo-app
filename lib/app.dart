@@ -2710,289 +2710,900 @@ class HomePage extends StatelessWidget {
   final VoidCallback? onProfileTap;
 
   static const services = [
-    ServiceItem('شبکه‌های اجتماعی', 'Social Media', Icons.favorite_rounded, Color(0xFF7857FF)),
-    ServiceItem('شماره مجازی', 'Virtual Numbers', Icons.phone_iphone_rounded, Color(0xFF28A9FF)),
-    ServiceItem('پریمیوم', 'Premium', Icons.workspace_premium_rounded, Color(0xFFF3A523)),
-    ServiceItem('شارژ موبایل', 'Mobile Top-up', Icons.sim_card_rounded, Color(0xFF12B8A6)),
-    ServiceItem('اکانت دیجیتال', 'Digital Accounts', Icons.account_circle_rounded, Color(0xFF5B6EF5)),
+    ServiceItem('شبکه‌های اجتماعی', 'Social Media', Icons.favorite_rounded, Color(0xFF38BDF8)),
+    ServiceItem('شماره مجازی', 'Virtual Numbers', Icons.phone_iphone_rounded, Color(0xFF38BDF8)),
+    ServiceItem('اشتراک پریمیوم', 'Premium', Icons.workspace_premium_rounded, Color(0xFF9580CA)),
+    ServiceItem('شارژ سیم‌کارت', 'Mobile Top-up', Icons.sim_card_rounded, Color(0xFFD19353)),
+    ServiceItem('حساب‌های دیجیتال', 'Digital Accounts', Icons.layers_rounded, Color(0xFF68A386)),
   ];
+
+  String _firstName(String value, bool fa) {
+    final clean = value.trim();
+    if (clean.isEmpty) return fa ? 'دوست' : 'there';
+    return clean.split(RegExp(r'\s+')).first;
+  }
 
   Color _statusColor(String status) {
     switch (status) {
-      case 'COMPLETED': return const Color(0xFF18A875);
+      case 'COMPLETED':
+        return VelixeoBrand.green;
       case 'PROCESSING':
-      case 'IN_PROGRESS': return VelixeoDesign.sky;
+      case 'IN_PROGRESS':
+      case 'AWAITING_SMS':
+        return const Color(0xFF287495);
       case 'FAILED':
-      case 'CANCELLED': return VelixeoDesign.red;
-      default: return const Color(0xFFF0A326);
+        return VelixeoBrand.red;
+      case 'CANCELLED':
+      case 'REFUNDED':
+        return const Color(0xFF6B7984);
+      default:
+        return VelixeoBrand.orange;
     }
   }
 
-  String _firstName(String value) {
-    final clean = value.trim();
-    if (clean.isEmpty) return 'there';
-    return clean.split(RegExp(r'\s+')).first;
+  String _statusLabel(String status, bool fa) {
+    if (fa) {
+      switch (status) {
+        case 'COMPLETED': return 'تکمیل‌شده';
+        case 'PROCESSING':
+        case 'IN_PROGRESS': return 'در حال انجام';
+        case 'AWAITING_SMS': return 'در انتظار پیامک';
+        case 'FAILED': return 'ناموفق';
+        case 'CANCELLED': return 'لغوشده';
+        case 'REFUNDED': return 'بازگشت وجه';
+        case 'PARTIAL': return 'نیمه‌کامل';
+        default: return 'در انتظار';
+      }
+    }
+    switch (status) {
+      case 'COMPLETED': return 'Completed';
+      case 'PROCESSING':
+      case 'IN_PROGRESS': return 'In progress';
+      case 'AWAITING_SMS': return 'Awaiting SMS';
+      case 'FAILED': return 'Failed';
+      case 'CANCELLED': return 'Cancelled';
+      case 'REFUNDED': return 'Refunded';
+      case 'PARTIAL': return 'Partial';
+      default: return 'Pending';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final c = controller;
     final identity = c.user?.fullName ?? c.user?.email ?? c.user?.phone ?? 'VELIXEO User';
-    final heroBanners = c.banners.where((b) => b.placement == 'HOME_HERO').toList(growable: false);
-    final popular = c.catalogServices.where((s) => s.featured).take(5).toList(growable: false);
-    final livePopular = popular.isNotEmpty ? popular : c.catalogServices.take(5).toList(growable: false);
-    final recent = c.orders.take(3).toList(growable: false);
+    final recent = c.orders.take(2).toList(growable: false);
+    return c.fa
+        ? _buildPersian(context, identity, recent)
+        : _buildEnglish(context, identity, recent);
+  }
 
-    return SafeArea(
-      child: RefreshIndicator(
-        onRefresh: c.refreshAccount,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(tr(c.fa, 'سلام، ${_firstName(identity)} 👋', 'Hi, ${_firstName(identity)} 👋'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: VelixeoDesign.ink)),
-                      const SizedBox(height: 3),
-                      Text(tr(c.fa, 'امروز چه کاری می‌خواهی انجام بدهی؟', 'What would you like to do today?'), style: const TextStyle(fontSize: 12.5, color: VelixeoDesign.muted)),
-                    ],
-                  ),
-                ),
-                _TopCircleButton(
-                  icon: Icons.notifications_none_rounded,
-                  badge: c.unreadNotificationCount,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationsPage(controller: c))),
-                ),
-                const SizedBox(width: 9),
-                UserAvatar(
-                  user: c.user,
-                  size: 42,
-                  onTap: onProfileTap ?? () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage(controller: c))),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                gradient: const LinearGradient(colors: [Color(0xFF8ADDFF), Color(0xFFBCEAFF)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                boxShadow: const [BoxShadow(color: Color(0x221686FF), blurRadius: 24, offset: Offset(0, 10))],
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+  Widget _buildPersian(
+    BuildContext context,
+    String identity,
+    List<AppOrder> recent,
+  ) {
+    final c = controller;
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: c.refreshAccount,
+          child: ListView(
+            padding: VelixeoFaDesign.pagePadding,
+            children: [
+              Row(
                 children: [
+                  UserAvatar(
+                    user: c.user,
+                    size: 42,
+                    onTap: onProfileTap ?? () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => ProfilePage(controller: c)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(tr(c.fa, 'موجودی کیف پول', 'Wallet balance'), style: const TextStyle(color: Color(0xFF4D7990), fontSize: 12, fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 6),
-                        Text(c.money(c.balanceAfn), style: const TextStyle(color: Color(0xFF245168), fontSize: 30, fontWeight: FontWeight.w700, letterSpacing: .2)),
-                        const SizedBox(height: 4),
-                        Text(c.secondaryBalance(), style: const TextStyle(color: Color(0xFF4D7990), fontSize: 11.5)),
+                        const Text(
+                          'خوش اومدی،',
+                          style: TextStyle(fontSize: 11, color: Color(0xFF97A3AA)),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          'سلام، ' + _firstName(identity, true),
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: VelixeoBrand.ink,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  FilledButton.icon(
-                    style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF245168), minimumSize: const Size(0, 35), padding: const EdgeInsets.symmetric(horizontal: 12), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11))),
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => WalletPage(controller: c))),
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: Text(tr(c.fa, 'افزایش موجودی', 'Add funds'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  _TopCircleButton(
+                    icon: Icons.notifications_none_rounded,
+                    badge: c.unreadNotificationCount,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => NotificationsPage(controller: c)),
+                    ),
                   ),
                 ],
               ),
-            ),
-            if (heroBanners.isNotEmpty) ...[
-              const SizedBox(height: 14),
-              RemoteBannerCard(controller: c, banner: heroBanners.first),
-            ] else ...[
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEDF7FC),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFDCEEF8)),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            tr(c.fa, 'همهٔ خدمات دیجیتال، یک‌جا', 'All your digital services, in one place'),
-                            style: const TextStyle(
-                              color: VelixeoDesign.ink,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            tr(c.fa, 'سریع، ساده و همیشه در دسترس.', 'Fast, simple and always within reach.'),
-                            style: const TextStyle(
-                              color: Color(0xFF87A3B3),
-                              fontSize: 10.5,
-                              height: 1.7,
-                            ),
-                          ),
-                          const SizedBox(height: 7),
-                          Text(
-                            tr(c.fa, 'مشاهده خدمات', 'Explore services'),
-                            style: const TextStyle(
-                              color: Color(0xFF347996),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Transform.rotate(
-                      angle: -0.16,
-                      child: const Text(
-                        'V',
-                        textDirection: TextDirection.ltr,
-                        style: TextStyle(
-                          fontSize: 64,
-                          height: 1,
-                          color: Color(0xFF76C8EB),
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ],
+              const SizedBox(height: 17),
+              _PrototypeWalletHero(
+                controller: c,
+                label: 'موجودی کیف پول',
+                buttonLabel: 'افزایش موجودی',
+                direction: TextDirection.rtl,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => AddFundsPage(controller: c)),
                 ),
               ),
-            ],
-            const SizedBox(height: 19),
-            InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: () => _openServiceSearch(context, c),
-              child: Container(
-                height: 48,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE4EAF1))),
-                child: Row(
-                  children: [
-                    const Icon(Icons.search_rounded, color: Color(0xFF849AA6), size: 21),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        tr(c.fa, 'جستجوی خدمات…', 'Search services...'),
-                        style: const TextStyle(color: Color(0xFF99A4AB), fontSize: 12.5),
-                      ),
-                    ),
-                    const Icon(Icons.tune_rounded, color: Color(0xFF6B7787), size: 19),
-                  ],
-                ),
+              const SizedBox(height: 20),
+              _PrototypeSearch(
+                hint: 'دنبال چه خدماتی هستی؟',
+                direction: TextDirection.rtl,
+                onTap: () => _openServiceSearch(context, c),
               ),
-            ),
-            const SizedBox(height: 23),
-            _HomeSectionHeader(title: tr(c.fa, 'خدمات', 'Services'), action: tr(c.fa, 'مشاهده همه', 'View all')),
-            const SizedBox(height: 12),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: services.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: .90),
-              itemBuilder: (context, i) {
-                final service = services[i];
-                return InkWell(
-                  borderRadius: BorderRadius.circular(17),
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _serviceDestination(c, service))),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
-                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Container(
-                        width: 54,
-                        height: 54,
-                        decoration: BoxDecoration(
-                          color: service.color.withValues(alpha: .10),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: Colors.white),
-                          boxShadow: const [
-                            BoxShadow(color: Colors.white, offset: Offset(0, 3)),
-                          ],
-                        ),
-                        child: Icon(service.icon, color: service.color, size: 25),
-                      ),
-                      const SizedBox(height: 9),
-                      Text(c.fa ? service.fa : service.en, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF506D7E))),
-                      if (service.en == 'Mobile Top-up') ...[
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(color: service.color.withValues(alpha: .10), borderRadius: BorderRadius.circular(999)),
-                          child: Text(tr(c.fa, 'به‌زودی', 'Coming soon'), style: TextStyle(fontSize: 8, color: service.color, fontWeight: FontWeight.w900)),
-                        ),
-                      ],
-                    ]),
-                  ),
-                );
-              },
-            ),
-            if (livePopular.isNotEmpty) ...[
-              const SizedBox(height: 24),
-              _HomeSectionHeader(title: tr(c.fa, 'خدمات محبوب', 'Popular services'), action: tr(c.fa, 'مشاهده همه', 'See all')),
+              const SizedBox(height: 23),
+              _PrototypeSectionHeader(
+                title: 'خدمات، در دسترس تو',
+                action: 'مشاهده همه',
+                direction: TextDirection.rtl,
+                onTap: () => _openServiceSearch(context, c),
+              ),
               const SizedBox(height: 12),
-              SizedBox(
-                height: 118,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: livePopular.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
-                  itemBuilder: (context, i) {
-                    final service = livePopular[i];
-                    final color = catalogColor(service.category);
-                    return InkWell(
-                      borderRadius: BorderRadius.circular(17),
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _catalogDestination(c, service))),
-                      child: Container(
-                        width: 176,
-                        padding: const EdgeInsets.all(13),
-                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(17), border: Border.all(color: const Color(0xFFE8EDF3))),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Row(children: [Container(width: 34, height: 34, decoration: BoxDecoration(color: color.withValues(alpha: .10), borderRadius: BorderRadius.circular(10)), child: Icon(catalogIcon(service.category), color: color, size: 19)), const Spacer(), if (service.basePriceAfn != null) Text(c.money(service.basePriceAfn!), style: const TextStyle(fontSize: 11, color: VelixeoDesign.sky, fontWeight: FontWeight.w900))]),
-                          const SizedBox(height: 10),
-                          Text(c.fa ? service.titleFa : service.titleEn, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF253247))),
-                        ]),
-                      ),
-                    );
-                  },
+              _PrototypeServiceGrid(
+                controller: c,
+                labelsFa: true,
+                onOpenAll: () => _openServiceSearch(context, c),
+              ),
+              const SizedBox(height: 23),
+              _PrototypePremiumBanner(
+                title: 'یک تجربه فراتر، با پریمیوم',
+                subtitle: 'اشتراک‌های محبوبت را اینجا پیدا کن.',
+                action: 'دیدن اشتراک‌ها',
+                direction: TextDirection.rtl,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => PremiumPanelPage(host: c)),
                 ),
               ),
-            ],
-            if (recent.isNotEmpty) ...[
-              const SizedBox(height: 24),
-              _HomeSectionHeader(title: tr(c.fa, 'سفارش‌های اخیر', 'Recent orders'), action: tr(c.fa, 'مشاهده همه', 'View all')),
+              const SizedBox(height: 23),
+              _PrototypeSectionHeader(
+                title: 'آخرین سفارش‌ها',
+                action: 'مشاهده همه',
+                direction: TextDirection.rtl,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => OrdersPage(controller: c)),
+                ),
+              ),
               const SizedBox(height: 10),
-              ...recent.map((order) {
-                final color = _statusColor(order.status);
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 9),
-                  padding: const EdgeInsets.all(13),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE8EDF3))),
-                  child: Row(children: [
-                    Container(width: 40, height: 40, decoration: BoxDecoration(color: VelixeoDesign.sky.withValues(alpha: .08), borderRadius: BorderRadius.circular(12)), child: Icon(catalogIcon(order.category), color: VelixeoDesign.sky, size: 20)),
-                    const SizedBox(width: 11),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${c.fa ? (order.serviceTitleFa ?? order.serviceSlug ?? order.category) : (order.serviceTitleEn ?? order.serviceSlug ?? order.category)}${order.isDripRun ? ' · ${tr(c.fa, 'مرحله', 'Run')} ${order.dripRunIndex}/${order.dripRunsAll}' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(c.money(order.totalAmountAfn), style: const TextStyle(fontSize: 11.5, color: Color(0xFF7C8999)))])),
-                    Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: color.withValues(alpha: .10), borderRadius: BorderRadius.circular(999)), child: Text(order.status.replaceAll('_', ' '), style: TextStyle(fontSize: 9.5, color: color, fontWeight: FontWeight.w800))),
-                  ]),
-                );
-              }),
+              if (recent.isEmpty)
+                const _PrototypeEmptyRecent(
+                  title: 'هنوز سفارشی نداری',
+                  subtitle: 'بعد از اولین خرید، سفارش‌هایت اینجا نمایش داده می‌شوند.',
+                )
+              else
+                ...recent.map((order) => _PrototypeRecentOrder(
+                  order: order,
+                  controller: c,
+                  title: order.serviceTitleFa ?? order.serviceSlug ?? order.category,
+                  status: _statusLabel(order.status, true),
+                  statusColor: _statusColor(order.status),
+                  direction: TextDirection.rtl,
+                )),
             ],
-          ],
+          ),
         ),
       ),
     );
   }
+
+  Widget _buildEnglish(
+    BuildContext context,
+    String identity,
+    List<AppOrder> recent,
+  ) {
+    final c = controller;
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: c.refreshAccount,
+          child: ListView(
+            padding: VelixeoEnDesign.pagePadding,
+            children: [
+              Row(
+                children: [
+                  UserAvatar(
+                    user: c.user,
+                    size: 42,
+                    onTap: onProfileTap ?? () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => ProfilePage(controller: c)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Welcome back,',
+                          style: TextStyle(fontSize: 11, color: Color(0xFF97A3AA)),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          'Hello, ' + _firstName(identity, false),
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: VelixeoBrand.ink,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _TopCircleButton(
+                    icon: Icons.notifications_none_rounded,
+                    badge: c.unreadNotificationCount,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => NotificationsPage(controller: c)),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 17),
+              _PrototypeWalletHero(
+                controller: c,
+                label: 'Available balance',
+                buttonLabel: 'Add funds',
+                direction: TextDirection.ltr,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => AddFundsPage(controller: c)),
+                ),
+              ),
+              const SizedBox(height: 20),
+              _PrototypeSearch(
+                hint: 'What are you looking for?',
+                direction: TextDirection.ltr,
+                onTap: () => _openServiceSearch(context, c),
+              ),
+              const SizedBox(height: 23),
+              _PrototypeSectionHeader(
+                title: 'Your digital essentials',
+                action: 'View all',
+                direction: TextDirection.ltr,
+                onTap: () => _openServiceSearch(context, c),
+              ),
+              const SizedBox(height: 12),
+              _PrototypeServiceGrid(
+                controller: c,
+                labelsFa: false,
+                onOpenAll: () => _openServiceSearch(context, c),
+              ),
+              const SizedBox(height: 23),
+              _PrototypePremiumBanner(
+                title: 'Make more of your membership',
+                subtitle: 'Find your favorite premium memberships.',
+                action: 'Explore memberships',
+                direction: TextDirection.ltr,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => PremiumPanelPage(host: c)),
+                ),
+              ),
+              const SizedBox(height: 23),
+              _PrototypeSectionHeader(
+                title: 'Recent orders',
+                action: 'View all',
+                direction: TextDirection.ltr,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => OrdersPage(controller: c)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (recent.isEmpty)
+                const _PrototypeEmptyRecent(
+                  title: 'No orders yet',
+                  subtitle: 'Your latest purchases will appear here.',
+                )
+              else
+                ...recent.map((order) => _PrototypeRecentOrder(
+                  order: order,
+                  controller: c,
+                  title: order.serviceTitleEn ?? order.serviceSlug ?? order.category,
+                  status: _statusLabel(order.status, false),
+                  statusColor: _statusColor(order.status),
+                  direction: TextDirection.ltr,
+                )),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PrototypeWalletHero extends StatelessWidget {
+  const _PrototypeWalletHero({
+    required this.controller,
+    required this.label,
+    required this.buttonLabel,
+    required this.direction,
+    required this.onTap,
+  });
+
+  final AppController controller;
+  final String label;
+  final String buttonLabel;
+  final TextDirection direction;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+    textDirection: direction,
+    child: Container(
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF8ADDFF), Color(0xFFBCEAFF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          PositionedDirectional(
+            end: -85,
+            top: -58,
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withValues(alpha: .27)),
+              ),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        color: Color(0xFF4D7990),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  const Icon(
+                    Icons.account_balance_wallet_outlined,
+                    color: Color(0xFF3A86A5),
+                    size: 20,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 7),
+              Text(
+                controller.money(controller.balanceAfn),
+                textDirection: TextDirection.ltr,
+                style: const TextStyle(
+                  color: Color(0xFF245168),
+                  fontSize: 34,
+                  height: 1.25,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      controller.secondaryBalance(),
+                      textDirection: TextDirection.ltr,
+                      style: const TextStyle(
+                        color: Color(0xFF4D7990),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  FilledButton.icon(
+                    onPressed: onTap,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF245168),
+                      elevation: 0,
+                      minimumSize: const Size(0, 35),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                    ),
+                    icon: const Icon(Icons.add_rounded, size: 17),
+                    label: Text(
+                      buttonLabel,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+
+}
+
+class _PrototypeSearch extends StatelessWidget {
+  const _PrototypeSearch({
+    required this.hint,
+    required this.direction,
+    required this.onTap,
+  });
+  final String hint;
+  final TextDirection direction;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+    textDirection: direction,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: VelixeoBrand.line),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.search_rounded, color: Color(0xFF849AA6), size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                hint,
+                style: const TextStyle(color: Color(0xFF99A4AB), fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _PrototypeSectionHeader extends StatelessWidget {
+  const _PrototypeSectionHeader({
+    required this.title,
+    required this.action,
+    required this.direction,
+    required this.onTap,
+  });
+  final String title;
+  final String action;
+  final TextDirection direction;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+    textDirection: direction,
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: VelixeoBrand.ink,
+            ),
+          ),
+        ),
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Row(
+              children: [
+                Text(
+                  action,
+                  style: const TextStyle(
+                    color: Color(0xFF347996),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(width: 2),
+                Icon(
+                  direction == TextDirection.rtl
+                      ? Icons.chevron_left_rounded
+                      : Icons.chevron_right_rounded,
+                  size: 14,
+                  color: const Color(0xFF347996),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _PrototypeServiceGrid extends StatelessWidget {
+  const _PrototypeServiceGrid({
+    required this.controller,
+    required this.labelsFa,
+    required this.onOpenAll,
+  });
+
+  final AppController controller;
+  final bool labelsFa;
+  final VoidCallback onOpenAll;
+
+  @override
+  Widget build(BuildContext context) {
+    final all = HomePage.services;
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: all.length + 1,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 9,
+        mainAxisSpacing: 13,
+        childAspectRatio: 1.02,
+      ),
+      itemBuilder: (context, i) {
+        final isAll = i == all.length;
+        final service = isAll ? null : all[i];
+        final label = isAll
+            ? (labelsFa ? 'همه خدمات' : 'All services')
+            : (labelsFa ? service!.fa : service!.en);
+        final icon = isAll ? Icons.grid_view_rounded : service!.icon;
+        final color = isAll ? const Color(0xFF8397A5) : service!.color;
+        final soon = !isAll && service!.en == 'Mobile Top-up';
+        return InkWell(
+          onTap: isAll
+              ? onOpenAll
+              : () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => _serviceDestination(controller, service!),
+                    ),
+                  ),
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              Column(
+                children: [
+                  Container(
+                    width: 54,
+                    height: 54,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: .11),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: Colors.white),
+                    ),
+                    child: Icon(icon, color: color, size: 25),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF506D7E),
+                      fontSize: 11,
+                      height: 1.45,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              if (soon)
+                PositionedDirectional(
+                  end: 2,
+                  top: -2,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF4DF),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(
+                      labelsFa ? 'به‌زودی' : 'Soon',
+                      style: const TextStyle(
+                        color: Color(0xFFB58036),
+                        fontSize: 8,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PrototypePremiumBanner extends StatelessWidget {
+  const _PrototypePremiumBanner({
+    required this.title,
+    required this.subtitle,
+    required this.action,
+    required this.direction,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final String action;
+  final TextDirection direction;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+    textDirection: direction,
+    child: Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEDF7FC),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFDCEEF8)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: VelixeoBrand.ink,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF87A3B3),
+                  ),
+                ),
+                const SizedBox(height: 7),
+                InkWell(
+                  onTap: onTap,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        action,
+                        style: const TextStyle(
+                          color: Color(0xFF347996),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      Icon(
+                        direction == TextDirection.rtl
+                            ? Icons.arrow_back_rounded
+                            : Icons.arrow_forward_rounded,
+                        color: const Color(0xFF347996),
+                        size: 15,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Transform.rotate(
+            angle: -0.16,
+            child: const Text(
+              '✧',
+              textDirection: TextDirection.ltr,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 64,
+                height: 1,
+                color: Color(0xFF76C8EB),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _PrototypeRecentOrder extends StatelessWidget {
+  const _PrototypeRecentOrder({
+    required this.order,
+    required this.controller,
+    required this.title,
+    required this.status,
+    required this.statusColor,
+    required this.direction,
+  });
+
+  final AppOrder order;
+  final AppController controller;
+  final String title;
+  final String status;
+  final Color statusColor;
+  final TextDirection direction;
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+    textDirection: direction,
+    child: Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFEFF3F6)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: VelixeoBrand.soft,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(
+                  catalogIcon(order.category),
+                  color: const Color(0xFF369FCA),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: VelixeoBrand.ink,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      order.createdAt.toLocal().toString().substring(0, 16),
+                      textDirection: TextDirection.ltr,
+                      style: const TextStyle(
+                        color: Color(0xFFA0ADB5),
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                direction == TextDirection.rtl
+                    ? Icons.chevron_left_rounded
+                    : Icons.chevron_right_rounded,
+                color: const Color(0xFF94A7B2),
+                size: 18,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(height: 1, color: const Color(0xFFF3F5F7)),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: .10),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  status,
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: statusColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                controller.money(order.totalAmountAfn),
+                textDirection: TextDirection.ltr,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: VelixeoBrand.ink,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _PrototypeEmptyRecent extends StatelessWidget {
+  const _PrototypeEmptyRecent({required this.title, required this.subtitle});
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: const Color(0xFFEFF3F6)),
+    ),
+    child: Column(
+      children: [
+        const Icon(
+          Icons.receipt_long_outlined,
+          color: Color(0xFF93ADBB),
+          size: 28,
+        ),
+        const SizedBox(height: 9),
+        Text(
+          title,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 10.5, color: VelixeoBrand.muted),
+        ),
+      ],
+    ),
+  );
 }
 
 class _TopCircleButton extends StatelessWidget {
