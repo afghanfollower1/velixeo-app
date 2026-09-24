@@ -6089,25 +6089,22 @@ class _PersianOrdersPage extends StatelessWidget {
         child: RefreshIndicator(
           onRefresh: c.refreshAccount,
           child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: VelixeoFaDesign.pagePadding,
             children: [
-              const Text(
-                'سفارش‌ها',
-                style: TextStyle(
-                  fontSize: 23,
-                  fontWeight: FontWeight.w700,
-                  color: VelixeoBrand.ink,
+              VelixeoFaPageHeader(
+                title: 'سفارش‌های من',
+                subtitle: 'همهٔ خریدها و وضعیت آن‌ها، یک‌جا.',
+                onBack: onBack ?? () => Navigator.maybePop(context),
+                trailing: _TopCircleButton(
+                  icon: Icons.notifications_none_rounded,
+                  badge: c.unreadNotificationCount,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => NotificationsPage(controller: c)),
+                  ),
                 ),
               ),
-              const SizedBox(height: 3),
-              const Text(
-                'وضعیت تمام خریدها و خدماتت را یک‌جا ببین.',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: VelixeoBrand.muted,
-                ),
-              ),
-              const SizedBox(height: 18),
               const _OrdersFilterStrip(
                 labels: ['همه', 'در حال انجام', 'تکمیل‌شده'],
                 direction: TextDirection.rtl,
@@ -6154,25 +6151,22 @@ class _EnglishOrdersPage extends StatelessWidget {
         child: RefreshIndicator(
           onRefresh: c.refreshAccount,
           child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: VelixeoEnDesign.pagePadding,
             children: [
-              const Text(
-                'Orders',
-                style: TextStyle(
-                  fontSize: 23,
-                  fontWeight: FontWeight.w700,
-                  color: VelixeoBrand.ink,
+              VelixeoEnPageHeader(
+                title: 'My Orders',
+                subtitle: 'Every purchase and its status, in one place.',
+                onBack: onBack ?? () => Navigator.maybePop(context),
+                trailing: _TopCircleButton(
+                  icon: Icons.notifications_none_rounded,
+                  badge: c.unreadNotificationCount,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => NotificationsPage(controller: c)),
+                  ),
                 ),
               ),
-              const SizedBox(height: 3),
-              const Text(
-                'Track every purchase and service in one place.',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: VelixeoBrand.muted,
-                ),
-              ),
-              const SizedBox(height: 18),
               const _OrdersFilterStrip(
                 labels: ['All', 'In progress', 'Completed'],
                 direction: TextDirection.ltr,
@@ -6181,7 +6175,7 @@ class _EnglishOrdersPage extends StatelessWidget {
               if (c.orders.isEmpty)
                 const _OrdersEmptyState(
                   title: 'No orders yet',
-                  subtitle: 'Your purchases and their live status will appear here.',
+                  subtitle: 'Your purchases and their status will appear here.',
                 )
               else
                 ...c.orders.map(
@@ -7261,24 +7255,78 @@ String _walletEntryStatus(WalletEntry entry, bool fa) {
 }
 
 String _walletEntryTitle(WalletEntry entry, bool fa) {
-  if (entry.description.isNotEmpty) return entry.description;
+  final description = entry.description.toLowerCase();
   if (fa) {
     switch (entry.type) {
-      case 'MANUAL_CREDIT': return 'افزایش موجودی توسط مدیر';
-      case 'MANUAL_DEBIT': return 'کسر موجودی توسط مدیر';
-      case 'REFUND': return 'برگشت وجه';
-      case 'PURCHASE': return 'خرید';
-      default: return 'تراکنش کیف پول';
+      case 'DEPOSIT':
+        return 'افزایش موجودی حساب‌پی';
+      case 'REFUND':
+        if (description.contains('virtual')) return 'بازگشت وجه شماره مجازی';
+        if (description.contains('social')) return 'بازگشت وجه سفارش شبکه اجتماعی';
+        return 'بازگشت وجه';
+      case 'PURCHASE':
+        if (description.contains('virtual')) return 'خرید شماره مجازی';
+        if (description.contains('premium')) return 'خرید اشتراک پریمیوم';
+        if (description.contains('social')) return 'سفارش شبکه اجتماعی';
+        if (description.contains('digital')) return 'خرید حساب دیجیتال';
+        return 'پرداخت سفارش';
+      case 'MANUAL_CREDIT':
+        return 'افزایش موجودی توسط مدیر';
+      case 'MANUAL_DEBIT':
+        return 'کسر موجودی توسط مدیر';
+      case 'ADJUSTMENT':
+        return 'اصلاح موجودی';
+      default:
+        return 'تراکنش کیف پول';
     }
   }
   switch (entry.type) {
-    case 'MANUAL_CREDIT': return 'Manual wallet credit';
-    case 'MANUAL_DEBIT': return 'Manual wallet debit';
-    case 'REFUND': return 'Refund';
-    case 'PURCHASE': return 'Purchase';
+    case 'DEPOSIT': return 'HesabPay wallet top-up';
+    case 'REFUND':
+      if (description.contains('virtual')) return 'Virtual number refund';
+      if (description.contains('social')) return 'Social order refund';
+      return 'Wallet refund';
+    case 'PURCHASE':
+      if (description.contains('virtual')) return 'Virtual number purchase';
+      if (description.contains('premium')) return 'Premium membership order';
+      if (description.contains('social')) return 'Social media order';
+      if (description.contains('digital')) return 'Digital account order';
+      return 'Order payment';
+    case 'MANUAL_CREDIT': return 'Admin wallet credit';
+    case 'MANUAL_DEBIT': return 'Admin wallet debit';
+    case 'ADJUSTMENT': return 'Balance adjustment';
     default: return 'Wallet transaction';
   }
 }
+
+IconData _walletEntryIcon(WalletEntry entry) {
+  switch (entry.type) {
+    case 'DEPOSIT': return Icons.account_balance_wallet_rounded;
+    case 'REFUND': return Icons.undo_rounded;
+    case 'PURCHASE': return Icons.receipt_long_rounded;
+    case 'MANUAL_CREDIT': return Icons.add_card_rounded;
+    case 'MANUAL_DEBIT': return Icons.remove_circle_outline_rounded;
+    case 'ADJUSTMENT': return Icons.tune_rounded;
+    default: return entry.amountAfn >= 0 ? Icons.south_west_rounded : Icons.north_east_rounded;
+  }
+}
+
+Color _walletEntryTone(WalletEntry entry) {
+  switch (entry.type) {
+    case 'DEPOSIT':
+    case 'REFUND':
+    case 'MANUAL_CREDIT':
+      return VelixeoBrand.green;
+    case 'PURCHASE':
+    case 'MANUAL_DEBIT':
+      return VelixeoBrand.red;
+    case 'ADJUSTMENT':
+      return const Color(0xFF4B9EC1);
+    default:
+      return entry.amountAfn >= 0 ? VelixeoBrand.green : VelixeoBrand.red;
+  }
+}
+
 
 class _PersianWalletPage extends StatelessWidget {
   const _PersianWalletPage({required this.controller, this.onBack});
@@ -7294,34 +7342,20 @@ class _PersianWalletPage extends StatelessWidget {
         child: RefreshIndicator(
           onRefresh: c.refreshAccount,
           child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: VelixeoFaDesign.pagePadding,
             children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'کیف پول',
-                      style: TextStyle(
-                        fontSize: 23,
-                        fontWeight: FontWeight.w700,
-                        color: VelixeoBrand.ink,
-                      ),
-                    ),
-                  ),
-                  if (c.refreshing)
-                    const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                ],
+              VelixeoFaPageHeader(
+                title: 'کیف پول',
+                subtitle: 'موجودی و تمام تراکنش‌هایت را مدیریت کن.',
+                onBack: onBack ?? () => Navigator.maybePop(context),
+                trailing: c.refreshing
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : null,
               ),
-              const SizedBox(height: 3),
-              const Text(
-                'موجودی و تمام تراکنش‌هایت را مدیریت کن.',
-                style: TextStyle(fontSize: 11, color: VelixeoBrand.muted),
-              ),
-              const SizedBox(height: 18),
               _PrototypeWalletHero(
                 controller: c,
                 label: 'موجودی کیف پول',
@@ -7339,14 +7373,17 @@ class _PersianWalletPage extends StatelessWidget {
                   context,
                   MaterialPageRoute(builder: (_) => AddFundsPage(controller: c)),
                 ),
-                onHistory: () {},
+                onHistory: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => PaymentHistoryPage(controller: c)),
+                ),
               ),
               const SizedBox(height: 24),
               const Text(
                 'تراکنش‌های اخیر',
                 style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
                   color: VelixeoBrand.ink,
                 ),
               ),
@@ -7354,7 +7391,7 @@ class _PersianWalletPage extends StatelessWidget {
               if (c.walletEntries.isEmpty)
                 const _WalletEmptyState(
                   title: 'هنوز تراکنشی نداری',
-                  subtitle: 'افزایش موجودی، خرید و بازگشت وجه اینجا ثبت می‌شود.',
+                  subtitle: 'افزایش موجودی، خرید، پاداش و بازگشت وجه اینجا ثبت می‌شود.',
                 )
               else
                 ...c.walletEntries.map(
@@ -7389,34 +7426,20 @@ class _EnglishWalletPage extends StatelessWidget {
         child: RefreshIndicator(
           onRefresh: c.refreshAccount,
           child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: VelixeoEnDesign.pagePadding,
             children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Wallet',
-                      style: TextStyle(
-                        fontSize: 23,
-                        fontWeight: FontWeight.w700,
-                        color: VelixeoBrand.ink,
-                      ),
-                    ),
-                  ),
-                  if (c.refreshing)
-                    const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                ],
+              VelixeoEnPageHeader(
+                title: 'Wallet',
+                subtitle: 'Manage your balance and every transaction.',
+                onBack: onBack ?? () => Navigator.maybePop(context),
+                trailing: c.refreshing
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : null,
               ),
-              const SizedBox(height: 3),
-              const Text(
-                'Manage your balance and every wallet transaction.',
-                style: TextStyle(fontSize: 11, color: VelixeoBrand.muted),
-              ),
-              const SizedBox(height: 18),
               _PrototypeWalletHero(
                 controller: c,
                 label: 'Available balance',
@@ -7434,13 +7457,16 @@ class _EnglishWalletPage extends StatelessWidget {
                   context,
                   MaterialPageRoute(builder: (_) => AddFundsPage(controller: c)),
                 ),
-                onHistory: () {},
+                onHistory: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => PaymentHistoryPage(controller: c)),
+                ),
               ),
               const SizedBox(height: 24),
               const Text(
                 'Recent transactions',
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: VelixeoBrand.ink,
                 ),
@@ -7449,7 +7475,7 @@ class _EnglishWalletPage extends StatelessWidget {
               if (c.walletEntries.isEmpty)
                 const _WalletEmptyState(
                   title: 'No transactions yet',
-                  subtitle: 'Top-ups, purchases and refunds will appear here.',
+                  subtitle: 'Top-ups, purchases, rewards and refunds will appear here.',
                 )
               else
                 ...c.walletEntries.map(
@@ -7565,7 +7591,7 @@ class _WalletTransactionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final positive = entry.amountAfn >= 0;
-    final tone = positive ? VelixeoBrand.green : VelixeoBrand.red;
+    final tone = _walletEntryTone(entry);
     return Directionality(
       textDirection: direction,
       child: Container(
@@ -7586,7 +7612,7 @@ class _WalletTransactionCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(13),
               ),
               child: Icon(
-                positive ? Icons.south_west_rounded : Icons.north_east_rounded,
+                _walletEntryIcon(entry),
                 color: tone,
                 size: 20,
               ),
@@ -9320,21 +9346,18 @@ class ProfilePage extends StatelessWidget {
         child: ListView(
           padding: VelixeoFaDesign.pagePadding,
           children: [
-            const Text(
-              'پروفایل',
-              style: TextStyle(
-                fontSize: 23,
-                fontWeight: FontWeight.w700,
-                color: VelixeoBrand.ink,
-              ),
+            VelixeoFaPageHeader(
+              title: 'پروفایل',
+              subtitle: 'فضای شخصی تو و تنظیمات حساب.',
+              onBack: onBack ?? () => Navigator.maybePop(context),
             ),
-            const SizedBox(height: 14),
             _ProfileIdentityHeader(
               controller: c,
               direction: TextDirection.rtl,
               name: name,
               identity: identity,
               verifiedLabel: 'تأیید‌شده',
+              roleLabel: c.user?.role == 'ADMIN' ? 'ادمین' : 'کاربر',
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => EditProfilePage(controller: c)),
@@ -9410,7 +9433,7 @@ class ProfilePage extends StatelessWidget {
             const SizedBox(height: 18),
             const Center(
               child: Text(
-                'VELIXEO · نسخه 0.10',
+                'VELIXEO · نسخه 0.12',
                 textDirection: TextDirection.ltr,
                 style: TextStyle(
                   fontFamily: 'Inter',
@@ -9437,21 +9460,18 @@ class ProfilePage extends StatelessWidget {
         child: ListView(
           padding: VelixeoEnDesign.pagePadding,
           children: [
-            const Text(
-              'Profile',
-              style: TextStyle(
-                fontSize: 23,
-                fontWeight: FontWeight.w700,
-                color: VelixeoBrand.ink,
-              ),
+            VelixeoEnPageHeader(
+              title: 'Profile',
+              subtitle: 'Your personal space and account settings.',
+              onBack: onBack ?? () => Navigator.maybePop(context),
             ),
-            const SizedBox(height: 14),
             _ProfileIdentityHeader(
               controller: c,
               direction: TextDirection.ltr,
               name: name,
               identity: identity,
               verifiedLabel: 'Verified',
+              roleLabel: c.user?.role == 'ADMIN' ? 'Admin' : 'User',
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => EditProfilePage(controller: c)),
@@ -9527,7 +9547,7 @@ class ProfilePage extends StatelessWidget {
             const SizedBox(height: 18),
             const Center(
               child: Text(
-                'VELIXEO · Version 0.10',
+                'VELIXEO · Version 0.12',
                 style: TextStyle(
                   fontSize: 9.5,
                   color: Color(0xFF9AAAB3),
@@ -9548,6 +9568,7 @@ class _ProfileIdentityHeader extends StatelessWidget {
     required this.name,
     required this.identity,
     required this.verifiedLabel,
+    required this.roleLabel,
     required this.onTap,
   });
 
@@ -9556,6 +9577,7 @@ class _ProfileIdentityHeader extends StatelessWidget {
   final String name;
   final String identity;
   final String verifiedLabel;
+  final String roleLabel;
   final VoidCallback onTap;
 
   @override
@@ -9595,28 +9617,57 @@ class _ProfileIdentityHeader extends StatelessWidget {
                 color: VelixeoBrand.muted,
               ),
             ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAF7F0),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.verified_rounded, size: 13, color: VelixeoBrand.green),
-                  const SizedBox(width: 4),
-                  Text(
-                    verifiedLabel,
-                    style: const TextStyle(
-                      fontSize: 9,
-                      color: VelixeoBrand.green,
-                      fontWeight: FontWeight.w600,
-                    ),
+            const SizedBox(height: 9),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 7,
+              runSpacing: 6,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEAF7F0),
+                    borderRadius: BorderRadius.circular(9),
                   ),
-                ],
-              ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.verified_rounded, size: 13, color: VelixeoBrand.green),
+                      const SizedBox(width: 4),
+                      Text(
+                        verifiedLabel,
+                        style: const TextStyle(
+                          fontSize: 9,
+                          color: VelixeoBrand.green,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: VelixeoBrand.soft,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.badge_outlined, size: 13, color: Color(0xFF438EAE)),
+                      const SizedBox(width: 4),
+                      Text(
+                        roleLabel,
+                        style: const TextStyle(
+                          fontSize: 9,
+                          color: Color(0xFF438EAE),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
