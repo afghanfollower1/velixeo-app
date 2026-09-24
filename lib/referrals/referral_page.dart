@@ -73,7 +73,7 @@ class _InviteFriendsPageState extends State<InviteFriendsPage>{
 
   Widget _buildPersianReferral(BuildContext context) => Directionality(
         textDirection: TextDirection.rtl,
-        child: _buildReferralPage(
+        child: _buildPersianReferralPage(
           context,
           appBarTitle: 'دعوت از دوستان',
           heading: 'تجربهٔ خوب را شریک شو',
@@ -96,7 +96,7 @@ class _InviteFriendsPageState extends State<InviteFriendsPage>{
 
   Widget _buildEnglishReferral(BuildContext context) => Directionality(
         textDirection: TextDirection.ltr,
-        child: _buildReferralPage(
+        child: _buildEnglishReferralPage(
           context,
           appBarTitle: 'Invite friends',
           heading: 'Share a better experience',
@@ -117,7 +117,252 @@ class _InviteFriendsPageState extends State<InviteFriendsPage>{
         ),
       );
 
-  Widget _buildReferralPage(
+  Widget _buildPersianReferralPage(
+    BuildContext context, {
+    required String appBarTitle,
+    required String heading,
+    required String subtitle,
+    required String heroTitle,
+    required String heroBody,
+    required String inviteMetric,
+    required String rateMetric,
+    required String earnedMetric,
+    required String commissionNotice,
+    required String codeLabel,
+    required String linkLabel,
+    required String friendsTitle,
+    required String emptyTitle,
+    required String emptyBody,
+    required bool faView,
+  }) {
+    final s = summary;
+    return Scaffold(
+      appBar: AppBar(title: Text(appBarTitle)),
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: load,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                children: [
+                  Text(
+                    heading,
+                    style: const TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF24343D),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF74818B),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (error != null)
+                    _Notice(
+                      text: faView
+                          ? 'اطلاعات دعوت دریافت نشد. دوباره تلاش کنید.'
+                          : 'Could not load referral information. Try again.',
+                    ),
+                  if (s != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(21),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFEFFAFF), Color(0xFFDEF4FD)],
+                        ),
+                        border: Border.all(color: const Color(0xFFDCEEF8)),
+                        borderRadius: BorderRadius.circular(23),
+                      ),
+                      child: Stack(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsetsDirectional.only(end: 68),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  heroTitle,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF2C5366),
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  heroBody,
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    height: 1.6,
+                                    color: Color(0xFF7293A5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const PositionedDirectional(
+                            end: 4,
+                            bottom: -11,
+                            child: Text(
+                              '✧',
+                              textDirection: TextDirection.ltr,
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 72,
+                                height: 1,
+                                color: Color(0xFF7ACEF0),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 17,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(19),
+                        border: Border.all(color: const Color(0xFFE4EDF3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _ReferralTopMetric(
+                              value: s.inviteCount.toString(),
+                              label: inviteMetric,
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 42,
+                            color: const Color(0xFFEDF2F6),
+                          ),
+                          Expanded(
+                            child: _ReferralTopMetric(
+                              value: percent(s.rewardPercent) + '%',
+                              label: rateMetric,
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 42,
+                            color: const Color(0xFFEDF2F6),
+                          ),
+                          Expanded(
+                            child: _ReferralTopMetric(
+                              value: widget.host.money(
+                                s.totalRewardsAfn,
+                                showBase: true,
+                              ),
+                              label: earnedMetric,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _ReferralNotice(text: commissionNotice),
+                    const SizedBox(height: 12),
+                    _Card(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _CopyRow(
+                            label: codeLabel,
+                            value: s.code,
+                            onCopy: () => copy(
+                              s.code,
+                              faView
+                                  ? 'کد دعوت کپی شد.'
+                                  : 'Referral code copied.',
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          _CopyRow(
+                            label: linkLabel,
+                            value: s.inviteLink,
+                            onCopy: () => copy(
+                              s.inviteLink,
+                              faView
+                                  ? 'لینک دعوت کپی شد.'
+                                  : 'Referral link copied.',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: shareWhatsApp,
+                                  icon: const Icon(
+                                    Icons.chat_rounded,
+                                    color: Color(0xFF20A76F),
+                                    size: 17,
+                                  ),
+                                  label: const Text('WhatsApp'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: shareTelegram,
+                                  icon: const Icon(
+                                    Icons.send_rounded,
+                                    color: Color(0xFF38BDF8),
+                                    size: 17,
+                                  ),
+                                  label: const Text('Telegram'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      friendsTitle,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF24343D),
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    if (s.invites.isEmpty)
+                      _ReferralEmpty(
+                        title: emptyTitle,
+                        body: emptyBody,
+                      )
+                    else
+                      ...s.invites.map(
+                        (invite) => _Card(
+                          child: _InviteTile(
+                            invite: invite,
+                            fa: faView,
+                            money: widget.host.money,
+                          ),
+                        ),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+    );
+  }
+
+Widget _buildEnglishReferralPage(
     BuildContext context, {
     required String appBarTitle,
     required String heading,
