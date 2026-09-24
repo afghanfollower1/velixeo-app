@@ -3,6 +3,8 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 const translations: Record<string, string> = {
   // Global navigation / shell
   'Dashboard': 'داشبورد',
+  'A new day, a fresh overview': 'یک روز تازه، فرصت‌های تازه',
+  'Manage orders': 'مدیریت سفارش‌ها',
   'Main Dashboard': 'داشبورد اصلی',
   'Business overview and today’s performance': 'نمای کلی کسب‌وکار و عملکرد امروز',
   'Users': 'کاربران',
@@ -775,6 +777,7 @@ function adminPersianText(clean: string): string | null {
   if (translations[clean]) return translations[clean];
   if (statusTranslations[clean]) return statusTranslations[clean];
   let m: RegExpMatchArray | null;
+  if ((m = clean.match(/^(\d+) orders have been recorded today\.$/))) return adminFaNumber(m[1]) + ' سفارش امروز ثبت شده است.';
   if ((m = clean.match(/^(\d+) matched$/))) return adminFaNumber(m[1]) + ' مورد مطابق';
   if ((m = clean.match(/^(\d+) on this page$/))) return adminFaNumber(m[1]) + ' مورد در این صفحه';
   if ((m = clean.match(/^Page (\d+) \/ (\d+)$/))) return 'صفحه ' + adminFaNumber(m[1]) + ' از ' + adminFaNumber(m[2]);
