@@ -2583,7 +2583,7 @@ class HomePage extends StatelessWidget {
       case 'PROCESSING':
       case 'IN_PROGRESS': return VelixeoDesign.sky;
       case 'FAILED':
-      case 'CANCELLED': return const Color(0xFFE65454);
+      case 'CANCELLED': return VelixeoDesign.red;
       default: return const Color(0xFFF0A326);
     }
   }
@@ -2636,7 +2636,7 @@ class HomePage extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Container(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(22),
                 gradient: const LinearGradient(colors: [Color(0xFF8ADDFF), Color(0xFFBCEAFF)], begin: Alignment.topLeft, end: Alignment.bottomRight),
@@ -2672,7 +2672,7 @@ class HomePage extends StatelessWidget {
             ] else ...[
               const SizedBox(height: 14),
               Container(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEDF7FC),
                   borderRadius: BorderRadius.circular(20),
@@ -3032,7 +3032,7 @@ class ServicesPage extends StatelessWidget {
       child: RefreshIndicator(
         onRefresh: c.refreshAccount,
         child: ListView(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
           children: [
             Row(
               children: [
@@ -3220,14 +3220,15 @@ class DigitalAccountsHubPage extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 30),
           children: [
             Container(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF3F51D7), Color(0xFF6D63FF)],
+                  colors: [Color(0xFFEEFBFA), Color(0xFFE4F4FC)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: const Color(0xFFDCEEF2)),
+                borderRadius: BorderRadius.circular(23),
               ),
               child: Row(
                 children: [
@@ -3237,7 +3238,7 @@ class DigitalAccountsHubPage extends StatelessWidget {
                       children: [
                         Text(
                           tr(c.fa, 'اکانت‌ها و خدمات دیجیتال', 'Digital accounts & services'),
-                          style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900),
+                          style: const TextStyle(color: Color(0xFF2C5366), fontSize: 19, fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 7),
                         Text(
@@ -3246,7 +3247,7 @@ class DigitalAccountsHubPage extends StatelessWidget {
                             'نتفلیکس، VPN، سرویس‌های استریم، ابزارهای آنلاین، لایسنس‌ها و اکانت‌های دیجیتال از این بخش مدیریت می‌شوند.',
                             'Netflix, VPN, streaming services, online tools, licenses and other digital accounts belong here.',
                           ),
-                          style: const TextStyle(color: Color(0xFFE9E9FF), fontSize: 11.5, height: 1.45),
+                          style: const TextStyle(color: Color(0xFF7293A5), fontSize: 11.5, height: 1.65),
                         ),
                       ],
                     ),
@@ -3255,8 +3256,8 @@ class DigitalAccountsHubPage extends StatelessWidget {
                   Container(
                     width: 58,
                     height: 58,
-                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: .14), borderRadius: BorderRadius.circular(18)),
-                    child: const Icon(Icons.manage_accounts_rounded, color: Colors.white, size: 30),
+                    decoration: BoxDecoration(color: const Color(0xFFEAF8F4), borderRadius: BorderRadius.circular(18)),
+                    child: const Icon(Icons.manage_accounts_rounded, color: Color(0xFF69AE9B), size: 30),
                   ),
                 ],
               ),
@@ -3332,7 +3333,7 @@ class CatalogServicePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(fa ? service.titleFa : service.titleEn)),
       body: ListView(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
         children: [
           Container(
             height: 150,
@@ -3450,7 +3451,7 @@ class ServicePreviewPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(fa ? service.fa : service.en)),
       body: ListView(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
         children: [
           Container(
             height: 170,
@@ -3533,7 +3534,7 @@ class OrdersPage extends StatelessWidget {
       child: RefreshIndicator(
         onRefresh: c.refreshAccount,
         child: ListView(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
           children: [
             Text(tr(c.fa, 'سفارش‌های من', 'My Orders'), style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
             const SizedBox(height: 18),
@@ -3626,7 +3627,7 @@ Color _notificationColor(String type) {
       return VelixeoDesign.sky;
     case 'PAYMENT':
     case 'WALLET':
-      return const Color(0xFF16A873);
+      return VelixeoDesign.green;
     case 'SUPPORT':
       return const Color(0xFF7457E8);
     case 'ACCOUNT':
@@ -3636,25 +3637,25 @@ Color _notificationColor(String type) {
   }
 }
 
-String _notificationTypeLabel(String type) {
+String _notificationTypeLabel(bool fa, String type) {
   switch (type) {
-    case 'ORDER': return 'Order';
-    case 'REFILL': return 'Refill';
-    case 'DRIPFEED': return 'Drip-feed';
-    case 'PAYMENT': return 'Payment';
-    case 'WALLET': return 'Wallet';
-    case 'SUPPORT': return 'Support';
-    case 'ACCOUNT': return 'Account';
-    default: return 'System';
+    case 'ORDER': return tr(fa, 'سفارش', 'Order');
+    case 'REFILL': return tr(fa, 'جبران', 'Refill');
+    case 'DRIPFEED': return tr(fa, 'دریپ‌فید', 'Drip-feed');
+    case 'PAYMENT': return tr(fa, 'پرداخت', 'Payment');
+    case 'WALLET': return tr(fa, 'کیف پول', 'Wallet');
+    case 'SUPPORT': return tr(fa, 'پشتیبانی', 'Support');
+    case 'ACCOUNT': return tr(fa, 'حساب', 'Account');
+    default: return tr(fa, 'سیستم', 'System');
   }
 }
 
-String _relativeNotificationTime(DateTime value) {
+String _relativeNotificationTime(bool fa, DateTime value) {
   final diff = DateTime.now().difference(value.toLocal());
-  if (diff.inMinutes < 1) return 'Just now';
-  if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-  if (diff.inHours < 24) return '${diff.inHours}h ago';
-  if (diff.inDays < 7) return '${diff.inDays}d ago';
+  if (diff.inMinutes < 1) return tr(fa, 'همین حالا', 'Just now');
+  if (diff.inMinutes < 60) return tr(fa, '${diff.inMinutes} دقیقه پیش', '${diff.inMinutes}m ago');
+  if (diff.inHours < 24) return tr(fa, '${diff.inHours} ساعت پیش', '${diff.inHours}h ago');
+  if (diff.inDays < 7) return tr(fa, '${diff.inDays} روز پیش', '${diff.inDays}d ago');
   return value.toLocal().toString().substring(0, 10);
 }
 
@@ -3738,7 +3739,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   SliverToBoxAdapter(
                     child: Container(
                       margin: const EdgeInsets.fromLTRB(14, 14, 14, 10),
-                      padding: const EdgeInsets.all(18),
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(26),
                         gradient: const LinearGradient(
@@ -3854,7 +3855,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   if (items.isEmpty)
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.all(18),
+                        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
                         child: EmptyCard(
                           icon: Icons.notifications_none_rounded,
                           title: 'Nothing here yet',
@@ -3912,14 +3913,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                                 Container(
                                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                                   decoration: BoxDecoration(color: color.withValues(alpha: .10), borderRadius: BorderRadius.circular(999)),
-                                                  child: Text(_notificationTypeLabel(notice.type), style: TextStyle(color: color, fontSize: 9.5, fontWeight: FontWeight.w900)),
+                                                  child: Text(_notificationTypeLabel(c.fa, notice.type), style: TextStyle(color: color, fontSize: 9.5, fontWeight: FontWeight.w900)),
                                                 ),
                                                 if (notice.priority == 'HIGH') ...[
                                                   const SizedBox(width: 5),
                                                   const Icon(Icons.bolt_rounded, size: 15, color: Color(0xFFF29A2E)),
                                                 ],
                                                 const Spacer(),
-                                                Text(_relativeNotificationTime(notice.publishAt), style: const TextStyle(color: Color(0xFF8A9AA9), fontSize: 10)),
+                                                Text(_relativeNotificationTime(c.fa, notice.publishAt), style: const TextStyle(color: Color(0xFF8A9AA9), fontSize: 10)),
                                                 if (!notice.isRead) ...[
                                                   const SizedBox(width: 7),
                                                   Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
@@ -3955,7 +3956,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                         decoration: BoxDecoration(color: color.withValues(alpha: .075), borderRadius: BorderRadius.circular(12)),
                                         child: Row(
                                           children: [
-                                            Expanded(child: Text(action?.trim().isNotEmpty == true ? action! : 'Open ${_notificationTypeLabel(notice.type)}', style: TextStyle(color: color, fontSize: 10.8, fontWeight: FontWeight.w900))),
+                                            Expanded(child: Text(action?.trim().isNotEmpty == true ? action! : '${tr(c.fa, 'باز کردن', 'Open')} ${_notificationTypeLabel(c.fa, notice.type)}', style: TextStyle(color: color, fontSize: 10.8, fontWeight: FontWeight.w900))),
                                             Icon(Icons.arrow_forward_rounded, color: color, size: 17),
                                           ],
                                         ),
@@ -4049,7 +4050,7 @@ class RemoteBannerCard extends StatelessWidget {
               ),
               Container(color: Colors.black.withValues(alpha: .24)),
               Padding(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -4117,7 +4118,7 @@ class WalletPage extends StatelessWidget {
       child: RefreshIndicator(
         onRefresh: c.refreshAccount,
         child: ListView(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
           children: [
             Row(
               children: [
@@ -4222,7 +4223,7 @@ class _AddFundsPageState extends State<AddFundsPage>
         return const Color(0xFF18A875);
       case 'FAILED':
       case 'CANCELLED':
-        return const Color(0xFFE65454);
+        return VelixeoDesign.red;
       default:
         return const Color(0xFFEFAF38);
     }
@@ -4314,7 +4315,7 @@ class _AddFundsPageState extends State<AddFundsPage>
         onRefresh: refresh,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
           children: [
             SoftCard(
               child: Row(
@@ -4505,7 +4506,7 @@ class ProfilePage extends StatelessWidget {
     final identity = c.user?.email ?? c.user?.phone ?? '—';
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
         children: [
           Text(tr(c.fa, 'پروفایل', 'Profile'), style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
           const SizedBox(height: 18),
@@ -4700,7 +4701,7 @@ class ProfilePage extends StatelessWidget {
                         child: Text(tr(c.fa, 'لغو', 'Cancel')),
                       ),
                       FilledButton(
-                        style: FilledButton.styleFrom(backgroundColor: const Color(0xFFE65454)),
+                        style: FilledButton.styleFrom(backgroundColor: VelixeoDesign.red),
                         onPressed: !confirmDelete ||
                                 (c.user?.hasPassword == true && passwordController.text.isEmpty)
                             ? null
@@ -5410,7 +5411,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return Scaffold(
       appBar: AppBar(title: Text(tr(c.fa, 'ویرایش پروفایل', 'Edit profile'))),
       body: ListView(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
         children: [
           Center(
             child: Column(
@@ -6480,10 +6481,10 @@ class _SecurityPageState extends State<SecurityPage> {
       body: s == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
               children: [
                 Container(
-                  padding: const EdgeInsets.all(18),
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(colors: [Color(0xFF082D58), VelixeoDesign.sky]),
                     borderRadius: BorderRadius.circular(22),
@@ -6777,7 +6778,7 @@ class _SetPasswordPageState extends State<SetPasswordPage> {
     return Scaffold(
       appBar: AppBar(title: Text(tr(c.fa, 'تنظیم رمز عبور', 'Set password'))),
       body: ListView(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
         children: [
           TextField(
             controller: password,
@@ -6880,7 +6881,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     return Scaffold(
       appBar: AppBar(title: Text(tr(c.fa, 'تغییر رمز عبور', 'Change password'))),
       body: ListView(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
         children: [
           TextField(
             controller: current,
@@ -7058,10 +7059,10 @@ class TransactionTile extends StatelessWidget {
         child: Row(
           children: [
             CircleAvatar(
-              backgroundColor: (positive ? const Color(0xFF18A875) : const Color(0xFFE65454)).withValues(alpha: .1),
+              backgroundColor: (positive ? const Color(0xFF18A875) : VelixeoDesign.red).withValues(alpha: .1),
               child: Icon(
                 positive ? Icons.add_rounded : Icons.remove_rounded,
-                color: positive ? const Color(0xFF18A875) : const Color(0xFFE65454),
+                color: positive ? const Color(0xFF18A875) : VelixeoDesign.red,
               ),
             ),
             const SizedBox(width: 12),
@@ -7079,7 +7080,7 @@ class TransactionTile extends StatelessWidget {
             Text(
               amount,
               style: TextStyle(
-                color: positive ? const Color(0xFF18A875) : const Color(0xFFE65454),
+                color: positive ? const Color(0xFF18A875) : VelixeoDesign.red,
                 fontWeight: FontWeight.w900,
               ),
             ),
