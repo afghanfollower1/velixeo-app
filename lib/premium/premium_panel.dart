@@ -690,7 +690,10 @@ Widget _buildPersianPage(BuildContext context) {
     final description = fa ? product.descriptionFa : product.descriptionEn;
     final instructions = fa ? product.instructionsFa : product.instructionsEn;
     return Directionality(textDirection: TextDirection.rtl, child: Scaffold(
-      appBar: AppBar(title: Text(fa ? product.titleFa : product.titleEn)),
+      appBar: VelixeoFaAppBar(
+        title: product.titleFa,
+        subtitle: 'پکیج، زمان تحویل و اطلاعات فعال‌سازی.',
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
         children: [
@@ -833,7 +836,10 @@ Widget _buildEnglishPage(BuildContext context) {
     final description = fa ? product.descriptionFa : product.descriptionEn;
     final instructions = fa ? product.instructionsFa : product.instructionsEn;
     return Directionality(textDirection: TextDirection.ltr, child: Scaffold(
-      appBar: AppBar(title: Text(fa ? product.titleFa : product.titleEn)),
+      appBar: VelixeoEnAppBar(
+        title: product.titleEn,
+        subtitle: 'Package, delivery time and activation details.',
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
         children: [
