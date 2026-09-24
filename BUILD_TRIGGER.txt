@@ -12,3 +12,5 @@ Release scope:
 10) Preserve providers, payments, wallets, banners, notifications, support and settings.
 11) Version: 0.13.0+33.
 12) Release only after Flutter and Backend CI pass.
+
+Release retry trigger: publish signed VELIXEO v0.13.0 after final Admin design validation.
