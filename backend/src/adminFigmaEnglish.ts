@@ -948,7 +948,74 @@ async function payments(p:PrismaClient,q:string){
   <div class="card"><div class="cardhead"><h2>Gateway Transactions</h2><span class="muted">Latest ${tx.length}</span></div><div class="tablewrap"><table class="table"><thead><tr><th>User</th><th>Gateway</th><th>Amount</th><th>Status</th><th>Reference</th><th>Created</th></tr></thead><tbody>${tx.map(x=>`<tr><td>${e(x.user.fullName||x.user.email||x.user.phone||'—')}</td><td>${e(x.gateway)}</td><td class="money">${money(x.amountAfn)}</td><td>${state(x.status)}</td><td class="mono">${e(x.externalId||x.referenceId||'—')}</td><td>${dt(x.createdAt)}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">No transactions.</td></tr>'}</tbody></table></div></div>`;
 }
 async function coupons(p:PrismaClient){const rows=await p.coupon.findMany({orderBy:{createdAt:'desc'},take:160});return `<div class="grid"><div class="card"><div class="cardhead"><h2>Coupons</h2>${pill(`${rows.length}`,'info')}</div><div class="tablewrap"><table class="table"><thead><tr><th>Code</th><th>Type</th><th>Value</th><th>Usage</th><th>Status</th></tr></thead><tbody>${rows.map(x=>`<tr><td class="mono"><b>${e(x.code)}</b></td><td>${e(x.discountType)}</td><td>${e(x.discountValue.toString())}</td><td>${x.usedCount}/${x.usageLimit??'∞'}</td><td>${x.active?pill('Active','ok'):pill('Disabled','bad')}</td></tr>`).join('')}</tbody></table></div></div><div class="card"><div class="cardhead"><h2>Create Coupon</h2><span class="muted">Fixed AFN or Percent</span></div><form method="post" action="/admin/v3/coupon"><div class="forms"><div class="field"><label>Code</label><input class="mono" name="code" required></div><div class="field"><label>Title</label><input name="title"></div><div class="field"><label>Discount Type</label><select name="discountType"><option>FIXED_AFN</option><option>PERCENT</option></select></div><div class="field"><label>Discount Value</label><input name="discountValue" required></div><div class="field"><label>Minimum Order AFN</label><input type="number" name="minOrderAfn" value="0"></div><div class="field"><label>Usage Limit</label><input type="number" name="usageLimit"></div></div><label class="check"><input type="checkbox" name="active" checked> Active</label><button class="btn">Create Coupon</button></form></div></div>`}
-async function banners(p:PrismaClient){const rows=await p.banner.findMany({where:{OR:[{actionUrl:null},{actionUrl:{notIn:['velixeo://promotions','velixeo://promotion']}}]},orderBy:[{enabled:'desc'},{sortOrder:'asc'}]});return `<div class="grid"><div class="card"><div class="cardhead"><h2>App Banners</h2>${pill(`${rows.length}`,'info')}</div>${rows.map(x=>`<div class="provider" style="grid-template-columns:58px 1fr auto"><div style="width:56px;height:36px;border-radius:8px;background:#eef5fb url('${e(x.imageUrl)}') center/cover"></div><div><b>${e(x.titleEn||x.titleFa||x.placement)}</b><small>${e(x.placement)} · ${e(x.subtitleEn||x.subtitleFa||'No subtitle')}</small></div>${x.enabled?pill('Active','ok'):pill('Hidden','bad')}</div>`).join('')||'<div class="empty">No banners.</div>'}</div><div class="card"><div class="cardhead"><div><h2>Create Banner</h2><span class="muted">Recommended Social banner: 1080×420 px (JPG or PNG)</span></div>${pill('2.57:1','info')}</div><form method="post" action="/admin/v3/banner"><div class="field"><label>Placement</label><select name="placement">${Object.values(BannerPlacement).map(x=>`<option ${x==='SERVICES_TOP'?'selected':''}>${x}</option>`).join('')}</select></div><div class="forms"><div class="field"><label>English Title</label><input name="titleEn" placeholder="Better social services, all in one place"></div><div class="field"><label>Persian Title</label><input name="titleFa" placeholder="خدمات بهتر شبکه‌های اجتماعی، همه در یک‌جا"></div></div><div class="forms"><div class="field"><label>English Subtitle</label><input name="subtitleEn"></div><div class="field"><label>Persian Subtitle</label><input name="subtitleFa"></div></div><div class="field"><label>Image URL</label><input class="mono" name="imageUrl" required placeholder="https://.../social-banner.jpg"></div><div class="forms"><div class="field"><label>English CTA</label><input name="actionLabelEn"></div><div class="field"><label>Persian CTA</label><input name="actionLabelFa"></div></div><div class="field"><label>Action URL</label><input class="mono" name="actionUrl" placeholder="velixeo://social"></div><div class="field"><label>Sort Order</label><input type="number" name="sortOrder" value="100"></div><label class="check"><input type="checkbox" name="enabled" checked> Active</label><button class="btn">Create Banner</button></form></div></div>`}
+async function banners(p:PrismaClient){
+  const rows=await p.banner.findMany({
+    where:{OR:[{actionUrl:null},{actionUrl:{notIn:['velixeo://promotions','velixeo://promotion']}}]},
+    orderBy:[{enabled:'desc'},{sortOrder:'asc'},{createdAt:'desc'}],
+  });
+  const placementOptions=(selected:BannerPlacement)=>Object.values(BannerPlacement)
+    .map(value=>`<option value="${value}" ${value===selected?'selected':''}>${e(value)}</option>`).join('');
+  const bannerEditor=(x:(typeof rows)[number])=>`
+    <details class="card" style="box-shadow:none;margin:0 0 12px;padding:14px">
+      <summary style="cursor:pointer;list-style:none;display:grid;grid-template-columns:76px 1fr auto;gap:12px;align-items:center">
+        <div style="width:76px;height:48px;border-radius:12px;overflow:hidden;background:#eef8fd;display:grid;place-items:center">
+          ${x.imageUrl?'<img src="'+e(x.imageUrl)+'" alt="" style="width:100%;height:100%;object-fit:cover">':brandMark}
+        </div>
+        <div><b>${e(x.titleEn||x.titleFa||x.placement)}</b><small>${e(x.placement)} · ${e(x.actionUrl||'No route')} · #${x.sortOrder}</small></div>
+        <div>${x.enabled?pill('Active','ok'):pill('Hidden','bad')}</div>
+      </summary>
+      <form method="post" action="/admin/v3/banner" style="margin-top:16px">
+        <input type="hidden" name="id" value="${e(x.id)}">
+        <div class="field"><label>Placement</label><select name="placement">${placementOptions(x.placement)}</select></div>
+        <div class="forms">
+          <div class="field"><label>English Title</label><input name="titleEn" value="${e(x.titleEn||'')}"></div>
+          <div class="field"><label>Persian Title</label><input name="titleFa" value="${e(x.titleFa||'')}"></div>
+        </div>
+        <div class="forms">
+          <div class="field"><label>English Subtitle</label><textarea name="subtitleEn">${e(x.subtitleEn||'')}</textarea></div>
+          <div class="field"><label>Persian Subtitle</label><textarea name="subtitleFa">${e(x.subtitleFa||'')}</textarea></div>
+        </div>
+        <div class="field"><label>Image URL (optional)</label><input class="mono" name="imageUrl" value="${e(x.imageUrl||'')}" placeholder="https://.../banner.jpg"></div>
+        <div class="forms">
+          <div class="field"><label>English CTA</label><input name="actionLabelEn" value="${e(x.actionLabelEn||'')}"></div>
+          <div class="field"><label>Persian CTA</label><input name="actionLabelFa" value="${e(x.actionLabelFa||'')}"></div>
+        </div>
+        <div class="forms">
+          <div class="field"><label>Action URL</label><input class="mono" name="actionUrl" value="${e(x.actionUrl||'')}" placeholder="velixeo://social"></div>
+          <div class="field"><label>Sort Order</label><input type="number" name="sortOrder" value="${x.sortOrder}"></div>
+        </div>
+        <label class="check"><input type="checkbox" name="enabled" ${x.enabled?'checked':''}> Active / visible in app</label>
+        <div class="actions"><button class="btn">Save changes</button></div>
+      </form>
+      <form method="post" action="/admin/v3/banner-delete" onsubmit="return confirm('Delete this banner permanently?');" style="margin-top:8px">
+        <input type="hidden" name="id" value="${e(x.id)}">
+        <button class="btn danger">Delete banner</button>
+      </form>
+    </details>`;
+  return `
+    <div class="grid">
+      <div class="card">
+        <div class="cardhead"><div><h2>App Banners</h2><span class="muted">Edit, hide or delete any banner. Social and Virtual use separate deep-link routes.</span></div>${pill(String(rows.length),'info')}</div>
+        <div class="notice"><b>Social Media:</b> SERVICES_TOP + <span class="mono">velixeo://social</span> · <b>Virtual Numbers:</b> SERVICES_TOP + <span class="mono">velixeo://virtual-numbers</span>. Only one enabled banner per destination is shown in the app.</div>
+        ${rows.map(bannerEditor).join('')||'<div class="empty">No banners.</div>'}
+      </div>
+      <div class="card">
+        <div class="cardhead"><div><h2>Create Banner</h2><span class="muted">Recommended service hero: 1080×420 px. Image is optional.</span></div>${pill('2.57:1','info')}</div>
+        <form method="post" action="/admin/v3/banner">
+          <div class="field"><label>Placement</label><select name="placement">${Object.values(BannerPlacement).map(value=>'<option value="'+value+'" '+(value===BannerPlacement.SERVICES_TOP?'selected':'')+'>'+e(value)+'</option>').join('')}</select></div>
+          <div class="forms"><div class="field"><label>English Title</label><input name="titleEn" placeholder="Better social services, all in one place"></div><div class="field"><label>Persian Title</label><input name="titleFa" placeholder="خدمات بهتر شبکه‌های اجتماعی، همه در یک‌جا"></div></div>
+          <div class="forms"><div class="field"><label>English Subtitle</label><textarea name="subtitleEn"></textarea></div><div class="field"><label>Persian Subtitle</label><textarea name="subtitleFa"></textarea></div></div>
+          <div class="field"><label>Image URL (optional)</label><input class="mono" name="imageUrl" placeholder="https://.../social-banner.jpg"></div>
+          <div class="forms"><div class="field"><label>English CTA</label><input name="actionLabelEn"></div><div class="field"><label>Persian CTA</label><input name="actionLabelFa"></div></div>
+          <div class="field"><label>Action URL</label><input class="mono" name="actionUrl" value="velixeo://social" placeholder="velixeo://social"></div>
+          <div class="field"><label>Sort Order</label><input type="number" name="sortOrder" value="100"></div>
+          <label class="check"><input type="checkbox" name="enabled" checked> Active / visible in app</label>
+          <button class="btn">Create Banner</button>
+        </form>
+      </div>
+    </div>`;
+}
+
 async function notifications(p:PrismaClient){
   const now=new Date(),today=new Date(now);today.setUTCHours(0,0,0,0);
   const [rows,users,total,todayCount,scheduled,devices,reads,pushAgg]=await Promise.all([
@@ -1205,8 +1272,50 @@ export function registerAdminV3(app:FastifyInstance,p:PrismaClient,resolve:Admin
  });
 
  app.post('/admin/v3/coupon',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body;try{const x=await p.coupon.create({data:{code:t(b,'code').toUpperCase(),title:t(b,'title')||null,discountType:String(b.discountType) as CouponDiscountType,discountValue:new Prisma.Decimal(t(b,'discountValue')),minOrderAfn:BigInt(t(b,'minOrderAfn')||'0'),usageLimit:t(b,'usageLimit')?i(b.usageLimit):null,active:c(b,'active')}});await audit(p,a.id,'COUPON_CREATE','Coupon',x.id,x.code);return rep.code(303).redirect(href('coupons','&msg=Coupon created'))}catch(err){return rep.code(303).redirect(href('coupons',`&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'coupon_failed')}`))}});
- app.post('/admin/v3/banner',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body;try{const x=await p.banner.create({data:{placement:String(b.placement) as BannerPlacement,titleEn:t(b,'titleEn')||null,titleFa:t(b,'titleFa')||null,subtitleEn:t(b,'subtitleEn')||null,subtitleFa:t(b,'subtitleFa')||null,imageUrl:t(b,'imageUrl'),actionLabelEn:t(b,'actionLabelEn')||null,actionLabelFa:t(b,'actionLabelFa')||null,actionUrl:t(b,'actionUrl')||null,enabled:c(b,'enabled'),sortOrder:i(b.sortOrder,100)}});await audit(p,a.id,'BANNER_CREATE','Banner',x.id,x.titleEn||x.titleFa||x.placement);return rep.code(303).redirect(href('banners','&msg=Banner created'))}catch(err){return rep.code(303).redirect(href('banners',`&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'banner_failed')}`))}});
- app.post('/admin/v3/notification',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body;try{
+ app.post('/admin/v3/banner',async(req,rep)=>{
+  const a=await needAdmin(req,rep,resolve);if(!a)return;
+  const b=req.body as Body;
+  try{
+    const id=t(b,'id');
+    const placement=String(b.placement) as BannerPlacement;
+    if(!Object.values(BannerPlacement).includes(placement))throw new Error('Invalid banner placement');
+    const data={
+      placement,
+      titleEn:t(b,'titleEn')||null,
+      titleFa:t(b,'titleFa')||null,
+      subtitleEn:t(b,'subtitleEn')||null,
+      subtitleFa:t(b,'subtitleFa')||null,
+      imageUrl:t(b,'imageUrl'),
+      actionLabelEn:t(b,'actionLabelEn')||null,
+      actionLabelFa:t(b,'actionLabelFa')||null,
+      actionUrl:t(b,'actionUrl')||null,
+      enabled:c(b,'enabled'),
+      sortOrder:i(b.sortOrder,100),
+    };
+    const x=id?await p.banner.update({where:{id},data}):await p.banner.create({data});
+    await audit(p,a.id,id?'BANNER_UPDATE':'BANNER_CREATE','Banner',x.id,x.titleEn||x.titleFa||x.placement,{placement:x.placement,actionUrl:x.actionUrl,enabled:x.enabled,sortOrder:x.sortOrder} as unknown as Prisma.InputJsonValue);
+    return rep.code(303).redirect(href('banners',`&msg=${encodeURIComponent(id?'Banner updated':'Banner created')}`));
+  }catch(err){
+    return rep.code(303).redirect(href('banners',`&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'banner_failed')}`));
+  }
+});
+
+app.post('/admin/v3/banner-delete',async(req,rep)=>{
+  const a=await needAdmin(req,rep,resolve);if(!a)return;
+  const b=req.body as Body,id=t(b,'id');
+  try{
+    if(!id)throw new Error('Banner ID is required');
+    const existing=await p.banner.findUnique({where:{id}});
+    if(!existing)throw new Error('Banner not found');
+    await p.banner.delete({where:{id}});
+    await audit(p,a.id,'BANNER_DELETE','Banner',id,existing.titleEn||existing.titleFa||existing.placement);
+    return rep.code(303).redirect(href('banners','&msg=Banner%20deleted'));
+  }catch(err){
+    return rep.code(303).redirect(href('banners',`&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'banner_delete_failed')}`));
+  }
+});
+
+app.post('/admin/v3/notification',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body;try{
    const audience=String(b.audience) as NotificationAudience,userId=t(b,'userId')||null;
    const type=String(b.type||NotificationType.SYSTEM) as NotificationType;
    const priority=String(b.priority||NotificationPriority.NORMAL) as NotificationPriority;
