@@ -197,7 +197,7 @@ ThemeData _buildTheme({
       fontFamily: fontFamily,
       fontSize: 12,
       height: textDirection == TextDirection.rtl ? 1.65 : 1.45,
-      fontWeight: FontWeight.w550,
+      fontWeight: FontWeight.w500,
     ),
     labelSmall: base.textTheme.labelSmall?.copyWith(
       fontFamily: fontFamily,
