@@ -480,7 +480,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
       decoration: BoxDecoration(
         color: const Color(0xFFEAF8F2),
         border: Border.all(color: const Color(0xFFBFE8D6)),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(21),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -495,10 +495,10 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
             child: Row(children: [
-              Text(t('شناسه سفارش', 'Order ID'), style: const TextStyle(color: Color(0xFF607487))),
+              Text(t('شناسه سفارش', 'Order ID'), style: const TextStyle(color: Color(0xFF74818B))),
               const Spacer(),
               SelectableText(order.displayOrderId, style: const TextStyle(fontWeight: FontWeight.w900)),
-              IconButton(onPressed: copyId, tooltip: t('کپی شناسه', 'Copy Order ID'), icon: const Icon(Icons.copy_rounded, size: 19, color: Color(0xFF1686FF))),
+              IconButton(onPressed: copyId, tooltip: t('کپی شناسه', 'Copy Order ID'), icon: const Icon(Icons.copy_rounded, size: 19, color: Color(0xFF38BDF8))),
             ]),
           ),
           const SizedBox(height: 10),
@@ -718,7 +718,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
             ],
           ),
           const SizedBox(height: 6),
-          Text(fa ? service.titleFa : service.titleEn, style: const TextStyle(color: Color(0xFF607487))),
+          Text(fa ? service.titleFa : service.titleEn, style: const TextStyle(color: Color(0xFF74818B))),
           const SizedBox(height: 16),
           ...service.orderFields
               .where((field) => field.key != 'runs' && field.key != 'interval')
@@ -775,7 +775,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
               padding: const EdgeInsets.only(bottom: 12),
               child: Text(
                 t('محدوده سفارش: ${service.minQty ?? '—'} تا ${service.maxQty ?? '—'}', 'Order range: ${service.minQty ?? '—'} to ${service.maxQty ?? '—'}'),
-                style: const TextStyle(fontSize: 12, color: Color(0xFF607487)),
+                style: const TextStyle(fontSize: 12, color: Color(0xFF74818B)),
               ),
             ),
           if (service.providerEta?.trim().isNotEmpty == true)
@@ -789,7 +789,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.schedule_rounded, size: 18, color: Color(0xFF607487)),
+                  const Icon(Icons.schedule_rounded, size: 18, color: Color(0xFF74818B)),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -863,7 +863,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
                     onTap: showTerms,
                     child: Text(
                       t('مشاهده قوانین', 'terms & conditions'),
-                      style: const TextStyle(color: Color(0xFF1686FF), fontWeight: FontWeight.w900),
+                      style: const TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.w900),
                     ),
                   ),
                 ],
@@ -1194,7 +1194,7 @@ class _WalletStrip extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [Color(0xFF31A8FF), Color(0xFF0D78C8)]),
+          gradient: const LinearGradient(colors: [Color(0xFF31A8FF), Color(0xFF38BDF8)]),
           borderRadius: BorderRadius.circular(19),
         ),
         child: Row(
@@ -1385,15 +1385,15 @@ class _BrandCard extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: 92),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFF0D78C8) : Colors.white,
+            color: selected ? const Color(0xFF38BDF8) : Colors.white,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: selected ? const Color(0xFF0D78C8) : const Color(0xFFDCE8F1)),
+            border: Border.all(color: selected ? const Color(0xFF38BDF8) : const Color(0xFFDCE8F1)),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconTheme(
-                data: IconThemeData(color: selected ? Colors.white : const Color(0xFF0D78C8)),
+                data: IconThemeData(color: selected ? Colors.white : const Color(0xFF38BDF8)),
                 child: iconWidget(),
               ),
               const SizedBox(height: 7),
@@ -1451,7 +1451,7 @@ class _ServiceCard extends StatelessWidget {
                   Expanded(child: Text(fa ? service.titleFa : service.titleEn, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14))),
                   if (service.featured) const Icon(Icons.star_rounded, color: Color(0xFFFFA928), size: 19),
                   const SizedBox(width: 4),
-                  Icon(selected ? Icons.check_circle_rounded : Icons.chevron_right_rounded, color: const Color(0xFF0D78C8)),
+                  Icon(selected ? Icons.check_circle_rounded : Icons.chevron_right_rounded, color: const Color(0xFF38BDF8)),
                 ],
               ),
               const SizedBox(height: 8),
@@ -1488,9 +1488,9 @@ class _MiniBadge extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 13, color: good ? const Color(0xFF0A8B5B) : const Color(0xFF607487)),
+            Icon(icon, size: 13, color: good ? const Color(0xFF0A8B5B) : const Color(0xFF74818B)),
             const SizedBox(width: 4),
-            Text(text, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: good ? const Color(0xFF0A8B5B) : const Color(0xFF607487))),
+            Text(text, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: good ? const Color(0xFF0A8B5B) : const Color(0xFF74818B))),
           ],
         ),
       );
@@ -1519,7 +1519,7 @@ class _DripRunOrderCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border.all(color: const Color(0xFFDCE8F1)),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(21),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1554,7 +1554,7 @@ class _DripRunOrderCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               '${fa ? 'شناسه Drip-feed' : 'Drip-feed ID'}: ${order.displayOrderId}-R${run.runIndex}',
-              style: const TextStyle(fontSize: 11, color: Color(0xFF607487)),
+              style: const TextStyle(fontSize: 11, color: Color(0xFF74818B)),
             ),
             const SizedBox(height: 5),
             Text(
@@ -1567,7 +1567,7 @@ class _DripRunOrderCard extends StatelessWidget {
                 '${fa ? 'لینک' : 'Link'}: ${order.orderLink}',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11, color: Color(0xFF607487)),
+                style: const TextStyle(fontSize: 11, color: Color(0xFF74818B)),
               ),
             ],
             const SizedBox(height: 10),
@@ -1610,7 +1610,7 @@ class _OrderCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border.all(color: const Color(0xFFDCE8F1)),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(21),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1643,7 +1643,7 @@ class _OrderCard extends StatelessWidget {
                   },
                   tooltip: fa ? 'کپی شناسه' : 'Copy Order ID',
                   visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.copy_rounded, size: 17, color: Color(0xFF1686FF)),
+                  icon: const Icon(Icons.copy_rounded, size: 17, color: Color(0xFF38BDF8)),
                 ),
               ],
             ),
@@ -1660,15 +1660,15 @@ class _OrderCard extends StatelessWidget {
             ],
             if (order.orderLink?.isNotEmpty == true) ...[
               const SizedBox(height: 8),
-              Text('${fa ? 'لینک' : 'Link'}: ${order.orderLink}', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Color(0xFF607487))),
+              Text('${fa ? 'لینک' : 'Link'}: ${order.orderLink}', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Color(0xFF74818B))),
             ],
             if (order.providerEta?.trim().isNotEmpty == true) ...[
               const SizedBox(height: 6),
-              Text('${fa ? 'زمان تقریبی' : 'ETA'}: ${order.providerEta}', style: const TextStyle(fontSize: 11, color: Color(0xFF607487))),
+              Text('${fa ? 'زمان تقریبی' : 'ETA'}: ${order.providerEta}', style: const TextStyle(fontSize: 11, color: Color(0xFF74818B))),
             ],
             if (order.failureReason?.isNotEmpty == true) ...[
               const SizedBox(height: 8),
-              Text(order.failureReason!, style: const TextStyle(fontSize: 11, color: Color(0xFFE65454))),
+              Text(order.failureReason!, style: const TextStyle(fontSize: 11, color: Color(0xFFC54152))),
             ],
             if (order.actions.isNotEmpty) ...[
               const Divider(height: 22),
@@ -1676,7 +1676,7 @@ class _OrderCard extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 6),
                     child: Row(
                       children: [
-                        Icon(action.action == 'REFILL' ? Icons.restart_alt_rounded : Icons.cancel_outlined, size: 16, color: const Color(0xFF607487)),
+                        Icon(action.action == 'REFILL' ? Icons.restart_alt_rounded : Icons.cancel_outlined, size: 16, color: const Color(0xFF74818B)),
                         const SizedBox(width: 6),
                         Expanded(child: Text('${action.action} • ${action.status}', style: const TextStyle(fontSize: 11))),
                         if (action.action == 'REFILL' && !['COMPLETED','REJECTED'].contains(action.status.toUpperCase()))
@@ -1742,7 +1742,7 @@ class _StatusBadge extends StatelessWidget {
       color = const Color(0xFF177B8D);
       bg = const Color(0xFFE6F7FA);
     } else {
-      color = const Color(0xFF0D78C8);
+      color = const Color(0xFF38BDF8);
       bg = const Color(0xFFEAF6FF);
     }
     return Container(
@@ -1765,7 +1765,7 @@ class _InfoRow extends StatelessWidget {
         children: [
           Expanded(
             flex: 4,
-            child: Text(label, style: const TextStyle(color: Color(0xFF607487))),
+            child: Text(label, style: const TextStyle(color: Color(0xFF74818B))),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -1806,7 +1806,7 @@ class _TabButton extends StatelessWidget {
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [Icon(icon, size: 15, color: selected ? const Color(0xFF0D78C8) : const Color(0xFF607487)), const SizedBox(width: 3), Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: selected ? const Color(0xFF102235) : const Color(0xFF607487))))],
+            children: [Icon(icon, size: 15, color: selected ? const Color(0xFF38BDF8) : const Color(0xFF74818B)), const SizedBox(width: 3), Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: selected ? const Color(0xFF102235) : const Color(0xFF74818B))))],
           ),
         ),
       );
@@ -1829,7 +1829,7 @@ class _EmptyState extends StatelessWidget {
               const SizedBox(height: 16),
               Text(title, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
               const SizedBox(height: 7),
-              Text(subtitle, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF607487), height: 1.5)),
+              Text(subtitle, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF74818B), height: 1.5)),
             ],
           ),
         ),
