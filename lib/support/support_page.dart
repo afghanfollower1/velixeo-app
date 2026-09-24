@@ -431,8 +431,9 @@ class _NewSupportTicketPageState extends State<NewSupportTicketPage> {
 Widget _buildPersianPage(BuildContext context) => Directionality(
         textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
         child: Scaffold(
-          appBar: AppBar(
-            title: Text(fa ? 'تیکت جدید' : 'New ticket'),
+          appBar: const VelixeoFaAppBar(
+            title: 'تیکت جدید',
+            subtitle: 'موضوع و جزئیات درخواستت را بنویس.',
           ),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
@@ -538,8 +539,9 @@ Widget _buildPersianPage(BuildContext context) => Directionality(
 Widget _buildEnglishPage(BuildContext context) => Directionality(
         textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
         child: Scaffold(
-          appBar: AppBar(
-            title: Text(fa ? 'تیکت جدید' : 'New ticket'),
+          appBar: const VelixeoEnAppBar(
+            title: 'New Ticket',
+            subtitle: 'Tell us the subject and details of your request.',
           ),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
@@ -760,8 +762,9 @@ class _SupportTicketPageState extends State<SupportTicketPage> {
     final shortId =
         ticket.id.length > 8 ? ticket.id.substring(0, 8).toUpperCase() : ticket.id;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(appBarTitle),
+      appBar: VelixeoFaAppBar(
+        title: appBarTitle,
+        subtitle: ticket.subject,
       ),
       body: RefreshIndicator(
         onRefresh: refresh,
@@ -994,8 +997,9 @@ Widget _buildEnglishConversationPage(
     final shortId =
         ticket.id.length > 8 ? ticket.id.substring(0, 8).toUpperCase() : ticket.id;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(appBarTitle),
+      appBar: VelixeoEnAppBar(
+        title: appBarTitle,
+        subtitle: ticket.subject,
       ),
       body: RefreshIndicator(
         onRefresh: refresh,
