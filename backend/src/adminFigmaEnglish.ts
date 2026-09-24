@@ -257,7 +257,7 @@ html.vx-admin-fa .mono{direction:ltr;text-align:left;font-family:ui-monospace,SF
 
 `;
 
-function shell(
+export function renderAdminV3Page(
  a:AdminIdentity,
  section:Section,
  body:string,
@@ -265,9 +265,13 @@ function shell(
  msg='',
  err=false,
  lang:AdminLang='en',
+ pageTitle?:string,
+ pageSubtitle?:string,
 ){
  const fa=lang==='fa';
- const [title,sub]=(fa?metaFa:meta)[section];
+ const [defaultTitle,defaultSub]=(fa?metaFa:meta)[section];
+ const title=pageTitle ? (fa?adminPersianLabel(pageTitle):pageTitle) : defaultTitle;
+ const sub=pageSubtitle ? (fa?adminPersianLabel(pageSubtitle):pageSubtitle) : defaultSub;
  const pageBody=fa?localizeAdminContentFa(body):body;
  const pageTabs=fa?localizeAdminContentFa(tabs):tabs;
  const pageMessage=fa?adminPersianLabel(msg):msg;
@@ -1220,7 +1224,7 @@ async function settings(p:PrismaClient){const rows=await p.exchangeRate.findMany
 async function auditPage(p:PrismaClient){const rows=await p.adminAuditLog.findMany({include:{adminUser:true},orderBy:{createdAt:'desc'},take:260});return `<div class="card"><div class="cardhead"><h2>Audit Log</h2>${pill(`${rows.length} recent events`,'info')}</div><div class="tablewrap"><table class="table"><thead><tr><th>Time</th><th>Admin</th><th>Action</th><th>Entity</th><th>Summary</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${dt(x.createdAt)}</td><td>${e(x.adminUser.fullName||x.adminUser.email||'Admin')}</td><td class="mono">${e(x.action)}</td><td>${e(x.entityType)} ${x.entityId?sid(x.entityId):''}</td><td>${e(x.summary)}</td></tr>`).join('')}</tbody></table></div></div>`}
 
 export function registerAdminV3(app:FastifyInstance,p:PrismaClient,resolve:AdminResolver){
- app.get('/admin/v3',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const s=qstate(req);const lang=adminLangFromRequest(req);try{let body='',tabs='';if(s.section==='dashboard')body=await dashboard(p);else if(s.section==='users')body=await usersPage(p,s.q,s.edit);else if(s.section==='referrals')body=await referralsPage(p);else if(s.section==='social'){const r=await socialPage(p,s.tab,s.q,s.edit,s.provider,s.route);body=r.body;tabs=r.tabs}else if(s.section==='virtual'){const r=await virtualModule(p,s.tab,s.edit);body=r.body;tabs=r.tabs}else if(s.section==='premium'){const r=await premiumAdminPage(p,s.tab,s.edit==='new'?'':s.edit);body=r.body;tabs=r.tabs}else if(s.section==='topup'){tabs='';body='<div class="card modulehero"><div class="cardhead"><div><h2>Mobile Top-up</h2><p>Coming soon — telecom provider APIs are not connected yet.</p></div></div></div><div class="card"><div class="notice"><b>Coming soon.</b> This module stays disabled until official mobile operator APIs are connected and tested. No top-up products or provider routes are required for now.</div></div>'}else if(s.section==='accounts'){const r=await genericModule(p,'accounts',ServiceCategory.DIGITAL_ACCOUNT,ProviderKind.GENERIC,s.tab,s.edit);body=r.body;tabs=r.tabs}else if(s.section==='orders'){tabs='';body=s.order?await adminOrderDetail(p,s.order):await allOrders(p,s.q,s.status,s.filter,s.kind,s.page);}else if(s.section==='payments')body=await payments(p,s.q);else if(s.section==='coupons')body=await coupons(p);else if(s.section==='banners')body=await banners(p);else if(s.section==='notifications')body=await notifications(p);else if(s.section==='support')body=await support(p,s.ticket);else if(s.section==='settings')body=await settings(p);else body=await auditPage(p);return rep.type('text/html; charset=utf-8').send(shell(a,s.section,body,tabs,s.msg,s.err,lang))}catch(err){req.log.error(err);return rep.type('text/html; charset=utf-8').send(shell(a,s.section,'<div class="card empty">This section could not be loaded. The error was recorded in server logs.</div>',tabs,err instanceof Error?err.message:'load_failed',true,lang))}});
+ app.get('/admin/v3',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const s=qstate(req);const lang=adminLangFromRequest(req);try{let body='',tabs='';if(s.section==='dashboard')body=await dashboard(p);else if(s.section==='users')body=await usersPage(p,s.q,s.edit);else if(s.section==='referrals')body=await referralsPage(p);else if(s.section==='social'){const r=await socialPage(p,s.tab,s.q,s.edit,s.provider,s.route);body=r.body;tabs=r.tabs}else if(s.section==='virtual'){const r=await virtualModule(p,s.tab,s.edit);body=r.body;tabs=r.tabs}else if(s.section==='premium'){const r=await premiumAdminPage(p,s.tab,s.edit==='new'?'':s.edit);body=r.body;tabs=r.tabs}else if(s.section==='topup'){tabs='';body='<div class="card modulehero"><div class="cardhead"><div><h2>Mobile Top-up</h2><p>Coming soon — telecom provider APIs are not connected yet.</p></div></div></div><div class="card"><div class="notice"><b>Coming soon.</b> This module stays disabled until official mobile operator APIs are connected and tested. No top-up products or provider routes are required for now.</div></div>'}else if(s.section==='accounts'){const r=await genericModule(p,'accounts',ServiceCategory.DIGITAL_ACCOUNT,ProviderKind.GENERIC,s.tab,s.edit);body=r.body;tabs=r.tabs}else if(s.section==='orders'){tabs='';body=s.order?await adminOrderDetail(p,s.order):await allOrders(p,s.q,s.status,s.filter,s.kind,s.page);}else if(s.section==='payments')body=await payments(p,s.q);else if(s.section==='coupons')body=await coupons(p);else if(s.section==='banners')body=await banners(p);else if(s.section==='notifications')body=await notifications(p);else if(s.section==='support')body=await support(p,s.ticket);else if(s.section==='settings')body=await settings(p);else body=await auditPage(p);return rep.type('text/html; charset=utf-8').send(renderAdminV3Page(a,s.section,body,tabs,s.msg,s.err,lang))}catch(err){req.log.error(err);return rep.type('text/html; charset=utf-8').send(renderAdminV3Page(a,s.section,'<div class="card empty">This section could not be loaded. The error was recorded in server logs.</div>',tabs,err instanceof Error?err.message:'load_failed',true,lang))}});
  app.post('/admin/v3/virtual/banner',async(req,rep)=>{
   const a=await needAdmin(req,rep,resolve);if(!a)return;
   const b=req.body as Body;
