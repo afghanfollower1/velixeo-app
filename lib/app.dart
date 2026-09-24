@@ -1424,7 +1424,7 @@ class _LanguageChoiceCard extends StatelessWidget {
                       title,
                       style: const TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.w650,
+                        fontWeight: FontWeight.w600,
                         color: VelixeoBrand.ink,
                       ),
                     ),
@@ -1552,7 +1552,7 @@ class _EnglishLanguagePreview extends StatelessWidget {
           const SizedBox(height: 15),
           const Text(
             'Hi, Narges 👋',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w650),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 3),
           const Text(
@@ -3773,14 +3773,6 @@ class _TopCircleButton extends StatelessWidget {
   );
 }
 
-class _HomeSectionHeader extends StatelessWidget {
-  const _HomeSectionHeader({required this.title, required this.action});
-  final String title;
-  final String action;
-  @override
-  Widget build(BuildContext context) => Row(children: [Expanded(child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF1A2739)))), Text(action, style: const TextStyle(color: VelixeoDesign.sky, fontSize: 12, fontWeight: FontWeight.w800))]);
-}
-
 class WalletHero extends StatelessWidget {
   const WalletHero({super.key, required this.controller});
   final AppController controller;
@@ -3992,7 +3984,7 @@ class _PersianServicesPage extends StatelessWidget {
                 'همهٔ خدمات',
                 style: TextStyle(
                   fontSize: 15,
-                  fontWeight: FontWeight.w650,
+                  fontWeight: FontWeight.w600,
                   color: VelixeoBrand.ink,
                 ),
               ),
