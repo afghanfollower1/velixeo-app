@@ -859,6 +859,10 @@ export function registerAdminLocale(app: FastifyInstance) {
     const contentType = String(reply.getHeader('content-type') || '');
     if (!contentType.includes('text/html') || typeof payload !== 'string') return payload;
     if (payload.includes('velixeo-admin-locale-script')) return payload;
-    return payload.replace('</body>', `${localeInjection()}</body>`);
+
+    const lang = adminLangFromRequest(request);
+    const localized = lang === 'fa' ? translateAdminHtmlToPersian(payload) : payload;
+    const designed = markAdminDesignSystem(localized, lang);
+    return designed.replace('</body>', localeInjection() + '</body>');
   });
 }
