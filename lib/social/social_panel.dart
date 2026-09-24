@@ -1789,8 +1789,9 @@ Widget _buildPersianPage(BuildContext context) {
     return Directionality(
       textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(fa ? 'نتیجهٔ سفارش' : 'Order result'),
+        appBar: const VelixeoFaAppBar(
+          title: 'نتیجهٔ سفارش',
+          subtitle: 'خلاصهٔ سفارش و وضعیت ثبت آن.',
         ),
         body: ListView(
           padding: const EdgeInsets.fromLTRB(20, 26, 20, 30),
@@ -1898,8 +1899,9 @@ Widget _buildEnglishPage(BuildContext context) {
     return Directionality(
       textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(fa ? 'نتیجهٔ سفارش' : 'Order result'),
+        appBar: const VelixeoEnAppBar(
+          title: 'Order Result',
+          subtitle: 'Order summary and placement status.',
         ),
         body: ListView(
           padding: const EdgeInsets.fromLTRB(20, 26, 20, 30),
