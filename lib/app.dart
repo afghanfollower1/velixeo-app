@@ -817,7 +817,7 @@ class _VelixeoAppState extends State<VelixeoApp> {
           ),
           home: AppUpdateGate(
             child: controller.booting
-                ? const SplashPage()
+                ? SplashPage(fa: controller.fa)
                 : controller.authenticated
                     ? MainShell(controller: controller)
                     : controller.languageConfirmed
@@ -831,18 +831,102 @@ class _VelixeoAppState extends State<VelixeoApp> {
 }
 
 class SplashPage extends StatelessWidget {
-  const SplashPage({super.key});
+  const SplashPage({super.key, required this.fa});
+  final bool fa;
 
   @override
-  Widget build(BuildContext context) => const Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              BrandMark(size: 86),
-              SizedBox(height: 28),
-              SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2.5)),
+  Widget build(BuildContext context) => Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const _SplashBrandOrb(),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'VELIXEO.',
+                    textDirection: TextDirection.ltr,
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 29,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 4,
+                      color: VelixeoDesign.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    tr(fa, 'دنیای دیجیتال، در دسترس تو', 'Your digital world, within reach'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF7892A4),
+                    ),
+                  ),
+                  const SizedBox(height: 60),
+                  const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      backgroundColor: Color(0xFFDCF2FB),
+                      color: Color(0xFF36B1E4),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    tr(fa, 'در حال آماده‌سازی…', 'Getting everything ready…'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF7892A4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
+class _SplashBrandOrb extends StatelessWidget {
+  const _SplashBrandOrb();
+
+  @override
+  Widget build(BuildContext context) => Transform.rotate(
+        angle: -0.14,
+        child: Container(
+          width: 86,
+          height: 86,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(29),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF78D9F6), Color(0xFF2FB0E5)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x3030B4E5),
+                blurRadius: 40,
+                offset: Offset(0, 18),
+              ),
             ],
+          ),
+          child: const Text(
+            'V',
+            textDirection: TextDirection.ltr,
+            style: TextStyle(
+              fontFamily: 'Inter',
+              color: Colors.white,
+              fontSize: 49,
+              height: 1,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
       );
@@ -1150,47 +1234,133 @@ class LanguagePage extends StatelessWidget {
     final fa = controller.fa;
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              const Spacer(),
-              const BrandMark(size: 82),
-              const SizedBox(height: 30),
-              Text(
-                tr(fa, 'زبان خود را انتخاب کنید', 'Choose your language'),
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
-                textAlign: TextAlign.center,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 34, 20, 26),
+          children: [
+            Text(
+              tr(fa, 'به زبان خودت، راحت‌تر', 'Feel right at home'),
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontSize: 23,
+                    fontWeight: FontWeight.w700,
+                    color: VelixeoDesign.ink,
+                  ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              tr(
+                fa,
+                'زبان دلخواهت را انتخاب کن. هر زمان می‌توانی آن را تغییر بدهی.',
+                'Choose your language. You can change it at any time.',
               ),
-              const SizedBox(height: 8),
-              Text(
-                tr(fa, 'هر زبان رابط واقعی خودش را دارد', 'Each language has its own native layout'),
-                style: const TextStyle(color: VelixeoDesign.muted),
-                textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                color: VelixeoDesign.muted,
               ),
-              const SizedBox(height: 30),
-              LanguageTile(
-                title: 'فارسی',
-                subtitle: 'رابط راست‌به‌چپ',
-                flag: '🇦🇫',
-                selected: fa,
-                onTap: () => controller.setLanguage(AppLang.fa),
+            ),
+            const SizedBox(height: 24),
+            LanguageTile(
+              title: 'فارسی',
+              subtitle: tr(fa, 'چیدمان راست‌به‌چپ', 'Right-to-left layout'),
+              flag: 'ف',
+              selected: fa,
+              onTap: () => controller.setLanguage(AppLang.fa),
+            ),
+            const SizedBox(height: 12),
+            LanguageTile(
+              title: tr(fa, 'انگلیسی', 'English'),
+              subtitle: tr(fa, 'چیدمان چپ‌به‌راست', 'Left-to-right layout'),
+              flag: 'En',
+              selected: !fa,
+              onTap: () => controller.setLanguage(AppLang.en),
+            ),
+            const SizedBox(height: 20),
+            SoftCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          tr(fa, 'پیش‌نمایش رابط', 'Interface preview'),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: VelixeoDesign.muted,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEAF7FE),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          fa ? 'فارسی' : 'English',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF287495),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    tr(fa, 'سلام، نرگس 👋', 'Hi, Narges 👋'),
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    tr(
+                      fa,
+                      'همهٔ خدمات دیجیتال، یک‌جا.',
+                      'All your digital services, in one place.',
+                    ),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: VelixeoDesign.muted,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          tr(fa, 'موجودی', 'Balance'),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: VelixeoDesign.muted,
+                          ),
+                        ),
+                      ),
+                      const Text(
+                        '2,450 AFN',
+                        textDirection: TextDirection.ltr,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF287FA7),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              LanguageTile(
-                title: 'English',
-                subtitle: 'Left-to-right interface',
-                flag: '🌐',
-                selected: !fa,
-                onTap: () => controller.setLanguage(AppLang.en),
-              ),
-              const Spacer(),
-              PrimaryButton(
-                label: tr(fa, 'ادامه', 'Continue'),
-                onPressed: () => controller.chooseLanguage(controller.language),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 22),
+            PrimaryButton(
+              label: tr(fa, 'ادامه', 'Continue'),
+              onPressed: () => controller.chooseLanguage(controller.language),
+            ),
+          ],
         ),
       ),
     );
@@ -1213,37 +1383,76 @@ class LanguageTile extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => InkWell(
-        borderRadius: BorderRadius.circular(21),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(21),
-            border: Border.all(
-              color: selected ? VelixeoDesign.sky : const Color(0xFFDCE8F1),
-              width: selected ? 1.6 : 1,
+  Widget build(BuildContext context) => Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: selected ? const Color(0xFFEFFAFF) : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: selected ? VelixeoDesign.sky : VelixeoDesign.line,
+              ),
             ),
-          ),
-          child: Row(
-            children: [
-              Text(flag, style: const TextStyle(fontSize: 28)),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-                    Text(subtitle, style: const TextStyle(fontSize: 12, color: VelixeoDesign.muted)),
-                  ],
+            child: Row(
+              children: [
+                Container(
+                  width: 45,
+                  height: 45,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEAF7FD),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    flag,
+                    textDirection: flag == 'En'
+                        ? TextDirection.ltr
+                        : TextDirection.rtl,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF39AEE0),
+                    ),
+                  ),
                 ),
-              ),
-              Icon(
-                selected ? Icons.radio_button_checked : Icons.radio_button_off,
-                color: VelixeoDesign.sky,
-              ),
-            ],
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF8294A1),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  selected
+                      ? Icons.check_rounded
+                      : (Directionality.of(context) == TextDirection.rtl
+                          ? Icons.chevron_left_rounded
+                          : Icons.chevron_right_rounded),
+                  size: 20,
+                  color: selected
+                      ? VelixeoDesign.sky
+                      : const Color(0xFF9AAAB4),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -1585,21 +1794,35 @@ class _AuthPageState extends State<AuthPage> {
     return Scaffold(
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(20, 34, 20, 28),
           children: [
-            const SizedBox(height: 24),
-            const Center(child: BrandMark(size: 66)),
-            const SizedBox(height: 42),
             Text(
-              registerMode ? tr(fa, 'ساخت حساب VELIXEO', 'Create your VELIXEO account') : tr(fa, 'ورود به حساب کاربری', 'Welcome back'),
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
+              registerMode
+                  ? tr(fa, 'شروع یک تجربهٔ ساده‌تر', 'A simpler experience starts here')
+                  : tr(fa, 'سلام، خوش برگشتی', 'Welcome back'),
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontSize: 23,
+                    fontWeight: FontWeight.w700,
+                    color: VelixeoDesign.ink,
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
               registerMode
-                  ? tr(fa, 'با ایمیل یا شماره موبایل ثبت‌نام کنید.', 'Register with email or mobile number.')
-                  : tr(fa, 'برای ادامه وارد حساب خود شوید.', 'Sign in to continue.'),
-              style: const TextStyle(color: VelixeoDesign.muted),
+                  ? tr(
+                      fa,
+                      'حسابت را بساز و خدمات دلخواهت را پیدا کن.',
+                      'Create your account and discover your services.',
+                    )
+                  : tr(
+                      fa,
+                      'برای ادامه، وارد حساب VELIXEO شو.',
+                      'Sign in to continue your VELIXEO journey.',
+                    ),
+              style: const TextStyle(
+                fontSize: 14,
+                color: VelixeoDesign.muted,
+              ),
             ),
             const SizedBox(height: 28),
             if (registerMode) ...[
@@ -1614,7 +1837,7 @@ class _AuthPageState extends State<AuthPage> {
               const SizedBox(height: 14),
               Container(
                 padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(color: const Color(0xFFF0F5FA), borderRadius: BorderRadius.circular(14)),
+                decoration: BoxDecoration(color: const Color(0xFFF3F7FA), borderRadius: BorderRadius.circular(12)),
                 child: Row(
                   children: [
                     Expanded(
@@ -1664,8 +1887,8 @@ class _AuthPageState extends State<AuthPage> {
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF0F5FA),
-                  borderRadius: BorderRadius.circular(14),
+                  color: const Color(0xFFF3F7FA),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
