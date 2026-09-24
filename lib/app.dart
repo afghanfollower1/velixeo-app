@@ -7282,7 +7282,7 @@ class _ProfileMenuCard extends StatelessWidget {
           return InkWell(
             onTap: row.onTap,
             child: Container(
-              minHeight: 61,
+              constraints: const BoxConstraints(minHeight: 61),
               decoration: BoxDecoration(
                 border: i == rows.length - 1
                     ? null
