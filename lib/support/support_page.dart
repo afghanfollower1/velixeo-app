@@ -109,8 +109,8 @@ class _SupportPageState extends State<SupportPage> {
 
   Color statusColor(String status) {
     switch (status) {
-      case 'PENDING_USER': return const Color(0xFF18A875);
-      case 'CLOSED': return const Color(0xFF607487);
+      case 'PENDING_USER': return const Color(0xFF158365);
+      case 'CLOSED': return const Color(0xFF74818B);
       default: return const Color(0xFFEFAF38);
     }
   }
@@ -139,7 +139,7 @@ class _SupportPageState extends State<SupportPage> {
                       decoration: BoxDecoration(color: const Color(0xFFEAF6FF), borderRadius: BorderRadius.circular(18)),
                       child: Row(
                         children: [
-                          const CircleAvatar(backgroundColor: Colors.white, child: Icon(Icons.support_agent_rounded, color: Color(0xFF0D78C8))),
+                          const CircleAvatar(backgroundColor: Colors.white, child: Icon(Icons.support_agent_rounded, color: Color(0xFF38BDF8))),
                           const SizedBox(width: 12),
                           Expanded(child: Text(t('پیام شما و پاسخ ادمین در همین تیکت ذخیره می‌شود.', 'Your messages and admin replies stay together in each ticket.'), style: const TextStyle(color: Color(0xFF315B78), height: 1.4))),
                         ],
@@ -164,7 +164,7 @@ class _SupportPageState extends State<SupportPage> {
                             padding: const EdgeInsets.only(bottom: 10),
                             child: Card(
                               child: InkWell(
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(21),
                                 onTap: () async {
                                   await Navigator.push(context, MaterialPageRoute(builder: (_) => SupportTicketPage(host: widget.host, initialTicket: ticket)));
                                   await load();
@@ -184,7 +184,7 @@ class _SupportPageState extends State<SupportPage> {
                                           children: [
                                             Text(ticket.subject, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900)),
                                             const SizedBox(height: 4),
-                                            Text('${statusLabel(ticket.status)} • ${ticket.messages.length} ${t('پیام', 'messages')}', style: const TextStyle(fontSize: 11, color: Color(0xFF607487))),
+                                            Text('${statusLabel(ticket.status)} • ${ticket.messages.length} ${t('پیام', 'messages')}', style: const TextStyle(fontSize: 11, color: Color(0xFF74818B))),
                                           ],
                                         ),
                                       ),
@@ -278,7 +278,7 @@ class _SupportTicketPageState extends State<SupportTicketPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(message.isAdmin ? t('پشتیبانی VELIXEO', 'VELIXEO Support') : t('شما', 'You'), style: TextStyle(fontSize: 10, color: message.isAdmin ? const Color(0xFF607487) : const Color(0xFF0D78C8), fontWeight: FontWeight.w800)),
+                          Text(message.isAdmin ? t('پشتیبانی VELIXEO', 'VELIXEO Support') : t('شما', 'You'), style: TextStyle(fontSize: 10, color: message.isAdmin ? const Color(0xFF74818B) : const Color(0xFF38BDF8), fontWeight: FontWeight.w800)),
                           const SizedBox(height: 4),
                           Text(message.content, style: const TextStyle(height: 1.45)),
                         ],
@@ -293,7 +293,7 @@ class _SupportTicketPageState extends State<SupportTicketPage> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
                 child: ticket.status == 'CLOSED'
-                    ? Text(t('این تیکت بسته شده است.', 'This ticket is closed.'), style: const TextStyle(color: Color(0xFF607487)))
+                    ? Text(t('این تیکت بسته شده است.', 'This ticket is closed.'), style: const TextStyle(color: Color(0xFF74818B)))
                     : Row(
                         children: [
                           Expanded(child: TextField(controller: reply, minLines: 1, maxLines: 4, decoration: InputDecoration(hintText: t('پاسخ شما...', 'Your reply...')))),
