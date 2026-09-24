@@ -1,0 +1,67 @@
+name: Apply VELIXEO 0.13 fixes
+
+on:
+  push:
+    branches:
+      - fix/v013-orders-admin-design-20260924
+    paths:
+      - '.github/workflows/apply-v013-fixes.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v013-orders-admin-design-20260924
+          fetch-depth: 0
+
+      - name: Reassemble and apply patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .github/patches/v013_*.b64 | tr -d '\n' | base64 -d > /tmp/v013_patch.py
+          python3 /tmp/v013_patch.py
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Format and analyze Flutter
+        shell: bash
+        run: |
+          set -euo pipefail
+          dart format lib/app.dart lib/social/social_panel.dart
+          flutter pub get
+          flutter analyze --no-fatal-infos
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Build backend
+        working-directory: backend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Commit validated fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .github/patches
+          rm -f .github/workflows/apply-v013-fixes.yml
+          git config user.name "VELIXEO Release Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Fix Social banners, order filters and bilingual Admin design"
+          git push origin HEAD:fix/v013-orders-admin-design-20260924
