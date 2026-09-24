@@ -45,51 +45,26 @@ class _SupportPageState extends State<SupportPage> {
   }
 
   Future<void> newTicket() async {
-    final subject = TextEditingController();
-    final message = TextEditingController();
-    final result = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => Padding(
-        padding: EdgeInsets.fromLTRB(18, 4, 18, MediaQuery.viewInsetsOf(context).bottom + 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(t('تیکت جدید', 'New support ticket'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 14),
-            TextField(controller: subject, maxLength: 180, decoration: InputDecoration(labelText: t('موضوع', 'Subject'), prefixIcon: const Icon(Icons.subject_rounded))),
-            const SizedBox(height: 10),
-            TextField(controller: message, minLines: 4, maxLines: 7, maxLength: 5000, decoration: InputDecoration(labelText: t('پیام', 'Message'), alignLabelWithHint: true)),
-            const SizedBox(height: 10),
-            FilledButton(
-              onPressed: () {
-                if (subject.text.trim().length < 3 || message.text.trim().isEmpty) return;
-                Navigator.pop(context, true);
-              },
-              child: Text(t('ارسال تیکت', 'Send ticket')),
-            ),
-          ],
+    final ticket = await Navigator.push<SupportTicket>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NewSupportTicketPage(host: widget.host),
+      ),
+    );
+    if (ticket == null || !mounted) return;
+    setState(() {
+      tickets = [ticket, ...tickets.where((item) => item.id != ticket.id)];
+    });
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SupportTicketPage(
+          host: widget.host,
+          initialTicket: ticket,
         ),
       ),
     );
-    if (result != true) {
-      subject.dispose();
-      message.dispose();
-      return;
-    }
-    setState(() => busy = true);
-    try {
-      final ticket = await widget.host.api.createSupportTicket(subject: subject.text, message: message.text);
-      if (mounted) setState(() => tickets = [ticket, ...tickets.where((item) => item.id != ticket.id)]);
-    } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorLabel(e.code))));
-    } finally {
-      subject.dispose();
-      message.dispose();
-      if (mounted) setState(() => busy = false);
-    }
+    await load();
   }
 
   String errorLabel(String code) {
@@ -133,11 +108,6 @@ class _SupportPageState extends State<SupportPage> {
           title: Text(t('پشتیبانی', 'Support')),
           actions: [IconButton(onPressed: loading ? null : load, icon: const Icon(Icons.refresh_rounded))],
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: busy ? null : newTicket,
-          icon: const Icon(Icons.add_comment_outlined),
-          label: Text(t('تیکت جدید', 'New ticket')),
-        ),
         body: loading
             ? const Center(child: CircularProgressIndicator())
             : RefreshIndicator(
@@ -146,18 +116,73 @@ class _SupportPageState extends State<SupportPage> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(20, 10, 20, 96),
                   children: [
+                    Text(
+                      t('کنارت هستیم', 'We are here to help'),
+                      style: const TextStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF24343D),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      t('سؤال یا مشکلت را برای ما بنویس.', 'Tell us what you need help with.'),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF74818B),
+                      ),
+                    ),
+                    const SizedBox(height: 15),
                     Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(color: const Color(0xFFEAF6FF), borderRadius: BorderRadius.circular(18)),
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEEF8FC),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFDDEFF6)),
+                      ),
                       child: Row(
                         children: [
-                          const CircleAvatar(backgroundColor: Colors.white, child: Icon(Icons.support_agent_rounded, color: Color(0xFF38BDF8))),
-                          const SizedBox(width: 12),
-                          Expanded(child: Text(t('پیام شما و پاسخ ادمین در همین تیکت ذخیره می‌شود.', 'Your messages and admin replies stay together in each ticket.'), style: const TextStyle(color: Color(0xFF315B78), height: 1.4))),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  t('گفتگو را شروع کن', 'Let us start a conversation'),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF2C5366),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  t('پیام‌ها و پاسخ‌ها، همیشه در دسترس.', 'Your messages and replies, always at hand.'),
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    color: Color(0xFF7293A5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.mail_outline_rounded,
+                            color: Color(0xFF6AB4D2),
+                            size: 34,
+                          ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: busy ? null : newTicket,
+                        icon: const Icon(Icons.add_comment_outlined, size: 18),
+                        label: Text(t('تیکت جدید', 'New ticket')),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     if (error != null)
                       Text(errorLabel(error!), textAlign: TextAlign.center)
                     else if (tickets.isEmpty)
@@ -210,6 +235,163 @@ class _SupportPageState extends State<SupportPage> {
                   ],
                 ),
               ),
+      );
+}
+
+
+class NewSupportTicketPage extends StatefulWidget {
+  const NewSupportTicketPage({super.key, required this.host});
+  final SupportPanelHost host;
+
+  @override
+  State<NewSupportTicketPage> createState() => _NewSupportTicketPageState();
+}
+
+class _NewSupportTicketPageState extends State<NewSupportTicketPage> {
+  final subject = TextEditingController();
+  final message = TextEditingController();
+  bool busy = false;
+
+  bool get fa => widget.host.fa;
+
+  @override
+  void dispose() {
+    subject.dispose();
+    message.dispose();
+    super.dispose();
+  }
+
+  Future<void> submit() async {
+    final title = subject.text.trim();
+    final body = message.text.trim();
+    if (title.length < 4 || body.length < 10 || busy) return;
+    setState(() => busy = true);
+    try {
+      final ticket = await widget.host.api.createSupportTicket(
+        subject: title,
+        message: body,
+      );
+      if (!mounted) return;
+      Navigator.pop(context, ticket);
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      final text = error.code == 'network_error'
+          ? (fa ? 'ارتباط با سرور برقرار نشد.' : 'Could not reach the server.')
+          : (fa ? 'ارسال تیکت انجام نشد.' : 'Ticket could not be submitted.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(text)),
+      );
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+        textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(fa ? 'تیکت جدید' : 'New ticket'),
+          ),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+            children: [
+              Text(
+                fa ? 'چطور می‌توانیم کمک کنیم؟' : 'How can we help?',
+                style: const TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF24343D),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                fa ? 'جزئیات بیشتر، کمک دقیق‌تر.' : 'More details help us give you a better answer.',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Color(0xFF74818B),
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: subject,
+                maxLength: 120,
+                textInputAction: TextInputAction.next,
+                decoration: InputDecoration(
+                  labelText: fa ? 'موضوع' : 'Subject',
+                  hintText: fa
+                      ? 'مثلاً: بررسی وضعیت سفارش #VX-20481'
+                      : 'For example: Check order #VX-20481',
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: message,
+                minLines: 6,
+                maxLines: 9,
+                maxLength: 4000,
+                decoration: InputDecoration(
+                  labelText: fa ? 'پیام شما' : 'Your message',
+                  alignLabelWithHint: true,
+                  hintText: fa
+                      ? 'چه اتفاقی افتاده است؟ جزئیات و شمارهٔ سفارش را بنویس.'
+                      : 'What happened? Include the details and order ID.',
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 3),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF6E8),
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(color: const Color(0xFFF5E4C9)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.info_outline_rounded,
+                      color: Color(0xFFAD670D),
+                      size: 17,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        fa
+                            ? 'رمز عبور، کد تأیید و اطلاعات حساس را در پیام ننویس.'
+                            : 'Do not include passwords, verification codes or sensitive details in your message.',
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          height: 1.55,
+                          color: Color(0xFF8A682B),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              FilledButton(
+                onPressed: busy ||
+                        subject.text.trim().length < 4 ||
+                        message.text.trim().length < 10
+                    ? null
+                    : submit,
+                child: busy
+                    ? const SizedBox(
+                        width: 17,
+                        height: 17,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Text(fa ? 'ارسال تیکت' : 'Submit ticket'),
+              ),
+            ],
+          ),
+        ),
       );
 }
 
