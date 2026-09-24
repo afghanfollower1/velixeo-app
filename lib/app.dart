@@ -4702,7 +4702,6 @@ class _ServiceListCard extends StatelessWidget {
     required this.direction,
     required this.onTap,
     this.badge,
-    this.featured = false,
   });
 
   final IconData icon;
@@ -4712,7 +4711,6 @@ class _ServiceListCard extends StatelessWidget {
   final TextDirection direction;
   final VoidCallback onTap;
   final String? badge;
-  final bool featured;
 
   @override
   Widget build(BuildContext context) => Directionality(
@@ -4761,14 +4759,6 @@ class _ServiceListCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                          if (featured) ...[
-                            const SizedBox(width: 5),
-                            const Icon(
-                              Icons.star_rounded,
-                              color: Color(0xFFD6A153),
-                              size: 15,
-                            ),
-                          ],
                         ],
                       ),
                       const SizedBox(height: 4),
