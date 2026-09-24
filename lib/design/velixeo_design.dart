@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// Shared brand colors only. Layout/typography are intentionally separated
-/// between the Persian and English UI systems.
+/// Locked VELIXEO brand palette from velixeo-design(1).zip.
+///
+/// Business logic can be shared across locales, but the Persian and English
+/// presentation systems below intentionally own independent typography,
+/// spacing and component metrics.
 abstract final class VelixeoBrand {
   static const sky = Color(0xFF38BDF8);
   static const skyHover = Color(0xFF7DD3FC);
@@ -13,66 +16,111 @@ abstract final class VelixeoBrand {
   static const green = Color(0xFF158365);
   static const orange = Color(0xFFAD670D);
   static const red = Color(0xFFC54152);
+
+  static const successSoft = Color(0xFFEAF8F1);
+  static const warningSoft = Color(0xFFFFF5E7);
+  static const errorSoft = Color(0xFFFCEEF0);
+  static const infoSoft = Color(0xFFEAF7FE);
+  static const neutralSoft = Color(0xFFF0F3F6);
 }
 
-/// Persian/RTL design system ported from the Persian frames in velixeo-design.zip.
-/// This is not an English theme with translated labels: typography, direction,
-/// alignments and component metrics are defined independently.
+/// Persian/RTL presentation contract.
+///
+/// Do not use these values as a translated English theme. Persian screens own
+/// their own widget trees and use these metrics directly.
 abstract final class VelixeoFaDesign {
   static const direction = TextDirection.rtl;
   static const fontFamily = 'Vazirmatn';
-  static const pagePadding = EdgeInsets.fromLTRB(20, 18, 20, 24);
-  static const appHeaderPadding = EdgeInsets.fromLTRB(22, 24, 22, 17);
-  static const cardRadius = 21.0;
-  static const controlRadius = 12.0;
-  static const buttonRadius = 13.0;
-  static const titleSize = 23.0;
-  static const sectionTitleSize = 15.0;
-  static const bodySize = 14.0;
-  static const captionSize = 11.0;
 
-  static ThemeData get theme => _theme(
+  static const pagePadding = EdgeInsets.fromLTRB(20, 18, 20, 24);
+  static const compactPagePadding = EdgeInsets.fromLTRB(18, 14, 18, 22);
+  static const appHeaderPadding = EdgeInsets.fromLTRB(22, 24, 22, 17);
+  static const cardPadding = EdgeInsets.all(24);
+  static const compactCardPadding = EdgeInsets.all(18);
+
+  static const cardRadius = 22.0;
+  static const compactCardRadius = 18.0;
+  static const controlRadius = 12.0;
+  static const searchRadius = 14.0;
+  static const buttonRadius = 13.0;
+  static const iconButtonRadius = 14.0;
+
+  static const pageTitleSize = 21.0;
+  static const sectionTitleSize = 17.0;
+  static const cardTitleSize = 15.0;
+  static const bodySize = 14.0;
+  static const compactBodySize = 13.0;
+  static const captionSize = 12.0;
+  static const tinySize = 10.0;
+  static const amountSize = 30.0;
+
+  static const titleWeight = FontWeight.w700;
+  static const sectionWeight = FontWeight.w700;
+  static const bodyHeight = 1.75;
+  static const compactBodyHeight = 1.65;
+
+  static ThemeData get theme => _buildTheme(
         fontFamily: fontFamily,
-        appBarCenterTitle: false,
+        pageTitleSize: pageTitleSize,
+        titleWeight: titleWeight,
+        sectionWeight: sectionWeight,
+        bodyHeight: bodyHeight,
         textDirection: direction,
-        pageTitleWeight: FontWeight.w700,
-        sectionWeight: FontWeight.w700,
-        bodyHeight: 1.75,
       );
 }
 
-/// English/LTR design system ported from the English frames in velixeo-design.zip.
-/// It deliberately owns its own typography and layout metrics.
+/// English/LTR presentation contract.
+///
+/// English screens are implemented independently from Persian screens. Shared
+/// data/actions are allowed; shared page composition is not the target.
 abstract final class VelixeoEnDesign {
   static const direction = TextDirection.ltr;
   static const fontFamily = 'Inter';
-  static const pagePadding = EdgeInsets.fromLTRB(20, 18, 20, 24);
-  static const appHeaderPadding = EdgeInsets.fromLTRB(22, 24, 22, 17);
-  static const cardRadius = 21.0;
-  static const controlRadius = 12.0;
-  static const buttonRadius = 13.0;
-  static const titleSize = 23.0;
-  static const sectionTitleSize = 15.0;
-  static const bodySize = 14.0;
-  static const captionSize = 11.0;
 
-  static ThemeData get theme => _theme(
+  static const pagePadding = EdgeInsets.fromLTRB(20, 18, 20, 24);
+  static const compactPagePadding = EdgeInsets.fromLTRB(18, 14, 18, 22);
+  static const appHeaderPadding = EdgeInsets.fromLTRB(22, 24, 22, 17);
+  static const cardPadding = EdgeInsets.all(24);
+  static const compactCardPadding = EdgeInsets.all(18);
+
+  static const cardRadius = 22.0;
+  static const compactCardRadius = 18.0;
+  static const controlRadius = 12.0;
+  static const searchRadius = 14.0;
+  static const buttonRadius = 13.0;
+  static const iconButtonRadius = 14.0;
+
+  static const pageTitleSize = 21.0;
+  static const sectionTitleSize = 17.0;
+  static const cardTitleSize = 15.0;
+  static const bodySize = 14.0;
+  static const compactBodySize = 13.0;
+  static const captionSize = 12.0;
+  static const tinySize = 10.0;
+  static const amountSize = 30.0;
+
+  static const titleWeight = FontWeight.w700;
+  static const sectionWeight = FontWeight.w600;
+  static const bodyHeight = 1.60;
+  static const compactBodyHeight = 1.50;
+
+  static ThemeData get theme => _buildTheme(
         fontFamily: fontFamily,
-        appBarCenterTitle: false,
+        pageTitleSize: pageTitleSize,
+        titleWeight: titleWeight,
+        sectionWeight: sectionWeight,
+        bodyHeight: bodyHeight,
         textDirection: direction,
-        pageTitleWeight: FontWeight.w700,
-        sectionWeight: FontWeight.w600,
-        bodyHeight: 1.6,
       );
 }
 
-ThemeData _theme({
+ThemeData _buildTheme({
   required String fontFamily,
-  required bool appBarCenterTitle,
-  required TextDirection textDirection,
-  required FontWeight pageTitleWeight,
+  required double pageTitleSize,
+  required FontWeight titleWeight,
   required FontWeight sectionWeight,
   required double bodyHeight,
+  required TextDirection textDirection,
 }) {
   final base = ThemeData(
     useMaterial3: true,
@@ -94,26 +142,28 @@ ThemeData _theme({
       fontFamily: fontFamily,
       color: VelixeoBrand.ink,
       fontSize: 28,
-      height: 1.6,
+      height: textDirection == TextDirection.rtl ? 1.60 : 1.35,
       fontWeight: FontWeight.w700,
     ),
     headlineSmall: base.textTheme.headlineSmall?.copyWith(
       fontFamily: fontFamily,
       color: VelixeoBrand.ink,
-      fontSize: 23,
-      height: textDirection == TextDirection.rtl ? 1.55 : 1.35,
-      fontWeight: pageTitleWeight,
+      fontSize: pageTitleSize,
+      height: textDirection == TextDirection.rtl ? 1.70 : 1.35,
+      fontWeight: titleWeight,
     ),
     titleLarge: base.textTheme.titleLarge?.copyWith(
       fontFamily: fontFamily,
       color: VelixeoBrand.ink,
-      fontSize: 18,
+      fontSize: 17,
+      height: textDirection == TextDirection.rtl ? 1.70 : 1.45,
       fontWeight: FontWeight.w700,
     ),
     titleMedium: base.textTheme.titleMedium?.copyWith(
       fontFamily: fontFamily,
       color: VelixeoBrand.ink,
       fontSize: 15,
+      height: textDirection == TextDirection.rtl ? 1.70 : 1.45,
       fontWeight: sectionWeight,
     ),
     bodyLarge: base.textTheme.bodyLarge?.copyWith(
@@ -121,27 +171,38 @@ ThemeData _theme({
       color: VelixeoBrand.ink,
       fontSize: 14,
       height: bodyHeight,
+      fontWeight: FontWeight.w400,
     ),
     bodyMedium: base.textTheme.bodyMedium?.copyWith(
       fontFamily: fontFamily,
       color: VelixeoBrand.ink,
       fontSize: 13,
       height: bodyHeight,
+      fontWeight: FontWeight.w400,
     ),
     bodySmall: base.textTheme.bodySmall?.copyWith(
       fontFamily: fontFamily,
       color: VelixeoBrand.muted,
-      fontSize: 11,
+      fontSize: 12,
       height: bodyHeight,
+      fontWeight: FontWeight.w400,
     ),
     labelLarge: base.textTheme.labelLarge?.copyWith(
       fontFamily: fontFamily,
       fontSize: 14,
+      height: textDirection == TextDirection.rtl ? 1.65 : 1.45,
       fontWeight: FontWeight.w600,
+    ),
+    labelMedium: base.textTheme.labelMedium?.copyWith(
+      fontFamily: fontFamily,
+      fontSize: 12,
+      height: textDirection == TextDirection.rtl ? 1.65 : 1.45,
+      fontWeight: FontWeight.w550,
     ),
     labelSmall: base.textTheme.labelSmall?.copyWith(
       fontFamily: fontFamily,
       fontSize: 10,
+      height: textDirection == TextDirection.rtl ? 1.65 : 1.45,
       fontWeight: FontWeight.w500,
     ),
   );
@@ -153,27 +214,38 @@ ThemeData _theme({
       backgroundColor: VelixeoBrand.background,
       foregroundColor: VelixeoBrand.ink,
       surfaceTintColor: Colors.transparent,
-      centerTitle: appBarCenterTitle,
+      centerTitle: false,
       elevation: 0,
       scrolledUnderElevation: 0,
       titleTextStyle: textTheme.titleLarge,
-      iconTheme: const IconThemeData(color: Color(0xFF637681), size: 21),
+      iconTheme: const IconThemeData(
+        color: Color(0xFF637681),
+        size: 21,
+      ),
     ),
     cardTheme: CardThemeData(
       color: Colors.white,
       elevation: 0,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(21),
+        borderRadius: BorderRadius.circular(22),
         side: const BorderSide(color: Color(0xFFEEF2F5)),
       ),
     ),
-    dividerTheme: const DividerThemeData(color: VelixeoBrand.line, thickness: 1),
+    dividerTheme: const DividerThemeData(
+      color: VelixeoBrand.line,
+      thickness: 1,
+    ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Colors.white,
-      hintStyle: textTheme.bodyMedium?.copyWith(color: const Color(0xFF99A4AB)),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      hintStyle: textTheme.bodyMedium?.copyWith(
+        color: const Color(0xFF99A4AB),
+      ),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 12,
+      ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFFDFE8ED)),
@@ -184,7 +256,10 @@ ThemeData _theme({
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: VelixeoBrand.sky, width: 1.3),
+        borderSide: const BorderSide(
+          color: VelixeoBrand.sky,
+          width: 1.3,
+        ),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -196,9 +271,15 @@ ThemeData _theme({
         backgroundColor: VelixeoBrand.sky,
         foregroundColor: const Color(0xFF183B4B),
         minimumSize: const Size(0, 44),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 10,
+        ),
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+        shadowColor: const Color(0x2138BDF8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(13),
+        ),
         textStyle: textTheme.labelLarge,
       ),
     ),
@@ -207,21 +288,38 @@ ThemeData _theme({
         foregroundColor: VelixeoBrand.ink,
         side: const BorderSide(color: VelixeoBrand.line),
         minimumSize: const Size(0, 44),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 10,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(13),
+        ),
         textStyle: textTheme.labelLarge,
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         foregroundColor: const Color(0xFF347996),
-        textStyle: textTheme.labelLarge?.copyWith(fontSize: 12),
+        textStyle: textTheme.labelMedium,
+      ),
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(
+        foregroundColor: const Color(0xFF637681),
+        backgroundColor: Colors.white,
+        side: const BorderSide(color: VelixeoBrand.line),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
       ),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+      ),
     ),
     bottomSheetTheme: const BottomSheetThemeData(
       backgroundColor: Colors.white,
@@ -231,26 +329,46 @@ ThemeData _theme({
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       backgroundColor: VelixeoBrand.ink,
-      contentTextStyle: textTheme.bodyMedium?.copyWith(color: Colors.white),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      contentTextStyle: textTheme.bodyMedium?.copyWith(
+        color: Colors.white,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
     ),
     progressIndicatorTheme: const ProgressIndicatorThemeData(
       color: VelixeoBrand.sky,
     ),
     checkboxTheme: CheckboxThemeData(
       fillColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.selected)) return VelixeoBrand.sky;
+        if (states.contains(WidgetState.selected)) {
+          return VelixeoBrand.sky;
+        }
         return Colors.white;
       }),
       side: const BorderSide(color: Color(0xFFCAD8E0)),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(4),
+      ),
+    ),
+    tabBarTheme: TabBarThemeData(
+      labelColor: const Color(0xFF2288B1),
+      unselectedLabelColor: const Color(0xFF80919D),
+      indicatorColor: VelixeoBrand.sky,
+      dividerColor: VelixeoBrand.line,
+      labelStyle: textTheme.labelMedium?.copyWith(
+        fontWeight: FontWeight.w600,
+      ),
+      unselectedLabelStyle: textTheme.labelMedium,
     ),
   );
 }
 
-/// Compatibility alias for existing business screens while the page-specific
-/// Persian/English view classes are being ported. New code should reference
-/// [VelixeoFaDesign] or [VelixeoEnDesign] directly.
+/// Compatibility alias for business widgets that do not own page layout.
+///
+/// New page composition must use [VelixeoFaDesign] or [VelixeoEnDesign]
+/// directly. Keeping the alias avoids mixing presentation refactors with
+/// unrelated API/business changes.
 abstract final class VelixeoDesign {
   static const sky = VelixeoBrand.sky;
   static const skyHover = VelixeoBrand.skyHover;
