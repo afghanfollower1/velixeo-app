@@ -692,6 +692,7 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
       ...(q.q ? {
         OR: [
           { titleEn: { contains: q.q, mode: 'insensitive' } },
+          { titleFa: { contains: q.q, mode: 'insensitive' } },
           { slug: { contains: q.q, mode: 'insensitive' } },
           { socialGroup: { contains: q.q, mode: 'insensitive' } },
         ],
@@ -709,17 +710,31 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
   });
   const rows = services.map(service => {
     const primary = service.routes[0];
-    return `<tr><td><b>${esc(service.titleEn)}</b><br><span class="mono muted">${esc(service.slug)}</span></td><td>${esc(service.socialPlatform || 'OTHER')} → ${esc(service.socialGroup || '—')}</td><td>${primary ? esc(primary.provider.name) : '—'}${service.routes.length > 1 ? ` +${service.routes.length - 1}` : ''}</td><td>${service.basePriceAfn != null ? `<span class="price-fixed">Fixed · ${money(service.basePriceAfn)}</span>` : '<span class="price-auto">Auto Markup</span>'}</td><td>${service.minQty ?? '—'} – ${service.maxQty ?? '—'}</td><td>${service.featured?pill('Featured','info'):''} ${service.enabled?pill('Live','ok'):pill('Draft / Hidden','warn')}</td><td><div class="actions">${primary ? `<a class="iconbtn" href="/admin/v3/social/provider-services?provider=${primary.providerId}&route=${primary.id}" title="Edit service">${icon('edit')}</a>` : ''}<form method="post" action="/admin/v3/social/my-services/toggle"><input type="hidden" name="id" value="${service.id}"><button class="iconbtn ${service.enabled?'orange':'green'}" title="${service.enabled?'Hide from customer app':'Publish to customer app'}">${icon('eye')}</button></form></div></td></tr>`;
+    const refillMeta = primary ? jsonObject(primary.metadata) : {};
+    const detected = primary
+      ? (typeof refillMeta._providerRefillDetected === 'boolean'
+          ? refillMeta._providerRefillDetected
+          : primary.providerRefill)
+      : false;
+    const refill = primary
+      ? (primary.providerRefill
+          ? pill(detected ? 'Enabled · Provider' : 'Enabled · Manual','ok')
+          : pill(detected ? 'Disabled manually' : 'No refill'))
+      : pill('No route');
+    const refillToggle = primary
+      ? `<form method="post" action="/admin/v3/social/my-services/refill-toggle"><input type="hidden" name="routeId" value="${primary.id}"><button class="iconbtn ${primary.providerRefill?'orange':'green'}" title="${primary.providerRefill?'Disable refill':'Enable refill'}">${icon('sync')}</button></form>`
+      : '';
+    return `<tr><td><b>${esc(service.titleFa || service.titleEn)}</b><br><span class="muted">${esc(service.titleEn)}</span><br><span class="mono tiny">${esc(service.slug)}</span></td><td>${esc(service.socialPlatform || 'OTHER')} → ${esc(service.socialGroup || '—')}</td><td>${primary ? esc(primary.provider.name) : '—'}${service.routes.length > 1 ? ` +${service.routes.length - 1}` : ''}</td><td>${service.basePriceAfn != null ? `<span class="price-fixed">Fixed · ${money(service.basePriceAfn)}</span>` : '<span class="price-auto">Auto Markup</span>'}</td><td>${service.minQty ?? '—'} – ${service.maxQty ?? '—'}</td><td><div class="actions">${refill}${refillToggle}</div>${service.refillDays ? `<span class="tiny">${service.refillDays} guarantee days</span>` : ''}</td><td>${service.featured?pill('Featured','info'):''} ${service.enabled?pill('Live','ok'):pill('Draft / Hidden','warn')}</td><td><div class="actions">${primary ? `<a class="iconbtn" href="/admin/v3/social/provider-services?provider=${primary.providerId}&route=${primary.id}" title="Edit service">${icon('edit')}</a>` : ''}<form method="post" action="/admin/v3/social/my-services/toggle"><input type="hidden" name="id" value="${service.id}"><button class="iconbtn ${service.enabled?'orange':'green'}" title="${service.enabled?'Hide from customer app':'Publish to customer app'}">${icon('eye')}</button></form></div></td></tr>`;
   }).join('');
   return shell({
     request,
     admin,
-    title: 'My Services',
-    subtitle: 'Everything you have added to VELIXEO, including drafts that customers cannot see yet.',
+    title: 'Services',
+    subtitle: 'Only services you have added to VELIXEO are shown here. Provider catalog items stay in Provider Services.',
     active: 'services',
     message: q.msg,
     error: q.error,
-    body: `<div class="card"><div class="cardhead"><form method="get" action="/admin/v3/social/my-services" class="searchbar"><input name="q" value="${esc(q.q)}" placeholder="Search service, slug or category"><button class="btn ghost">Search</button></form><a class="btn" href="/admin/v3/social/providers">${icon('plus')} Choose Provider</a></div><div class="tablewrap"><table class="table"><thead><tr><th>VELIXEO Service</th><th>Brand / Category</th><th>Provider</th><th>Pricing</th><th>Min / Max</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="empty">No VELIXEO social services yet.</td></tr>'}</tbody></table></div></div>`,
+    body: `<div class="card"><div class="cardhead"><form method="get" action="/admin/v3/social/my-services" class="searchbar"><input name="q" value="${esc(q.q)}" placeholder="Search service, slug or category"><button class="btn ghost">Search</button></form><a class="btn" href="/admin/v3/social/provider-services">${icon('plus')} Add from Provider Services</a></div><div class="notice">This list contains only VELIXEO services that you explicitly added from a provider. Use the refill switch here for a quick manual override.</div><div class="tablewrap"><table class="table"><thead><tr><th>VELIXEO Service</th><th>Brand / Category</th><th>Provider</th><th>Pricing</th><th>Min / Max</th><th>Refill</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="8" class="empty">No VELIXEO social services yet. Open Provider Services and press + to add one.</td></tr>'}</tbody></table></div></div>`,
   });
 }
 
