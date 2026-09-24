@@ -139,7 +139,7 @@ function shell(a:AdminIdentity,section:Section,body:string,tabs='',msg='',err=fa
 
 async function needAdmin(req:FastifyRequest,rep:FastifyReply,resolve:AdminResolver){const a=await resolve(req);if(!a){rep.code(303).redirect('/admin/login');return null}return a}
 async function audit(p:PrismaClient,a:string,action:string,type:string,id:string|null,summary:string,metadata?:Prisma.InputJsonValue){await p.adminAuditLog.create({data:{adminUserId:a,action,entityType:type,entityId:id,summary,metadata}})}
-function qstate(req:FastifyRequest){const q=(req.query??{}) as Record<string,unknown>;const allowed=new Set<Section>(Object.keys(meta) as Section[]);const section=String(q.section||'dashboard') as Section;return {section:allowed.has(section)?section:'dashboard' as Section,tab:String(q.tab||'overview'),q:String(q.q||'').trim().slice(0,180),filter:String(q.filter||'all').trim().slice(0,40),status:String(q.status||'all').trim().slice(0,40),kind:String(q.kind||'all').trim().slice(0,40),page:Math.max(1,i(q.page,1)),edit:String(q.edit||''),route:String(q.route||''),provider:String(q.provider||''),ticket:String(q.ticket||''),msg:String(q.msg||''),err:String(q.err||'')==='1'}}
+function qstate(req:FastifyRequest){const q=(req.query??{}) as Record<string,unknown>;const allowed=new Set<Section>(Object.keys(meta) as Section[]);const section=String(q.section||'dashboard') as Section;return {section:allowed.has(section)?section:'dashboard' as Section,tab:String(q.tab||'overview'),q:String(q.q||'').trim().slice(0,180),filter:String(q.filter||'all').trim().slice(0,40),status:String(q.status||'all').trim().slice(0,40),kind:String(q.kind||'all').trim().slice(0,40),page:Math.max(1,i(q.page,1)),edit:String(q.edit||''),route:String(q.route||''),provider:String(q.provider||''),ticket:String(q.ticket||''),order:String(q.order||''),msg:String(q.msg||''),err:String(q.err||'')==='1'}}
 function tabbar(section:Section,current:string,items:[string,string][]){return `<div class="tabs">${items.map(([k,l])=>`<a class="tab ${k===current?'active':''}" href="${href(section,`&tab=${encodeURIComponent(k)}`)}">${e(l)}</a>`).join('')}</div>`}
 function chart(values:number[]){const d=values.length?values:[0];const max=Math.max(...d,1);const pts=d.map((v,n)=>`${20+n*660/Math.max(1,d.length-1)},${190-v/max*150}`).join(' ');return `<svg class="chart" viewBox="0 0 700 215" preserveAspectRatio="none"><defs><linearGradient id="area" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#1687f8" stop-opacity=".22"/><stop offset="1" stop-color="#1687f8" stop-opacity="0"/></linearGradient></defs><g class="chart-grid">${[45,85,125,165,205].map(y=>`<line x1="20" x2="680" y1="${y}" y2="${y}"/>`).join('')}</g><polygon class="chart-area" points="${pts} 680,205 20,205"/><polyline class="chart-line" points="${pts}"/></svg>`}
 
@@ -176,6 +176,13 @@ async function usersPage(p:PrismaClient,q:string,edit:string){
  const selectedUi=`<div class="grid eq"><div>
   <div class="card"><div class="cardhead"><h2>Account Management</h2>${state(selected.status)}</div>
    <form method="post" action="/admin/v3/user"><input type="hidden" name="userId" value="${selected.id}"><div class="forms"><div class="field"><label>Role</label><select name="role"><option ${selected.role==='USER'?'selected':''}>USER</option><option ${selected.role==='ADMIN'?'selected':''}>ADMIN</option></select></div><div class="field"><label>Base Status</label><select name="status"><option ${selected.status==='ACTIVE'?'selected':''}>ACTIVE</option><option ${selected.status==='SUSPENDED'?'selected':''}>SUSPENDED</option></select></div></div><button class="btn">Save Account</button></form>
+  </div>
+  <div class="card"><div class="cardhead"><div><h2>Account Security</h2><span class="muted">Same verification state shown in the mobile app</span></div>${selected.emailVerifiedAt!=null&&selected.phoneVerifiedAt!=null&&selected.twoFactorEnabled?pill('Secure','ok'):pill('Needs attention','warn')}</div>
+   <div class="grid eq" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:9px">
+    <div class="notice" style="margin:0"><b>Email</b><br>${selected.emailVerifiedAt!=null?pill('Verified','ok'):pill('Not verified','warn')}</div>
+    <div class="notice" style="margin:0"><b>Phone</b><br>${selected.phoneVerifiedAt!=null?pill('Verified','ok'):pill('Not verified','warn')}</div>
+    <div class="notice" style="margin:0"><b>Two-factor</b><br>${selected.twoFactorEnabled?pill('Enabled','ok'):pill('Disabled','warn')}</div>
+   </div>
   </div>
   <div class="card"><div class="cardhead"><h2>Access & Safety Controls</h2>${pill(accessLabel,accessLabel==='ACTIVE'?'ok':'warn')}</div>
    ${accessInfo?`<div class="notice" style="margin-bottom:10px">${accessInfo}</div>`:''}
@@ -313,7 +320,7 @@ function orderStatusControls(o:any){
   ${override?`<form method="post" action="/admin/v3/order-status-provider" style="margin-top:5px"><input type="hidden" name="id" value="${e(o.id)}"><button class="btn ghost" style="padding:6px 8px">Use Provider</button></form>`:''}`;
 }
 
-function ordersTable(rows:any[]){return `<div class="card"><div class="cardhead"><h2>Orders</h2>${pill(`${rows.length} shown`,'info')}</div><div class="tablewrap"><table class="table"><thead><tr><th>#</th><th>User</th><th>Service</th><th>Type / Provider</th><th>Amount</th><th>Status</th><th>Created</th><th>Admin</th></tr></thead><tbody>${rows.map(o=>{const m=adminOrderMeta(o),run=o._dripRun as any;const display=run?`${e(o.publicOrderNumber??sid(o.id))}-R${run.index}`:e(o.publicOrderNumber??sid(o.id));return`<tr><td>${display}<br><span class="mono muted">${run?`Drip ${e(run.index)}/${e(run.runs)}`:e(o.providerOrderId||'—')}</span></td><td>${e(o.user?.fullName||o.user?.email||o.user?.phone||'—')}</td><td><b>${e(o.service?.titleEn||o.service?.titleFa||o.category)}</b><br><span class="muted">${e(o.category)}</span></td><td>${run?pill(`Run ${run.index}/${run.runs}`,'info'):(m.drip?pill('Drip-feed','info'):'')} ${m.refill?pill('Refill','warn'):''}<br><span class="muted">${e(o.provider?.name||'—')}</span>${run?`<br><span class="muted">${e(o.quantity??0)} qty · scheduled ${dt(run.scheduledAt)}</span>`:(m.drip?`<br><span class="muted">${e(m.unit)} × ${e(m.runs)} · ${e(m.interval)} min · ${e(m.dripStatus)}</span>`:'')}${m.refill?`<br><span class="muted">Refill: ${e(m.refill.status)}</span>`:''}</td><td class="money">${money(o.totalAmountAfn)}</td><td>${state(o.status)}${!run&&m.drip?`<br>${pill(m.dripStatus,m.dripStatus.toLowerCase()==='active'?'info':m.dripStatus.toLowerCase()==='finished'?'ok':'warn')}`:''}${!run&&m.output.adminStatusOverride===true?'<br><span class="pill warn">Admin Override</span>':''}</td><td>${run?dt(run.scheduledAt):dt(o.createdAt)}</td><td>${run?'<span class="muted">Managed by Drip-feed</span>':orderStatusControls(o)}</td></tr>`}).join('')||'<tr><td colspan="8" class="empty">No orders found.</td></tr>'}</tbody></table></div></div>`}
+function ordersTable(rows:any[]){return `<div class="card"><div class="cardhead"><h2>Orders</h2>${pill(`${rows.length} shown`,'info')}</div><div class="tablewrap"><table class="table"><thead><tr><th>#</th><th>User</th><th>Service</th><th>Type / Provider</th><th>Amount</th><th>Status</th><th>Created</th><th>Admin</th></tr></thead><tbody>${rows.map(o=>{const m=adminOrderMeta(o),run=o._dripRun as any;const display=run?`${e(o.publicOrderNumber??sid(o.id))}-R${run.index}`:e(o.publicOrderNumber??sid(o.id));return`<tr><td>${display}<br><span class="mono muted">${run?`Drip ${e(run.index)}/${e(run.runs)}`:e(o.providerOrderId||'—')}</span></td><td>${e(o.user?.fullName||o.user?.email||o.user?.phone||'—')}</td><td><b>${e(o.service?.titleEn||o.service?.titleFa||o.category)}</b><br><span class="muted">${e(o.category)}</span></td><td>${run?pill(`Run ${run.index}/${run.runs}`,'info'):(m.drip?pill('Drip-feed','info'):'')} ${m.refill?pill('Refill','warn'):''}<br><span class="muted">${e(o.provider?.name||'—')}</span>${run?`<br><span class="muted">${e(o.quantity??0)} qty · scheduled ${dt(run.scheduledAt)}</span>`:(m.drip?`<br><span class="muted">${e(m.unit)} × ${e(m.runs)} · ${e(m.interval)} min · ${e(m.dripStatus)}</span>`:'')}${m.refill?`<br><span class="muted">Refill: ${e(m.refill.status)}</span>`:''}</td><td class="money">${money(o.totalAmountAfn)}</td><td>${state(o.status)}${!run&&m.drip?`<br>${pill(m.dripStatus,m.dripStatus.toLowerCase()==='active'?'info':m.dripStatus.toLowerCase()==='finished'?'ok':'warn')}`:''}${!run&&m.output.adminStatusOverride===true?'<br><span class="pill warn">Admin Override</span>':''}</td><td>${run?dt(run.scheduledAt):dt(o.createdAt)}</td><td>${run?'<span class="muted">Managed by Drip-feed</span>':orderStatusControls(o)}<div style="margin-top:7px"><a class="btn ghost" href="/admin/v3?section=orders&order=${encodeURIComponent(String(o.id))}">View details</a></div></td></tr>`}).join('')||'<tr><td colspan="8" class="empty">No orders found.</td></tr>'}</tbody></table></div></div>`}
 function logsTable(rows:any[]){return `<div class="card"><div class="cardhead"><h2>API / Order Action Logs</h2><span class="muted">Latest provider interactions</span></div><div class="tablewrap"><table class="table"><thead><tr><th>Time</th><th>Order</th><th>Action</th><th>Status</th><th>Provider Reference</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${dt(x.createdAt)}</td><td>${sid(x.orderId)}</td><td class="mono">${e(x.action)}</td><td>${state(x.status)}</td><td class="mono">${e(x.providerReference||'—')}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">No logs yet.</td></tr>'}</tbody></table></div></div>`}
 
 async function genericModule(p:PrismaClient,section:Section,category:ServiceCategory,kind:ProviderKind,tab:string,edit:string){const tb=tabbar(section,tab,[['overview','Overview'],['providers','Providers'],['services','Services'],['orders','Orders'],['logs','API Logs']]);const [providers,services,orders]=await Promise.all([providerFormData(p,kind),p.service.findMany({where:{category},include:{routes:{include:{provider:true}}},orderBy:[{enabled:'desc'},{sortOrder:'asc'}],take:250}),p.order.findMany({where:{category},include:{user:true,service:true,provider:true},orderBy:{createdAt:'desc'},take:130})]);if(tab==='providers'){const x=edit?providers.find(y=>y.id===edit):undefined;return{tabs:tb,body:`<div class="grid"><div><div class="card"><div class="cardhead"><h2>Providers</h2>${pill(`${providers.length}`,'info')}</div>${providers.map(y=>`<div class="provider"><div class="plogo">${e(y.name.charAt(0))}</div><div><b>${e(y.name)}</b><small class="mono">${e(y.baseUrl||'No URL')}</small></div>${y.enabled?pill('Active','ok'):pill('Disabled','bad')}<a class="btn ghost" href="${href(section,`&tab=providers&edit=${y.id}`)}">Edit</a></div>`).join('')||'<div class="empty">No providers yet.</div>'}</div>${x?`<div class="card"><div class="cardhead"><h2>Encrypted Credential</h2>${x.secretCiphertext?pill('Configured','ok'):pill('Missing','warn')}</div><form method="post" action="/admin/v3/provider-secret"><input type="hidden" name="id" value="${x.id}"><input type="hidden" name="section" value="${section}"><div class="field"><label>New API Key / Token</label><textarea class="mono" name="secret" required></textarea></div><button class="btn">Save Secret</button></form></div>`:''}</div><div class="card"><div class="cardhead"><h2>${x?'Edit Provider':'Add Provider'}</h2></div>${providerEditor(section,kind,x)}</div></div>`}}if(tab==='orders')return{tabs:tb,body:ordersTable(orders)};if(tab==='logs'){const logs=await p.orderActionLog.findMany({where:{order:{category}},orderBy:{createdAt:'desc'},take:150});return{tabs:tb,body:logsTable(logs)}}if(tab==='services')return{tabs:tb,body:`<div class="card"><div class="cardhead"><h2>Services</h2>${pill(`${services.length}`,'info')}</div><div class="tablewrap"><table class="table"><thead><tr><th>Service</th><th>Provider Routes</th><th>Price</th><th>Min / Max</th><th>Status</th></tr></thead><tbody>${services.map(s=>`<tr><td><b>${e(s.titleEn||s.titleFa)}</b><br><span class="mono muted">${e(s.slug)}</span></td><td>${s.routes.map(r=>e(r.provider.name)).join(', ')||'—'}</td><td>${s.basePriceAfn!=null?money(s.basePriceAfn):'Dynamic'}</td><td>${s.minQty??'—'} – ${s.maxQty??'—'}</td><td>${s.enabled?pill('Active','ok'):pill('Hidden','bad')}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">No services yet.</td></tr>'}</tbody></table></div></div>`};return{tabs:tb,body:`<div class="card modulehero"><div class="cardhead"><div><h2>${e(meta[section][0])} Workspace</h2><p>Independent providers, products, pricing and orders for this business module.</p></div>${ico(section==='virtual'?'phone':'service')}</div><div class="kpis"><div><b>${providers.length}</b><small>Providers</small></div><div><b>${services.length}</b><small>Services</small></div><div><b>${services.filter(x=>x.enabled).length}</b><small>Active</small></div><div><b>${orders.length}</b><small>Recent Orders</small></div></div></div>`}}
@@ -743,6 +750,73 @@ function professionalOrdersTable(rows:any[],total:number,page:number,pages:numbe
   </div>`;
 }
 
+
+async function adminOrderDetail(p:PrismaClient,id:string){
+  const o=await p.order.findUnique({
+    where:{id},
+    include:{
+      user:true,
+      provider:true,
+      actions:{orderBy:{createdAt:'desc'}},
+      service:{include:{routes:{include:{provider:true},orderBy:{priority:'asc'}}}},
+    },
+  });
+  if(!o)return '<div class="card empty"><h3>Order not found</h3><p class="muted">The requested VELIXEO order could not be found.</p><a class="btn ghost" href="/admin/v3?section=orders">Back to orders</a></div>';
+  const input=jsonObj(o.input),output=jsonObj(o.output),meta=adminOrderMeta(o),link=orderLink(o);
+  const systemId=orderDisplaySystemId(o);
+  const providerServiceId=orderProviderServiceId(o);
+  const margin=Number(o.totalAmountAfn??0)-Number(o.providerCostAfn??0);
+  const safeJson=(value:unknown)=>e(JSON.stringify(value??{},null,2));
+  const targetHtml=link
+    ? '<a href="'+e(link)+'" target="_blank" rel="noopener noreferrer">'+e(link)+'</a>'
+    : '—';
+  const actionRows=o.actions.map(x=>
+    '<tr><td>'+dt(x.createdAt)+'</td><td class="mono">'+e(x.action)+'</td><td>'+state(x.status)+'</td><td class="mono">'+e(x.providerReference||'—')+'</td></tr>'
+  ).join('')||'<tr><td colspan="4" class="empty">No order actions recorded yet.</td></tr>';
+  return `
+  <div class="order-detail-head">
+    <div><a class="btn ghost" href="/admin/v3?section=orders">&larr; Back to orders</a><h2 style="margin:16px 0 3px">Order #${e(systemId)}</h2><div class="muted mono">${e(o.id)}</div></div>
+    <div class="actions">${state(o.status)}${meta.drip?pill('Drip-feed','info'):''}${meta.refill?pill('Refill','warn'):''}</div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="sicon">${ico('wallet')}</div><div><small>Customer Amount</small><strong>${money(o.totalAmountAfn)}</strong><div class="delta">VELIXEO sale</div></div></div>
+    <div class="stat"><div class="sicon">${ico('dashboard')}</div><div><small>Provider Cost</small><strong>${money(o.providerCostAfn??0n)}</strong><div class="delta">Recorded cost</div></div></div>
+    <div class="stat"><div class="sicon">${ico('orders')}</div><div><small>Gross Margin</small><strong>${money(BigInt(Math.trunc(margin)))}</strong><div class="delta">Sale − provider cost</div></div></div>
+    <div class="stat"><div class="sicon">${ico('service')}</div><div><small>Quantity</small><strong>${e(o.quantity??meta.total??0)}</strong><div class="delta">${e(o.category)}</div></div></div>
+  </div>
+  <div class="grid eq">
+    <section class="card">
+      <div class="cardhead"><h3>Order & Service</h3>${state(o.status)}</div>
+      <div class="info"><small>VELIXEO Order ID</small><b class="mono">#${e(systemId)}</b></div>
+      <div class="info"><small>Provider API Order ID</small><b class="mono">${e(o.providerOrderId||'—')}</b></div>
+      <div class="info"><small>Service</small><b>${e(o.service?.titleEn||o.service?.titleFa||o.category)}</b><span class="muted mono">${e(providerServiceId||'—')}</span></div>
+      <div class="info"><small>Provider</small><b>${e(o.provider?.name||'No provider')}</b></div>
+      <div class="info"><small>Target / Link</small><b class="mono">${targetHtml}</b></div>
+      <div class="info"><small>Created</small><b>${dt(o.createdAt)}</b></div>
+      <div class="info"><small>Completed</small><b>${o.completedAt?dt(o.completedAt):'—'}</b></div>
+    </section>
+    <section class="card">
+      <div class="cardhead"><h3>Customer</h3><span class="muted">Real account data</span></div>
+      <div class="info"><small>Name</small><b>${e(o.user?.fullName||'—')}</b></div>
+      <div class="info"><small>Email</small><b class="mono">${e(o.user?.email||'—')}</b></div>
+      <div class="info"><small>Phone</small><b class="mono">${e(o.user?.phone||'—')}</b></div>
+      <div class="info"><small>User ID</small><b class="mono">${e(o.userId)}</b></div>
+      <div class="section-title">Admin status control</div>
+      ${orderStatusControls(o)}
+    </section>
+  </div>
+  <div class="grid eq">
+    <section class="card"><div class="cardhead"><h3>Customer / Provider Input</h3><span class="muted">Stored order payload</span></div><pre class="mono" style="white-space:pre-wrap;overflow:auto;background:#f7fafc;border:1px solid #edf2f5;border-radius:14px;padding:14px;font-size:10px;line-height:1.6">${safeJson(input)}</pre></section>
+    <section class="card"><div class="cardhead"><h3>Provider Output</h3><span class="muted">Latest stored provider data</span></div><pre class="mono" style="white-space:pre-wrap;overflow:auto;background:#f7fafc;border:1px solid #edf2f5;border-radius:14px;padding:14px;font-size:10px;line-height:1.6">${safeJson(output)}</pre></section>
+  </div>
+  <section class="card">
+    <div class="cardhead"><h3>Order Action Log</h3><span class="muted">${o.actions.length} events</span></div>
+    <div class="tablewrap"><table class="table"><thead><tr><th>Time</th><th>Action</th><th>Status</th><th>Provider Reference</th></tr></thead><tbody>
+    ${actionRows}
+    </tbody></table></div>
+  </section>`;
+}
+
 async function allOrders(p:PrismaClient,q:string,statusRaw:string,filterRaw:string,kindRaw:string,pageRaw:number){
   const validStatuses=new Set<AdminOrderStatusKey>(['all','error','awaiting_action','manual','pending','processing','inprogress','completed','partial','cancelled','refunded','unpaid','awaiting_cancel']);
   const validKinds=new Set<AdminOrderKind>(['all','social','refill','dripfeed']);
@@ -881,7 +955,74 @@ async function payments(p:PrismaClient,q:string){
   <div class="card"><div class="cardhead"><h2>Gateway Transactions</h2><span class="muted">Latest ${tx.length}</span></div><div class="tablewrap"><table class="table"><thead><tr><th>User</th><th>Gateway</th><th>Amount</th><th>Status</th><th>Reference</th><th>Created</th></tr></thead><tbody>${tx.map(x=>`<tr><td>${e(x.user.fullName||x.user.email||x.user.phone||'—')}</td><td>${e(x.gateway)}</td><td class="money">${money(x.amountAfn)}</td><td>${state(x.status)}</td><td class="mono">${e(x.externalId||x.referenceId||'—')}</td><td>${dt(x.createdAt)}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">No transactions.</td></tr>'}</tbody></table></div></div>`;
 }
 async function coupons(p:PrismaClient){const rows=await p.coupon.findMany({orderBy:{createdAt:'desc'},take:160});return `<div class="grid"><div class="card"><div class="cardhead"><h2>Coupons</h2>${pill(`${rows.length}`,'info')}</div><div class="tablewrap"><table class="table"><thead><tr><th>Code</th><th>Type</th><th>Value</th><th>Usage</th><th>Status</th></tr></thead><tbody>${rows.map(x=>`<tr><td class="mono"><b>${e(x.code)}</b></td><td>${e(x.discountType)}</td><td>${e(x.discountValue.toString())}</td><td>${x.usedCount}/${x.usageLimit??'∞'}</td><td>${x.active?pill('Active','ok'):pill('Disabled','bad')}</td></tr>`).join('')}</tbody></table></div></div><div class="card"><div class="cardhead"><h2>Create Coupon</h2><span class="muted">Fixed AFN or Percent</span></div><form method="post" action="/admin/v3/coupon"><div class="forms"><div class="field"><label>Code</label><input class="mono" name="code" required></div><div class="field"><label>Title</label><input name="title"></div><div class="field"><label>Discount Type</label><select name="discountType"><option>FIXED_AFN</option><option>PERCENT</option></select></div><div class="field"><label>Discount Value</label><input name="discountValue" required></div><div class="field"><label>Minimum Order AFN</label><input type="number" name="minOrderAfn" value="0"></div><div class="field"><label>Usage Limit</label><input type="number" name="usageLimit"></div></div><label class="check"><input type="checkbox" name="active" checked> Active</label><button class="btn">Create Coupon</button></form></div></div>`}
-async function banners(p:PrismaClient){const rows=await p.banner.findMany({where:{OR:[{actionUrl:null},{actionUrl:{notIn:['velixeo://promotions','velixeo://promotion']}}]},orderBy:[{enabled:'desc'},{sortOrder:'asc'}]});return `<div class="grid"><div class="card"><div class="cardhead"><h2>App Banners</h2>${pill(`${rows.length}`,'info')}</div>${rows.map(x=>`<div class="provider" style="grid-template-columns:58px 1fr auto"><div style="width:56px;height:36px;border-radius:8px;background:#eef5fb url('${e(x.imageUrl)}') center/cover"></div><div><b>${e(x.titleEn||x.titleFa||x.placement)}</b><small>${e(x.placement)} · ${e(x.subtitleEn||x.subtitleFa||'No subtitle')}</small></div>${x.enabled?pill('Active','ok'):pill('Hidden','bad')}</div>`).join('')||'<div class="empty">No banners.</div>'}</div><div class="card"><div class="cardhead"><div><h2>Create Banner</h2><span class="muted">Recommended Social banner: 1080×420 px (JPG or PNG)</span></div>${pill('2.57:1','info')}</div><form method="post" action="/admin/v3/banner"><div class="field"><label>Placement</label><select name="placement">${Object.values(BannerPlacement).map(x=>`<option ${x==='SERVICES_TOP'?'selected':''}>${x}</option>`).join('')}</select></div><div class="forms"><div class="field"><label>English Title</label><input name="titleEn" placeholder="Better social services, all in one place"></div><div class="field"><label>Persian Title</label><input name="titleFa" placeholder="خدمات بهتر شبکه‌های اجتماعی، همه در یک‌جا"></div></div><div class="forms"><div class="field"><label>English Subtitle</label><input name="subtitleEn"></div><div class="field"><label>Persian Subtitle</label><input name="subtitleFa"></div></div><div class="field"><label>Image URL</label><input class="mono" name="imageUrl" required placeholder="https://.../social-banner.jpg"></div><div class="forms"><div class="field"><label>English CTA</label><input name="actionLabelEn"></div><div class="field"><label>Persian CTA</label><input name="actionLabelFa"></div></div><div class="field"><label>Action URL</label><input class="mono" name="actionUrl" placeholder="velixeo://social"></div><div class="field"><label>Sort Order</label><input type="number" name="sortOrder" value="100"></div><label class="check"><input type="checkbox" name="enabled" checked> Active</label><button class="btn">Create Banner</button></form></div></div>`}
+async function banners(p:PrismaClient){
+  const rows=await p.banner.findMany({
+    where:{OR:[{actionUrl:null},{actionUrl:{notIn:['velixeo://promotions','velixeo://promotion']}}]},
+    orderBy:[{enabled:'desc'},{sortOrder:'asc'},{createdAt:'desc'}],
+  });
+  const placementOptions=(selected:BannerPlacement)=>Object.values(BannerPlacement)
+    .map(value=>`<option value="${value}" ${value===selected?'selected':''}>${e(value)}</option>`).join('');
+  const bannerEditor=(x:(typeof rows)[number])=>`
+    <details class="card" style="box-shadow:none;margin:0 0 12px;padding:14px">
+      <summary style="cursor:pointer;list-style:none;display:grid;grid-template-columns:76px 1fr auto;gap:12px;align-items:center">
+        <div style="width:76px;height:48px;border-radius:12px;overflow:hidden;background:#eef8fd;display:grid;place-items:center">
+          ${x.imageUrl?'<img src="'+e(x.imageUrl)+'" alt="" style="width:100%;height:100%;object-fit:cover">':brandMark}
+        </div>
+        <div><b>${e(x.titleEn||x.titleFa||x.placement)}</b><small>${e(x.placement)} · ${e(x.actionUrl||'No route')} · #${x.sortOrder}</small></div>
+        <div>${x.enabled?pill('Active','ok'):pill('Hidden','bad')}</div>
+      </summary>
+      <form method="post" action="/admin/v3/banner" style="margin-top:16px">
+        <input type="hidden" name="id" value="${e(x.id)}">
+        <div class="field"><label>Placement</label><select name="placement">${placementOptions(x.placement)}</select></div>
+        <div class="forms">
+          <div class="field"><label>English Title</label><input name="titleEn" value="${e(x.titleEn||'')}"></div>
+          <div class="field"><label>Persian Title</label><input name="titleFa" value="${e(x.titleFa||'')}"></div>
+        </div>
+        <div class="forms">
+          <div class="field"><label>English Subtitle</label><textarea name="subtitleEn">${e(x.subtitleEn||'')}</textarea></div>
+          <div class="field"><label>Persian Subtitle</label><textarea name="subtitleFa">${e(x.subtitleFa||'')}</textarea></div>
+        </div>
+        <div class="field"><label>Image URL (optional)</label><input class="mono" name="imageUrl" value="${e(x.imageUrl||'')}" placeholder="https://.../banner.jpg"></div>
+        <div class="forms">
+          <div class="field"><label>English CTA</label><input name="actionLabelEn" value="${e(x.actionLabelEn||'')}"></div>
+          <div class="field"><label>Persian CTA</label><input name="actionLabelFa" value="${e(x.actionLabelFa||'')}"></div>
+        </div>
+        <div class="forms">
+          <div class="field"><label>Action URL</label><input class="mono" name="actionUrl" value="${e(x.actionUrl||'')}" placeholder="velixeo://social"></div>
+          <div class="field"><label>Sort Order</label><input type="number" name="sortOrder" value="${x.sortOrder}"></div>
+        </div>
+        <label class="check"><input type="checkbox" name="enabled" ${x.enabled?'checked':''}> Active / visible in app</label>
+        <div class="actions"><button class="btn">Save changes</button></div>
+      </form>
+      <form method="post" action="/admin/v3/banner-delete" onsubmit="return confirm('Delete this banner permanently?');" style="margin-top:8px">
+        <input type="hidden" name="id" value="${e(x.id)}">
+        <button class="btn danger">Delete banner</button>
+      </form>
+    </details>`;
+  return `
+    <div class="grid">
+      <div class="card">
+        <div class="cardhead"><div><h2>App Banners</h2><span class="muted">Edit, hide or delete any banner. Social and Virtual use separate deep-link routes.</span></div>${pill(String(rows.length),'info')}</div>
+        <div class="notice"><b>Social Media:</b> SERVICES_TOP + <span class="mono">velixeo://social</span> · <b>Virtual Numbers:</b> SERVICES_TOP + <span class="mono">velixeo://virtual-numbers</span>. Only one enabled banner per destination is shown in the app.</div>
+        ${rows.map(bannerEditor).join('')||'<div class="empty">No banners.</div>'}
+      </div>
+      <div class="card">
+        <div class="cardhead"><div><h2>Create Banner</h2><span class="muted">Recommended service hero: 1080×420 px. Image is optional.</span></div>${pill('2.57:1','info')}</div>
+        <form method="post" action="/admin/v3/banner">
+          <div class="field"><label>Placement</label><select name="placement">${Object.values(BannerPlacement).map(value=>'<option value="'+value+'" '+(value===BannerPlacement.SERVICES_TOP?'selected':'')+'>'+e(value)+'</option>').join('')}</select></div>
+          <div class="forms"><div class="field"><label>English Title</label><input name="titleEn" placeholder="Better social services, all in one place"></div><div class="field"><label>Persian Title</label><input name="titleFa" placeholder="خدمات بهتر شبکه‌های اجتماعی، همه در یک‌جا"></div></div>
+          <div class="forms"><div class="field"><label>English Subtitle</label><textarea name="subtitleEn"></textarea></div><div class="field"><label>Persian Subtitle</label><textarea name="subtitleFa"></textarea></div></div>
+          <div class="field"><label>Image URL (optional)</label><input class="mono" name="imageUrl" placeholder="https://.../social-banner.jpg"></div>
+          <div class="forms"><div class="field"><label>English CTA</label><input name="actionLabelEn"></div><div class="field"><label>Persian CTA</label><input name="actionLabelFa"></div></div>
+          <div class="field"><label>Action URL</label><input class="mono" name="actionUrl" value="velixeo://social" placeholder="velixeo://social"></div>
+          <div class="field"><label>Sort Order</label><input type="number" name="sortOrder" value="100"></div>
+          <label class="check"><input type="checkbox" name="enabled" checked> Active / visible in app</label>
+          <button class="btn">Create Banner</button>
+        </form>
+      </div>
+    </div>`;
+}
+
 async function notifications(p:PrismaClient){
   const now=new Date(),today=new Date(now);today.setUTCHours(0,0,0,0);
   const [rows,users,total,todayCount,scheduled,devices,reads,pushAgg]=await Promise.all([
@@ -921,7 +1062,7 @@ async function settings(p:PrismaClient){const rows=await p.exchangeRate.findMany
 async function auditPage(p:PrismaClient){const rows=await p.adminAuditLog.findMany({include:{adminUser:true},orderBy:{createdAt:'desc'},take:260});return `<div class="card"><div class="cardhead"><h2>Audit Log</h2>${pill(`${rows.length} recent events`,'info')}</div><div class="tablewrap"><table class="table"><thead><tr><th>Time</th><th>Admin</th><th>Action</th><th>Entity</th><th>Summary</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${dt(x.createdAt)}</td><td>${e(x.adminUser.fullName||x.adminUser.email||'Admin')}</td><td class="mono">${e(x.action)}</td><td>${e(x.entityType)} ${x.entityId?sid(x.entityId):''}</td><td>${e(x.summary)}</td></tr>`).join('')}</tbody></table></div></div>`}
 
 export function registerAdminV3(app:FastifyInstance,p:PrismaClient,resolve:AdminResolver){
- app.get('/admin/v3',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const s=qstate(req);try{let body='',tabs='';if(s.section==='dashboard')body=await dashboard(p);else if(s.section==='users')body=await usersPage(p,s.q,s.edit);else if(s.section==='referrals')body=await referralsPage(p);else if(s.section==='social'){const r=await socialPage(p,s.tab,s.q,s.edit,s.provider,s.route);body=r.body;tabs=r.tabs}else if(s.section==='virtual'){const r=await virtualModule(p,s.tab,s.edit);body=r.body;tabs=r.tabs}else if(s.section==='premium'){const r=await premiumAdminPage(p,s.tab,s.edit==='new'?'':s.edit);body=r.body;tabs=r.tabs}else if(s.section==='topup'){tabs='';body='<div class="card modulehero"><div class="cardhead"><div><h2>Mobile Top-up</h2><p>Coming soon — telecom provider APIs are not connected yet.</p></div></div></div><div class="card"><div class="notice"><b>Coming soon.</b> This module stays disabled until official mobile operator APIs are connected and tested. No top-up products or provider routes are required for now.</div></div>'}else if(s.section==='accounts'){const r=await genericModule(p,'accounts',ServiceCategory.DIGITAL_ACCOUNT,ProviderKind.GENERIC,s.tab,s.edit);body=r.body;tabs=r.tabs}else if(s.section==='orders'){tabs='';body=await allOrders(p,s.q,s.status,s.filter,s.kind,s.page);}else if(s.section==='payments')body=await payments(p,s.q);else if(s.section==='coupons')body=await coupons(p);else if(s.section==='banners')body=await banners(p);else if(s.section==='notifications')body=await notifications(p);else if(s.section==='support')body=await support(p,s.ticket);else if(s.section==='settings')body=await settings(p);else body=await auditPage(p);return rep.type('text/html; charset=utf-8').send(shell(a,s.section,body,tabs,s.msg,s.err))}catch(err){req.log.error(err);return rep.type('text/html; charset=utf-8').send(shell(a,s.section,'<div class="card empty">This section could not be loaded. The error was recorded in server logs.</div>',tabs,err instanceof Error?err.message:'load_failed',true))}});
+ app.get('/admin/v3',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const s=qstate(req);try{let body='',tabs='';if(s.section==='dashboard')body=await dashboard(p);else if(s.section==='users')body=await usersPage(p,s.q,s.edit);else if(s.section==='referrals')body=await referralsPage(p);else if(s.section==='social'){const r=await socialPage(p,s.tab,s.q,s.edit,s.provider,s.route);body=r.body;tabs=r.tabs}else if(s.section==='virtual'){const r=await virtualModule(p,s.tab,s.edit);body=r.body;tabs=r.tabs}else if(s.section==='premium'){const r=await premiumAdminPage(p,s.tab,s.edit==='new'?'':s.edit);body=r.body;tabs=r.tabs}else if(s.section==='topup'){tabs='';body='<div class="card modulehero"><div class="cardhead"><div><h2>Mobile Top-up</h2><p>Coming soon — telecom provider APIs are not connected yet.</p></div></div></div><div class="card"><div class="notice"><b>Coming soon.</b> This module stays disabled until official mobile operator APIs are connected and tested. No top-up products or provider routes are required for now.</div></div>'}else if(s.section==='accounts'){const r=await genericModule(p,'accounts',ServiceCategory.DIGITAL_ACCOUNT,ProviderKind.GENERIC,s.tab,s.edit);body=r.body;tabs=r.tabs}else if(s.section==='orders'){tabs='';body=s.order?await adminOrderDetail(p,s.order):await allOrders(p,s.q,s.status,s.filter,s.kind,s.page);}else if(s.section==='payments')body=await payments(p,s.q);else if(s.section==='coupons')body=await coupons(p);else if(s.section==='banners')body=await banners(p);else if(s.section==='notifications')body=await notifications(p);else if(s.section==='support')body=await support(p,s.ticket);else if(s.section==='settings')body=await settings(p);else body=await auditPage(p);return rep.type('text/html; charset=utf-8').send(shell(a,s.section,body,tabs,s.msg,s.err))}catch(err){req.log.error(err);return rep.type('text/html; charset=utf-8').send(shell(a,s.section,'<div class="card empty">This section could not be loaded. The error was recorded in server logs.</div>',tabs,err instanceof Error?err.message:'load_failed',true))}});
  app.post('/admin/v3/virtual/banner',async(req,rep)=>{
   const a=await needAdmin(req,rep,resolve);if(!a)return;
   const b=req.body as Body;
@@ -1138,8 +1279,50 @@ export function registerAdminV3(app:FastifyInstance,p:PrismaClient,resolve:Admin
  });
 
  app.post('/admin/v3/coupon',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body;try{const x=await p.coupon.create({data:{code:t(b,'code').toUpperCase(),title:t(b,'title')||null,discountType:String(b.discountType) as CouponDiscountType,discountValue:new Prisma.Decimal(t(b,'discountValue')),minOrderAfn:BigInt(t(b,'minOrderAfn')||'0'),usageLimit:t(b,'usageLimit')?i(b.usageLimit):null,active:c(b,'active')}});await audit(p,a.id,'COUPON_CREATE','Coupon',x.id,x.code);return rep.code(303).redirect(href('coupons','&msg=Coupon created'))}catch(err){return rep.code(303).redirect(href('coupons',`&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'coupon_failed')}`))}});
- app.post('/admin/v3/banner',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body;try{const x=await p.banner.create({data:{placement:String(b.placement) as BannerPlacement,titleEn:t(b,'titleEn')||null,titleFa:t(b,'titleFa')||null,subtitleEn:t(b,'subtitleEn')||null,subtitleFa:t(b,'subtitleFa')||null,imageUrl:t(b,'imageUrl'),actionLabelEn:t(b,'actionLabelEn')||null,actionLabelFa:t(b,'actionLabelFa')||null,actionUrl:t(b,'actionUrl')||null,enabled:c(b,'enabled'),sortOrder:i(b.sortOrder,100)}});await audit(p,a.id,'BANNER_CREATE','Banner',x.id,x.titleEn||x.titleFa||x.placement);return rep.code(303).redirect(href('banners','&msg=Banner created'))}catch(err){return rep.code(303).redirect(href('banners',`&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'banner_failed')}`))}});
- app.post('/admin/v3/notification',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body;try{
+ app.post('/admin/v3/banner',async(req,rep)=>{
+  const a=await needAdmin(req,rep,resolve);if(!a)return;
+  const b=req.body as Body;
+  try{
+    const id=t(b,'id');
+    const placement=String(b.placement) as BannerPlacement;
+    if(!Object.values(BannerPlacement).includes(placement))throw new Error('Invalid banner placement');
+    const data={
+      placement,
+      titleEn:t(b,'titleEn')||null,
+      titleFa:t(b,'titleFa')||null,
+      subtitleEn:t(b,'subtitleEn')||null,
+      subtitleFa:t(b,'subtitleFa')||null,
+      imageUrl:t(b,'imageUrl'),
+      actionLabelEn:t(b,'actionLabelEn')||null,
+      actionLabelFa:t(b,'actionLabelFa')||null,
+      actionUrl:t(b,'actionUrl')||null,
+      enabled:c(b,'enabled'),
+      sortOrder:i(b.sortOrder,100),
+    };
+    const x=id?await p.banner.update({where:{id},data}):await p.banner.create({data});
+    await audit(p,a.id,id?'BANNER_UPDATE':'BANNER_CREATE','Banner',x.id,x.titleEn||x.titleFa||x.placement,{placement:x.placement,actionUrl:x.actionUrl,enabled:x.enabled,sortOrder:x.sortOrder} as unknown as Prisma.InputJsonValue);
+    return rep.code(303).redirect(href('banners',`&msg=${encodeURIComponent(id?'Banner updated':'Banner created')}`));
+  }catch(err){
+    return rep.code(303).redirect(href('banners',`&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'banner_failed')}`));
+  }
+});
+
+app.post('/admin/v3/banner-delete',async(req,rep)=>{
+  const a=await needAdmin(req,rep,resolve);if(!a)return;
+  const b=req.body as Body,id=t(b,'id');
+  try{
+    if(!id)throw new Error('Banner ID is required');
+    const existing=await p.banner.findUnique({where:{id}});
+    if(!existing)throw new Error('Banner not found');
+    await p.banner.delete({where:{id}});
+    await audit(p,a.id,'BANNER_DELETE','Banner',id,existing.titleEn||existing.titleFa||existing.placement);
+    return rep.code(303).redirect(href('banners','&msg=Banner%20deleted'));
+  }catch(err){
+    return rep.code(303).redirect(href('banners',`&err=1&msg=${encodeURIComponent(err instanceof Error?err.message:'banner_delete_failed')}`));
+  }
+});
+
+app.post('/admin/v3/notification',async(req,rep)=>{const a=await needAdmin(req,rep,resolve);if(!a)return;const b=req.body as Body;try{
    const audience=String(b.audience) as NotificationAudience,userId=t(b,'userId')||null;
    const type=String(b.type||NotificationType.SYSTEM) as NotificationType;
    const priority=String(b.priority||NotificationPriority.NORMAL) as NotificationPriority;

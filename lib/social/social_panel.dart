@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import '../core/api_service.dart';
 import '../core/models.dart';
+import '../design/velixeo_design.dart';
 import 'social_models.dart';
 
 abstract class SocialPanelHost {
@@ -177,7 +178,18 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
         .where((banner) => banner.placement == 'SERVICES_TOP')
         .toList(growable: false)
       ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-    return rows.isEmpty ? null : rows.first;
+    for (final banner in rows) {
+      final target = banner.actionUrl?.trim().toLowerCase();
+      if (target == 'velixeo://social' ||
+          target == 'velixeo://social-media') {
+        return banner;
+      }
+    }
+    for (final banner in rows) {
+      final target = banner.actionUrl?.trim().toLowerCase() ?? '';
+      if (target.isEmpty) return banner;
+    }
+    return null;
   }
 
   List<SocialBrand> get displayedBrands {
@@ -292,8 +304,21 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
       });
       final warning = result.warning == 'provider_submission_uncertain'
           ? t('سفارش ثبت شد و وضعیت Provider در حال بررسی است.', 'Order saved; provider submission is being reviewed.')
-          : t('سفارش با موفقیت ثبت شد.', 'Order placed successfully.');
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(warning)));
+          : null;
+      if (warning != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(warning)),
+        );
+      }
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => _SocialOrderSuccessPage(
+            host: host,
+            order: result.order,
+          ),
+        ),
+      );
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiError(e))));
@@ -488,17 +513,17 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
           Row(children: [
             const Icon(Icons.check_circle_rounded, color: Color(0xFF0A8B5B), size: 28),
             const SizedBox(width: 9),
-            Expanded(child: Text(t('سفارش شما با موفقیت ثبت شد', 'Your order was placed successfully'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Color(0xFF086343)))),
+            Expanded(child: Text(t('سفارش شما با موفقیت ثبت شد', 'Your order was placed successfully'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Color(0xFF086343)))),
           ]),
           const SizedBox(height: 14),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
             child: Row(children: [
-              Text(t('شناسه سفارش', 'Order ID'), style: const TextStyle(color: Color(0xFF74818B))),
+              Text(t('شناسه سفارش', 'Order ID'), style: const TextStyle(color: VelixeoBrand.muted)),
               const Spacer(),
-              SelectableText(order.displayOrderId, style: const TextStyle(fontWeight: FontWeight.w900)),
-              IconButton(onPressed: copyId, tooltip: t('کپی شناسه', 'Copy Order ID'), icon: const Icon(Icons.copy_rounded, size: 19, color: Color(0xFF38BDF8))),
+              SelectableText(order.displayOrderId, style: const TextStyle(fontWeight: FontWeight.w700)),
+              IconButton(onPressed: copyId, tooltip: t('کپی شناسه', 'Copy Order ID'), icon: const Icon(Icons.copy_rounded, size: 19, color: VelixeoBrand.sky)),
             ]),
           ),
           const SizedBox(height: 10),
@@ -535,52 +560,115 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
   }
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(t('خدمات شبکه‌های اجتماعی', 'Social Media Services')),
-        actions: [
-          IconButton(onPressed: loading ? null : load, icon: const Icon(Icons.refresh_rounded)),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAF6FF),
-                borderRadius: BorderRadius.circular(16),
+    return fa ? _buildPersianSocial(context) : _buildEnglishSocial(context);
+  }
+
+  Widget _persianSocialTabBody() {
+    if (loading) return const Center(child: CircularProgressIndicator());
+    if (error != null) {
+      return _ErrorState(
+        message: t('دریافت خدمات ممکن نشد.', 'Could not load social services.'),
+        onRetry: load,
+      );
+    }
+    if (tab == 0) return buildPersianNewOrder();
+    if (tab == 1) return buildPersianOrders();
+    if (tab == 2) return buildPersianRefills();
+    return buildPersianDripFeed();
+  }
+
+Widget _englishSocialTabBody() {
+    if (loading) return const Center(child: CircularProgressIndicator());
+    if (error != null) {
+      return _ErrorState(
+        message: t('دریافت خدمات ممکن نشد.', 'Could not load social services.'),
+        onRetry: load,
+      );
+    }
+    if (tab == 0) return buildEnglishNewOrder();
+    if (tab == 1) return buildEnglishOrders();
+    if (tab == 2) return buildEnglishRefills();
+    return buildEnglishDripFeed();
+  }
+
+  Widget _buildPersianSocial(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                child: VelixeoFaPageHeader(
+                  title: 'شبکه‌های اجتماعی',
+                  subtitle: 'به حضورت جان بده؛ سفارش، پیگیری و جبران در یک‌جا.',
+                  onBack: () => Navigator.maybePop(context),
+                  trailing: IconButton(
+                    tooltip: 'تازه‌سازی',
+                    onPressed: loading ? null : load,
+                    icon: const Icon(Icons.refresh_rounded),
+                  ),
+                ),
               ),
-              child: Row(
-                children: [
-                  Expanded(child: _TabButton(label: t('سفارش', 'New'), icon: Icons.add_shopping_cart_rounded, selected: tab == 0, onTap: () => setState(() => tab = 0))),
-                  Expanded(child: _TabButton(label: t('سفارش‌ها', 'Orders'), icon: Icons.receipt_long_rounded, selected: tab == 1, onTap: () => setState(() => tab = 1))),
-                  Expanded(child: _TabButton(label: t('جبران', 'Refill'), icon: Icons.restart_alt_rounded, selected: tab == 2, onTap: () => setState(() => tab = 2))),
-                  Expanded(child: _TabButton(label: t('دریپ‌فید', 'Drip-feed'), icon: Icons.schedule_send_rounded, selected: tab == 3, onTap: () => setState(() => tab = 3))),
-                ],
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _SocialTabBar(
+                  labels: const ['سفارش', 'سفارش‌ها', 'جبران', 'دریپ‌فید'],
+                  selected: tab,
+                  direction: TextDirection.rtl,
+                  onChanged: (value) => setState(() => tab = value),
+                ),
               ),
-            ),
+              const SizedBox(height: 5),
+              Expanded(child: _persianSocialTabBody()),
+            ],
           ),
-          Expanded(
-            child: loading
-                ? const Center(child: CircularProgressIndicator())
-                : error != null
-                    ? _ErrorState(message: t('دریافت خدمات ممکن نشد.', 'Could not load social services.'), onRetry: load)
-                    : tab == 0
-                        ? buildNewOrder()
-                        : tab == 1
-                            ? buildOrders()
-                            : tab == 2
-                                ? buildRefills()
-                                : buildDripFeed(),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget buildNewOrder() {
+  Widget _buildEnglishSocial(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Scaffold(
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                child: VelixeoEnPageHeader(
+                  title: 'Social Media',
+                  subtitle: 'Grow your presence; order, track and refill in one place.',
+                  onBack: () => Navigator.maybePop(context),
+                  trailing: IconButton(
+                    tooltip: 'Refresh',
+                    onPressed: loading ? null : load,
+                    icon: const Icon(Icons.refresh_rounded),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _SocialTabBar(
+                  labels: const ['New order', 'Orders', 'Refill', 'Drip-feed'],
+                  selected: tab,
+                  direction: TextDirection.ltr,
+                  onChanged: (value) => setState(() => tab = value),
+                ),
+              ),
+              const SizedBox(height: 5),
+              Expanded(child: _englishSocialTabBody()),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+
+  Widget buildPersianNewOrder() {
     if (catalog.services.isEmpty) {
       return _EmptyState(
         icon: Icons.hub_outlined,
@@ -592,7 +680,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     final service = selectedService;
     if (service != null) {
       return ListView(
-        padding: const EdgeInsets.all(16),
+        padding: VelixeoFaDesign.pagePadding,
         children: [
           _WalletStrip(host: host, fa: fa),
           const SizedBox(height: 14),
@@ -608,27 +696,27 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
           if (lastCreatedOrder != null)
             buildOrderSuccess(lastCreatedOrder!)
           else
-            buildOrderForm(service),
+            buildPersianOrderForm(service),
           const SizedBox(height: 24),
         ],
       );
     }
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: VelixeoFaDesign.pagePadding,
       children: [
-        _WalletStrip(host: host, fa: fa),
         if (socialBanner != null) ...[
-          const SizedBox(height: 14),
           _SocialPromoBanner(banner: socialBanner!, fa: fa),
+          const SizedBox(height: 14),
         ],
+        _WalletStrip(host: host, fa: fa),
         const SizedBox(height: 18),
         Row(
           children: [
             Expanded(
               child: Text(
                 t('شبکه‌های اجتماعی', 'Social platforms'),
-                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
               ),
             ),
             if (availableBrands.length > 6)
@@ -640,16 +728,16 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
           ],
         ),
         const SizedBox(height: 10),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            const gap = 9.0;
-            const columns = 3;
-            final width = (constraints.maxWidth - (gap * (columns - 1))) / columns;
-            return Wrap(
-              spacing: gap,
-              runSpacing: gap,
-              children: displayedBrands.map((brand) => SizedBox(
-                width: width,
+        SizedBox(
+          height: 80,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: displayedBrands.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final brand = displayedBrands[index];
+              return SizedBox(
+                width: 62,
                 child: _BrandCard(
                   brand: brand,
                   fa: fa,
@@ -661,12 +749,12 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
                     quote = null;
                   }),
                 ),
-              )).toList(growable: false),
-            );
-          },
+              );
+            },
+          ),
         ),
         const SizedBox(height: 18),
-        Text(t('نوع سرویس', 'Service type'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+        Text(t('نوع سرویس', 'Service type'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
         const SizedBox(height: 9),
         Wrap(
           spacing: 8,
@@ -699,7 +787,126 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     );
   }
 
-  Widget buildOrderForm(SocialService service) {
+Widget buildEnglishNewOrder() {
+    if (catalog.services.isEmpty) {
+      return _EmptyState(
+        icon: Icons.hub_outlined,
+        title: t('هنوز سرویس فعالی وجود ندارد', 'No active services yet'),
+        subtitle: t('سرویس‌ها بعد از Sync و فعال‌سازی از پنل مدیریت اینجا نمایش داده می‌شوند.', 'Services appear here after they are synced and enabled in Admin.'),
+      );
+    }
+
+    final service = selectedService;
+    if (service != null) {
+      return ListView(
+        padding: VelixeoEnDesign.pagePadding,
+        children: [
+          _WalletStrip(host: host, fa: fa),
+          const SizedBox(height: 14),
+          Align(
+            alignment: fa ? Alignment.centerRight : Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: changeService,
+              icon: Icon(fa ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded, size: 18),
+              label: Text(t('تغییر سرویس', 'Change service')),
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (lastCreatedOrder != null)
+            buildOrderSuccess(lastCreatedOrder!)
+          else
+            buildEnglishOrderForm(service),
+          const SizedBox(height: 24),
+        ],
+      );
+    }
+
+    return ListView(
+      padding: VelixeoEnDesign.pagePadding,
+      children: [
+        if (socialBanner != null) ...[
+          _SocialPromoBanner(banner: socialBanner!, fa: fa),
+          const SizedBox(height: 14),
+        ],
+        _WalletStrip(host: host, fa: fa),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                t('شبکه‌های اجتماعی', 'Social platforms'),
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+              ),
+            ),
+            if (availableBrands.length > 6)
+              TextButton.icon(
+                onPressed: () => setState(() => showAllBrands = !showAllBrands),
+                icon: Icon(showAllBrands ? Icons.expand_less_rounded : Icons.grid_view_rounded, size: 18),
+                label: Text(t(showAllBrands ? 'نمایش کمتر' : 'سرویس‌های بیشتر', showAllBrands ? 'Show less' : 'More services')),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 80,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: displayedBrands.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final brand = displayedBrands[index];
+              return SizedBox(
+                width: 62,
+                child: _BrandCard(
+                  brand: brand,
+                  fa: fa,
+                  selected: brand.key == selectedPlatform,
+                  onTap: () => setState(() {
+                    selectedPlatform = brand.key;
+                    selectedGroup = null;
+                    selectedService = null;
+                    quote = null;
+                  }),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 18),
+        Text(t('نوع سرویس', 'Service type'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+        const SizedBox(height: 9),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            ChoiceChip(
+              label: Text(t('همه', 'All')),
+              selected: selectedGroup == null,
+              onSelected: (_) => setState(() { selectedGroup = null; selectedService = null; quote = null; }),
+            ),
+            ...availableGroups.map((group) => ChoiceChip(
+                  label: Text(groupLabel(group)),
+                  selected: group == selectedGroup,
+                  onSelected: (_) => setState(() { selectedGroup = group; selectedService = null; quote = null; }),
+                )),
+          ],
+        ),
+        const SizedBox(height: 18),
+        ...visibleServices.map((service) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _ServiceCard(
+                service: service,
+                host: host,
+                fa: fa,
+                selected: selectedService?.id == service.id,
+                onTap: () => selectService(service),
+              ),
+            )),
+      ],
+    );
+  }
+
+  Widget buildPersianOrderForm(SocialService service) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -713,12 +920,12 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
         children: [
           Row(
             children: [
-              Expanded(child: Text(t('ثبت سفارش', 'Place order'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900))),
+              Expanded(child: Text(t('ثبت سفارش', 'Place order'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
               if (service.featured) const Icon(Icons.star_rounded, color: Color(0xFFFFA928)),
             ],
           ),
           const SizedBox(height: 6),
-          Text(fa ? service.titleFa : service.titleEn, style: const TextStyle(color: Color(0xFF74818B))),
+          Text(fa ? service.titleFa : service.titleEn, style: const TextStyle(color: VelixeoBrand.muted)),
           const SizedBox(height: 16),
           ...service.orderFields
               .where((field) => field.key != 'runs' && field.key != 'interval')
@@ -742,7 +949,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
                 controlAffinity: ListTileControlAffinity.leading,
                 title: Text(
                   t('دریپ‌فید (ارسال مرحله‌ای)', 'Drip-feed'),
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 subtitle: Text(
                   t('فقط در صورت نیاز فعال کنید.', 'Enable only if you want scheduled delivery.'),
@@ -775,7 +982,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
               padding: const EdgeInsets.only(bottom: 12),
               child: Text(
                 t('محدوده سفارش: ${service.minQty ?? '—'} تا ${service.maxQty ?? '—'}', 'Order range: ${service.minQty ?? '—'} to ${service.maxQty ?? '—'}'),
-                style: const TextStyle(fontSize: 12, color: Color(0xFF74818B)),
+                style: const TextStyle(fontSize: 12, color: VelixeoBrand.muted),
               ),
             ),
           if (service.providerEta?.trim().isNotEmpty == true)
@@ -789,7 +996,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.schedule_rounded, size: 18, color: Color(0xFF74818B)),
+                  const Icon(Icons.schedule_rounded, size: 18, color: VelixeoBrand.muted),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -863,7 +1070,200 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
                     onTap: showTerms,
                     child: Text(
                       t('مشاهده قوانین', 'terms & conditions'),
-                      style: const TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.w900),
+                      style: const TextStyle(color: VelixeoBrand.sky, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: FilledButton.icon(
+              onPressed: submitting || !termsAccepted ? null : submitOrder,
+              icon: submitting
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.lock_outline_rounded),
+              label: Text(submitting ? t('در حال ثبت...', 'Placing order...') : t('پرداخت از کیف پول و ثبت سفارش', 'Pay from wallet & place order')),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            t('مبلغ سفارش در سرور دوباره محاسبه می‌شود و Provider مستقیماً از داخل اپ قابل مشاهده نیست.', 'The server recalculates the price before purchase; provider details are never exposed in the app.'),
+            style: const TextStyle(fontSize: 11, color: Color(0xFF7D92A4), height: 1.4),
+          ),
+        ],
+      ),
+    );
+  }
+
+Widget buildEnglishOrderForm(SocialService service) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFDCE8F1)),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: const [BoxShadow(color: Color(0x0A102235), blurRadius: 18, offset: Offset(0, 6))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text(t('ثبت سفارش', 'Place order'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
+              if (service.featured) const Icon(Icons.star_rounded, color: Color(0xFFFFA928)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(fa ? service.titleFa : service.titleEn, style: const TextStyle(color: VelixeoBrand.muted)),
+          const SizedBox(height: 16),
+          ...service.orderFields
+              .where((field) => field.key != 'runs' && field.key != 'interval')
+              .map((field) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: buildField(field),
+                  )),
+          if (service.orderFields.any((field) => field.key == 'runs' || field.key == 'interval')) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7FAFD),
+                border: Border.all(color: const Color(0xFFDCE8F1)),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: CheckboxListTile(
+                value: dripFeedEnabled,
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: Text(
+                  t('دریپ‌فید (ارسال مرحله‌ای)', 'Drip-feed'),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  t('فقط در صورت نیاز فعال کنید.', 'Enable only if you want scheduled delivery.'),
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF718399)),
+                ),
+                onChanged: (value) {
+                  final enabled = value == true;
+                  if (!enabled) {
+                    fields['runs']?.clear();
+                    fields['interval']?.clear();
+                  }
+                  setState(() {
+                    dripFeedEnabled = enabled;
+                    quote = null;
+                  });
+                  scheduleQuote();
+                },
+              ),
+            ),
+            if (dripFeedEnabled)
+              ...service.orderFields
+                  .where((field) => field.key == 'runs' || field.key == 'interval')
+                  .map((field) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: buildField(field),
+                      )),
+          ],
+          if (service.minQty != null || service.maxQty != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                t('محدوده سفارش: ${service.minQty ?? '—'} تا ${service.maxQty ?? '—'}', 'Order range: ${service.minQty ?? '—'} to ${service.maxQty ?? '—'}'),
+                style: const TextStyle(fontSize: 12, color: VelixeoBrand.muted),
+              ),
+            ),
+          if (service.providerEta?.trim().isNotEmpty == true)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4F7FA),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.schedule_rounded, size: 18, color: VelixeoBrand.muted),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${t('زمان تقریبی تکمیل', 'Estimated completion')}: ${service.providerEta!}',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          TextField(
+            controller: coupon,
+            textCapitalization: TextCapitalization.characters,
+            decoration: InputDecoration(
+              labelText: t('کد تخفیف', 'Coupon code'),
+              hintText: t('اختیاری', 'Optional'),
+              prefixIcon: const Icon(Icons.local_offer_outlined),
+              suffixIcon: coupon.text.trim().isEmpty
+                  ? null
+                  : IconButton(onPressed: coupon.clear, icon: const Icon(Icons.close_rounded)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(color: const Color(0xFFF4FAFF), borderRadius: BorderRadius.circular(16)),
+            child: Column(
+              children: [
+                _InfoRow(label: t('نرخ', 'Rate'), value: '${host.money(service.priceRateAfn, showBase: true)} / ${service.priceUnit}'),
+                if (quote != null && quote!.runs > 1) ...[
+                  const SizedBox(height: 8),
+                  _InfoRow(
+                    label: t('تعداد کل', 'Total quantity'),
+                    value: '${quote!.quantity} × ${quote!.runs} = ${quote!.totalQuantity}',
+                    strong: true,
+                  ),
+                ],
+                if (quote != null && quote!.discountAmountAfn > 0) ...[
+                  const SizedBox(height: 8),
+                  _InfoRow(label: t('جمع قبل از تخفیف', 'Subtotal'), value: host.money(quote!.subtotalAmountAfn, showBase: true)),
+                  const SizedBox(height: 8),
+                  _InfoRow(label: t('تخفیف', 'Discount'), value: '- ${host.money(quote!.discountAmountAfn, showBase: true)}'),
+                ],
+                const SizedBox(height: 8),
+                _InfoRow(
+                  label: t('قیمت نهایی', 'Total'),
+                  value: quote == null ? t('پس از تکمیل فرم', 'Complete the form') : host.money(quote!.totalAmountAfn, showBase: true),
+                  strong: true,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              border: Border.all(color: termsAccepted ? const Color(0xFFBFE8D6) : const Color(0xFFDCE8F1)),
+              borderRadius: BorderRadius.circular(14),
+              color: termsAccepted ? const Color(0xFFF0FBF6) : const Color(0xFFFAFCFE),
+            ),
+            child: CheckboxListTile(
+              value: termsAccepted,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              onChanged: (value) => setState(() => termsAccepted = value == true),
+              title: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(t('قوانین و مقررات را خوانده‌ام و می‌پذیرم. ', 'I have read and accept the ')),
+                  InkWell(
+                    onTap: showTerms,
+                    child: Text(
+                      t('مشاهده قوانین', 'terms & conditions'),
+                      style: const TextStyle(color: VelixeoBrand.sky, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ],
@@ -944,7 +1344,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     );
   }
 
-  Widget buildOrders() {
+  Widget buildPersianOrders() {
     final cards = <Widget>[];
     for (final order in orders) {
       if (order.isDripFeed) {
@@ -1000,7 +1400,63 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     );
   }
 
-  Widget buildRefills() {
+Widget buildEnglishOrders() {
+    final cards = <Widget>[];
+    for (final order in orders) {
+      if (order.isDripFeed) {
+        for (final run in order.dripRuns) {
+          cards.add(
+            _DripRunOrderCard(
+              order: order,
+              run: run,
+              host: host,
+              fa: fa,
+              statusLabel: statusLabel,
+              onRefresh: refreshOrder,
+            ),
+          );
+        }
+      } else {
+        cards.add(
+          _OrderCard(
+            order: order,
+            host: host,
+            fa: fa,
+            statusLabel: statusLabel,
+            onRefresh: refreshOrder,
+            onRefill: requestRefill,
+            onCancel: cancelOrder,
+            onRefreshAction: refreshRefill,
+          ),
+        );
+      }
+    }
+
+    if (cards.isEmpty) {
+      return _EmptyState(
+        icon: Icons.receipt_long_outlined,
+        title: t('هنوز سفارش شبکه اجتماعی ندارید', 'No social orders yet'),
+        subtitle: t('بعد از ثبت سفارش، هر اجرای Drip-feed نیز به‌صورت یک سفارش جداگانه در همین بخش نمایش داده می‌شود.', 'After ordering, every drip-feed run is also shown here as its own order row.'),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: () async {
+        orders = await host.api.socialOrders();
+        if (mounted) setState(() {});
+      },
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: cards.length,
+        itemBuilder: (context, index) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: cards[index],
+        ),
+      ),
+    );
+  }
+
+  Widget buildPersianRefills() {
     final rows = <({SocialOrder order, SocialOrderAction action})>[];
     for (final order in orders) {
       for (final action in order.actions) {
@@ -1035,7 +1491,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
-                  Expanded(child: Text(fa ? (row.order.serviceTitleFa ?? 'سرویس') : (row.order.serviceTitleEn ?? 'Service'), style: const TextStyle(fontWeight: FontWeight.w900))),
+                  Expanded(child: Text(fa ? (row.order.serviceTitleFa ?? 'سرویس') : (row.order.serviceTitleEn ?? 'Service'), style: const TextStyle(fontWeight: FontWeight.w700))),
                   _StatusBadge(label: refillStatusLabel(action.status), status: action.status),
                 ]),
                 const SizedBox(height: 10),
@@ -1054,7 +1510,61 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     );
   }
 
-  Widget buildDripFeed() {
+Widget buildEnglishRefills() {
+    final rows = <({SocialOrder order, SocialOrderAction action})>[];
+    for (final order in orders) {
+      for (final action in order.actions) {
+        if (action.action == 'REFILL') rows.add((order: order, action: action));
+      }
+    }
+    if (rows.isEmpty) {
+      return _EmptyState(
+        icon: Icons.restart_alt_rounded,
+        title: t('هنوز درخواست جبران ندارید', 'No refill requests yet'),
+        subtitle: t('درخواست‌های جبران ریزش و وضعیت واقعی آن‌ها از ارائه‌دهنده در این بخش نمایش داده می‌شود.', 'Refill requests and their live provider status appear here.'),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: autoSyncOrders,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: rows.length,
+        itemBuilder: (context, index) {
+          final row = rows[index];
+          final action = row.action;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: const Color(0xFFDCE8F1)),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Expanded(child: Text(fa ? (row.order.serviceTitleFa ?? 'سرویس') : (row.order.serviceTitleEn ?? 'Service'), style: const TextStyle(fontWeight: FontWeight.w700))),
+                  _StatusBadge(label: refillStatusLabel(action.status), status: action.status),
+                ]),
+                const SizedBox(height: 10),
+                _InfoRow(label: t('شناسه سفارش', 'Order ID'), value: row.order.displayOrderId),
+                if (action.providerReference?.isNotEmpty == true) ...[
+                  const SizedBox(height: 7),
+                  _InfoRow(label: t('شناسه جبران', 'Refill ID'), value: action.providerReference!),
+                ],
+                const SizedBox(height: 7),
+                _InfoRow(label: t('تاریخ درخواست', 'Requested'), value: action.createdAt.toLocal().toString().substring(0, 16)),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget buildPersianDripFeed() {
     final rows = orders.where((order) => order.isDripFeed).toList(growable: false);
     if (rows.isEmpty) {
       return _EmptyState(
@@ -1083,7 +1593,85 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
-                  Expanded(child: Text(fa ? (order.serviceTitleFa ?? 'سرویس') : (order.serviceTitleEn ?? 'Service'), style: const TextStyle(fontWeight: FontWeight.w900))),
+                  Expanded(child: Text(fa ? (order.serviceTitleFa ?? 'سرویس') : (order.serviceTitleEn ?? 'Service'), style: const TextStyle(fontWeight: FontWeight.w700))),
+                  _StatusBadge(label: dripFeedStatusLabel(order.dripFeedStatus), status: order.dripFeedStatus),
+                ]),
+                const SizedBox(height: 10),
+                _InfoRow(label: t('شناسه سفارش', 'Order ID'), value: order.displayOrderId),
+                const SizedBox(height: 7),
+                _InfoRow(label: t('تعداد هر اجرا', 'Per run'), value: '${order.dripFeedUnitQuantity}'),
+                const SizedBox(height: 7),
+                _InfoRow(label: t('اجرا شده / کل اجرا', 'Runs'), value: '${order.dripFeedRunsCurrent} / ${order.dripFeedRunsAll}'),
+                const SizedBox(height: 7),
+                _InfoRow(label: t('فاصله زمانی', 'Interval'), value: '${order.dripFeedInterval} ${t('دقیقه', 'min')}'),
+                const SizedBox(height: 7),
+                _InfoRow(label: t('تعداد کل', 'Total quantity'), value: '${order.dripFeedUnitQuantity} × ${order.dripFeedRunsAll} = ${order.dripFeedTotalQuantity}', strong: true),
+                if (order.startCount != null || order.remains != null) ...[
+                  const Divider(height: 22),
+                  Wrap(
+                    spacing: 18,
+                    children: [
+                      if (order.startCount != null) Text('${t('شروع', 'Start')}: ${order.startCount}'),
+                      if (order.remains != null) Text('${t('باقی‌مانده', 'Remains')}: ${order.remains}'),
+                    ],
+                  ),
+                ],
+                const Divider(height: 22),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () => refreshOrder(order),
+                      icon: const Icon(Icons.sync_rounded, size: 17),
+                      label: Text(t('بروزرسانی وضعیت', 'Refresh status')),
+                    ),
+                    if (order.canCancel)
+                      OutlinedButton.icon(
+                        onPressed: () => cancelOrder(order),
+                        icon: const Icon(Icons.cancel_outlined, size: 17),
+                        label: Text(t('لغو', 'Cancel')),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+Widget buildEnglishDripFeed() {
+    final rows = orders.where((order) => order.isDripFeed).toList(growable: false);
+    if (rows.isEmpty) {
+      return _EmptyState(
+        icon: Icons.schedule_send_rounded,
+        title: t('هنوز سفارش Drip-feed ندارید', 'No drip-feed orders yet'),
+        subtitle: t('سفارش‌های مرحله‌ای، تعداد هر اجرا، Runs، Interval و وضعیت زنده Provider در این بخش نمایش داده می‌شود.', 'Scheduled orders, per-run quantity, runs, interval and live provider status appear here.'),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: autoSyncOrders,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: rows.length,
+        itemBuilder: (context, index) {
+          final order = rows[index];
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: const Color(0xFFDCE8F1)),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Expanded(child: Text(fa ? (order.serviceTitleFa ?? 'سرویس') : (order.serviceTitleEn ?? 'Service'), style: const TextStyle(fontWeight: FontWeight.w700))),
                   _StatusBadge(label: dripFeedStatusLabel(order.dripFeedStatus), status: order.dripFeedStatus),
                 ]),
                 const SizedBox(height: 10),
@@ -1183,6 +1771,380 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     };
     return fa ? (faLabels[group] ?? group) : (enLabels[group] ?? group);
   }
+}
+
+
+class _SocialOrderSuccessPage extends StatelessWidget {
+  const _SocialOrderSuccessPage({
+    required this.host,
+    required this.order,
+  });
+
+  final SocialPanelHost host;
+  final SocialOrder order;
+
+  @override
+  Widget build(BuildContext context) => host.fa
+      ? _buildPersianPage(context)
+      : _buildEnglishPage(context);
+
+Widget _buildPersianPage(BuildContext context) {
+    final fa = host.fa;
+    final title = fa
+        ? (order.serviceTitleFa ?? 'سفارش شبکه اجتماعی')
+        : (order.serviceTitleEn ?? 'Social media order');
+    final target = order.orderLink ?? '—';
+    return Directionality(
+      textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        appBar: const VelixeoFaAppBar(
+          title: 'نتیجهٔ سفارش',
+          subtitle: 'خلاصهٔ سفارش و وضعیت ثبت آن.',
+        ),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 26, 20, 30),
+          children: [
+            Center(
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF8F1),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: const Icon(
+                  Icons.check_rounded,
+                  color: VelixeoBrand.green,
+                  size: 34,
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              fa ? 'سفارش ثبت شد' : 'Order placed',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              fa
+                  ? 'از اینجا به بعد، مسیر سفارشت را دنبال کن.'
+                  : 'Follow your order from here.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 11,
+                color: VelixeoBrand.muted,
+              ),
+            ),
+            const SizedBox(height: 23),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(19),
+                border: Border.all(color: const Color(0xFFEEF2F5)),
+              ),
+              child: Column(
+                children: [
+                  _SocialSuccessLine(
+                    label: fa ? 'شناسه سفارش' : 'Order ID',
+                    value: order.displayOrderId,
+                    ltr: true,
+                  ),
+                  _SocialSuccessLine(
+                    label: fa ? 'خدمت' : 'Service',
+                    value: title,
+                  ),
+                  _SocialSuccessLine(
+                    label: fa ? 'مقصد' : 'Target',
+                    value: target,
+                    ltr: true,
+                  ),
+                  _SocialSuccessLine(
+                    label: fa ? 'تعداد' : 'Quantity',
+                    value: (order.quantity ?? order.totalQuantity).toString(),
+                    ltr: true,
+                  ),
+                  _SocialSuccessLine(
+                    label: fa ? 'مبلغ کسرشده' : 'Amount deducted',
+                    value: host.money(order.totalAmountAfn, showBase: true),
+                    ltr: true,
+                    last: true,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.receipt_long_rounded, size: 18),
+              label: Text(fa ? 'پیگیری سفارش' : 'Track order'),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton(
+              onPressed: () => Navigator.popUntil(
+                context,
+                (route) => route.isFirst,
+              ),
+              child: Text(fa ? 'بازگشت به خانه' : 'Back to home'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+Widget _buildEnglishPage(BuildContext context) {
+    final fa = host.fa;
+    final title = fa
+        ? (order.serviceTitleFa ?? 'سفارش شبکه اجتماعی')
+        : (order.serviceTitleEn ?? 'Social media order');
+    final target = order.orderLink ?? '—';
+    return Directionality(
+      textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        appBar: const VelixeoEnAppBar(
+          title: 'Order Result',
+          subtitle: 'Order summary and placement status.',
+        ),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 26, 20, 30),
+          children: [
+            Center(
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF8F1),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: const Icon(
+                  Icons.check_rounded,
+                  color: VelixeoBrand.green,
+                  size: 34,
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              fa ? 'سفارش ثبت شد' : 'Order placed',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              fa
+                  ? 'از اینجا به بعد، مسیر سفارشت را دنبال کن.'
+                  : 'Follow your order from here.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 11,
+                color: VelixeoBrand.muted,
+              ),
+            ),
+            const SizedBox(height: 23),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(19),
+                border: Border.all(color: const Color(0xFFEEF2F5)),
+              ),
+              child: Column(
+                children: [
+                  _SocialSuccessLine(
+                    label: fa ? 'شناسه سفارش' : 'Order ID',
+                    value: order.displayOrderId,
+                    ltr: true,
+                  ),
+                  _SocialSuccessLine(
+                    label: fa ? 'خدمت' : 'Service',
+                    value: title,
+                  ),
+                  _SocialSuccessLine(
+                    label: fa ? 'مقصد' : 'Target',
+                    value: target,
+                    ltr: true,
+                  ),
+                  _SocialSuccessLine(
+                    label: fa ? 'تعداد' : 'Quantity',
+                    value: (order.quantity ?? order.totalQuantity).toString(),
+                    ltr: true,
+                  ),
+                  _SocialSuccessLine(
+                    label: fa ? 'مبلغ کسرشده' : 'Amount deducted',
+                    value: host.money(order.totalAmountAfn, showBase: true),
+                    ltr: true,
+                    last: true,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.receipt_long_rounded, size: 18),
+              label: Text(fa ? 'پیگیری سفارش' : 'Track order'),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton(
+              onPressed: () => Navigator.popUntil(
+                context,
+                (route) => route.isFirst,
+              ),
+              child: Text(fa ? 'بازگشت به خانه' : 'Back to home'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SocialSuccessLine extends StatelessWidget {
+  const _SocialSuccessLine({
+    required this.label,
+    required this.value,
+    this.ltr = false,
+    this.last = false,
+  });
+
+  final String label;
+  final String value;
+  final bool ltr;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        constraints: const BoxConstraints(minHeight: 51),
+        decoration: BoxDecoration(
+          border: last
+              ? null
+              : const Border(
+                  bottom: BorderSide(color: Color(0xFFF1F4F6)),
+                ),
+        ),
+        child: Row(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 10.5,
+                color: VelixeoBrand.muted,
+              ),
+            ),
+            const Spacer(),
+            Flexible(
+              child: Text(
+                value,
+                textDirection: ltr ? TextDirection.ltr : null,
+                textAlign: TextAlign.end,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF4E6978),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _SocialTabBar extends StatelessWidget {
+  const _SocialTabBar({
+    required this.labels,
+    required this.selected,
+    required this.direction,
+    required this.onChanged,
+  });
+
+  final List<String> labels;
+  final int selected;
+  final TextDirection direction;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+        textDirection: direction,
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0F5F8),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: List.generate(labels.length, (index) {
+              final active = selected == index;
+              final icons = const [
+                Icons.add_shopping_cart_rounded,
+                Icons.receipt_long_rounded,
+                Icons.restart_alt_rounded,
+                Icons.schedule_send_rounded,
+              ];
+              return Expanded(
+                child: InkWell(
+                  onTap: () => onChanged(index),
+                  borderRadius: BorderRadius.circular(9),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    height: 39,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: active ? Colors.white : Colors.transparent,
+                      borderRadius: BorderRadius.circular(9),
+                      boxShadow: active
+                          ? const [
+                              BoxShadow(
+                                color: Color(0x0F536D7B),
+                                blurRadius: 8,
+                                offset: Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          icons[index],
+                          size: 15,
+                          color: active
+                              ? const Color(0xFF2E8DB5)
+                              : const Color(0xFF8B9BA5),
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            labels[index],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                              color: active
+                                  ? const Color(0xFF2E7898)
+                                  : const Color(0xFF8799A4),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      );
 }
 
 class _WalletStrip extends StatelessWidget {
@@ -1294,7 +2256,7 @@ class _SocialPromoBanner extends StatelessWidget {
                               color: Colors.white,
                               fontSize: 16,
                               height: 1.2,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         if (title.isNotEmpty && subtitle.isNotEmpty) const SizedBox(height: 5),
@@ -1380,34 +2342,61 @@ class _BrandCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          constraints: const BoxConstraints(minHeight: 92),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? const Color(0xFF38BDF8) : Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: selected ? const Color(0xFF38BDF8) : const Color(0xFFDCE8F1)),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconTheme(
-                data: IconThemeData(color: selected ? Colors.white : const Color(0xFF38BDF8)),
-                child: iconWidget(),
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: selected
+                    ? const Color(0xFFE9F7FD)
+                    : const Color(0xFFF3F7FA),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: selected
+                      ? const Color(0xFF6BC7EE)
+                      : const Color(0xFFE9F0F4),
+                ),
+                boxShadow: selected
+                    ? const [
+                        BoxShadow(
+                          color: Color(0x1A40B8E6),
+                          blurRadius: 10,
+                          offset: Offset(0, 3),
+                        ),
+                      ]
+                    : null,
               ),
-              const SizedBox(height: 7),
-              Text(
-                fa ? brand.titleFa : brand.titleEn,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: selected ? Colors.white : const Color(0xFF102235)),
+              child: IconTheme(
+                data: IconThemeData(
+                  color: selected
+                      ? const Color(0xFF229FD3)
+                      : const Color(0xFF91A7B5),
+                ),
+                child: Center(child: iconWidget()),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              fa ? brand.titleFa : brand.titleEn,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                color: selected
+                    ? const Color(0xFF198DBD)
+                    : const Color(0xFF6E8390),
+              ),
+            ),
+          ],
         ),
       );
+
 }
 
 class _ServiceCard extends StatelessWidget {
@@ -1449,10 +2438,10 @@ class _ServiceCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Expanded(child: Text(fa ? service.titleFa : service.titleEn, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14))),
+                  Expanded(child: Text(fa ? service.titleFa : service.titleEn, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14))),
                   if (service.featured) const Icon(Icons.star_rounded, color: Color(0xFFFFA928), size: 19),
                   const SizedBox(width: 4),
-                  Icon(selected ? Icons.check_circle_rounded : Icons.chevron_right_rounded, color: const Color(0xFF38BDF8)),
+                  Icon(selected ? Icons.check_circle_rounded : Icons.chevron_right_rounded, color: VelixeoBrand.sky),
                 ],
               ),
               const SizedBox(height: 8),
@@ -1489,9 +2478,9 @@ class _MiniBadge extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 13, color: good ? const Color(0xFF0A8B5B) : const Color(0xFF74818B)),
+            Icon(icon, size: 13, color: good ? const Color(0xFF0A8B5B) : VelixeoBrand.muted),
             const SizedBox(width: 4),
-            Text(text, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: good ? const Color(0xFF0A8B5B) : const Color(0xFF74818B))),
+            Text(text, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: good ? const Color(0xFF0A8B5B) : VelixeoBrand.muted)),
           ],
         ),
       );
@@ -1530,7 +2519,7 @@ class _DripRunOrderCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     fa ? (order.serviceTitleFa ?? 'سرویس') : (order.serviceTitleEn ?? 'Service'),
-                    style: const TextStyle(fontWeight: FontWeight.w900),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
                 _StatusBadge(label: statusLabel(run.status), status: run.status),
@@ -1555,7 +2544,7 @@ class _DripRunOrderCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               '${fa ? 'شناسه Drip-feed' : 'Drip-feed ID'}: ${order.displayOrderId}-R${run.runIndex}',
-              style: const TextStyle(fontSize: 11, color: Color(0xFF74818B)),
+              style: const TextStyle(fontSize: 11, color: VelixeoBrand.muted),
             ),
             const SizedBox(height: 5),
             Text(
@@ -1568,7 +2557,7 @@ class _DripRunOrderCard extends StatelessWidget {
                 '${fa ? 'لینک' : 'Link'}: ${order.orderLink}',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11, color: Color(0xFF74818B)),
+                style: const TextStyle(fontSize: 11, color: VelixeoBrand.muted),
               ),
             ],
             const SizedBox(height: 10),
@@ -1618,12 +2607,12 @@ class _OrderCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(child: Text(fa ? (order.serviceTitleFa ?? 'سرویس') : (order.serviceTitleEn ?? 'Service'), style: const TextStyle(fontWeight: FontWeight.w900))),
+                Expanded(child: Text(fa ? (order.serviceTitleFa ?? 'سرویس') : (order.serviceTitleEn ?? 'Service'), style: const TextStyle(fontWeight: FontWeight.w700))),
                 _StatusBadge(label: statusLabel(order.status), status: order.status),
               ],
             ),
             const SizedBox(height: 8),
-            Text(host.money(order.totalAmountAfn, showBase: true), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+            Text(host.money(order.totalAmountAfn, showBase: true), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
             const SizedBox(height: 5),
             Row(
               children: [
@@ -1644,7 +2633,7 @@ class _OrderCard extends StatelessWidget {
                   },
                   tooltip: fa ? 'کپی شناسه' : 'Copy Order ID',
                   visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.copy_rounded, size: 17, color: Color(0xFF38BDF8)),
+                  icon: const Icon(Icons.copy_rounded, size: 17, color: VelixeoBrand.sky),
                 ),
               ],
             ),
@@ -1661,15 +2650,15 @@ class _OrderCard extends StatelessWidget {
             ],
             if (order.orderLink?.isNotEmpty == true) ...[
               const SizedBox(height: 8),
-              Text('${fa ? 'لینک' : 'Link'}: ${order.orderLink}', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Color(0xFF74818B))),
+              Text('${fa ? 'لینک' : 'Link'}: ${order.orderLink}', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: VelixeoBrand.muted)),
             ],
             if (order.providerEta?.trim().isNotEmpty == true) ...[
               const SizedBox(height: 6),
-              Text('${fa ? 'زمان تقریبی' : 'ETA'}: ${order.providerEta}', style: const TextStyle(fontSize: 11, color: Color(0xFF74818B))),
+              Text('${fa ? 'زمان تقریبی' : 'ETA'}: ${order.providerEta}', style: const TextStyle(fontSize: 11, color: VelixeoBrand.muted)),
             ],
             if (order.failureReason?.isNotEmpty == true) ...[
               const SizedBox(height: 8),
-              Text(order.failureReason!, style: const TextStyle(fontSize: 11, color: Color(0xFFC54152))),
+              Text(order.failureReason!, style: const TextStyle(fontSize: 11, color: VelixeoBrand.red)),
             ],
             if (order.actions.isNotEmpty) ...[
               const Divider(height: 22),
@@ -1677,7 +2666,7 @@ class _OrderCard extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 6),
                     child: Row(
                       children: [
-                        Icon(action.action == 'REFILL' ? Icons.restart_alt_rounded : Icons.cancel_outlined, size: 16, color: const Color(0xFF74818B)),
+                        Icon(action.action == 'REFILL' ? Icons.restart_alt_rounded : Icons.cancel_outlined, size: 16, color: VelixeoBrand.muted),
                         const SizedBox(width: 6),
                         Expanded(child: Text('${action.action} • ${action.status}', style: const TextStyle(fontSize: 11))),
                         if (action.action == 'REFILL' && !['COMPLETED','REJECTED'].contains(action.status.toUpperCase()))
@@ -1743,13 +2732,13 @@ class _StatusBadge extends StatelessWidget {
       color = const Color(0xFF177B8D);
       bg = const Color(0xFFE6F7FA);
     } else {
-      color = const Color(0xFF38BDF8);
+      color = VelixeoBrand.sky;
       bg = const Color(0xFFEAF6FF);
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
-      child: Text(label, style: TextStyle(fontSize: 10.5, color: color, fontWeight: FontWeight.w800)),
+      child: Text(label, style: TextStyle(fontSize: 10.5, color: color, fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -1766,7 +2755,7 @@ class _InfoRow extends StatelessWidget {
         children: [
           Expanded(
             flex: 4,
-            child: Text(label, style: const TextStyle(color: Color(0xFF74818B))),
+            child: Text(label, style: const TextStyle(color: VelixeoBrand.muted)),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -1777,7 +2766,7 @@ class _InfoRow extends StatelessWidget {
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: AlignmentDirectional.centerEnd,
-                      child: Text(value, textAlign: TextAlign.end, maxLines: 1, style: const TextStyle(fontWeight: FontWeight.w900)),
+                      child: Text(value, textAlign: TextAlign.end, maxLines: 1, style: const TextStyle(fontWeight: FontWeight.w700)),
                     ),
                   )
                 : Text(value, textAlign: TextAlign.end, style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -1786,32 +2775,6 @@ class _InfoRow extends StatelessWidget {
       );
 }
 
-class _TabButton extends StatelessWidget {
-  const _TabButton({required this.label, required this.icon, required this.selected, required this.onTap});
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(13),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 2),
-          decoration: BoxDecoration(
-            color: selected ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(13),
-            boxShadow: selected ? const [BoxShadow(color: Color(0x10102235), blurRadius: 12)] : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [Icon(icon, size: 15, color: selected ? const Color(0xFF38BDF8) : const Color(0xFF74818B)), const SizedBox(width: 3), Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: selected ? const Color(0xFF102235) : const Color(0xFF74818B))))],
-          ),
-        ),
-      );
-}
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.icon, required this.title, required this.subtitle});
@@ -1828,9 +2791,9 @@ class _EmptyState extends StatelessWidget {
             children: [
               Icon(icon, size: 72, color: const Color(0xFF9BB1C4)),
               const SizedBox(height: 16),
-              Text(title, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+              Text(title, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
               const SizedBox(height: 7),
-              Text(subtitle, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF74818B), height: 1.5)),
+              Text(subtitle, textAlign: TextAlign.center, style: const TextStyle(color: VelixeoBrand.muted, height: 1.5)),
             ],
           ),
         ),

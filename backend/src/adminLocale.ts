@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 
 const translations: Record<string, string> = {
   // Global navigation / shell
@@ -28,6 +28,18 @@ const translations: Record<string, string> = {
   'Discount rules and coupon usage': 'قوانین تخفیف و میزان استفاده از کدها',
   'Banners': 'بنرها',
   'App banners, placements and CTA routes': 'بنرهای اپ، محل نمایش و مسیر دکمه‌ها',
+  'Save changes': 'ذخیره تغییرات',
+  'Delete banner': 'حذف بنر',
+  'Active / visible in app': 'فعال / قابل نمایش در اپ',
+  'Image URL (optional)': 'آدرس تصویر (اختیاری)',
+  'Account Security': 'امنیت حساب',
+  'Same verification state shown in the mobile app': 'همان وضعیت تأییدی که در اپ موبایل نمایش داده می‌شود',
+  'Secure': 'امن',
+  'Needs attention': 'نیاز به تکمیل',
+  'Two-factor': 'ورود دومرحله‌ای',
+  'Not verified': 'تأیید نشده',
+  'Verified': 'تأیید شده',
+
   'Notifications': 'اعلان‌ها',
   'In-app announcements and user messages': 'اعلان‌های داخل اپ و پیام‌های کاربران',
   'Support': 'پشتیبانی',
@@ -36,6 +48,84 @@ const translations: Record<string, string> = {
   'Exchange rates, languages, security and system status': 'نرخ ارز، زبان‌ها، امنیت و وضعیت سیستم',
   'Audit Log': 'گزارش فعالیت‌ها',
   'Trace all administrative changes and sensitive actions': 'ثبت تمام تغییرات مدیریتی و عملیات حساس',
+  'Program active': 'برنامه فعال است',
+  'Program disabled': 'برنامه غیرفعال است',
+  'No reason': 'بدون دلیل ثبت‌شده',
+  'No endpoint': 'Endpoint تنظیم نشده',
+  'Not configured': 'تنظیم نشده',
+  'Not set': 'تعیین نشده',
+  'Server configured': 'سرور تنظیم شده',
+  'No subtitle': 'بدون زیرعنوان',
+  'FCM live': 'FCM فعال',
+  'Push + In-app': 'Push + داخل اپ',
+  'Edit Published Service': 'ویرایش سرویس منتشرشده',
+  'New Category': 'دسته‌بندی جدید',
+  'Choose a service, country and live operator to receive SMS verification codes.': 'برای دریافت کد پیامکی، سرویس، کشور و اپراتور زنده را انتخاب کنید.',
+  'Saving…': 'در حال ذخیره…',
+  'Use PNG, JPG or WebP.': 'از PNG، JPG یا WebP استفاده کنید.',
+  'Icon is still too large. Please choose a simpler image.': 'حجم آیکن هنوز زیاد است؛ تصویر ساده‌تری انتخاب کنید.',
+  'Could not save all changes:': 'ذخیره همه تغییرات ممکن نشد:',
+  'Virtual Numbers entry banner': 'بنر ورودی شماره‌های مجازی',
+  'Virtual Numbers banner saved': 'بنر شماره‌های مجازی ذخیره شد',
+  'Commission percentage must be between 0 and 100': 'درصد کمیسیون باید بین ۰ تا ۱۰۰ باشد',
+  'Referral commission settings saved': 'تنظیمات کمیسیون دعوت ذخیره شد',
+  'Encrypted credential saved': 'اطلاعات اتصال رمزگذاری‌شده ذخیره شد',
+  'Slug and English name are required': 'Slug و نام انگلیسی الزامی است',
+  'Category saved': 'دسته‌بندی ذخیره شد',
+  'Route not found': 'مسیر ارائه‌دهنده پیدا نشد',
+  'Fixed price is required': 'قیمت ثابت الزامی است',
+  'Current admin account is protected': 'حساب مدیر فعلی محافظت‌شده است',
+  'Account saved': 'حساب ذخیره شد',
+  'Phone removed from blacklist': 'شماره از فهرست سیاه حذف شد',
+  'Unknown blacklist action': 'عملیات فهرست سیاه نامعتبر است',
+  'User not found': 'کاربر پیدا نشد',
+  'Account temporarily suspended': 'حساب موقتاً تعلیق شد',
+  'Account permanently suspended': 'حساب برای همیشه تعلیق شد',
+  'Deleted accounts cannot be restored here': 'حساب‌های حذف‌شده از این بخش قابل بازیابی نیستند',
+  'Account access restored': 'دسترسی حساب بازیابی شد',
+  'User has no phone number': 'کاربر شماره تلفن ندارد',
+  'Account soft-deleted and anonymized': 'حساب حذف نرم و ناشناس‌سازی شد',
+  'Account deleted and anonymized': 'حساب حذف و ناشناس‌سازی شد',
+  'Unknown account action': 'عملیات حساب نامعتبر است',
+  'Amount must be greater than zero': 'مبلغ باید بیشتر از صفر باشد',
+  'Wallet not found': 'کیف پول پیدا نشد',
+  'Insufficient balance': 'موجودی کافی نیست',
+  'Wallet credited': 'کیف پول شارژ شد',
+  'Wallet adjusted': 'موجودی کیف پول اصلاح شد',
+  'Open wallet': 'باز کردن کیف پول',
+  'Wallet adjustment posted': 'اصلاح موجودی ثبت شد',
+  'Order status updated': 'وضعیت سفارش به‌روزرسانی شد',
+  'Choose a target user for a personal notification': 'برای اعلان شخصی، کاربر مقصد را انتخاب کنید',
+  'Expiry must be after publish time': 'زمان انقضا باید بعد از زمان انتشار باشد',
+  'Notification published · push configuration unavailable': 'اعلان منتشر شد · تنظیمات Push در دسترس نیست',
+  'New support reply': 'پاسخ جدید پشتیبانی',
+  'Open ticket': 'باز کردن تیکت',
+  'Order not found': 'سفارش پیدا نشد',
+  'The requested VELIXEO order could not be found.': 'سفارش درخواستی VELIXEO پیدا نشد.',
+  'Back to orders': 'بازگشت به سفارش‌ها',
+  'Customer Amount': 'مبلغ مشتری',
+  'VELIXEO sale': 'فروش VELIXEO',
+  'Provider Cost': 'هزینه ارائه‌دهنده',
+  'Recorded cost': 'هزینه ثبت‌شده',
+  'Gross Margin': 'حاشیه ناخالص',
+  'Sale − provider cost': 'فروش منهای هزینه ارائه‌دهنده',
+  'Quantity': 'تعداد',
+  'Order & Service': 'سفارش و سرویس',
+  'VELIXEO Order ID': 'شناسه سفارش VELIXEO',
+  'Provider API Order ID': 'شناسه سفارش API ارائه‌دهنده',
+  'Target / Link': 'هدف / لینک',
+  'Completed': 'تکمیل',
+  'Customer': 'مشتری',
+  'Real account data': 'اطلاعات واقعی حساب',
+  'User ID': 'شناسه کاربر',
+  'Admin status control': 'کنترل وضعیت توسط مدیر',
+  'Customer / Provider Input': 'ورودی مشتری / ارائه‌دهنده',
+  'Stored order payload': 'داده ذخیره‌شده سفارش',
+  'Provider Output': 'خروجی ارائه‌دهنده',
+  'Latest stored provider data': 'آخرین داده ذخیره‌شده ارائه‌دهنده',
+  'Order Action Log': 'گزارش عملیات سفارش',
+  'Provider Reference': 'مرجع ارائه‌دهنده',
+  'No order actions recorded yet.': 'هنوز عملیاتی برای این سفارش ثبت نشده است.',
   'Search in admin panel...': 'جستجو در پنل مدیریت...',
   'System Administrator': 'مدیر سیستم',
   'Sign out': 'خروج',
@@ -66,7 +156,6 @@ const translations: Record<string, string> = {
   'Phone': 'شماره تلفن',
   'Email': 'ایمیل',
   'User': 'کاربر',
-  'Customer': 'مشتری',
   'Provider': 'ارائه‌دهنده',
   'Providers': 'ارائه‌دهندگان',
   'Service': 'سرویس',
@@ -77,7 +166,6 @@ const translations: Record<string, string> = {
   'Platform': 'پلتفرم',
   'Currency': 'واحد پول',
   'Priority': 'اولویت',
-  'Quantity': 'تعداد',
   'Price': 'قیمت',
   'Cost': 'هزینه',
   'Sale': 'فروش',
@@ -94,7 +182,6 @@ const translations: Record<string, string> = {
   'Published': 'منتشر شده',
   'Pending': 'در انتظار',
   'Processing': 'در حال انجام',
-  'Completed': 'تکمیل شده',
   'Cancelled': 'لغو شده',
   'Refunded': 'بازپرداخت شده',
   'Failed': 'ناموفق',
@@ -330,7 +417,6 @@ const translations: Record<string, string> = {
   'Choose provider': 'انتخاب ارائه‌دهنده',
   'Original Service Name': 'نام اصلی سرویس',
   'Provider Category': 'دسته‌بندی ارائه‌دهنده',
-  'Provider Cost': 'هزینه ارائه‌دهنده',
   'VELIXEO Sale': 'قیمت فروش VELIXEO',
   'Min / Max': 'حداقل / حداکثر',
   'Refill': 'جبران',
@@ -615,7 +701,6 @@ const translations: Record<string, string> = {
   // Logs / generic module
   'API / Order Action Logs': 'لاگ‌های API / عملیات سفارش',
   'Latest provider interactions': 'آخرین تعاملات ارائه‌دهنده',
-  'Provider Reference': 'مرجع ارائه‌دهنده',
   'Summary': 'خلاصه',
   'No logs yet.': 'هنوز لاگی ثبت نشده است.',
   'Independent providers, products, pricing and orders for this business module.': 'ارائه‌دهندگان، محصولات، قیمت‌گذاری و سفارش‌های مستقل برای این بخش کسب‌وکار.',
@@ -674,111 +759,224 @@ const statusTranslations: Record<string, string> = {
   ACCOUNT: 'حساب',
 };
 
-function localeInjection() {
-  const dictionary = JSON.stringify(translations).replaceAll('<', '\\u003c');
-  const statuses = JSON.stringify(statusTranslations).replaceAll('<', '\\u003c');
-  return `<style id="velixeo-admin-locale-style">
+type AdminLang = 'fa' | 'en';
+
+function adminLangFromRequest(request: FastifyRequest): AdminLang {
+  const cookie = String(request.headers.cookie || '');
+  const match = cookie.match(/(?:^|;\s*)velixeo_admin_lang=(fa|en)(?:;|$)/);
+  return match?.[1] === 'fa' ? 'fa' : 'en';
+}
+
+function adminFaNumber(value: string) {
+  return value.replace(/\d/g, digit => '۰۱۲۳۴۵۶۷۸۹'[Number(digit)]);
+}
+
+function adminPersianText(clean: string): string | null {
+  if (translations[clean]) return translations[clean];
+  if (statusTranslations[clean]) return statusTranslations[clean];
+  let m: RegExpMatchArray | null;
+  if ((m = clean.match(/^(\d+) matched$/))) return adminFaNumber(m[1]) + ' مورد مطابق';
+  if ((m = clean.match(/^(\d+) on this page$/))) return adminFaNumber(m[1]) + ' مورد در این صفحه';
+  if ((m = clean.match(/^Page (\d+) \/ (\d+)$/))) return 'صفحه ' + adminFaNumber(m[1]) + ' از ' + adminFaNumber(m[2]);
+  if ((m = clean.match(/^(\d+) changed$/))) return adminFaNumber(m[1]) + ' تغییر';
+  if ((m = clean.match(/^(\d+) shown$/))) return adminFaNumber(m[1]) + ' مورد نمایش داده شده';
+  if ((m = clean.match(/^(\d+) visible$/))) return adminFaNumber(m[1]) + ' فعال';
+  if ((m = clean.match(/^(\d+) configured$/))) return adminFaNumber(m[1]) + ' تنظیم شده';
+  if ((m = clean.match(/^(\d+) total$/))) return adminFaNumber(m[1]) + ' مورد';
+  if ((m = clean.match(/^(\d+) packages$/))) return adminFaNumber(m[1]) + ' پکیج';
+  if ((m = clean.match(/^(\d+) open$/))) return adminFaNumber(m[1]) + ' باز';
+  if ((m = clean.match(/^(\d+) completed$/))) return adminFaNumber(m[1]) + ' تکمیل‌شده';
+  if ((m = clean.match(/^(\d+) recent events$/))) return adminFaNumber(m[1]) + ' رویداد اخیر';
+  if ((m = clean.match(/^(\d+) recent$/))) return adminFaNumber(m[1]) + ' مورد اخیر';
+  if ((m = clean.match(/^(\d+) accounts$/))) return adminFaNumber(m[1]) + ' حساب';
+  if ((m = clean.match(/^(\d+) matched users$/))) return adminFaNumber(m[1]) + ' کاربر مطابق';
+  if ((m = clean.match(/^From (.+)$/))) return 'از ' + m[1];
+  if ((m = clean.match(/^Cost: (.+)$/))) return 'هزینه: ' + m[1];
+  if ((m = clean.match(/^Done: (.+)$/))) return 'تکمیل: ' + m[1];
+  if ((m = clean.match(/^Service API: (.+)$/))) return 'API سرویس: ' + m[1];
+  if ((m = clean.match(/^Balance: (.+)$/))) return 'موجودی: ' + m[1];
+  if ((m = clean.match(/^Delivery (\d+)–(\d+)h$/))) return 'تحویل ' + adminFaNumber(m[1]) + ' تا ' + adminFaNumber(m[2]) + ' ساعت';
+  if ((m = clean.match(/^Live cost \+ (.+)%$/))) return 'هزینه زنده + ' + m[1] + '٪';
+  if ((m = clean.match(/^Fixed (.+)$/))) return 'ثابت ' + m[1];
+  if ((m = clean.match(/^Drip (\d+)\/(\d+)$/))) return 'مرحله ' + adminFaNumber(m[1]) + ' از ' + adminFaNumber(m[2]);
+  return null;
+}
+
+function localizeAdminContentFa(html: string) {
+  let result = html.replace(/>([^<>]+)</g, (whole, raw: string) => {
+    const clean = raw.replace(/\s+/g, ' ').trim();
+    if (!clean) return whole;
+    const value = adminPersianText(clean);
+    if (!value) return whole;
+    const lead = raw.match(/^\s*/)?.[0] || '';
+    const tail = raw.match(/\s*$/)?.[0] || '';
+    return '>' + lead + value + tail + '<';
+  });
+  result = result.replace(/\b(placeholder|title|aria-label)="([^"]*)"/g, (whole, attr: string, raw: string) => {
+    const value = adminPersianText(raw.replace(/\s+/g, ' ').trim());
+    return value ? attr + '="' + value.replaceAll('"', '&quot;') + '"' : whole;
+  });
+  return result;
+}
+
+function renderAdminFaPresentation(html: string) {
+  return html
+    .replace(
+      /<html[^>]*>/i,
+      '<html lang="fa" dir="rtl" class="vx-admin-fa" data-vx-design="fa">',
+    )
+    .replace(/<body([^>]*)>/i, '<body$1 class="vx-admin-body vx-admin-body-fa">');
+}
+
+function renderAdminEnPresentation(html: string) {
+  return html
+    .replace(
+      /<html[^>]*>/i,
+      '<html lang="en" dir="ltr" class="vx-admin-en" data-vx-design="en">',
+    )
+    .replace(/<body([^>]*)>/i, '<body$1 class="vx-admin-body vx-admin-body-en">');
+}
+
+function localeInjection(lang: AdminLang) {
+  const fa = lang === 'fa';
+  return `<style id="velixeo-admin-design-systems">
+  :root{--vx-sky:#38bdf8;--vx-sky-hover:#7dd3fc;--vx-ink:#24343d;--vx-muted:#74818b;--vx-soft:#edf8fd;--vx-bg:#f6f9fc;--vx-line:#e7eef2;--vx-green:#158365;--vx-orange:#ad670d;--vx-red:#c54152}
   .vx-locale{position:fixed;right:18px;bottom:18px;z-index:99999;background:#fff;border:1px solid #dfe8f1;border-radius:12px;padding:5px;display:flex;gap:4px;box-shadow:0 8px 30px rgba(20,60,100,.12)}
-  .vx-locale button{border:0;border-radius:8px;padding:7px 10px;background:transparent;color:#61758b;font:600 11px Inter,Arial,sans-serif;cursor:pointer}.vx-locale button.active{background:#1687f8;color:#fff}
-  html[dir=rtl] .vx-locale{right:auto;left:18px}
-  html[dir=rtl] body{direction:rtl;font-family:"Vazirmatn","IRANYekan","IRANSans",Tahoma,Arial,sans-serif;letter-spacing:0}
-  html[dir=rtl] .layout{grid-template-columns:minmax(0,1fr) 252px}
-  html[dir=rtl] .side{grid-column:2;grid-row:1;text-align:right;padding:20px 15px}
-  html[dir=rtl] .main{grid-column:1;grid-row:1;padding:0 22px 20px}
-  html[dir=rtl] .brand,html[dir=rtl] .nav,html[dir=rtl] .back,html[dir=rtl] .provider-name,html[dir=rtl] .split-title{flex-direction:row-reverse}
-  html[dir=rtl] .nav,html[dir=rtl] .back{justify-content:flex-start;text-align:right}
-  html[dir=rtl] .topbar{grid-template-columns:auto minmax(260px,1fr)}
-  html[dir=rtl] .topbar .search{grid-column:2;grid-row:1}
-  html[dir=rtl] .topbar .admin{grid-column:1;grid-row:1}
-  html[dir=rtl] .head,html[dir=rtl] .top,html[dir=rtl] .cardhead{direction:rtl}
-  html[dir=rtl] .head h1,html[dir=rtl] .top h1{font-size:23px;font-weight:900;line-height:1.5}
-  html[dir=rtl] .head p,html[dir=rtl] .top p,html[dir=rtl] .muted{line-height:1.8}
-  html[dir=rtl] .table th,html[dir=rtl] .table td,html[dir=rtl] table th,html[dir=rtl] table td{text-align:right;line-height:1.7}
-  html[dir=rtl] input,html[dir=rtl] select,html[dir=rtl] textarea{text-align:right;font-family:inherit}
-  html[dir=rtl] input.mono,html[dir=rtl] textarea.mono,html[dir=rtl] .mono{direction:ltr;text-align:left;font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
-  html[dir=rtl] .actions{justify-content:flex-start}
-  html[dir=rtl] .forms,html[dir=rtl] .tabs{direction:rtl}
-  html[dir=rtl] .card{border-radius:16px;box-shadow:0 7px 26px rgba(27,72,113,.05)}
-  html[dir=rtl] .btn{font-weight:800;min-height:38px}
-  html[dir=rtl] .tab{font-size:11px;padding:9px 12px}
-  html[dir=rtl] .subnav{padding-left:0;padding-right:18px;border-left:0;border-right:1px solid rgba(255,255,255,.09);margin-left:0;margin-right:18px}
-  html[dir=rtl] option{direction:rtl}
-  @media(max-width:980px){html[dir=rtl] .layout{grid-template-columns:1fr}.side,.main{grid-column:auto!important}}
+  .vx-locale button{border:0;border-radius:8px;padding:7px 10px;background:transparent;color:#61758b;font:600 11px Inter,Arial,sans-serif;cursor:pointer}
+  .vx-locale button.active{background:var(--vx-sky);color:#183b4b}
+  .vx-admin-menu-toggle{display:none;position:fixed;top:14px;z-index:100000;width:42px;height:42px;border:1px solid var(--vx-line);border-radius:13px;background:#fff;color:#4d7081;box-shadow:0 8px 28px rgba(20,60,100,.1);font-size:20px;align-items:center;justify-content:center}
+  .vx-admin-backdrop{display:none}
+
+  /* Persian Admin — independent RTL presentation */
+  html.vx-admin-fa body{direction:rtl;font-family:"Vazirmatn",Tahoma,Arial,sans-serif;line-height:1.75;background:var(--vx-bg);color:var(--vx-ink);letter-spacing:0}
+  html.vx-admin-fa .layout{direction:rtl;grid-template-columns:minmax(0,1fr) 244px;min-height:100vh}
+  html.vx-admin-fa .side{grid-column:2;grid-row:1;background:#fff;color:#8795a1;border-left:1px solid #edf1f5;border-right:0;padding:32px 22px;box-shadow:none;text-align:right}
+  html.vx-admin-fa .main{grid-column:1;grid-row:1;padding:30px 38px;direction:rtl;min-width:0}
+  html.vx-admin-fa .brand{direction:rtl;flex-direction:row-reverse;justify-content:flex-end;color:var(--vx-ink);border:0;padding:0 2px 10px;margin-bottom:20px}
+  html.vx-admin-fa .brand b{color:var(--vx-ink);font-size:19px;letter-spacing:0}
+  html.vx-admin-fa .brand small{color:#97a8b1}
+  html.vx-admin-fa .cap{color:#b0bac2;padding:15px 12px 7px;font-size:10px;letter-spacing:0;text-align:right}
+  html.vx-admin-fa .nav{direction:rtl;justify-content:flex-start;text-align:right;color:#8795a1;padding:12px 13px;border-radius:12px;font-size:12px;gap:12px}
+  html.vx-admin-fa .nav:hover{background:#f7fbfd;color:#318eb6}
+  html.vx-admin-fa .nav.active{background:var(--vx-soft);color:#318eb6;box-shadow:none;font-weight:700}
+  html.vx-admin-fa .subnav{padding:0;margin:0;border:0}
+  html.vx-admin-fa .topbar{direction:rtl;grid-template-columns:auto minmax(250px,1fr);background:rgba(246,249,252,.96);height:64px}
+  html.vx-admin-fa .topbar .search{grid-column:2;grid-row:1;margin-right:auto;margin-left:0}
+  html.vx-admin-fa .topbar .admin{grid-column:1;grid-row:1}
+  html.vx-admin-fa .search{border-radius:14px;height:40px;border-color:var(--vx-line)}
+  html.vx-admin-fa .avatar{border-radius:15px;background:#e2f3fe;color:#438aa8}
+  html.vx-admin-fa .head{direction:rtl;text-align:right;margin:7px 0 24px;align-items:flex-end}
+  html.vx-admin-fa .head h1{font-size:24px;font-weight:800;line-height:1.55}
+  html.vx-admin-fa .head p{font-size:12px;line-height:1.9}
+  html.vx-admin-fa .crumb{font-size:10px;color:#a1b1bc}
+  html.vx-admin-fa .stats{direction:rtl;gap:14px;margin-bottom:22px}
+  html.vx-admin-fa .stat{padding:20px;border-radius:20px;border-color:#eef2f5;box-shadow:none}
+  html.vx-admin-fa .stat strong{font-size:25px}
+  html.vx-admin-fa .card{direction:rtl;text-align:right;border-radius:20px;padding:21px;margin-bottom:18px;border-color:#eef2f5;box-shadow:none}
+  html.vx-admin-fa .cardhead{direction:rtl}
+  html.vx-admin-fa .cardhead h2,html.vx-admin-fa .cardhead h3{font-size:15px;font-weight:700}
+  html.vx-admin-fa .table th,html.vx-admin-fa .table td,html.vx-admin-fa table th,html.vx-admin-fa table td{text-align:right;padding:14px 10px;line-height:1.75;font-size:11px}
+  html.vx-admin-fa input,html.vx-admin-fa select,html.vx-admin-fa textarea{text-align:right;font-family:"Vazirmatn",Tahoma,Arial,sans-serif}
+  html.vx-admin-fa .mono,html.vx-admin-fa input.mono,html.vx-admin-fa textarea.mono{direction:ltr;text-align:left;font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+  html.vx-admin-fa .field label{font-size:11px}
+  html.vx-admin-fa .field input,html.vx-admin-fa .field select,html.vx-admin-fa .field textarea{border-radius:12px;padding:11px 14px;font-size:12px;border-color:#dfe8ed}
+  html.vx-admin-fa .field input,html.vx-admin-fa .field select{height:44px}
+  html.vx-admin-fa .btn{min-height:40px;border-radius:13px;background:var(--vx-sky);color:#183b4b;font-family:"Vazirmatn",Tahoma,Arial,sans-serif;font-size:11px;font-weight:700;box-shadow:0 4px 12px #38bdf821}
+  html.vx-admin-fa .btn:hover{background:var(--vx-sky-hover)}
+  html.vx-admin-fa .btn.ghost{background:#fff;border:1px solid var(--vx-line);color:#347996}
+  html.vx-admin-fa .tabs{direction:rtl;border-bottom:1px solid var(--vx-line);gap:5px}
+  html.vx-admin-fa .tab{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;padding:12px 14px;font-size:11px}
+  html.vx-admin-fa .tab.active{color:#2288b1;border-bottom-color:var(--vx-sky)}
+  html.vx-admin-fa .modulehero,html.vx-admin-fa .nhero{background:#edf7fc;color:#245168;border:1px solid #dceef8}
+  html.vx-admin-fa .modulehero p,html.vx-admin-fa .nhero p{color:var(--vx-muted)}
+  html.vx-admin-fa .vx-locale{right:auto;left:18px}
+
+  /* English Admin — independent LTR presentation */
+  html.vx-admin-en body{direction:ltr;font-family:"Inter",Arial,sans-serif;line-height:1.6;background:var(--vx-bg);color:var(--vx-ink)}
+  html.vx-admin-en .layout{direction:ltr;grid-template-columns:244px minmax(0,1fr);min-height:100vh}
+  html.vx-admin-en .side{grid-column:1;grid-row:1;background:#fff;color:#8795a1;border-right:1px solid #edf1f5;border-left:0;padding:32px 22px;box-shadow:none;text-align:left}
+  html.vx-admin-en .main{grid-column:2;grid-row:1;padding:30px 38px;direction:ltr;min-width:0}
+  html.vx-admin-en .brand{direction:ltr;color:var(--vx-ink);border:0;padding:0 2px 10px;margin-bottom:20px}
+  html.vx-admin-en .brand b{color:var(--vx-ink);font-size:19px}
+  html.vx-admin-en .brand small{color:#97a8b1}
+  html.vx-admin-en .cap{color:#b0bac2;padding:15px 12px 7px;font-size:10px}
+  html.vx-admin-en .nav{direction:ltr;color:#8795a1;padding:12px 13px;border-radius:12px;font-size:12px;gap:12px}
+  html.vx-admin-en .nav:hover{background:#f7fbfd;color:#318eb6}
+  html.vx-admin-en .nav.active{background:var(--vx-soft);color:#318eb6;box-shadow:none;font-weight:600}
+  html.vx-admin-en .topbar{direction:ltr;background:rgba(246,249,252,.96);height:64px}
+  html.vx-admin-en .search{border-radius:14px;height:40px;border-color:var(--vx-line)}
+  html.vx-admin-en .avatar{border-radius:15px;background:#e2f3fe;color:#438aa8}
+  html.vx-admin-en .head{margin:7px 0 24px;align-items:flex-end}
+  html.vx-admin-en .head h1{font-size:24px;font-weight:700;line-height:1.4}
+  html.vx-admin-en .head p{font-size:12px}
+  html.vx-admin-en .stats{gap:14px;margin-bottom:22px}
+  html.vx-admin-en .stat{padding:20px;border-radius:20px;border-color:#eef2f5;box-shadow:none}
+  html.vx-admin-en .stat strong{font-size:25px}
+  html.vx-admin-en .card{border-radius:20px;padding:21px;margin-bottom:18px;border-color:#eef2f5;box-shadow:none}
+  html.vx-admin-en .cardhead h2,html.vx-admin-en .cardhead h3{font-size:15px;font-weight:600}
+  html.vx-admin-en .table th,html.vx-admin-en .table td{padding:14px 10px;font-size:11px}
+  html.vx-admin-en .field label{font-size:11px}
+  html.vx-admin-en .field input,html.vx-admin-en .field select,html.vx-admin-en .field textarea{font-family:"Inter",Arial,sans-serif;border-radius:12px;padding:11px 14px;font-size:12px;border-color:#dfe8ed}
+  html.vx-admin-en .field input,html.vx-admin-en .field select{height:44px}
+  html.vx-admin-en .btn{min-height:40px;border-radius:13px;background:var(--vx-sky);color:#183b4b;font-size:11px;font-weight:600;box-shadow:0 4px 12px #38bdf821}
+  html.vx-admin-en .btn:hover{background:var(--vx-sky-hover)}
+  html.vx-admin-en .btn.ghost{background:#fff;border:1px solid var(--vx-line);color:#347996}
+  html.vx-admin-en .tabs{border-bottom:1px solid var(--vx-line);gap:5px}
+  html.vx-admin-en .tab{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;padding:12px 14px;font-size:11px}
+  html.vx-admin-en .tab.active{color:#2288b1;border-bottom-color:var(--vx-sky)}
+  html.vx-admin-en .modulehero,html.vx-admin-en .nhero{background:#edf7fc;color:#245168;border:1px solid #dceef8}
+  html.vx-admin-en .modulehero p,html.vx-admin-en .nhero p{color:var(--vx-muted)}
+
+  @media(max-width:1080px){
+    html.vx-admin-fa .layout{grid-template-columns:minmax(0,1fr) 205px}
+    html.vx-admin-en .layout{grid-template-columns:205px minmax(0,1fr)}
+    html.vx-admin-fa .main,html.vx-admin-en .main{padding:25px 24px}
+  }
+  @media(max-width:760px){
+    html.vx-admin-fa .layout,html.vx-admin-en .layout{display:block}
+    html.vx-admin-fa .main,html.vx-admin-en .main{padding:66px 14px 18px}
+    html.vx-admin-fa .topbar,html.vx-admin-en .topbar{position:relative}
+    html.vx-admin-fa .topbar .search,html.vx-admin-en .topbar .search{display:none}
+    .vx-admin-menu-toggle{display:flex}
+    html.vx-admin-fa .vx-admin-menu-toggle{right:14px;left:auto}
+    html.vx-admin-en .vx-admin-menu-toggle{left:14px;right:auto}
+    html.vx-admin-fa .side,html.vx-admin-en .side{position:fixed;top:0;height:100vh;width:260px;z-index:99998;overflow:auto;transition:transform .2s ease;box-shadow:0 24px 60px rgba(20,60,100,.16)}
+    html.vx-admin-fa .side{right:0;left:auto;transform:translateX(110%)}
+    html.vx-admin-en .side{left:0;right:auto;transform:translateX(-110%)}
+    html.vx-admin-fa body.vx-admin-menu-open .side,html.vx-admin-en body.vx-admin-menu-open .side{transform:translateX(0)}
+    body.vx-admin-menu-open .vx-admin-backdrop{display:block;position:fixed;inset:0;z-index:99997;background:rgba(36,52,61,.22)}
+    .stats{grid-template-columns:1fr 1fr}
+    .grid,.grid.eq{grid-template-columns:1fr}
+  }
+  @media(max-width:480px){
+    .stats{grid-template-columns:1fr}
+    html.vx-admin-fa .main,html.vx-admin-en .main{padding-left:12px;padding-right:12px}
+    .vx-locale{bottom:12px}
+  }
   </style>
-  <div class="vx-locale" aria-label="زبان پنل مدیریت">
-    <button type="button" data-vx-lang="en">EN</button>
-    <button type="button" data-vx-lang="fa">فارسی</button>
+  <button type="button" class="vx-admin-menu-toggle" aria-label="${fa ? 'باز کردن فهرست مدیریت' : 'Open admin menu'}">☰</button>
+  <div class="vx-admin-backdrop" data-vx-close-menu></div>
+  <div class="vx-locale" aria-label="${fa ? 'زبان پنل مدیریت' : 'Admin language'}">
+    <button type="button" data-vx-lang="en" class="${fa ? '' : 'active'}">EN</button>
+    <button type="button" data-vx-lang="fa" class="${fa ? 'active' : ''}">فارسی</button>
   </div>
-  <script id="velixeo-admin-locale-script">(()=>{const dict=${dictionary};const statuses=${statuses};const reverse=Object.fromEntries(Object.entries(dict).map(([a,b])=>[b,a]));const statusReverse=Object.fromEntries(Object.entries(statuses).map(([a,b])=>[b,a]));const key='velixeo_admin_lang';let lang=localStorage.getItem(key)||'en';const norm=s=>String(s||'').replace(/\\s+/g,' ').trim();
-  const faNum=s=>String(s).replace(/\\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[Number(d)]);
-  function dynamicFa(clean){
-    if(dict[clean])return dict[clean];
-    if(statuses[clean])return statuses[clean];
-    let m;
-    if((m=clean.match(/^(\\d+) matched$/)))return faNum(m[1])+' مورد مطابق';
-    if((m=clean.match(/^(\\d+) on this page$/)))return faNum(m[1])+' مورد در این صفحه';
-    if((m=clean.match(/^Page (\\d+) \\/ (\\d+)$/)))return 'صفحه '+faNum(m[1])+' از '+faNum(m[2]);
-    if((m=clean.match(/^(\\d+) changed$/)))return faNum(m[1])+' تغییر';
-    if((m=clean.match(/^(\\d+) shown$/)))return faNum(m[1])+' مورد نمایش داده شده';
-    if((m=clean.match(/^(\\d+) visible$/)))return faNum(m[1])+' فعال';
-    if((m=clean.match(/^(\\d+) configured$/)))return faNum(m[1])+' تنظیم شده';
-    if((m=clean.match(/^(\\d+) total$/)))return faNum(m[1])+' مورد';
-    if((m=clean.match(/^(\\d+) packages$/)))return faNum(m[1])+' پکیج';
-    if((m=clean.match(/^(\\d+) open$/)))return faNum(m[1])+' باز';
-    if((m=clean.match(/^(\\d+) completed$/)))return faNum(m[1])+' تکمیل‌شده';
-    if((m=clean.match(/^(\\d+) recent events$/)))return faNum(m[1])+' رویداد اخیر';
-    if((m=clean.match(/^(\\d+) recent$/)))return faNum(m[1])+' مورد اخیر';
-    if((m=clean.match(/^(\\d+) accounts$/)))return faNum(m[1])+' حساب';
-    if((m=clean.match(/^(\\d+) matched users$/)))return faNum(m[1])+' کاربر مطابق';
-    if((m=clean.match(/^From (.+)$/)))return 'از '+m[1];
-    if((m=clean.match(/^Cost: (.+)$/)))return 'هزینه: '+m[1];
-    if((m=clean.match(/^Done: (.+)$/)))return 'تکمیل: '+m[1];
-    if((m=clean.match(/^Service API: (.+)$/)))return 'API سرویس: '+m[1];
-    if((m=clean.match(/^Balance: (.+)$/)))return 'موجودی: '+m[1];
-    if((m=clean.match(/^Delivery (\\d+)–(\\d+)h$/)))return 'تحویل '+faNum(m[1])+' تا '+faNum(m[2])+' ساعت';
-    if((m=clean.match(/^Live cost \\+ (.+)%$/)))return 'هزینه زنده + '+m[1]+'٪';
-    if((m=clean.match(/^Fixed (.+)$/)))return 'ثابت '+m[1];
-    if((m=clean.match(/^Drip (\\d+)\\/(\\d+)$/)))return 'مرحله '+faNum(m[1])+' از '+faNum(m[2]);
-    return null;
-  }
-  function dynamicEn(clean){
-    if(reverse[clean])return reverse[clean];
-    if(statusReverse[clean])return statusReverse[clean];
-    return null;
-  }
-  function translated(clean,next){return next==='fa'?dynamicFa(clean):dynamicEn(clean);}
-  function translateText(root,next){
-    const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);const nodes=[];while(w.nextNode())nodes.push(w.currentNode);
-    for(const n of nodes){
-      const parent=n.parentElement;
-      if(parent?.closest('[data-vx-no-translate]'))continue;
-      if(parent && ['SCRIPT','STYLE','TEXTAREA'].includes(parent.tagName))continue;
-      const raw=n.nodeValue||'';const clean=norm(raw);if(!clean)continue;
-      const value=translated(clean,next);if(!value)continue;
-      const lead=raw.match(/^\\s*/)?.[0]||'';const tail=raw.match(/\\s*$/)?.[0]||'';
-      n.nodeValue=lead+value+tail;
-    }
-    for(const el of root.querySelectorAll('[placeholder],[title],[aria-label]')){
-      if(el.closest('[data-vx-no-translate]'))continue;
-      for(const attr of ['placeholder','title','aria-label']){
-        const v=el.getAttribute(attr);const clean=norm(v);if(!clean)continue;
-        const value=translated(clean,next);if(value)el.setAttribute(attr,value);
-      }
-    }
-  }
-  function apply(next){
-    const current=document.documentElement.dataset.vxLang||'en';
-    if(current!==next)translateText(document.body,next);
-    lang=next;localStorage.setItem(key,next);
-    document.documentElement.dataset.vxLang=next;
-    document.documentElement.lang=next==='fa'?'fa':'en';
-    document.documentElement.dir=next==='fa'?'rtl':'ltr';
-    document.querySelectorAll('[data-vx-lang]').forEach(b=>b.classList.toggle('active',b.dataset.vxLang===next));
-  }
-  document.addEventListener('click',e=>{const b=e.target.closest('[data-vx-lang]');if(b)apply(b.dataset.vxLang);});
-  const observer=new MutationObserver(records=>{if(lang!=='fa')return;for(const record of records){for(const node of record.addedNodes){if(node.nodeType===Node.ELEMENT_NODE)translateText(node,'fa');}}});
-  const start=()=>{apply(lang);observer.observe(document.body,{childList:true,subtree:true});};
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+  <script id="velixeo-admin-locale-script">(()=>{
+    const key='velixeo_admin_lang';
+    const current='${lang}';
+    document.querySelectorAll('[data-vx-lang]').forEach(button=>{
+      button.addEventListener('click',()=>{
+        const next=button.dataset.vxLang;
+        if(!next||next===current)return;
+        document.cookie=key+'='+next+'; Path=/admin; Max-Age=31536000; SameSite=Lax';
+        location.reload();
+      });
+    });
+    const toggle=()=>document.body.classList.toggle('vx-admin-menu-open');
+    document.querySelector('.vx-admin-menu-toggle')?.addEventListener('click',toggle);
+    document.querySelector('[data-vx-close-menu]')?.addEventListener('click',()=>document.body.classList.remove('vx-admin-menu-open'));
+    document.querySelectorAll('.side a,.side button').forEach(item=>item.addEventListener('click',()=>{
+      if(innerWidth<=760)document.body.classList.remove('vx-admin-menu-open');
+    }));
   })();</script>`;
 }
 
@@ -786,9 +984,18 @@ export function registerAdminLocale(app: FastifyInstance) {
   app.addHook('onSend', async (request, reply, payload) => {
     const url = request.raw.url || '';
     if (!url.startsWith('/admin')) return payload;
+    if (url.startsWith('/admin/login')) return payload;
     const contentType = String(reply.getHeader('content-type') || '');
     if (!contentType.includes('text/html') || typeof payload !== 'string') return payload;
     if (payload.includes('velixeo-admin-locale-script')) return payload;
-    return payload.replace('</body>', `${localeInjection()}</body>`);
+
+    const lang = adminLangFromRequest(request);
+    if (lang === 'fa') {
+      const localized = localizeAdminContentFa(payload);
+      const designed = renderAdminFaPresentation(localized);
+      return designed.replace('</body>', localeInjection('fa') + '</body>');
+    }
+    const designed = renderAdminEnPresentation(payload);
+    return designed.replace('</body>', localeInjection('en') + '</body>');
   });
 }

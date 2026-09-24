@@ -1,0 +1,4 @@
+VELIXEO v0.12.0+32 final reference-aligned FA/EN preview.
+Coverage: App 41/41 · Admin 53/53.
+Includes: reference headers, Digital Services, single Social banner, Notification Center, semantic Wallet, role-aware Profile, secure-account state, Virtual Numbers reference hero, Admin banner CRUD.
+Trigger: final-reference-ui-signed-preview-20260924

@@ -1,0 +1,116 @@
+name: Build FA-EN Design Preview APK
+
+on:
+  push:
+    branches:
+      - fa-en-design-systems-20260924
+    paths:
+      - '.github/workflows/fa-en-design-preview.yml'
+      - 'PREVIEW_BUILD_TRIGGER.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: velixeo-fa-en-preview
+  cancel-in-progress: true
+
+jobs:
+  build-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      EXPECTED_RELEASE_SHA1: C3:54:C7:03:DD:FC:DD:C5:83:A8:A6:4F:64:DA:4E:5E:18:43:5B:A4
+
+    steps:
+      - name: Checkout FA-EN design branch
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Verify signing secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in GOOGLE_WEB_CLIENT_ID ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is not configured."
+              exit 1
+            fi
+          done
+
+      - name: Configure production signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/velixeo-release.jks
+          cat > android/key.properties <<EOF
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyPassword=$ANDROID_KEY_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          storeFile=velixeo-release.jks
+          EOF
+          keytool -list -v \
+            -keystore android/app/velixeo-release.jks \
+            -alias "$ANDROID_KEY_ALIAS" \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" >/tmp/velixeo-key.txt
+          ACTUAL_SHA1=$(grep -E 'SHA1:|SHA-1:' /tmp/velixeo-key.txt | head -n1 | sed -E 's/.*SHA-?1:[[:space:]]*//' | tr '[:lower:]' '[:upper:]' | xargs)
+          test "$ACTUAL_SHA1" = "$EXPECTED_RELEASE_SHA1"
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Validate preview source
+        run: flutter analyze --no-fatal-infos
+
+      - name: Build signed release APK
+        run: flutter build apk --release --dart-define=GOOGLE_WEB_CLIENT_ID="$GOOGLE_WEB_CLIENT_ID"
+
+      - name: Prepare preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk dist/VELIXEO-FA-EN-DESIGN-PREVIEW.apk
+          sha256sum dist/VELIXEO-FA-EN-DESIGN-PREVIEW.apk | tee dist/SHA256SUMS.txt
+
+      - name: Upload preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VELIXEO-FA-EN-DESIGN-PREVIEW
+          path: |
+            dist/VELIXEO-FA-EN-DESIGN-PREVIEW.apk
+            dist/SHA256SUMS.txt
+          retention-days: 14
+
+      - name: Publish GitHub prerelease preview
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="preview-fa-en-design"
+          gh release delete "$TAG" -y --cleanup-tag >/dev/null 2>&1 || true
+          gh release create "$TAG" \
+            dist/VELIXEO-FA-EN-DESIGN-PREVIEW.apk \
+            dist/SHA256SUMS.txt \
+            --target "$GITHUB_SHA" \
+            --title "VELIXEO FA/EN Design Preview" \
+            --notes "Signed preview APK for the independent Persian RTL and English LTR design-system rebuild. Branch: fa-en-design-systems-20260924. Commit: $GITHUB_SHA" \
+            --prerelease

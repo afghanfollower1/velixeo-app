@@ -8,6 +8,7 @@ import 'package:country_picker/country_picker.dart';
 
 import '../core/api_service.dart';
 import '../core/models.dart';
+import '../design/velixeo_design.dart';
 import 'virtual_number_models.dart';
 
 String _normalizeCountryKey(String value) =>
@@ -596,7 +597,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
             Text(_countryDisplayName(item),style:const TextStyle(fontWeight:FontWeight.w800)),
             Text('${host.money(item.minPriceAfn)} • ${item.availableCount} ${t('موجود','available')}',style:const TextStyle(fontSize:10.5,color:Color(0xFF718399))),
           ])),
-          if(item.maxRate!=null)Text('${item.maxRate!.toStringAsFixed(1)}%',style:const TextStyle(fontWeight:FontWeight.w800,color:Color(0xFF158365))),
+          if(item.maxRate!=null)Text('${item.maxRate!.toStringAsFixed(1)}%',style:const TextStyle(fontWeight:FontWeight.w800,color:VelixeoBrand.green)),
         ]),
       ),
     );
@@ -605,69 +606,175 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(t('شماره مجازی', 'Virtual Numbers')),
-        actions: [
-          Padding(
-            padding: const EdgeInsetsDirectional.only(end: 14),
-            child: Center(
-              child: Text(
-                host.money(host.balanceAfn, showBase: true),
-                style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF38BDF8)),
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: load,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
-                children: [
-                  virtualBanner == null
-                      ? _InfoHero(fa: fa)
-                      : _VirtualPromoBanner(banner: virtualBanner!, fa: fa),
-                  const SizedBox(height: 14),
-                  SegmentedButton<int>(
-                    segments: [
-                      ButtonSegment(value: 0, icon: const Icon(Icons.tune_rounded), label: Text(t('خرید دستی', 'Manual'))),
-                      ButtonSegment(value: 1, icon: const Icon(Icons.auto_awesome_rounded), label: Text(t('خرید هوشمند', 'Smart Buy'))),
-                      ButtonSegment(value: 2, icon: const Icon(Icons.sms_outlined), label: Text(t('شماره‌های من', 'My Numbers'))),
+    return fa ? _buildPersianVirtual(context) : _buildEnglishVirtual(context);
+  }
+
+  void _changeTab(int next) {
+    setState(() => tab = next);
+    if (next == 0) {
+      final service = selectedService;
+      if (service != null && service.countries.isEmpty && !loadingCountries) {
+        unawaited(loadCountries(service));
+      }
+    }
+  }
+
+  Widget _persianVirtualBody() {
+    if (error != null) {
+      return _Notice(text: errorLabel(error!), danger: true);
+    }
+    if (catalog.services.isEmpty) {
+      return _Notice(
+        text: t(
+          'هنوز سرویس شماره مجازی از پنل ادمین فعال نشده است.',
+          'No virtual-number service is enabled in Admin yet.',
+        ),
+      );
+    }
+    if (tab == 0) return persianManualPanel();
+    if (tab == 1) return persianSmartPanel();
+    return persianNumbersPanel();
+  }
+
+Widget _englishVirtualBody() {
+    if (error != null) {
+      return _Notice(text: errorLabel(error!), danger: true);
+    }
+    if (catalog.services.isEmpty) {
+      return _Notice(
+        text: t(
+          'هنوز سرویس شماره مجازی از پنل ادمین فعال نشده است.',
+          'No virtual-number service is enabled in Admin yet.',
+        ),
+      );
+    }
+    if (tab == 0) return englishManualPanel();
+    if (tab == 1) return englishSmartPanel();
+    return englishNumbersPanel();
+  }
+
+  Widget _buildPersianVirtual(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        body: SafeArea(
+          child: loading
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                  onRefresh: load,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: VelixeoFaDesign.pagePadding,
+                    children: [
+                      VelixeoFaPageHeader(
+                        title: 'شماره مجازی',
+                        subtitle: 'یک شماره، برای نیاز تو.',
+                        onBack: () => Navigator.maybePop(context),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: VelixeoBrand.soft,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            host.money(host.balanceAfn, showBase: true),
+                            textDirection: TextDirection.ltr,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF338EB4),
+                            ),
+                          ),
+                        ),
+                      ),
+                      virtualBanner == null
+                          ? const _InfoHero(fa: true)
+                          : _VirtualPromoBanner(banner: virtualBanner!, fa: true),
+                      const SizedBox(height: 16),
+                      _VirtualTabBar(
+                        labels: const ['خرید دستی', 'خرید هوشمند', 'شماره‌های من'],
+                        icons: const [
+                          Icons.tune_rounded,
+                          Icons.auto_awesome_rounded,
+                          Icons.sms_outlined,
+                        ],
+                        selected: tab,
+                        direction: TextDirection.rtl,
+                        onChanged: _changeTab,
+                      ),
+                      const SizedBox(height: 18),
+                      _persianVirtualBody(),
                     ],
-                    selected: {tab},
-                    onSelectionChanged: (value) {
-                      final next=value.first;
-                      setState(()=>tab=next);
-                      if(next==0){
-                        final service=selectedService;
-                        if(service!=null&&service.countries.isEmpty&&!loadingCountries){
-                          unawaited(loadCountries(service));
-                        }
-                      }
-                    },
                   ),
-                  const SizedBox(height: 16),
-                  if (error != null)
-                    _Notice(text: errorLabel(error!), danger: true)
-                  else if (catalog.services.isEmpty)
-                    _Notice(text: t('هنوز سرویس شماره مجازی از پنل ادمین فعال نشده است.', 'No virtual-number service is enabled in Admin yet.'))
-                  else if (tab == 0)
-                    manualPanel()
-                  else if (tab == 1)
-                    smartPanel()
-                  else
-                    numbersPanel(),
-                ],
-              ),
-            ),
+                ),
+        ),
+      ),
     );
   }
 
-  Widget serviceSelector() {
+  Widget _buildEnglishVirtual(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Scaffold(
+        body: SafeArea(
+          child: loading
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                  onRefresh: load,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: VelixeoEnDesign.pagePadding,
+                    children: [
+                      VelixeoEnPageHeader(
+                        title: 'Virtual Numbers',
+                        subtitle: 'One number, for what you need.',
+                        onBack: () => Navigator.maybePop(context),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: VelixeoBrand.soft,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            host.money(host.balanceAfn, showBase: true),
+                            textDirection: TextDirection.ltr,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF338EB4),
+                            ),
+                          ),
+                        ),
+                      ),
+                      virtualBanner == null
+                          ? const _InfoHero(fa: false)
+                          : _VirtualPromoBanner(banner: virtualBanner!, fa: false),
+                      const SizedBox(height: 16),
+                      _VirtualTabBar(
+                        labels: const ['Manual', 'Smart Buy', 'My Numbers'],
+                        icons: const [
+                          Icons.tune_rounded,
+                          Icons.auto_awesome_rounded,
+                          Icons.sms_outlined,
+                        ],
+                        selected: tab,
+                        direction: TextDirection.ltr,
+                        onChanged: _changeTab,
+                      ),
+                      const SizedBox(height: 18),
+                      _englishVirtualBody(),
+                    ],
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+
+
+  Widget persianServiceSelector() {
     final service=selectedService;
     return InkWell(
       onTap:chooseService,
@@ -686,7 +793,26 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     );
   }
 
-  Widget countrySelector() {
+Widget englishServiceSelector() {
+    final service=selectedService;
+    return InkWell(
+      onTap:chooseService,
+      borderRadius:BorderRadius.circular(14),
+      child:InputDecorator(
+        decoration:InputDecoration(
+          labelText:t('سرویس','Service'),
+          prefixIcon:service==null?const Icon(Icons.apps_rounded):Padding(
+            padding:const EdgeInsets.all(8),
+            child:_BrandBadge(service:service,size:34),
+          ),
+          suffixIcon:const Icon(Icons.search_rounded),
+        ),
+        child:Text(service==null?t('انتخاب سرویس','Choose service'):serviceName(service),overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w800)),
+      ),
+    );
+  }
+
+  Widget persianCountrySelector() {
     final country=selectedCountry;
     return InkWell(
       onTap:selectedService==null||loadingCountries?null:chooseCountry,
@@ -717,21 +843,61 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     );
   }
 
-  Widget selectors() {
+Widget englishCountrySelector() {
+    final country=selectedCountry;
+    return InkWell(
+      onTap:selectedService==null||loadingCountries?null:chooseCountry,
+      borderRadius:BorderRadius.circular(14),
+      child:InputDecorator(
+        decoration:InputDecoration(
+          labelText:t('کشور','Country'),
+          prefixIcon:loadingCountries
+              ?const Padding(
+                  padding:EdgeInsets.all(14),
+                  child:SizedBox.square(dimension:18,child:CircularProgressIndicator(strokeWidth:2)),
+                )
+              :country==null
+                  ?const Icon(Icons.public_rounded)
+                  :Center(widthFactor:1.8,child:Text(_countryFlag(country),style:const TextStyle(fontSize:25))),
+          suffixIcon:loadingCountries?null:const Icon(Icons.search_rounded),
+        ),
+        child:Text(
+          loadingCountries
+              ?t('در حال دریافت کشورهای فعال…','Loading available countries…')
+              :country==null
+                  ?t('کشوری موجود نیست','No country available')
+                  :'${_countryDisplayName(country)} • ${host.money(country.minPriceAfn)}',
+          overflow:TextOverflow.ellipsis,
+          style:const TextStyle(fontWeight:FontWeight.w800),
+        ),
+      ),
+    );
+  }
+
+  Widget persianSelectors() {
     if(selectedService==null)return const SizedBox.shrink();
     return Column(children:[
-      serviceSelector(),
+      persianServiceSelector(),
       const SizedBox(height:12),
-      countrySelector(),
+      persianCountrySelector(),
     ]);
   }
 
-  Widget manualPanel() {
+Widget englishSelectors() {
+    if(selectedService==null)return const SizedBox.shrink();
+    return Column(children:[
+      englishServiceSelector(),
+      const SizedBox(height:12),
+      englishCountrySelector(),
+    ]);
+  }
+
+  Widget persianManualPanel() {
     final current=offers;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _PanelCard(child: selectors()),
+        _PanelCard(child: persianSelectors()),
         const SizedBox(height: 14),
         if (loadingOffers)
           const Center(child: Padding(padding: EdgeInsets.all(26), child: CircularProgressIndicator()))
@@ -743,7 +909,7 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
               Expanded(
                 child: Text(t('اپراتورها / سرورها', 'Operators / servers'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
               ),
-              Text('${current.operators.length}', style: const TextStyle(color: Color(0xFF74818B), fontWeight:FontWeight.w800)),
+              Text('${current.operators.length}', style: const TextStyle(color: VelixeoBrand.muted, fontWeight:FontWeight.w800)),
             ],
           ),
           const SizedBox(height: 8),
@@ -817,12 +983,134 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     );
   }
 
-  Widget smartPanel() {
+Widget englishManualPanel() {
+    final current=offers;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _PanelCard(child: englishSelectors()),
+        const SizedBox(height: 14),
+        if (loadingOffers)
+          const Center(child: Padding(padding: EdgeInsets.all(26), child: CircularProgressIndicator()))
+        else if (current == null || current.operators.isEmpty)
+          _Notice(text: t('برای این سرویس و کشور فعلاً شماره‌ای موجود نیست.', 'No number is currently available for this service and country.'))
+        else ...[
+          Row(
+            children: [
+              Expanded(
+                child: Text(t('اپراتورها / سرورها', 'Operators / servers'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+              ),
+              Text('${current.operators.length}', style: const TextStyle(color: VelixeoBrand.muted, fontWeight:FontWeight.w800)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing:7,
+            runSpacing:7,
+            children:[
+              _SummaryPill(
+                icon:Icons.savings_outlined,
+                label:t('کمترین','Lowest'),
+                value:host.money(current.minPriceAfn,showBase:true),
+              ),
+              _SummaryPill(
+                icon:Icons.trending_up_rounded,
+                label:t('بیشترین','Highest'),
+                value:host.money(current.maxPriceAfn,showBase:true),
+              ),
+              if(current.bestDeliveryPercent!=null)
+                _SummaryPill(
+                  icon:Icons.mark_email_read_outlined,
+                  label:t('بهترین SMS','Best SMS'),
+                  value:'${current.bestDeliveryPercent!.toStringAsFixed(2)}%',
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...current.operators.map((offer) {
+            final tags=<String>[];
+            if(current.lowPrice?.operatorName==offer.operatorName && current.lowPrice?.priceAfn==offer.priceAfn){
+              tags.add(t('ارزان‌ترین','Cheapest'));
+            }
+            if(current.highPrice?.operatorName==offer.operatorName && current.highPrice?.priceAfn==offer.priceAfn && current.maxPriceAfn!=current.minPriceAfn){
+              tags.add(t('بیشترین قیمت','Highest price'));
+            }
+            if(current.bestRate?.operatorName==offer.operatorName &&
+                current.bestRate?.deliveryPercent==offer.deliveryPercent &&
+                (offer.deliveryPercent??0)>0){
+              tags.add(t('پایدارترین','Best delivery'));
+            }
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 9),
+              child: _OfferTile(
+                offer: offer,
+                fa: fa,
+                price: host.money(offer.priceAfn, showBase: true),
+                busy: buying,
+                tags:tags,
+                onBuy: () => buy(operatorName: offer.operatorName, mode: 'BEST_RATE'),
+              ),
+            );
+          }),
+          if(current.anyOperator!=null)...[
+            const SizedBox(height:2),
+            _OfferTile(
+              offer:current.anyOperator!,
+              fa:fa,
+              price:host.money(current.anyOperator!.priceAfn,showBase:true),
+              busy:buying,
+              anyOperator:true,
+              tags:[t('انتخاب خودکار','Auto select')],
+              onBuy:()=>buy(operatorName:'any',mode:'ANY'),
+            ),
+          ],
+          const SizedBox(height:6),
+          _Notice(text:t(
+            'درصد SMS نشان‌دهنده نرخ اخیر تحویل پیام برای همان سرویس، کشور و اپراتور است. قیمت و موجودی لحظه‌ای تغییر می‌کند.',
+            'SMS % is the recent delivery rate for this exact service, country and operator. Price and stock can change live.',
+          )),
+        ],
+      ],
+    );
+  }
+
+  Widget persianSmartPanel() {
     final service=selectedService;
     return Column(
       crossAxisAlignment:CrossAxisAlignment.stretch,
       children:[
-        _PanelCard(child:serviceSelector()),
+        _PanelCard(child:persianServiceSelector()),
+        const SizedBox(height:12),
+        _Notice(
+          text:t(
+            'فقط سرویس را انتخاب کنید. کشور و اپراتور به‌صورت خودکار از میان گزینه‌های زنده 5SIM و براساس بهترین نرخ تحویل SMS انتخاب می‌شود و خرید همان لحظه انجام می‌گردد.',
+            'Choose only the service. The country and operator are selected automatically from live 5SIM offers using the best SMS delivery rate, and the purchase starts immediately.',
+          ),
+        ),
+        const SizedBox(height:12),
+        _SmartCountryCard(
+          icon:Icons.auto_awesome_rounded,
+          fa:fa,
+          title:t('خرید هوشمند 5SIM','5SIM Smart Buy'),
+          subtitle:t(
+            'نیازی به انتخاب کشور یا سرور نیست؛ سیستم بهترین گزینه موجود را خودش انتخاب می‌کند.',
+            'No country or server selection is needed; the best available option is selected automatically.',
+          ),
+          country:null,
+          price:service==null?t('ابتدا سرویس را انتخاب کنید','Choose a service first'):t('انتخاب خودکار کشور و اپراتور','Automatic country & operator'),
+          busy:buying,
+          onTap:service==null?null:smartBuy,
+        ),
+      ],
+    );
+  }
+
+Widget englishSmartPanel() {
+    final service=selectedService;
+    return Column(
+      crossAxisAlignment:CrossAxisAlignment.stretch,
+      children:[
+        _PanelCard(child:englishServiceSelector()),
         const SizedBox(height:12),
         _Notice(
           text:t(
@@ -864,17 +1152,77 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
   int filterCount(String filter)=>
       orders.where((order)=>orderMatches(order,filter)).length;
 
-  Widget numbersPanel() {
+  Widget persianNumbersPanel() {
     if (orders.isEmpty) {
       return _Notice(text: t('هنوز شماره‌ای نخریده‌اید.', 'You have not purchased a number yet.'));
     }
     final visible=orders.where(orderMatchesFilter).toList(growable:false);
     final filters=[
-      ('ACTIVE',t('فعال','Active'),Icons.timelapse_rounded,const Color(0xFF38BDF8)),
+      ('ACTIVE',t('فعال','Active'),Icons.timelapse_rounded,VelixeoBrand.sky),
       ('COMPLETED',t('تکمیل‌شده','Completed'),Icons.check_circle_rounded,const Color(0xFF16A875)),
-      ('CANCELLED',t('لغوشده','Cancelled'),Icons.cancel_rounded,const Color(0xFFC54152)),
+      ('CANCELLED',t('لغوشده','Cancelled'),Icons.cancel_rounded,VelixeoBrand.red),
       ('FAILED',t('ناموفق','Failed'),Icons.error_rounded,const Color(0xFFB42318)),
-      ('ALL',t('همه','All'),Icons.list_alt_rounded,const Color(0xFF74818B)),
+      ('ALL',t('همه','All'),Icons.list_alt_rounded,VelixeoBrand.muted),
+    ];
+    return Column(
+      crossAxisAlignment:CrossAxisAlignment.stretch,
+      children:[
+        SingleChildScrollView(
+          scrollDirection:Axis.horizontal,
+          child:Row(
+            children:filters.map((item){
+              final selected=orderFilter==item.$1;
+              return Padding(
+                padding:const EdgeInsetsDirectional.only(end:8),
+                child:ChoiceChip(
+                  selected:selected,
+                  onSelected:(_)=>setState(()=>orderFilter=item.$1),
+                  avatar:Icon(item.$3,size:17,color:selected?Colors.white:item.$4),
+                  label:Text('${item.$2} ${filterCount(item.$1)}'),
+                  labelStyle:TextStyle(
+                    fontWeight:FontWeight.w800,
+                    color:selected?Colors.white:const Color(0xFF27364A),
+                  ),
+                  selectedColor:item.$4,
+                  side:BorderSide(color:selected?item.$4:const Color(0xFFDCE8F1)),
+                  backgroundColor:Colors.white,
+                  showCheckmark:false,
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height:12),
+        if(visible.isEmpty)
+          _Notice(text:t('در این دسته سفارشی وجود ندارد.','There are no orders in this category.'))
+        else
+          ...visible.map((order) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _OrderCard(
+              order: order,
+              fa: fa,
+              price: host.money(order.totalAmountAfn, showBase: true),
+              onRefresh: isActive(order) ? () => checkOrder(order) : null,
+              onCancel: order.canCancel ? () => cancelOrder(order) : null,
+              onFinish: order.canFinish ? () => finishOrder(order) : null,
+              onBuyNew: () => setState(() => tab = 0),
+            ),
+          )),
+      ],
+    );
+  }
+
+Widget englishNumbersPanel() {
+    if (orders.isEmpty) {
+      return _Notice(text: t('هنوز شماره‌ای نخریده‌اید.', 'You have not purchased a number yet.'));
+    }
+    final visible=orders.where(orderMatchesFilter).toList(growable:false);
+    final filters=[
+      ('ACTIVE',t('فعال','Active'),Icons.timelapse_rounded,VelixeoBrand.sky),
+      ('COMPLETED',t('تکمیل‌شده','Completed'),Icons.check_circle_rounded,const Color(0xFF16A875)),
+      ('CANCELLED',t('لغوشده','Cancelled'),Icons.cancel_rounded,VelixeoBrand.red),
+      ('FAILED',t('ناموفق','Failed'),Icons.error_rounded,const Color(0xFFB42318)),
+      ('ALL',t('همه','All'),Icons.list_alt_rounded,VelixeoBrand.muted),
     ];
     return Column(
       crossAxisAlignment:CrossAxisAlignment.stretch,
@@ -926,6 +1274,91 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
 
 }
 
+class _VirtualTabBar extends StatelessWidget {
+  const _VirtualTabBar({
+    required this.labels,
+    required this.icons,
+    required this.selected,
+    required this.direction,
+    required this.onChanged,
+  });
+
+  final List<String> labels;
+  final List<IconData> icons;
+  final int selected;
+  final TextDirection direction;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+        textDirection: direction,
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0F5F8),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: List.generate(labels.length, (index) {
+              final active = selected == index;
+              return Expanded(
+                child: InkWell(
+                  onTap: () => onChanged(index),
+                  borderRadius: BorderRadius.circular(9),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: active ? Colors.white : Colors.transparent,
+                      borderRadius: BorderRadius.circular(9),
+                      boxShadow: active
+                          ? const [
+                              BoxShadow(
+                                color: Color(0x0F536D7B),
+                                blurRadius: 8,
+                                offset: Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          icons[index],
+                          size: 15,
+                          color: active
+                              ? const Color(0xFF2E8DB5)
+                              : const Color(0xFF8B9BA5),
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            labels[index],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight:
+                                  active ? FontWeight.w600 : FontWeight.w500,
+                              color: active
+                                  ? const Color(0xFF2E7898)
+                                  : const Color(0xFF8799A4),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      );
+}
+
 class _VirtualPromoBanner extends StatelessWidget {
   const _VirtualPromoBanner({required this.banner,required this.fa});
   final AppBanner banner;
@@ -946,7 +1379,7 @@ class _VirtualPromoBanner extends StatelessWidget {
             Container(
               decoration:const BoxDecoration(
                 gradient:LinearGradient(
-                  colors:[Color(0xFF0B5F9F),Color(0xFF1597DC),Color(0xFF31A8FF)],
+                  colors:[Color(0xFFEAF8FE),Color(0xFFF1FCFA)],
                 ),
               ),
             ),
@@ -965,7 +1398,7 @@ class _VirtualPromoBanner extends StatelessWidget {
                 gradient:LinearGradient(
                   begin:Alignment.centerLeft,
                   end:Alignment.centerRight,
-                  colors:[Color(0xA8001830),Color(0x33001830),Color(0x05001830)],
+                  colors:[Color(0xB8FFFFFF),Color(0x68FFFFFF),Color(0x18FFFFFF)],
                 ),
               ),
             ),
@@ -980,7 +1413,7 @@ class _VirtualPromoBanner extends StatelessWidget {
                       title!,
                       maxLines:2,
                       overflow:TextOverflow.ellipsis,
-                      style:const TextStyle(color:Colors.white,fontSize:20,fontWeight:FontWeight.w900),
+                      style:const TextStyle(color:Color(0xFF2C5366),fontSize:18,fontWeight:FontWeight.w700),
                     ),
                   if(subtitle?.isNotEmpty==true)...[
                     const SizedBox(height:5),
@@ -988,7 +1421,7 @@ class _VirtualPromoBanner extends StatelessWidget {
                       subtitle!,
                       maxLines:2,
                       overflow:TextOverflow.ellipsis,
-                      style:const TextStyle(color:Color(0xFFE8F5FF),fontSize:11.5,height:1.35,fontWeight:FontWeight.w600),
+                      style:const TextStyle(color:Color(0xFF7293A5),fontSize:11,height:1.6,fontWeight:FontWeight.w500),
                     ),
                   ],
                 ],
@@ -1007,53 +1440,58 @@ class _InfoHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
+        constraints: const BoxConstraints(minHeight: 148),
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(23),
           gradient: const LinearGradient(
-            colors: [Color(0xFFEEF9FD), Color(0xFFE3F6F6)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            colors: [Color(0xFFEAF8FE), Color(0xFFF1FCFA)],
+            begin: Alignment.topRight,
+            end: Alignment.bottomLeft,
           ),
-          border: Border.all(color: const Color(0xFFDCEEF4)),
+          border: Border.all(color: const Color(0xFFD7EDF5)),
         ),
-        child: Row(
+        child: Stack(
           children: [
-            Container(
-              width: 58,
-              height: 58,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE9F7FD),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: const Icon(
-                Icons.sms_rounded,
-                color: Color(0xFF369FCA),
-                size: 28,
+            PositionedDirectional(
+              end: 0,
+              bottom: -7,
+              child: Container(
+                width: 66,
+                height: 66,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE4F5FC),
+                  borderRadius: BorderRadius.circular(21),
+                ),
+                child: const Icon(
+                  Icons.sms_rounded,
+                  color: Color(0xFF369FCA),
+                  size: 30,
+                ),
               ),
             ),
-            const SizedBox(width: 13),
-            Expanded(
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: 82),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    fa ? 'شماره مجازی و دریافت OTP' : 'Virtual numbers & OTP',
+                    fa ? 'شماره‌های مجازی' : 'Virtual Numbers',
                     style: const TextStyle(
                       color: Color(0xFF2C5366),
-                      fontSize: 17,
+                      fontSize: 18,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 5),
                   Text(
                     fa
-                        ? 'قیمت، موجودی و نرخ دریافت پیام به‌صورت زنده بررسی می‌شود.'
-                        : 'Live price, stock and SMS delivery rate.',
+                        ? 'یک شماره، برای نیاز تو؛ دریافت OTP سریع، قیمت و موجودی زنده.'
+                        : 'One number for what you need — fast OTP with live price and availability.',
                     style: const TextStyle(
                       color: Color(0xFF7293A5),
-                      fontSize: 11.5,
-                      height: 1.7,
+                      fontSize: 11,
+                      height: 1.75,
                     ),
                   ),
                 ],
@@ -1091,7 +1529,7 @@ String _serviceInitials(VirtualService service) {
 
 Color _serviceFallbackColor(VirtualService service) {
   const palette = [
-    Color(0xFF38BDF8), Color(0xFF805AD5), Color(0xFF16A875),
+    VelixeoBrand.sky, Color(0xFF805AD5), Color(0xFF16A875),
     Color(0xFFE86A33), Color(0xFFDB3F71), Color(0xFF2D7D9A),
     Color(0xFF6B7280), Color(0xFF8B5CF6),
   ];
@@ -1232,7 +1670,7 @@ class _SearchPickerSheetState<T> extends State<_SearchPickerSheet<T>> {
           ),
           Expanded(
             child:rows.isEmpty
-              ?Center(child:Text(Directionality.of(context)==TextDirection.rtl?'نتیجه‌ای پیدا نشد':'No results',style:const TextStyle(color:Color(0xFF74818B))))
+              ?Center(child:Text(Directionality.of(context)==TextDirection.rtl?'نتیجه‌ای پیدا نشد':'No results',style:const TextStyle(color:VelixeoBrand.muted)))
               :ListView.separated(
                 controller:controller,
                 padding:const EdgeInsets.fromLTRB(12,2,12,20),
@@ -1280,13 +1718,13 @@ class _SmartCountryCard extends StatelessWidget {
       padding:const EdgeInsets.all(16),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         Row(children:[
-          CircleAvatar(backgroundColor:const Color(0xFFE4F4FF),child:Icon(icon,color:const Color(0xFF38BDF8))),
+          CircleAvatar(backgroundColor:const Color(0xFFE4F4FF),child:Icon(icon,color:VelixeoBrand.sky)),
           const SizedBox(width:11),
           Expanded(child:Text(title,style:const TextStyle(fontWeight:FontWeight.w900,fontSize:15))),
-          Text(price,style:const TextStyle(fontWeight:FontWeight.w900,color:Color(0xFF38BDF8))),
+          Text(price,style:const TextStyle(fontWeight:FontWeight.w900,color:VelixeoBrand.sky)),
         ]),
         const SizedBox(height:7),
-        Text(subtitle,style:const TextStyle(color:Color(0xFF74818B),fontSize:11.5,height:1.4)),
+        Text(subtitle,style:const TextStyle(color:VelixeoBrand.muted,fontSize:11.5,height:1.4)),
         if(country!=null)...[
           const SizedBox(height:12),
           Container(
@@ -1344,9 +1782,9 @@ class _SummaryPill extends StatelessWidget {
       border:Border.all(color:const Color(0xFFDCE8F1)),
     ),
     child:Row(mainAxisSize:MainAxisSize.min,children:[
-      Icon(icon,size:14,color:const Color(0xFF38BDF8)),
+      Icon(icon,size:14,color:VelixeoBrand.sky),
       const SizedBox(width:5),
-      Text('$label: ',style:const TextStyle(fontSize:10.5,color:Color(0xFF74818B),fontWeight:FontWeight.w700)),
+      Text('$label: ',style:const TextStyle(fontSize:10.5,color:VelixeoBrand.muted,fontWeight:FontWeight.w700)),
       Text(value,style:const TextStyle(fontSize:10.5,fontWeight:FontWeight.w900,color:Color(0xFF102235))),
     ]),
   );
@@ -1379,7 +1817,7 @@ class _OfferTile extends StatelessWidget {
             children: [
               CircleAvatar(
                 backgroundColor: anyOperator?const Color(0xFFEAF7FF):const Color(0xFFE4F4FF),
-                child: Icon(anyOperator?Icons.shuffle_rounded:Icons.cell_tower_rounded, color: const Color(0xFF38BDF8)),
+                child: Icon(anyOperator?Icons.shuffle_rounded:Icons.cell_tower_rounded, color: VelixeoBrand.sky),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1400,16 +1838,16 @@ class _OfferTile extends StatelessWidget {
                       runSpacing:5,
                       crossAxisAlignment:WrapCrossAlignment.center,
                       children: [
-                        Text('${offer.count} ${fa ? 'موجود' : 'available'}', style: const TextStyle(fontSize: 11, color: Color(0xFF74818B))),
+                        Text('${offer.count} ${fa ? 'موجود' : 'available'}', style: const TextStyle(fontSize: 11, color: VelixeoBrand.muted)),
                         if (offer.deliveryPercent != null)
                           Row(mainAxisSize:MainAxisSize.min,children:[
-                            const Icon(Icons.mark_email_read_outlined,size:14,color:Color(0xFF38BDF8)),
+                            const Icon(Icons.mark_email_read_outlined,size:14,color:VelixeoBrand.sky),
                             const SizedBox(width:3),
                             Text(
                               '${offer.deliveryPercent!.toStringAsFixed(2)}% SMS',
                               style: TextStyle(
                                 fontSize: 11,
-                                color:(offer.deliveryPercent??0)>0?const Color(0xFF158365):const Color(0xFF74818B),
+                                color:(offer.deliveryPercent??0)>0?VelixeoBrand.green:VelixeoBrand.muted,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -1417,7 +1855,7 @@ class _OfferTile extends StatelessWidget {
                         ...tags.map((tag)=>Container(
                           padding:const EdgeInsets.symmetric(horizontal:7,vertical:3),
                           decoration:BoxDecoration(color:const Color(0xFFEAF6FF),borderRadius:BorderRadius.circular(999)),
-                          child:Text(tag,style:const TextStyle(fontSize:9.5,fontWeight:FontWeight.w800,color:Color(0xFF38BDF8))),
+                          child:Text(tag,style:const TextStyle(fontSize:9.5,fontWeight:FontWeight.w800,color:VelixeoBrand.sky)),
                         )),
                       ],
                     ),
@@ -1428,7 +1866,7 @@ class _OfferTile extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(price, style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF38BDF8),fontSize:15)),
+                  Text(price, style: const TextStyle(fontWeight: FontWeight.w900, color: VelixeoBrand.sky,fontSize:15)),
                   const SizedBox(height: 7),
                   FilledButton.tonal(
                     onPressed: busy ? null : onBuy,
@@ -1488,9 +1926,9 @@ class _OrderCard extends StatelessWidget {
     switch(order.status){
       case 'COMPLETED': return const Color(0xFF16A875);
       case 'CANCELLED':
-      case 'REFUNDED': return const Color(0xFFC54152);
+      case 'REFUNDED': return VelixeoBrand.red;
       case 'FAILED': return const Color(0xFFB42318);
-      default:return const Color(0xFF38BDF8);
+      default:return VelixeoBrand.sky;
     }
   }
 
@@ -1545,7 +1983,7 @@ class _OrderCard extends StatelessWidget {
                 decoration: BoxDecoration(color: const Color(0xFFF5FAFE), borderRadius: BorderRadius.circular(14)),
                 child: Row(
                   children: [
-                    const Icon(Icons.phone_android_rounded, color: Color(0xFF38BDF8)),
+                    const Icon(Icons.phone_android_rounded, color: VelixeoBrand.sky),
                     const SizedBox(width: 10),
                     Expanded(child: Text(order.phone!, textDirection: TextDirection.ltr, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16))),
                     IconButton(onPressed: () => copy(context, order.phone!, fa ? 'شماره کپی شد.' : 'Number copied.'), icon: const Icon(Icons.copy_rounded)),
@@ -1555,18 +1993,18 @@ class _OrderCard extends StatelessWidget {
             const SizedBox(height: 9),
             Row(
               children: [
-                Text('${fa ? 'کشور' : 'Country'}: ${_orderCountryName(order.country)}', style: const TextStyle(fontSize: 12, color: Color(0xFF74818B))),
+                Text('${fa ? 'کشور' : 'Country'}: ${_orderCountryName(order.country)}', style: const TextStyle(fontSize: 12, color: VelixeoBrand.muted)),
                 const Spacer(),
                 if (!terminal) Text('⏱ $remaining', style: const TextStyle(fontWeight: FontWeight.w900)),
                 const SizedBox(width: 8),
-                Text(price, style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF38BDF8))),
+                Text(price, style: const TextStyle(fontWeight: FontWeight.w900, color: VelixeoBrand.sky)),
               ],
             ),
             if (order.sms.isEmpty && !terminal) ...[
               const SizedBox(height: 14),
               LinearProgressIndicator(borderRadius: BorderRadius.circular(99)),
               const SizedBox(height: 7),
-              Text(fa ? 'در انتظار دریافت پیامک…' : 'Waiting for the SMS…', style: const TextStyle(color: Color(0xFF74818B), fontSize: 12)),
+              Text(fa ? 'در انتظار دریافت پیامک…' : 'Waiting for the SMS…', style: const TextStyle(color: VelixeoBrand.muted, fontSize: 12)),
             ],
             if (order.sms.isNotEmpty) ...[
               const SizedBox(height: 14),
@@ -1593,7 +2031,7 @@ class _OrderCard extends StatelessWidget {
             ],
             if (hasMeaningfulFailure) ...[
               const SizedBox(height: 8),
-              Text(order.failureReason!, style: const TextStyle(color: Color(0xFFC54152), fontSize: 11)),
+              Text(order.failureReason!, style: const TextStyle(color: VelixeoBrand.red, fontSize: 11)),
             ],
             const SizedBox(height: 10),
             Wrap(

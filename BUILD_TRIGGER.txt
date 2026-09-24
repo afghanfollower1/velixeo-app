@@ -1,14 +1,19 @@
-Trigger signed Android build - VELIXEO v0.10.0 - 2026-09-24.
+Trigger signed Android build - VELIXEO v0.12.0 - 2026-09-24.
 Release scope:
-1) Apply the supplied VELIXEO 2026 design system across the Flutter app and Admin V3.
-2) Use Vazirmatn for Persian and Inter for English; both fonts are bundled in the APK for offline-reliable rendering.
-3) Implement RTL Persian and LTR English styling, typography, spacing, cards, inputs, buttons and navigation consistently.
-4) Redesign Splash, language selection, sign-in/register, Home, Services, Orders, Wallet, Profile and Notifications.
-5) Align Social Media, Virtual Numbers, Premium, Digital Accounts, Referral and Support surfaces with the same light Sky design language.
-6) Restyle /admin/v3 to the supplied white-sidebar/light-dashboard design while preserving real controls and data.
-7) Rename Banners & Advertising to Banners / بنرها.
-8) Remove the retired Promotions customer/admin source and compatibility API methods; historical Promotion data stays safely hidden.
-9) Keep Premium and Digital Accounts separate; keep Mobile Top-up as Coming Soon.
-10) Preserve existing provider, wallet, payment, OTP, order, refill, drip-feed and backend behavior.
-11) Version: 0.10.0+30.
-12) Flutter Analyze and Backend CI passed on the final design branch before merge.
+1) Match the supplied VELIXEO reference UI across the complete mobile and Admin product surface.
+2) App coverage: 41/41 primary routes/screens with independent Persian RTL and English LTR presentation.
+3) Admin coverage: 53/53 screens/subscreens with responsive FA/EN presentation.
+4) Apply reference headers, back navigation, typography, spacing, cards, tabs, states and brand icon.
+5) Social Media uses exactly one Admin-managed banner; legacy built-in duplicate hero is removed.
+6) Banner Admin supports create, edit, enable/disable and delete; Social and Virtual routes stay isolated.
+7) Services root is Digital Services and routes to Social, Virtual Numbers, Premium Memberships, Mobile Top-up and Digital Accounts.
+8) Notification Center follows the reference hero, counters, filters, type icons, cards and localized empty/action states.
+9) Wallet uses semantic localized transaction titles/icons for top-up, purchase, refund and adjustments.
+10) Profile displays verified state and real account role (User/Admin).
+11) Security turns green and reports the account secure when email, phone and 2FA are all verified/enabled.
+12) Virtual Numbers uses the reference header/hero with "One number, for what you need" and keeps live provider logic.
+13) VELIXEO brand mark/icon is used consistently; palette remains #38BDF8 / #F6F9FC / #24343D.
+14) Promotions stay removed; Premium and Digital Accounts stay separate; Mobile Top-up stays Coming Soon.
+15) Preserve real provider, wallet, HesabPay, OTP/2FA, support, referrals and updater behavior.
+16) Version: 0.12.0+32.
+17) Release only after Flutter CI, Backend CI and signed preview APK pass.
