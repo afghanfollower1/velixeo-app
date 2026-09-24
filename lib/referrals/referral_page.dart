@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/api_service.dart';
+import '../design/velixeo_design.dart';
 import 'referral_models.dart';
 
 abstract class ReferralPanelHost {
@@ -151,7 +152,7 @@ class _InviteFriendsPageState extends State<InviteFriendsPage>{
                     style: const TextStyle(
                       fontSize: 21,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF24343D),
+                      color: VelixeoBrand.ink,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -159,7 +160,7 @@ class _InviteFriendsPageState extends State<InviteFriendsPage>{
                     subtitle,
                     style: const TextStyle(
                       fontSize: 11,
-                      color: Color(0xFF74818B),
+                      color: VelixeoBrand.muted,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -319,7 +320,7 @@ class _InviteFriendsPageState extends State<InviteFriendsPage>{
                                   onPressed: shareTelegram,
                                   icon: const Icon(
                                     Icons.send_rounded,
-                                    color: Color(0xFF38BDF8),
+                                    color: VelixeoBrand.sky,
                                     size: 17,
                                   ),
                                   label: const Text('Telegram'),
@@ -336,7 +337,7 @@ class _InviteFriendsPageState extends State<InviteFriendsPage>{
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF24343D),
+                        color: VelixeoBrand.ink,
                       ),
                     ),
                     const SizedBox(height: 9),
@@ -396,7 +397,7 @@ Widget _buildEnglishReferralPage(
                     style: const TextStyle(
                       fontSize: 21,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF24343D),
+                      color: VelixeoBrand.ink,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -404,7 +405,7 @@ Widget _buildEnglishReferralPage(
                     subtitle,
                     style: const TextStyle(
                       fontSize: 11,
-                      color: Color(0xFF74818B),
+                      color: VelixeoBrand.muted,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -564,7 +565,7 @@ Widget _buildEnglishReferralPage(
                                   onPressed: shareTelegram,
                                   icon: const Icon(
                                     Icons.send_rounded,
-                                    color: Color(0xFF38BDF8),
+                                    color: VelixeoBrand.sky,
                                     size: 17,
                                   ),
                                   label: const Text('Telegram'),
@@ -581,7 +582,7 @@ Widget _buildEnglishReferralPage(
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF24343D),
+                        color: VelixeoBrand.ink,
                       ),
                     ),
                     const SizedBox(height: 9),
@@ -714,7 +715,7 @@ class _ReferralEmpty extends StatelessWidget {
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 10.5,
-                color: Color(0xFF74818B),
+                color: VelixeoBrand.muted,
               ),
             ),
           ],
@@ -742,7 +743,7 @@ class _CopyRow extends StatelessWidget{
    const SizedBox(height:5),
    Row(children:[
     Expanded(child:SelectableText(value,style:const TextStyle(fontSize:12.5,fontWeight:FontWeight.w900),maxLines:2)),
-    IconButton(onPressed:onCopy,icon:const Icon(Icons.copy_rounded,color:Color(0xFF38BDF8))),
+    IconButton(onPressed:onCopy,icon:const Icon(Icons.copy_rounded,color:VelixeoBrand.sky)),
    ]),
   ]),
  );
@@ -754,16 +755,16 @@ class _InviteTile extends StatelessWidget{
   padding:const EdgeInsets.symmetric(vertical:11),
   decoration:const BoxDecoration(border:Border(bottom:BorderSide(color:Color(0xFFEDF2F7)))),
   child:Row(children:[
-   const CircleAvatar(backgroundColor:Color(0xFFEAF5FF),child:Icon(Icons.person_outline_rounded,color:Color(0xFF38BDF8))),
+   const CircleAvatar(backgroundColor:Color(0xFFEAF5FF),child:Icon(Icons.person_outline_rounded,color:VelixeoBrand.sky)),
    const SizedBox(width:10),
    Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
     Text(invite.name,style:const TextStyle(fontWeight:FontWeight.w800)),
     Text(invite.createdAt.toLocal().toString().substring(0,10),style:const TextStyle(fontSize:10,color:Color(0xFF8A98A6))),
    ])),
    Column(crossAxisAlignment:CrossAxisAlignment.end,children:[
-    Text(invite.rewardCount>0?(fa?'${invite.rewardCount} شارژ موفق':'${invite.rewardCount} verified top-ups'):(fa?'هنوز شارژ نشده':'No top-up yet'),style:const TextStyle(fontSize:10,fontWeight:FontWeight.w800,color:Color(0xFF158365))),
+    Text(invite.rewardCount>0?(fa?'${invite.rewardCount} شارژ موفق':'${invite.rewardCount} verified top-ups'):(fa?'هنوز شارژ نشده':'No top-up yet'),style:const TextStyle(fontSize:10,fontWeight:FontWeight.w800,color:VelixeoBrand.green)),
     if(invite.qualifyingTopupAfn>0)Text(fa?'شارژ: ${money(invite.qualifyingTopupAfn,showBase:true)}':'Top-ups: ${money(invite.qualifyingTopupAfn,showBase:true)}',style:const TextStyle(fontSize:9.5,color:Color(0xFF718399))),
-    if(invite.rewardAfn>0)Text(fa?'کمیسیون: ${money(invite.rewardAfn,showBase:true)}':'Commission: ${money(invite.rewardAfn,showBase:true)}',style:const TextStyle(fontSize:10,color:Color(0xFF38BDF8),fontWeight:FontWeight.w800)),
+    if(invite.rewardAfn>0)Text(fa?'کمیسیون: ${money(invite.rewardAfn,showBase:true)}':'Commission: ${money(invite.rewardAfn,showBase:true)}',style:const TextStyle(fontSize:10,color:VelixeoBrand.sky,fontWeight:FontWeight.w800)),
    ]),
   ]),
  );
