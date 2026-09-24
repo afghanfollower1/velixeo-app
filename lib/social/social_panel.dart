@@ -488,7 +488,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
           Row(children: [
             const Icon(Icons.check_circle_rounded, color: Color(0xFF0A8B5B), size: 28),
             const SizedBox(width: 9),
-            Expanded(child: Text(t('سفارش شما با موفقیت ثبت شد', 'Your order was placed successfully'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Color(0xFF086343)))),
+            Expanded(child: Text(t('سفارش شما با موفقیت ثبت شد', 'Your order was placed successfully'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Color(0xFF086343)))),
           ]),
           const SizedBox(height: 14),
           Container(
@@ -497,7 +497,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
             child: Row(children: [
               Text(t('شناسه سفارش', 'Order ID'), style: const TextStyle(color: Color(0xFF74818B))),
               const Spacer(),
-              SelectableText(order.displayOrderId, style: const TextStyle(fontWeight: FontWeight.w900)),
+              SelectableText(order.displayOrderId, style: const TextStyle(fontWeight: FontWeight.w700)),
               IconButton(onPressed: copyId, tooltip: t('کپی شناسه', 'Copy Order ID'), icon: const Icon(Icons.copy_rounded, size: 19, color: Color(0xFF38BDF8))),
             ]),
           ),
@@ -631,7 +631,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     final service = selectedService;
     if (service != null) {
       return ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
         children: [
           _WalletStrip(host: host, fa: fa),
           const SizedBox(height: 14),
@@ -654,8 +654,10 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     }
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
       children: [
+        _SocialInfoHero(fa: fa),
+        const SizedBox(height: 12),
         _WalletStrip(host: host, fa: fa),
         if (socialBanner != null) ...[
           const SizedBox(height: 14),
@@ -667,7 +669,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
             Expanded(
               child: Text(
                 t('شبکه‌های اجتماعی', 'Social platforms'),
-                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
               ),
             ),
             if (availableBrands.length > 6)
@@ -679,16 +681,16 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
           ],
         ),
         const SizedBox(height: 10),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            const gap = 9.0;
-            const columns = 3;
-            final width = (constraints.maxWidth - (gap * (columns - 1))) / columns;
-            return Wrap(
-              spacing: gap,
-              runSpacing: gap,
-              children: displayedBrands.map((brand) => SizedBox(
-                width: width,
+        SizedBox(
+          height: 80,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: displayedBrands.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final brand = displayedBrands[index];
+              return SizedBox(
+                width: 62,
                 child: _BrandCard(
                   brand: brand,
                   fa: fa,
@@ -700,12 +702,12 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
                     quote = null;
                   }),
                 ),
-              )).toList(growable: false),
-            );
-          },
+              );
+            },
+          ),
         ),
         const SizedBox(height: 18),
-        Text(t('نوع سرویس', 'Service type'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+        Text(t('نوع سرویس', 'Service type'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
         const SizedBox(height: 9),
         Wrap(
           spacing: 8,
@@ -752,7 +754,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
         children: [
           Row(
             children: [
-              Expanded(child: Text(t('ثبت سفارش', 'Place order'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900))),
+              Expanded(child: Text(t('ثبت سفارش', 'Place order'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
               if (service.featured) const Icon(Icons.star_rounded, color: Color(0xFFFFA928)),
             ],
           ),
@@ -781,7 +783,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
                 controlAffinity: ListTileControlAffinity.leading,
                 title: Text(
                   t('دریپ‌فید (ارسال مرحله‌ای)', 'Drip-feed'),
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 subtitle: Text(
                   t('فقط در صورت نیاز فعال کنید.', 'Enable only if you want scheduled delivery.'),
@@ -902,7 +904,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
                     onTap: showTerms,
                     child: Text(
                       t('مشاهده قوانین', 'terms & conditions'),
-                      style: const TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.w900),
+                      style: const TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.w700),
                     ),
                   ),
                 ],
@@ -1074,7 +1076,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
-                  Expanded(child: Text(fa ? (row.order.serviceTitleFa ?? 'سرویس') : (row.order.serviceTitleEn ?? 'Service'), style: const TextStyle(fontWeight: FontWeight.w900))),
+                  Expanded(child: Text(fa ? (row.order.serviceTitleFa ?? 'سرویس') : (row.order.serviceTitleEn ?? 'Service'), style: const TextStyle(fontWeight: FontWeight.w700))),
                   _StatusBadge(label: refillStatusLabel(action.status), status: action.status),
                 ]),
                 const SizedBox(height: 10),
@@ -1122,7 +1124,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
-                  Expanded(child: Text(fa ? (order.serviceTitleFa ?? 'سرویس') : (order.serviceTitleEn ?? 'Service'), style: const TextStyle(fontWeight: FontWeight.w900))),
+                  Expanded(child: Text(fa ? (order.serviceTitleFa ?? 'سرویس') : (order.serviceTitleEn ?? 'Service'), style: const TextStyle(fontWeight: FontWeight.w700))),
                   _StatusBadge(label: dripFeedStatusLabel(order.dripFeedStatus), status: order.dripFeedStatus),
                 ]),
                 const SizedBox(height: 10),
@@ -1224,6 +1226,91 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
   }
 }
 
+
+class _SocialInfoHero extends StatelessWidget {
+  const _SocialInfoHero({required this.fa});
+  final bool fa;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        minHeight: 155,
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFE8F7FF), Color(0xFFF5FCFF)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(color: const Color(0xFFD5EDF8)),
+          borderRadius: BorderRadius.circular(23),
+        ),
+        child: Stack(
+          children: [
+            PositionedDirectional(
+              end: 2,
+              bottom: -22,
+              child: Transform.rotate(
+                angle: -0.22,
+                child: const Text(
+                  '◎',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 92,
+                    height: 1,
+                    color: Color(0x807ACEF0),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 260),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE5F5FC),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      fa ? 'خدمات اجتماعی' : 'Social services',
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: Color(0xFF3F91B4),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    fa ? 'یک قدم جلوتر دیده شو' : 'Take your presence further',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      height: 1.55,
+                      color: Color(0xFF2C5366),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    fa
+                        ? 'خدمت مناسب را پیدا کن و سفارش خود را دنبال کن.'
+                        : 'Find the right service and follow your order.',
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      height: 1.7,
+                      color: Color(0xFF7293A5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+}
 
 class _SocialTabBar extends StatelessWidget {
   const _SocialTabBar({
@@ -1422,7 +1509,7 @@ class _SocialPromoBanner extends StatelessWidget {
                               color: Colors.white,
                               fontSize: 16,
                               height: 1.2,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         if (title.isNotEmpty && subtitle.isNotEmpty) const SizedBox(height: 5),
@@ -1508,34 +1595,61 @@ class _BrandCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          constraints: const BoxConstraints(minHeight: 92),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? const Color(0xFF38BDF8) : Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: selected ? const Color(0xFF38BDF8) : const Color(0xFFDCE8F1)),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconTheme(
-                data: IconThemeData(color: selected ? Colors.white : const Color(0xFF38BDF8)),
-                child: iconWidget(),
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: selected
+                    ? const Color(0xFFE9F7FD)
+                    : const Color(0xFFF3F7FA),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: selected
+                      ? const Color(0xFF6BC7EE)
+                      : const Color(0xFFE9F0F4),
+                ),
+                boxShadow: selected
+                    ? const [
+                        BoxShadow(
+                          color: Color(0x1A40B8E6),
+                          blurRadius: 10,
+                          offset: Offset(0, 3),
+                        ),
+                      ]
+                    : null,
               ),
-              const SizedBox(height: 7),
-              Text(
-                fa ? brand.titleFa : brand.titleEn,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: selected ? Colors.white : const Color(0xFF102235)),
+              child: IconTheme(
+                data: IconThemeData(
+                  color: selected
+                      ? const Color(0xFF229FD3)
+                      : const Color(0xFF91A7B5),
+                ),
+                child: Center(child: iconWidget()),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              fa ? brand.titleFa : brand.titleEn,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                color: selected
+                    ? const Color(0xFF198DBD)
+                    : const Color(0xFF6E8390),
+              ),
+            ),
+          ],
         ),
       );
+
 }
 
 class _ServiceCard extends StatelessWidget {
@@ -1577,7 +1691,7 @@ class _ServiceCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Expanded(child: Text(fa ? service.titleFa : service.titleEn, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14))),
+                  Expanded(child: Text(fa ? service.titleFa : service.titleEn, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14))),
                   if (service.featured) const Icon(Icons.star_rounded, color: Color(0xFFFFA928), size: 19),
                   const SizedBox(width: 4),
                   Icon(selected ? Icons.check_circle_rounded : Icons.chevron_right_rounded, color: const Color(0xFF38BDF8)),
@@ -1658,7 +1772,7 @@ class _DripRunOrderCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     fa ? (order.serviceTitleFa ?? 'سرویس') : (order.serviceTitleEn ?? 'Service'),
-                    style: const TextStyle(fontWeight: FontWeight.w900),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
                 _StatusBadge(label: statusLabel(run.status), status: run.status),
@@ -1746,12 +1860,12 @@ class _OrderCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(child: Text(fa ? (order.serviceTitleFa ?? 'سرویس') : (order.serviceTitleEn ?? 'Service'), style: const TextStyle(fontWeight: FontWeight.w900))),
+                Expanded(child: Text(fa ? (order.serviceTitleFa ?? 'سرویس') : (order.serviceTitleEn ?? 'Service'), style: const TextStyle(fontWeight: FontWeight.w700))),
                 _StatusBadge(label: statusLabel(order.status), status: order.status),
               ],
             ),
             const SizedBox(height: 8),
-            Text(host.money(order.totalAmountAfn, showBase: true), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+            Text(host.money(order.totalAmountAfn, showBase: true), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
             const SizedBox(height: 5),
             Row(
               children: [
@@ -1877,7 +1991,7 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
-      child: Text(label, style: TextStyle(fontSize: 10.5, color: color, fontWeight: FontWeight.w800)),
+      child: Text(label, style: TextStyle(fontSize: 10.5, color: color, fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -1905,7 +2019,7 @@ class _InfoRow extends StatelessWidget {
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: AlignmentDirectional.centerEnd,
-                      child: Text(value, textAlign: TextAlign.end, maxLines: 1, style: const TextStyle(fontWeight: FontWeight.w900)),
+                      child: Text(value, textAlign: TextAlign.end, maxLines: 1, style: const TextStyle(fontWeight: FontWeight.w700)),
                     ),
                   )
                 : Text(value, textAlign: TextAlign.end, style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -1930,7 +2044,7 @@ class _EmptyState extends StatelessWidget {
             children: [
               Icon(icon, size: 72, color: const Color(0xFF9BB1C4)),
               const SizedBox(height: 16),
-              Text(title, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+              Text(title, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
               const SizedBox(height: 7),
               Text(subtitle, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF74818B), height: 1.5)),
             ],
