@@ -47,6 +47,8 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
   Timer? statusTimer;
   final Map<String, TextEditingController> fields = {};
   final coupon = TextEditingController();
+  final orderSearch = TextEditingController();
+  String orderStatusFilter = 'ALL';
 
   SocialPanelHost get host => widget.host;
   bool get fa => host.fa;
@@ -55,6 +57,9 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
   void initState() {
     super.initState();
     coupon.addListener(scheduleQuote);
+    orderSearch.addListener(() {
+      if (mounted) setState(() {});
+    });
     load();
     statusTimer = Timer.periodic(const Duration(minutes: 1), (_) => autoSyncOrders());
   }
@@ -67,6 +72,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
       controller.dispose();
     }
     coupon.dispose();
+    orderSearch.dispose();
     super.dispose();
   }
 
@@ -173,29 +179,43 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
         return true;
       }).toList(growable: false);
 
-  AppBanner? get socialBanner {
-    final rows = host.banners
-        .where((banner) => banner.placement == 'SERVICES_TOP')
-        .toList(growable: false)
-      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-    for (final banner in rows) {
-      final target = banner.actionUrl?.trim().toLowerCase();
-      if (target == 'velixeo://social' ||
-          target == 'velixeo://social-media') {
-        return banner;
-      }
-    }
-    for (final banner in rows) {
-      final target = banner.actionUrl?.trim().toLowerCase() ?? '';
-      if (target.isEmpty) return banner;
-    }
-    return null;
-  }
-
   List<SocialBrand> get displayedBrands {
     final rows = availableBrands;
     if (showAllBrands || rows.length <= 6) return rows;
     return rows.take(6).toList(growable: false);
+  }
+
+  bool _socialOrderMatchesStatus(SocialOrder order) {
+    final status = order.status.toUpperCase();
+    switch (orderStatusFilter) {
+      case 'PENDING':
+        return const {
+          'PENDING',
+          'UNPAID',
+          'AWAITING_SMS',
+          'AWAITING_ACTION',
+          'AWAITING_CANCEL',
+        }.contains(status);
+      case 'PROCESSING':
+        return status == 'PROCESSING' || status == 'IN_PROGRESS';
+      case 'COMPLETED':
+        return status == 'COMPLETED';
+      case 'CANCELLED':
+        return status == 'CANCELLED' || status == 'REFUNDED';
+      default:
+        return true;
+    }
+  }
+
+  List<SocialOrder> get filteredSocialOrders {
+    final query = orderSearch.text.trim().toLowerCase();
+    return orders.where((order) {
+      if (!_socialOrderMatchesStatus(order)) return false;
+      if (query.isEmpty) return true;
+      final id = order.displayOrderId.toLowerCase();
+      final link = (order.orderLink ?? '').toLowerCase();
+      return id.contains(query) || link.contains(query);
+    }).toList(growable: false);
   }
 
   void selectService(SocialService service) {
@@ -705,10 +725,8 @@ Widget _englishSocialTabBody() {
     return ListView(
       padding: VelixeoFaDesign.pagePadding,
       children: [
-        if (socialBanner != null) ...[
-          _SocialPromoBanner(banner: socialBanner!, fa: fa),
-          const SizedBox(height: 14),
-        ],
+        _SocialInfoHero(fa: fa),
+        const SizedBox(height: 12),
         _WalletStrip(host: host, fa: fa),
         const SizedBox(height: 18),
         Row(
@@ -824,10 +842,8 @@ Widget buildEnglishNewOrder() {
     return ListView(
       padding: VelixeoEnDesign.pagePadding,
       children: [
-        if (socialBanner != null) ...[
-          _SocialPromoBanner(banner: socialBanner!, fa: fa),
-          const SizedBox(height: 14),
-        ],
+        _SocialInfoHero(fa: fa),
+        const SizedBox(height: 12),
         _WalletStrip(host: host, fa: fa),
         const SizedBox(height: 18),
         Row(
@@ -1345,64 +1361,16 @@ Widget buildEnglishOrderForm(SocialService service) {
   }
 
   Widget buildPersianOrders() {
-    final cards = <Widget>[];
-    for (final order in orders) {
-      if (order.isDripFeed) {
-        for (final run in order.dripRuns) {
-          cards.add(
-            _DripRunOrderCard(
-              order: order,
-              run: run,
-              host: host,
-              fa: fa,
-              statusLabel: statusLabel,
-              onRefresh: refreshOrder,
-            ),
-          );
-        }
-      } else {
-        cards.add(
-          _OrderCard(
-            order: order,
-            host: host,
-            fa: fa,
-            statusLabel: statusLabel,
-            onRefresh: refreshOrder,
-            onRefill: requestRefill,
-            onCancel: cancelOrder,
-            onRefreshAction: refreshRefill,
-          ),
-        );
-      }
-    }
-
-    if (cards.isEmpty) {
-      return _EmptyState(
-        icon: Icons.receipt_long_outlined,
-        title: t('هنوز سفارش شبکه اجتماعی ندارید', 'No social orders yet'),
-        subtitle: t('بعد از ثبت سفارش، هر اجرای Drip-feed نیز به‌صورت یک سفارش جداگانه در همین بخش نمایش داده می‌شود.', 'After ordering, every drip-feed run is also shown here as its own order row.'),
-      );
-    }
-    return RefreshIndicator(
-      onRefresh: () async {
-        orders = await host.api.socialOrders();
-        if (mounted) setState(() {});
-      },
-      child: ListView.builder(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        itemCount: cards.length,
-        itemBuilder: (context, index) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: cards[index],
-        ),
-      ),
-    );
+    return _buildSocialOrdersList();
   }
 
-Widget buildEnglishOrders() {
+  Widget buildEnglishOrders() {
+    return _buildSocialOrdersList();
+  }
+
+  Widget _buildSocialOrdersList() {
     final cards = <Widget>[];
-    for (final order in orders) {
+    for (final order in filteredSocialOrders) {
       if (order.isDripFeed) {
         for (final run in order.dripRuns) {
           cards.add(
@@ -1432,26 +1400,71 @@ Widget buildEnglishOrders() {
       }
     }
 
-    if (cards.isEmpty) {
+    if (orders.isEmpty) {
       return _EmptyState(
         icon: Icons.receipt_long_outlined,
-        title: t('هنوز سفارش شبکه اجتماعی ندارید', 'No social orders yet'),
-        subtitle: t('بعد از ثبت سفارش، هر اجرای Drip-feed نیز به‌صورت یک سفارش جداگانه در همین بخش نمایش داده می‌شود.', 'After ordering, every drip-feed run is also shown here as its own order row.'),
+        title: t(
+          'هنوز سفارش شبکه اجتماعی ندارید',
+          'No social orders yet',
+        ),
+        subtitle: t(
+          'بعد از ثبت سفارش، هر اجرای Drip-feed نیز به‌صورت یک سفارش جداگانه در همین بخش نمایش داده می‌شود.',
+          'After ordering, every drip-feed run is also shown here as its own order row.',
+        ),
       );
     }
+
     return RefreshIndicator(
       onRefresh: () async {
         orders = await host.api.socialOrders();
         if (mounted) setState(() {});
       },
-      child: ListView.builder(
+      child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
-        itemCount: cards.length,
-        itemBuilder: (context, index) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: cards[index],
-        ),
+        children: [
+          _SocialOrdersToolbar(
+            fa: fa,
+            controller: orderSearch,
+            selected: orderStatusFilter,
+            onChanged: (value) => setState(() => orderStatusFilter = value),
+          ),
+          const SizedBox(height: 12),
+          if (cards.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 28),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: const Color(0xFFDCE8F1)),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Column(
+                children: [
+                  const Icon(
+                    Icons.search_off_rounded,
+                    color: VelixeoBrand.muted,
+                    size: 34,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    t(
+                      'سفارشی با این فیلتر پیدا نشد',
+                      'No orders match this filter',
+                    ),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...cards.map(
+              (card) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: card,
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -1774,6 +1787,95 @@ Widget buildEnglishDripFeed() {
 }
 
 
+class _SocialInfoHero extends StatelessWidget {
+  const _SocialInfoHero({required this.fa});
+
+  final bool fa;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        constraints: const BoxConstraints(minHeight: 155),
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFE8F7FF), Color(0xFFF5FCFF)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(color: const Color(0xFFD5EDF8)),
+          borderRadius: BorderRadius.circular(23),
+        ),
+        child: Stack(
+          children: [
+            PositionedDirectional(
+              end: 2,
+              bottom: -22,
+              child: Transform.rotate(
+                angle: -0.22,
+                child: const Text(
+                  '◎',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 92,
+                    height: 1,
+                    color: Color(0x807ACEF0),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 260),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE5F5FC),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      fa ? 'خدمات اجتماعی' : 'Social services',
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: Color(0xFF3F91B4),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    fa
+                        ? 'یک قدم جلوتر دیده شو'
+                        : 'Take your presence further',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      height: 1.55,
+                      color: Color(0xFF2C5366),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    fa
+                        ? 'خدمت مناسب را پیدا کن و سفارش خود را دنبال کن.'
+                        : 'Find the right service and follow your order.',
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      height: 1.7,
+                      color: Color(0xFF7293A5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
 class _SocialOrderSuccessPage extends StatelessWidget {
   const _SocialOrderSuccessPage({
     required this.host,
@@ -2059,6 +2161,78 @@ class _SocialSuccessLine extends StatelessWidget {
       );
 }
 
+class _SocialOrdersToolbar extends StatelessWidget {
+  const _SocialOrdersToolbar({
+    required this.fa,
+    required this.controller,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final bool fa;
+  final TextEditingController controller;
+  final String selected;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = fa
+        ? const <String, String>{
+            'ALL': 'همه',
+            'PENDING': 'در انتظار',
+            'PROCESSING': 'در حال انجام',
+            'COMPLETED': 'تکمیل‌شده',
+            'CANCELLED': 'لغوشده',
+          }
+        : const <String, String>{
+            'ALL': 'All',
+            'PENDING': 'Pending',
+            'PROCESSING': 'In progress',
+            'COMPLETED': 'Completed',
+            'CANCELLED': 'Cancelled',
+          };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: controller,
+          textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
+          decoration: InputDecoration(
+            hintText: fa
+                ? 'جستجو با شناسه سفارش یا لینک سفارش'
+                : 'Search by order ID or order link',
+            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: controller.text.trim().isEmpty
+                ? null
+                : IconButton(
+                    onPressed: controller.clear,
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Wrap(
+            spacing: 7,
+            children: items.entries
+                .map(
+                  (entry) => ChoiceChip(
+                    label: Text(entry.value),
+                    selected: selected == entry.key,
+                    showCheckmark: false,
+                    onSelected: (_) => onChanged(entry.key),
+                  ),
+                )
+                .toList(growable: false),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _SocialTabBar extends StatelessWidget {
   const _SocialTabBar({
     required this.labels,
@@ -2178,106 +2352,6 @@ class _WalletStrip extends StatelessWidget {
           ],
         ),
       );
-}
-
-class _SocialPromoBanner extends StatelessWidget {
-  const _SocialPromoBanner({required this.banner, required this.fa});
-
-  final AppBanner banner;
-  final bool fa;
-
-  @override
-  Widget build(BuildContext context) {
-    final title = (fa ? banner.titleFa : banner.titleEn)?.trim() ?? '';
-    final subtitle = (fa ? banner.subtitleFa : banner.subtitleEn)?.trim() ?? '';
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: AspectRatio(
-        aspectRatio: 1080 / 420,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (banner.imageUrl.trim().isNotEmpty)
-              Image.network(
-                banner.imageUrl,
-                fit: BoxFit.cover,
-                cacheWidth: ((MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context)).clamp(640, 1280)).round(),
-                filterQuality: FilterQuality.low,
-                gaplessPlayback: true,
-                loadingBuilder: (context, child, progress) => progress == null ? child : const SizedBox.shrink(),
-                errorBuilder: (_, __, ___) => const DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF0E6DD8), Color(0xFF35B5FF)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                ),
-              )
-            else
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF0E6DD8), Color(0xFF35B5FF)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-              ),
-            if (title.isNotEmpty || subtitle.isNotEmpty)
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: fa ? Alignment.centerRight : Alignment.centerLeft,
-                    end: fa ? Alignment.centerLeft : Alignment.centerRight,
-                    colors: const [Color(0xA6000000), Color(0x18000000), Color(0x00000000)],
-                  ),
-                ),
-              ),
-            if (title.isNotEmpty || subtitle.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                child: Align(
-                  alignment: fa ? Alignment.centerRight : Alignment.centerLeft,
-                  child: FractionallySizedBox(
-                    widthFactor: .72,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: fa ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                      children: [
-                        if (title.isNotEmpty)
-                          Text(
-                            title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: fa ? TextAlign.right : TextAlign.left,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              height: 1.2,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        if (title.isNotEmpty && subtitle.isNotEmpty) const SizedBox(height: 5),
-                        if (subtitle.isNotEmpty)
-                          Text(
-                            subtitle,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: fa ? TextAlign.right : TextAlign.left,
-                            style: const TextStyle(color: Colors.white70, fontSize: 11, height: 1.35),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _BrandCard extends StatelessWidget {
