@@ -174,9 +174,12 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
       }).toList(growable: false);
 
   AppBanner? get socialBanner {
-    final rows = host.banners
-        .where((banner) => banner.placement == 'SERVICES_TOP')
-        .toList(growable: false)
+    final rows = host.banners.where((banner) {
+      if (banner.placement != 'SERVICES_TOP') return false;
+      final target = banner.actionUrl?.trim().toLowerCase();
+      return target == 'velixeo://social' ||
+          target == 'velixeo://social-media';
+    }).toList(growable: false)
       ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     return rows.isEmpty ? null : rows.first;
   }
@@ -584,30 +587,35 @@ Widget _englishSocialTabBody() {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('خدمات شبکه‌های اجتماعی'),
-          actions: [
-            IconButton(
-              tooltip: 'تازه‌سازی',
-              onPressed: loading ? null : load,
-              icon: const Icon(Icons.refresh_rounded),
-            ),
-          ],
-        ),
-        body: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-              child: _SocialTabBar(
-                labels: const ['سفارش', 'سفارش‌ها', 'جبران', 'دریپ‌فید'],
-                selected: tab,
-                direction: TextDirection.rtl,
-                onChanged: (value) => setState(() => tab = value),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                child: VelixeoFaPageHeader(
+                  title: 'شبکه‌های اجتماعی',
+                  subtitle: 'به حضورت جان بده؛ سفارش، پیگیری و جبران در یک‌جا.',
+                  onBack: () => Navigator.maybePop(context),
+                  trailing: IconButton(
+                    tooltip: 'تازه‌سازی',
+                    onPressed: loading ? null : load,
+                    icon: const Icon(Icons.refresh_rounded),
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 5),
-            Expanded(child: _persianSocialTabBody()),
-          ],
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _SocialTabBar(
+                  labels: const ['سفارش', 'سفارش‌ها', 'جبران', 'دریپ‌فید'],
+                  selected: tab,
+                  direction: TextDirection.rtl,
+                  onChanged: (value) => setState(() => tab = value),
+                ),
+              ),
+              const SizedBox(height: 5),
+              Expanded(child: _persianSocialTabBody()),
+            ],
+          ),
         ),
       ),
     );
@@ -617,30 +625,35 @@ Widget _englishSocialTabBody() {
     return Directionality(
       textDirection: TextDirection.ltr,
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Social Media Services'),
-          actions: [
-            IconButton(
-              tooltip: 'Refresh',
-              onPressed: loading ? null : load,
-              icon: const Icon(Icons.refresh_rounded),
-            ),
-          ],
-        ),
-        body: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-              child: _SocialTabBar(
-                labels: const ['New order', 'Orders', 'Refill', 'Drip-feed'],
-                selected: tab,
-                direction: TextDirection.ltr,
-                onChanged: (value) => setState(() => tab = value),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                child: VelixeoEnPageHeader(
+                  title: 'Social Media',
+                  subtitle: 'Grow your presence; order, track and refill in one place.',
+                  onBack: () => Navigator.maybePop(context),
+                  trailing: IconButton(
+                    tooltip: 'Refresh',
+                    onPressed: loading ? null : load,
+                    icon: const Icon(Icons.refresh_rounded),
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 5),
-            Expanded(child: _englishSocialTabBody()),
-          ],
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _SocialTabBar(
+                  labels: const ['New order', 'Orders', 'Refill', 'Drip-feed'],
+                  selected: tab,
+                  direction: TextDirection.ltr,
+                  onChanged: (value) => setState(() => tab = value),
+                ),
+              ),
+              const SizedBox(height: 5),
+              Expanded(child: _englishSocialTabBody()),
+            ],
+          ),
         ),
       ),
     );
@@ -684,13 +697,11 @@ Widget _englishSocialTabBody() {
     return ListView(
       padding: VelixeoFaDesign.pagePadding,
       children: [
-        _SocialInfoHero(fa: fa),
-        const SizedBox(height: 12),
-        _WalletStrip(host: host, fa: fa),
         if (socialBanner != null) ...[
-          const SizedBox(height: 14),
           _SocialPromoBanner(banner: socialBanner!, fa: fa),
+          const SizedBox(height: 14),
         ],
+        _WalletStrip(host: host, fa: fa),
         const SizedBox(height: 18),
         Row(
           children: [
@@ -805,13 +816,11 @@ Widget buildEnglishNewOrder() {
     return ListView(
       padding: VelixeoEnDesign.pagePadding,
       children: [
-        _SocialInfoHero(fa: fa),
-        const SizedBox(height: 12),
-        _WalletStrip(host: host, fa: fa),
         if (socialBanner != null) ...[
-          const SizedBox(height: 14),
           _SocialPromoBanner(banner: socialBanner!, fa: fa),
+          const SizedBox(height: 14),
         ],
+        _WalletStrip(host: host, fa: fa),
         const SizedBox(height: 18),
         Row(
           children: [
@@ -1754,92 +1763,6 @@ Widget buildEnglishDripFeed() {
     };
     return fa ? (faLabels[group] ?? group) : (enLabels[group] ?? group);
   }
-}
-
-
-class _SocialInfoHero extends StatelessWidget {
-  const _SocialInfoHero({required this.fa});
-  final bool fa;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        constraints: const BoxConstraints(minHeight: 155),
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFE8F7FF), Color(0xFFF5FCFF)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: const Color(0xFFD5EDF8)),
-          borderRadius: BorderRadius.circular(23),
-        ),
-        child: Stack(
-          children: [
-            PositionedDirectional(
-              end: 2,
-              bottom: -22,
-              child: Transform.rotate(
-                angle: -0.22,
-                child: const Text(
-                  '◎',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 92,
-                    height: 1,
-                    color: Color(0x807ACEF0),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 260),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE5F5FC),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      fa ? 'خدمات اجتماعی' : 'Social services',
-                      style: const TextStyle(
-                        fontSize: 9,
-                        color: Color(0xFF3F91B4),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    fa ? 'یک قدم جلوتر دیده شو' : 'Take your presence further',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      height: 1.55,
-                      color: Color(0xFF2C5366),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    fa
-                        ? 'خدمت مناسب را پیدا کن و سفارش خود را دنبال کن.'
-                        : 'Find the right service and follow your order.',
-                    style: const TextStyle(
-                      fontSize: 10.5,
-                      height: 1.7,
-                      color: Color(0xFF7293A5),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
 }
 
 
