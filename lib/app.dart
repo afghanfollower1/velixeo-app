@@ -7474,95 +7474,6 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Future<void> _deleteAccount(BuildContext context, bool fa) async {
-    final c = controller;
-    final passwordController = TextEditingController();
-    final reasonController = TextEditingController();
-    var confirmDelete = false;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => Directionality(
-        textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
-        child: StatefulBuilder(
-          builder: (context, setDialogState) => AlertDialog(
-            title: Text(fa ? 'حذف حساب VELIXEO' : 'Delete VELIXEO account'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    fa
-                        ? 'حساب غیرفعال و اطلاعات شخصی پروفایل حذف می‌شود. سوابق مالی و سفارش‌ها برای امنیت و حسابداری نگهداری می‌شوند.'
-                        : 'Your account will be disabled and personal profile data removed. Financial and order records are retained for security and accounting.',
-                    style: const TextStyle(height: 1.6),
-                  ),
-                  if (c.user?.hasPassword == true) ...[
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: passwordController,
-                      obscureText: true,
-                      decoration: InputDecoration(
-                        labelText: fa ? 'رمز عبور فعلی' : 'Current password',
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: reasonController,
-                    maxLength: 300,
-                    decoration: InputDecoration(
-                      labelText: fa ? 'دلیل (اختیاری)' : 'Reason (optional)',
-                    ),
-                  ),
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: confirmDelete,
-                    onChanged: (value) => setDialogState(() => confirmDelete = value == true),
-                    title: Text(
-                      fa
-                          ? 'می‌دانم این عمل حساب فعلی را حذف می‌کند.'
-                          : 'I understand this deletes my current account.',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: Text(fa ? 'لغو' : 'Cancel'),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: VelixeoBrand.red),
-                onPressed: !confirmDelete ||
-                        (c.user?.hasPassword == true && passwordController.text.isEmpty)
-                    ? null
-                    : () => Navigator.pop(dialogContext, true),
-                child: Text(fa ? 'حذف حساب' : 'Delete account'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    final password = passwordController.text;
-    final reason = reasonController.text;
-    passwordController.dispose();
-    reasonController.dispose();
-    if (confirmed != true || !context.mounted) return;
-    final error = await c.deleteAccount(
-      password: password.isEmpty ? null : password,
-      reason: reason,
-    );
-    if (!context.mounted || error == null) return;
-    final message = error == 'incorrect_current_password'
-        ? (fa ? 'رمز عبور فعلی نادرست است.' : 'The current password is incorrect.')
-        : (fa ? 'حذف حساب انجام نشد. دوباره تلاش کنید.' : 'Account deletion failed. Please try again.');
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
 
   void _signOut(BuildContext context, bool fa) {
     showDialog<void>(
@@ -8380,7 +8291,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                 ),
                 (
                   fa ? 'سفارش‌های ثبت‌شده' : 'Recorded orders',
-                  '\${c.orders.length}',
+                  '${c.orders.length}',
                 ),
               ],
             ),
