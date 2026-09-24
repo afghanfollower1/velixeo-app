@@ -359,13 +359,13 @@ class _AppUpdateGateState extends State<AppUpdateGate>
           final percent =
               progress >= 0 ? '${(progress * 100).clamp(0, 100).round()}%' : null;
           return AlertDialog(
-            title: const Row(
+            title: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.system_update_alt_rounded,
                   color: Color(0xFF4BA6CB),
                 ),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Expanded(child: Text(widget.fa ? 'به‌روزرسانی VELIXEO' : 'VELIXEO update')),
               ],
             ),
