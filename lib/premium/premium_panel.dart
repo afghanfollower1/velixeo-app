@@ -153,6 +153,22 @@ class _PremiumPanelPageState extends State<PremiumPanelPage> {
 
   @override
   Widget build(BuildContext context) {
+    return fa
+        ? _buildPersianPremium(context)
+        : _buildEnglishPremium(context);
+  }
+
+  Widget _buildPersianPremium(BuildContext context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: _buildPremiumCatalog(context),
+      );
+
+  Widget _buildEnglishPremium(BuildContext context) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: _buildPremiumCatalog(context),
+      );
+
+  Widget _buildPremiumCatalog(BuildContext context) {
     final groups = ['ALL', ...{
       for (final product in catalog.products) product.group,
     }];
@@ -163,7 +179,7 @@ class _PremiumPanelPageState extends State<PremiumPanelPage> {
       body: RefreshIndicator(
         onRefresh: load,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 30),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 30),
           children: [
             _PremiumBanner(fa: fa, banner: catalog.banner),
             const SizedBox(height: 14),
@@ -661,7 +677,7 @@ class _PremiumBanner extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Container(decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF6246D9), Color(0xFFFFA12D)], begin: Alignment.topLeft, end: Alignment.bottomRight))),
+            Container(decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFFF0F8FF), Color(0xFFEEF1FE)], begin: Alignment.topLeft, end: Alignment.bottomRight))),
             if (image.isNotEmpty)
               Image.network(
                 image,
@@ -672,7 +688,7 @@ class _PremiumBanner extends StatelessWidget {
                 loadingBuilder: (context, child, progress) => progress == null ? child : const SizedBox.shrink(),
                 errorBuilder: (_, __, ___) => const SizedBox.shrink(),
               ),
-            Container(decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xC8121631), Color(0x33121631)]))),
+            Container(decoration: const BoxDecoration(color: Color(0x08FFFFFF))),
             Padding(
               padding: const EdgeInsets.all(18),
               child: Row(
@@ -684,7 +700,7 @@ class _PremiumBanner extends StatelessWidget {
                       children: [
                         Text(
                           title?.trim().isNotEmpty == true ? title! : t('اکانت‌های پریمیوم', 'Premium Accounts'),
-                          style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900),
+                          style: const TextStyle(color: Color(0xFF344B63), fontSize: 18, fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 7),
                         Text(
@@ -696,7 +712,7 @@ class _PremiumBanner extends StatelessWidget {
                                 ),
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Color(0xFFEDEBFF), fontSize: 11.5, height: 1.45),
+                          style: const TextStyle(color: Color(0xFF74818B), fontSize: 11, height: 1.55),
                         ),
                       ],
                     ),
@@ -705,8 +721,8 @@ class _PremiumBanner extends StatelessWidget {
                   Container(
                     width: 62,
                     height: 62,
-                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: .14), borderRadius: BorderRadius.circular(21)),
-                    child: const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 32),
+                    decoration: BoxDecoration(color: const Color(0xFFE7ECFA), borderRadius: BorderRadius.circular(21)),
+                    child: const Icon(Icons.workspace_premium_rounded, color: Color(0xFF7E8AC5), size: 32),
                   ),
                 ],
               ),
