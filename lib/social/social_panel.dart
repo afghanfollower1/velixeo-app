@@ -1192,26 +1192,27 @@ class _WalletStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(15),
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [Color(0xFF31A8FF), Color(0xFF38BDF8)]),
-          borderRadius: BorderRadius.circular(19),
+          color: const Color(0xFFF1F8FC),
+          border: Border.all(color: const Color(0xFFE4F0F6)),
+          borderRadius: BorderRadius.circular(15),
         ),
         child: Row(
           children: [
-            const CircleAvatar(backgroundColor: Color(0x33FFFFFF), child: Icon(Icons.account_balance_wallet_rounded, color: Colors.white)),
+            const CircleAvatar(backgroundColor: Color(0xFFEAF7FD), child: Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF369FCA))),
             const SizedBox(width: 11),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(fa ? 'موجودی قابل استفاده' : 'Available balance', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  Text(fa ? 'موجودی قابل استفاده' : 'Available balance', style: const TextStyle(color: Color(0xFF76909F), fontSize: 12)),
                   const SizedBox(height: 3),
-                  Text(host.money(host.balanceAfn, showBase: true), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
+                  Text(host.money(host.balanceAfn, showBase: true), style: const TextStyle(color: Color(0xFF287FA7), fontWeight: FontWeight.w700, fontSize: 18)),
                 ],
               ),
             ),
-            const Icon(Icons.verified_rounded, color: Colors.white),
+            const Icon(Icons.verified_rounded, color: Color(0xFF58A7C8)),
           ],
         ),
       );
