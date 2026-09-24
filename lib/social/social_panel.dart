@@ -174,14 +174,22 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
       }).toList(growable: false);
 
   AppBanner? get socialBanner {
-    final rows = host.banners.where((banner) {
-      if (banner.placement != 'SERVICES_TOP') return false;
-      final target = banner.actionUrl?.trim().toLowerCase();
-      return target == 'velixeo://social' ||
-          target == 'velixeo://social-media';
-    }).toList(growable: false)
+    final rows = host.banners
+        .where((banner) => banner.placement == 'SERVICES_TOP')
+        .toList(growable: false)
       ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-    return rows.isEmpty ? null : rows.first;
+    for (final banner in rows) {
+      final target = banner.actionUrl?.trim().toLowerCase();
+      if (target == 'velixeo://social' ||
+          target == 'velixeo://social-media') {
+        return banner;
+      }
+    }
+    for (final banner in rows) {
+      final target = banner.actionUrl?.trim().toLowerCase() ?? '';
+      if (target.isEmpty) return banner;
+    }
+    return null;
   }
 
   List<SocialBrand> get displayedBrands {
