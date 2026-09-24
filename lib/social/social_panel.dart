@@ -1850,7 +1850,7 @@ class _ErrorState extends StatelessWidget {
             const SizedBox(height: 14),
             Text(message),
             const SizedBox(height: 12),
-            FilledButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: const Text('Retry')),
+            FilledButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: Text(Directionality.of(context) == TextDirection.rtl ? 'تلاش دوباره' : 'Retry')),
           ],
         ),
       );
