@@ -1,2 +1,3 @@
-FA/EN design preview rebuild from complete independent design-system pass.
-Trigger: full-app-admin-fa-en-final-qa-20260924
+VELIXEO v0.11.0+31 final FA/EN design-system preview.
+Coverage: App 41/41 · Admin 53/53.
+Trigger: final-signed-preview-before-release-20260924
