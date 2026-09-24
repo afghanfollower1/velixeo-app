@@ -16,7 +16,7 @@ import {
   WalletEntryType,
 } from '@prisma/client';
 import { z } from 'zod';
-import { adminLoginHtml } from './adminPage.js';
+import { adminLoginHtmlEn, adminLoginHtmlFa } from './adminPage.js';
 import { registerClientFoundationRoutes } from './clientFoundationRoutes.js';
 import { registerPaymentRoutes } from './paymentRoutes.js';
 import { registerHesabPayWebhookRoutes } from './hesabPayWebhookRoutes.js';
@@ -459,6 +459,22 @@ function adminCookie(token: string, maxAge = 8 * 60 * 60) {
   return `${adminWebCookieName}=${encodeURIComponent(token)}; Path=/admin; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`;
 }
 
+function adminWebLang(request: FastifyRequest): 'fa' | 'en' {
+  const cookie = String(request.headers.cookie || '');
+  const match = cookie.match(/(?:^|;\s*)velixeo_admin_lang=(fa|en)(?:;|$)/);
+  return match?.[1] === 'fa' ? 'fa' : 'en';
+}
+
+function adminLoginPage(
+  request: FastifyRequest,
+  errorFa?: string,
+  errorEn?: string,
+) {
+  return adminWebLang(request) === 'fa'
+    ? adminLoginHtmlFa(errorFa)
+    : adminLoginHtmlEn(errorEn);
+}
+
 app.get('/admin', async (request, reply) => {
   const url = new URL(request.raw.url || '/admin', 'http://velixeo.local');
   const view = url.searchParams.get('view');
@@ -472,7 +488,7 @@ app.get('/admin', async (request, reply) => {
 app.get('/admin/login', async (request, reply) => {
   const admin = await adminWebUser(request);
   if (admin) return reply.code(303).redirect('/admin/v3');
-  return reply.type('text/html; charset=utf-8').send(adminLoginHtml());
+  return reply.type('text/html; charset=utf-8').send(adminLoginPage(request));
 });
 
 const legacyAdminGetRedirects: Record<string, string> = {
@@ -512,7 +528,7 @@ app.addHook('onRequest', async (request, reply) => {
 app.post('/admin/login', async (request, reply) => {
   const parsed = loginSchema.safeParse(request.body);
   if (!parsed.success) {
-    return reply.code(400).type('text/html; charset=utf-8').send(adminLoginHtml('ایمیل/شماره و رمز را درست وارد کنید.'));
+    return reply.code(400).type('text/html; charset=utf-8').send(adminLoginPage(request, 'ایمیل/شماره و رمز را درست وارد کنید.', 'Enter a valid email/phone and password.'));
   }
   const rawIdentifier = parsed.data.identifier;
   const emailIdentifier = rawIdentifier.includes('@') ? rawIdentifier.toLowerCase() : '__not_an_email__';
@@ -521,10 +537,10 @@ app.post('/admin/login', async (request, reply) => {
     where: { OR: [{ email: emailIdentifier }, { phone: phoneIdentifier }] },
   });
   if (!user || !user.passwordHash || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
-    return reply.code(401).type('text/html; charset=utf-8').send(adminLoginHtml('ایمیل/شماره یا رمز عبور نادرست است.'));
+    return reply.code(401).type('text/html; charset=utf-8').send(adminLoginPage(request, 'ایمیل/شماره یا رمز عبور نادرست است.', 'The email/phone or password is incorrect.'));
   }
   if (user.role !== UserRole.ADMIN) {
-    return reply.code(403).type('text/html; charset=utf-8').send(adminLoginHtml('این حساب دسترسی مدیر ندارد.'));
+    return reply.code(403).type('text/html; charset=utf-8').send(adminLoginPage(request, 'این حساب دسترسی مدیر ندارد.', 'This account does not have administrator access.'));
   }
   const token = app.jwt.sign(
     { sub: user.id, role: user.role, scope: 'admin-web' },
