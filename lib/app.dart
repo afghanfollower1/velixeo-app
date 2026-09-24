@@ -6653,12 +6653,19 @@ class _SecurityVerificationCard extends StatelessWidget {
                   ),
                 ),
                 if (verified)
-                  const Row(
+                  Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.verified_rounded, color: Color(0xFF18A875), size: 19),
-                      SizedBox(width: 5),
-                      Text('VERIFIED', style: TextStyle(color: Color(0xFF18A875), fontSize: 9.5, fontWeight: FontWeight.w900)),
+                      const Icon(Icons.verified_rounded, color: VelixeoDesign.green, size: 19),
+                      const SizedBox(width: 5),
+                      Text(
+                        tr(fa, 'تأییدشده', 'Verified'),
+                        style: const TextStyle(
+                          color: VelixeoDesign.green,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ],
                   )
                 else
