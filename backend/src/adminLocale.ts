@@ -481,6 +481,8 @@ const translations: Record<string, string> = {
   'Get / Refresh Services': 'دریافت / بروزرسانی سرویس‌ها',
   'Choose provider': 'انتخاب ارائه‌دهنده',
   'Provider Category': 'دسته‌بندی ارائه‌دهنده',
+  'Provider Service Type': 'نوع سرویس ارائه‌دهنده',
+  'Original Provider Price': 'قیمت اصلی ارائه‌دهنده',
   'Min / Max': 'حداقل / حداکثر',
   'Refill': 'جبران',
   'Edit VELIXEO Service': 'ویرایش سرویس VELIXEO',
