@@ -822,6 +822,10 @@ function adminPersianText(clean: string): string | null {
   if (statusTranslations[clean]) return statusTranslations[clean];
   let m: RegExpMatchArray | null;
   if ((m = clean.match(/^(\d+) orders have been recorded today\.$/))) return adminFaNumber(m[1]) + ' سفارش امروز ثبت شده است.';
+  if ((m = clean.match(/^(.+) catalog — choose a service, then add it to the exact VELIXEO brand and category\.$/))) return 'کاتالوگ ' + m[1] + ' — سرویس را انتخاب کنید و سپس برند و دسته‌بندی دقیق VELIXEO را مشخص کنید.';
+  if ((m = clean.match(/^(\d+) total synced services · (\d+) categories$/))) return adminFaNumber(m[1]) + ' سرویس همگام‌شده · ' + adminFaNumber(m[2]) + ' دسته‌بندی';
+  if ((m = clean.match(/^(\d+) matching services$/))) return adminFaNumber(m[1]) + ' سرویس مطابق';
+  if ((m = clean.match(/^(\d+) services$/))) return adminFaNumber(m[1]) + ' سرویس';
   if ((m = clean.match(/^(\d+) matched$/))) return adminFaNumber(m[1]) + ' مورد مطابق';
   if ((m = clean.match(/^(\d+) on this page$/))) return adminFaNumber(m[1]) + ' مورد در این صفحه';
   if ((m = clean.match(/^Page (\d+) \/ (\d+)$/))) return 'صفحه ' + adminFaNumber(m[1]) + ' از ' + adminFaNumber(m[2]);
