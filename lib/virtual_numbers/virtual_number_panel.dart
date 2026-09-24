@@ -605,67 +605,146 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(t('شماره مجازی', 'Virtual Numbers')),
-        actions: [
-          Padding(
-            padding: const EdgeInsetsDirectional.only(end: 14),
-            child: Center(
-              child: Text(
-                host.money(host.balanceAfn, showBase: true),
-                style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF38BDF8)),
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: load,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
-                children: [
-                  virtualBanner == null
-                      ? _InfoHero(fa: fa)
-                      : _VirtualPromoBanner(banner: virtualBanner!, fa: fa),
-                  const SizedBox(height: 14),
-                  SegmentedButton<int>(
-                    segments: [
-                      ButtonSegment(value: 0, icon: const Icon(Icons.tune_rounded), label: Text(t('خرید دستی', 'Manual'))),
-                      ButtonSegment(value: 1, icon: const Icon(Icons.auto_awesome_rounded), label: Text(t('خرید هوشمند', 'Smart Buy'))),
-                      ButtonSegment(value: 2, icon: const Icon(Icons.sms_outlined), label: Text(t('شماره‌های من', 'My Numbers'))),
-                    ],
-                    selected: {tab},
-                    onSelectionChanged: (value) {
-                      final next=value.first;
-                      setState(()=>tab=next);
-                      if(next==0){
-                        final service=selectedService;
-                        if(service!=null&&service.countries.isEmpty&&!loadingCountries){
-                          unawaited(loadCountries(service));
-                        }
-                      }
-                    },
+    return fa ? _buildPersianVirtual(context) : _buildEnglishVirtual(context);
+  }
+
+  void _changeTab(int next) {
+    setState(() => tab = next);
+    if (next == 0) {
+      final service = selectedService;
+      if (service != null && service.countries.isEmpty && !loadingCountries) {
+        unawaited(loadCountries(service));
+      }
+    }
+  }
+
+  Widget _virtualBody() {
+    if (error != null) {
+      return _Notice(text: errorLabel(error!), danger: true);
+    }
+    if (catalog.services.isEmpty) {
+      return _Notice(
+        text: t(
+          'هنوز سرویس شماره مجازی از پنل ادمین فعال نشده است.',
+          'No virtual-number service is enabled in Admin yet.',
+        ),
+      );
+    }
+    if (tab == 0) return manualPanel();
+    if (tab == 1) return smartPanel();
+    return numbersPanel();
+  }
+
+  Widget _buildPersianVirtual(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('شماره مجازی'),
+          actions: [
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: 14),
+              child: Center(
+                child: Text(
+                  host.money(host.balanceAfn, showBase: true),
+                  textDirection: TextDirection.ltr,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF338EB4),
                   ),
-                  const SizedBox(height: 16),
-                  if (error != null)
-                    _Notice(text: errorLabel(error!), danger: true)
-                  else if (catalog.services.isEmpty)
-                    _Notice(text: t('هنوز سرویس شماره مجازی از پنل ادمین فعال نشده است.', 'No virtual-number service is enabled in Admin yet.'))
-                  else if (tab == 0)
-                    manualPanel()
-                  else if (tab == 1)
-                    smartPanel()
-                  else
-                    numbersPanel(),
-                ],
+                ),
               ),
             ),
+          ],
+        ),
+        body: loading
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(
+                onRefresh: load,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
+                  children: [
+                    virtualBanner == null
+                        ? const _InfoHero(fa: true)
+                        : _VirtualPromoBanner(banner: virtualBanner!, fa: true),
+                    const SizedBox(height: 14),
+                    _VirtualTabBar(
+                      labels: const ['خرید دستی', 'خرید هوشمند', 'شماره‌های من'],
+                      icons: const [
+                        Icons.tune_rounded,
+                        Icons.auto_awesome_rounded,
+                        Icons.sms_outlined,
+                      ],
+                      selected: tab,
+                      direction: TextDirection.rtl,
+                      onChanged: _changeTab,
+                    ),
+                    const SizedBox(height: 16),
+                    _virtualBody(),
+                  ],
+                ),
+              ),
+      ),
     );
   }
+
+  Widget _buildEnglishVirtual(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Virtual Numbers'),
+          actions: [
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: 14),
+              child: Center(
+                child: Text(
+                  host.money(host.balanceAfn, showBase: true),
+                  textDirection: TextDirection.ltr,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF338EB4),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        body: loading
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(
+                onRefresh: load,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
+                  children: [
+                    virtualBanner == null
+                        ? const _InfoHero(fa: false)
+                        : _VirtualPromoBanner(banner: virtualBanner!, fa: false),
+                    const SizedBox(height: 14),
+                    _VirtualTabBar(
+                      labels: const ['Manual', 'Smart Buy', 'My Numbers'],
+                      icons: const [
+                        Icons.tune_rounded,
+                        Icons.auto_awesome_rounded,
+                        Icons.sms_outlined,
+                      ],
+                      selected: tab,
+                      direction: TextDirection.ltr,
+                      onChanged: _changeTab,
+                    ),
+                    const SizedBox(height: 16),
+                    _virtualBody(),
+                  ],
+                ),
+              ),
+      ),
+    );
+  }
+
 
   Widget serviceSelector() {
     final service=selectedService;
@@ -924,6 +1003,91 @@ class _VirtualNumberPanelPageState extends State<VirtualNumberPanelPage> {
     );
   }
 
+}
+
+class _VirtualTabBar extends StatelessWidget {
+  const _VirtualTabBar({
+    required this.labels,
+    required this.icons,
+    required this.selected,
+    required this.direction,
+    required this.onChanged,
+  });
+
+  final List<String> labels;
+  final List<IconData> icons;
+  final int selected;
+  final TextDirection direction;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+        textDirection: direction,
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0F5F8),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: List.generate(labels.length, (index) {
+              final active = selected == index;
+              return Expanded(
+                child: InkWell(
+                  onTap: () => onChanged(index),
+                  borderRadius: BorderRadius.circular(9),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: active ? Colors.white : Colors.transparent,
+                      borderRadius: BorderRadius.circular(9),
+                      boxShadow: active
+                          ? const [
+                              BoxShadow(
+                                color: Color(0x0F536D7B),
+                                blurRadius: 8,
+                                offset: Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          icons[index],
+                          size: 15,
+                          color: active
+                              ? const Color(0xFF2E8DB5)
+                              : const Color(0xFF8B9BA5),
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            labels[index],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight:
+                                  active ? FontWeight.w600 : FontWeight.w500,
+                              color: active
+                                  ? const Color(0xFF2E7898)
+                                  : const Color(0xFF8799A4),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      );
 }
 
 class _VirtualPromoBanner extends StatelessWidget {
