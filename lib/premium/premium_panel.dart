@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../core/api_service.dart';
 import '../core/models.dart';
+import '../design/velixeo_design.dart';
 import 'premium_models.dart';
 
 abstract class PremiumPanelHost {
