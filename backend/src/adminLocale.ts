@@ -769,6 +769,58 @@ function localeInjection() {
   html[dir=rtl] .subnav{padding-left:0;padding-right:18px;border-left:0;border-right:1px solid rgba(255,255,255,.09);margin-left:0;margin-right:18px}
   html[dir=rtl] option{direction:rtl}
   @media(max-width:980px){html[dir=rtl] .layout{grid-template-columns:1fr}.side,.main{grid-column:auto!important}}
+
+  /* Persian admin design system — rendered server-side */
+  html.vx-admin-fa body{font-family:"Vazirmatn",Tahoma,Arial,sans-serif;line-height:1.75;background:#f7f9fc;color:#24343d}
+  html.vx-admin-fa .layout{direction:rtl;grid-template-columns:minmax(0,1fr) 244px}
+  html.vx-admin-fa .side{grid-column:2;grid-row:1;background:#fff;color:#8795a1;border-left:1px solid #edf1f5;border-right:0;padding:32px 22px;box-shadow:none;text-align:right}
+  html.vx-admin-fa .main{grid-column:1;grid-row:1;padding:30px 38px;direction:rtl}
+  html.vx-admin-fa .brand{direction:rtl;color:#24343d;border:0;padding:0 2px 10px;margin-bottom:20px}
+  html.vx-admin-fa .brand b{color:#24343d;font-size:19px}html.vx-admin-fa .brand small{color:#97a8b1}
+  html.vx-admin-fa .cap{color:#b0bac2;padding:15px 12px 7px;font-size:10px;letter-spacing:0;text-align:right}
+  html.vx-admin-fa .nav{direction:rtl;justify-content:flex-start;text-align:right;color:#8795a1;padding:12px 13px;border-radius:12px;font-size:12px}
+  html.vx-admin-fa .nav:hover{background:#f7fbfd;color:#318eb6}html.vx-admin-fa .nav.active{background:#eef9fe;color:#318eb6;box-shadow:none;font-weight:700}
+  html.vx-admin-fa .subnav{padding:0;margin:0;border:0}
+  html.vx-admin-fa .topbar{direction:rtl;grid-template-columns:auto minmax(250px,1fr);background:#f7f9fc;height:64px}
+  html.vx-admin-fa .topbar .search{grid-column:2;grid-row:1}html.vx-admin-fa .topbar .admin{grid-column:1;grid-row:1}
+  html.vx-admin-fa .search{border-radius:14px;height:40px;margin-right:auto;margin-left:0}
+  html.vx-admin-fa .avatar{border-radius:15px;background:#e2f3fe;color:#438aa8}
+  html.vx-admin-fa .head{direction:rtl;text-align:right;margin:7px 0 24px}html.vx-admin-fa .head h1{font-size:24px;font-weight:800;line-height:1.5}html.vx-admin-fa .head p{font-size:12px;line-height:1.9}
+  html.vx-admin-fa .stats{direction:rtl;gap:14px;margin-bottom:22px}html.vx-admin-fa .stat{padding:20px;border-radius:20px}html.vx-admin-fa .stat strong{font-size:25px}
+  html.vx-admin-fa .card{direction:rtl;text-align:right;border-radius:20px;padding:21px;margin-bottom:18px;box-shadow:none}
+  html.vx-admin-fa .cardhead{direction:rtl}html.vx-admin-fa .cardhead h2,html.vx-admin-fa .cardhead h3{font-size:15px;font-weight:700}
+  html.vx-admin-fa .table th,html.vx-admin-fa .table td{text-align:right;padding:14px 10px;line-height:1.75;font-size:11px}
+  html.vx-admin-fa .field label{font-size:11px}html.vx-admin-fa .field input,html.vx-admin-fa .field select,html.vx-admin-fa .field textarea{font-family:"Vazirmatn",Tahoma,Arial,sans-serif;text-align:right;border-radius:12px;padding:11px 14px;font-size:12px}
+  html.vx-admin-fa .field input,html.vx-admin-fa .field select{height:44px}
+  html.vx-admin-fa .btn{min-height:40px;border-radius:13px;background:#38bdf8;color:#183b4b;font-family:"Vazirmatn",Tahoma,Arial,sans-serif;font-size:11px;font-weight:700;box-shadow:0 4px 12px #38bdf821}
+  html.vx-admin-fa .btn.ghost{background:#fff;border:1px solid #e7eef2;color:#347996}
+  html.vx-admin-fa .tabs{direction:rtl;border-bottom:1px solid #e7eef2;gap:5px}html.vx-admin-fa .tab{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;padding:12px 14px;font-size:11px}html.vx-admin-fa .tab.active{color:#2288b1;border-bottom-color:#38bdf8}
+  html.vx-admin-fa .modulehero,html.vx-admin-fa .nhero{background:#edf7fc;color:#245168;border:1px solid #dceef8}html.vx-admin-fa .modulehero p,html.vx-admin-fa .nhero p{color:#74818b}
+  html.vx-admin-fa .vx-locale{right:auto;left:18px}
+  /* English admin design system — independent LTR metrics */
+  html.vx-admin-en body{font-family:"Inter",Arial,sans-serif;line-height:1.6;background:#f7f9fc;color:#24343d}
+  html.vx-admin-en .layout{direction:ltr;grid-template-columns:244px minmax(0,1fr)}
+  html.vx-admin-en .side{grid-column:1;grid-row:1;background:#fff;color:#8795a1;border-right:1px solid #edf1f5;border-left:0;padding:32px 22px;box-shadow:none;text-align:left}
+  html.vx-admin-en .main{grid-column:2;grid-row:1;padding:30px 38px;direction:ltr}
+  html.vx-admin-en .brand{direction:ltr;color:#24343d;border:0;padding:0 2px 10px;margin-bottom:20px}
+  html.vx-admin-en .brand b{color:#24343d;font-size:19px}html.vx-admin-en .brand small{color:#97a8b1}
+  html.vx-admin-en .cap{color:#b0bac2;padding:15px 12px 7px;font-size:10px}
+  html.vx-admin-en .nav{direction:ltr;color:#8795a1;padding:12px 13px;border-radius:12px;font-size:12px}
+  html.vx-admin-en .nav:hover{background:#f7fbfd;color:#318eb6}html.vx-admin-en .nav.active{background:#eef9fe;color:#318eb6;box-shadow:none;font-weight:600}
+  html.vx-admin-en .topbar{direction:ltr;background:#f7f9fc;height:64px}html.vx-admin-en .search{border-radius:14px;height:40px}
+  html.vx-admin-en .avatar{border-radius:15px;background:#e2f3fe;color:#438aa8}
+  html.vx-admin-en .head{margin:7px 0 24px}html.vx-admin-en .head h1{font-size:24px;font-weight:700}html.vx-admin-en .head p{font-size:12px}
+  html.vx-admin-en .stats{gap:14px;margin-bottom:22px}html.vx-admin-en .stat{padding:20px;border-radius:20px}html.vx-admin-en .stat strong{font-size:25px}
+  html.vx-admin-en .card{border-radius:20px;padding:21px;margin-bottom:18px;box-shadow:none}html.vx-admin-en .cardhead h2,html.vx-admin-en .cardhead h3{font-size:15px}
+  html.vx-admin-en .table th,html.vx-admin-en .table td{padding:14px 10px;font-size:11px}
+  html.vx-admin-en .field label{font-size:11px}html.vx-admin-en .field input,html.vx-admin-en .field select,html.vx-admin-en .field textarea{font-family:"Inter",Arial,sans-serif;border-radius:12px;padding:11px 14px;font-size:12px}
+  html.vx-admin-en .field input,html.vx-admin-en .field select{height:44px}
+  html.vx-admin-en .btn{min-height:40px;border-radius:13px;background:#38bdf8;color:#183b4b;font-size:11px;font-weight:600;box-shadow:0 4px 12px #38bdf821}
+  html.vx-admin-en .btn.ghost{background:#fff;border:1px solid #e7eef2;color:#347996}
+  html.vx-admin-en .tabs{border-bottom:1px solid #e7eef2;gap:5px}html.vx-admin-en .tab{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;padding:12px 14px;font-size:11px}html.vx-admin-en .tab.active{color:#2288b1;border-bottom-color:#38bdf8}
+  html.vx-admin-en .modulehero,html.vx-admin-en .nhero{background:#edf7fc;color:#245168;border:1px solid #dceef8}html.vx-admin-en .modulehero p,html.vx-admin-en .nhero p{color:#74818b}
+  @media(max-width:1080px){html.vx-admin-fa .layout{grid-template-columns:minmax(0,1fr) 205px}html.vx-admin-en .layout{grid-template-columns:205px minmax(0,1fr)}html.vx-admin-fa .main,html.vx-admin-en .main{padding:25px 24px}}
+  @media(max-width:760px){html.vx-admin-fa .layout,html.vx-admin-en .layout{display:block}html.vx-admin-fa .side,html.vx-admin-en .side{position:relative;height:auto;padding:18px}html.vx-admin-fa .main,html.vx-admin-en .main{padding:18px 14px}html.vx-admin-fa .topbar,html.vx-admin-en .topbar{position:relative}.stats{grid-template-columns:1fr 1fr}}
   </style>
   <div class="vx-locale" aria-label="زبان پنل مدیریت">
     <button type="button" data-vx-lang="en">EN</button>
