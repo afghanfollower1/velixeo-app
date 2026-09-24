@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
+import '../design/velixeo_design.dart';
+
 class AppUpdateInfo {
   const AppUpdateInfo({
     required this.version,
@@ -198,9 +200,14 @@ class AppUpdateService {
 }
 
 class AppUpdateGate extends StatefulWidget {
-  const AppUpdateGate({super.key, required this.child});
+  const AppUpdateGate({
+    super.key,
+    required this.child,
+    required this.fa,
+  });
 
   final Widget child;
+  final bool fa;
 
   @override
   State<AppUpdateGate> createState() => _AppUpdateGateState();
@@ -272,7 +279,7 @@ class _AppUpdateGateState extends State<AppUpdateGate>
     var progress = -1.0;
     var downloadedBytes = 0;
     var totalBytes = -1;
-    var statusText = 'Ready to download';
+    var statusText = widget.fa ? 'آمادهٔ دریافت' : 'Ready to download';
     int? downloadId;
     var dialogClosed = false;
 
@@ -294,7 +301,7 @@ class _AppUpdateGateState extends State<AppUpdateGate>
         if (state == null) {
           setDialogState(() {
             downloading = false;
-            statusText = 'Update status is unavailable.';
+            statusText = widget.fa ? 'وضعیت به‌روزرسانی در دسترس نیست.' : 'Update status is unavailable.';
           });
           return;
         }
@@ -305,12 +312,12 @@ class _AppUpdateGateState extends State<AppUpdateGate>
           downloadedBytes = current.downloadedBytes;
           totalBytes = current.totalBytes;
           statusText = switch (current.status) {
-            'pending' => 'Waiting for Android Download Manager...',
-            'running' => 'Downloading in background...',
-            'paused' => 'Download paused. Android will retry automatically.',
-            'successful' => 'Download complete. Opening installer...',
-            'failed' => 'Download failed.',
-            _ => 'Preparing update...',
+            'pending' => widget.fa ? 'در انتظار Download Manager اندروید…' : 'Waiting for Android Download Manager...',
+            'running' => widget.fa ? 'در حال دریافت در پس‌زمینه…' : 'Downloading in background...',
+            'paused' => widget.fa ? 'دریافت متوقف شده؛ اندروید دوباره تلاش می‌کند.' : 'Download paused. Android will retry automatically.',
+            'successful' => widget.fa ? 'دریافت کامل شد؛ نصب‌کننده باز می‌شود…' : 'Download complete. Opening installer...',
+            'failed' => widget.fa ? 'دریافت ناموفق بود.' : 'Download failed.',
+            _ => widget.fa ? 'در حال آماده‌سازی…' : 'Preparing update...',
           };
         });
 
@@ -324,8 +331,9 @@ class _AppUpdateGateState extends State<AppUpdateGate>
             if (dialogContext.mounted) {
               setDialogState(() {
                 downloading = false;
-                statusText =
-                    'Download finished, but Android could not open the installer.';
+                statusText = widget.fa
+                    ? 'دریافت کامل شد، اما نصب‌کننده باز نشد.'
+                    : 'Download finished, but Android could not open the installer.';
               });
             }
           }
@@ -355,10 +363,10 @@ class _AppUpdateGateState extends State<AppUpdateGate>
               children: [
                 Icon(
                   Icons.system_update_alt_rounded,
-                  color: Color(0xFF1686FF),
+                  color: Color(0xFF4BA6CB),
                 ),
                 SizedBox(width: 10),
-                Expanded(child: Text('VELIXEO update')),
+                Expanded(child: Text(widget.fa ? 'به‌روزرسانی VELIXEO' : 'VELIXEO update')),
               ],
             ),
             content: Column(
@@ -366,13 +374,17 @@ class _AppUpdateGateState extends State<AppUpdateGate>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Version ${update.version} is ready.',
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  widget.fa
+                      ? 'نسخهٔ جدید ' + update.version + ' آماده است.'
+                      : 'Version ' + update.version + ' is ready.',
+                  style: const TextStyle(fontWeight: FontWeight.w700, color: VelixeoBrand.ink),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'The update downloads with Android Download Manager, so it can continue when VELIXEO is in the background or the screen is locked.',
-                  style: TextStyle(height: 1.45),
+                Text(
+                  widget.fa
+                      ? 'دریافت با Download Manager اندروید انجام می‌شود و در پس‌زمینه هم ادامه پیدا می‌کند.'
+                      : 'The update uses Android Download Manager and can continue in the background.',
+                  style: const TextStyle(height: 1.55, fontSize: 12, color: VelixeoBrand.muted),
                 ),
                 if (downloading) ...[
                   const SizedBox(height: 18),
@@ -411,12 +423,14 @@ class _AppUpdateGateState extends State<AppUpdateGate>
                     ),
                   ],
                   const SizedBox(height: 6),
-                  const Text(
-                    'You can leave VELIXEO now. Android will keep downloading and show the update in the notification area.',
-                    style: TextStyle(
+                  Text(
+                    widget.fa
+                        ? 'می‌توانی از VELIXEO خارج شوی؛ اندروید دریافت را ادامه می‌دهد و وضعیت را در اعلان‌ها نشان می‌دهد.'
+                        : 'You can leave VELIXEO now. Android will keep downloading and show the update in the notification area.',
+                    style: const TextStyle(
                       fontSize: 11,
                       color: Color(0xFF6E8194),
-                      height: 1.35,
+                      height: 1.5,
                     ),
                   ),
                 ],
@@ -426,7 +440,7 @@ class _AppUpdateGateState extends State<AppUpdateGate>
               if (!downloading)
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Later'),
+                  child: Text(widget.fa ? 'بعداً' : 'Later'),
                 ),
               if (downloading && downloadId != null)
                 TextButton(
@@ -440,10 +454,10 @@ class _AppUpdateGateState extends State<AppUpdateGate>
                       downloadedBytes = 0;
                       totalBytes = -1;
                       downloadId = null;
-                      statusText = 'Download cancelled.';
+                      statusText = widget.fa ? 'دریافت لغو شد.' : 'Download cancelled.';
                     });
                   },
-                  child: const Text('Cancel'),
+                  child: Text(widget.fa ? 'لغو دریافت' : 'Cancel'),
                 ),
               FilledButton.icon(
                 onPressed: downloading
@@ -454,9 +468,11 @@ class _AppUpdateGateState extends State<AppUpdateGate>
                           await service.openInstallPermission();
                           if (!context.mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
+                            SnackBar(
                               content: Text(
-                                'Enable "Allow from this source", return to VELIXEO, then tap Update again. This permission is normally needed only once.',
+                                widget.fa
+                                    ? 'گزینهٔ «اجازه از این منبع» را فعال کن، به VELIXEO برگرد و دوباره به‌روزرسانی را بزن.'
+                                    : 'Enable "Allow from this source", return to VELIXEO, then tap Update again. This permission is normally needed only once.',
                               ),
                             ),
                           );
@@ -473,10 +489,9 @@ class _AppUpdateGateState extends State<AppUpdateGate>
                             progress = initial.progress;
                             downloadedBytes = initial.downloadedBytes;
                             totalBytes = initial.totalBytes;
-                            statusText =
-                                initial.isSuccessful
-                                    ? 'Download complete. Opening installer...'
-                                    : 'Downloading in background...';
+                            statusText = initial.isSuccessful
+                                ? (widget.fa ? 'دریافت کامل شد؛ نصب‌کننده باز می‌شود…' : 'Download complete. Opening installer...')
+                                : (widget.fa ? 'در حال دریافت در پس‌زمینه…' : 'Downloading in background...');
                           });
                           unawaited(
                             watchDownload(
@@ -488,9 +503,11 @@ class _AppUpdateGateState extends State<AppUpdateGate>
                         } catch (_) {
                           if (!context.mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
+                            SnackBar(
                               content: Text(
-                                'Update download could not start. Please try again.',
+                                widget.fa
+                                    ? 'دریافت به‌روزرسانی شروع نشد. دوباره تلاش کن.'
+                                    : 'Update download could not start. Please try again.',
                               ),
                             ),
                           );
@@ -501,8 +518,8 @@ class _AppUpdateGateState extends State<AppUpdateGate>
                   downloading
                       ? (progress >= 0
                           ? '${(progress * 100).clamp(0, 100).round()}%'
-                          : 'Downloading...')
-                      : 'Update now',
+                          : (widget.fa ? 'در حال دریافت…' : 'Downloading...'))
+                      : (widget.fa ? 'همین حالا به‌روزرسانی' : 'Update now'),
                 ),
               ),
             ],
