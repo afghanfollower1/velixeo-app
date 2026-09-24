@@ -774,7 +774,7 @@ function localeInjection() {
     <button type="button" data-vx-lang="en">EN</button>
     <button type="button" data-vx-lang="fa">فارسی</button>
   </div>
-  <script id="velixeo-admin-locale-script">(()=>{const dict=${dictionary};const statuses=${statuses};const reverse=Object.fromEntries(Object.entries(dict).map(([a,b])=>[b,a]));const statusReverse=Object.fromEntries(Object.entries(statuses).map(([a,b])=>[b,a]));const key='velixeo_admin_lang';let lang=localStorage.getItem(key)||'en';const norm=s=>String(s||'').replace(/\\s+/g,' ').trim();
+  <script id="velixeo-admin-locale-script">(()=>{const dict=${dictionary};const statuses=${statuses};const reverse=Object.fromEntries(Object.entries(dict).map(([a,b])=>[b,a]));const statusReverse=Object.fromEntries(Object.entries(statuses).map(([a,b])=>[b,a]));const key='velixeo_admin_lang';let lang=document.documentElement.lang==='fa'?'fa':'en';const norm=s=>String(s||'').replace(/\\s+/g,' ').trim();
   const faNum=s=>String(s).replace(/\\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[Number(d)]);
   function dynamicFa(clean){
     if(dict[clean])return dict[clean];
@@ -832,17 +832,22 @@ function localeInjection() {
     }
   }
   function apply(next){
-    const current=document.documentElement.dataset.vxLang||'en';
-    if(current!==next)translateText(document.body,next);
-    lang=next;localStorage.setItem(key,next);
-    document.documentElement.dataset.vxLang=next;
-    document.documentElement.lang=next==='fa'?'fa':'en';
-    document.documentElement.dir=next==='fa'?'rtl':'ltr';
-    document.querySelectorAll('[data-vx-lang]').forEach(b=>b.classList.toggle('active',b.dataset.vxLang===next));
+    if(next===lang){
+      document.querySelectorAll('[data-vx-lang]').forEach(b=>b.classList.toggle('active',b.dataset.vxLang===next));
+      return;
+    }
+    document.cookie=key+'='+next+'; Path=/admin; Max-Age=31536000; SameSite=Lax';
+    location.reload();
   }
   document.addEventListener('click',e=>{const b=e.target.closest('[data-vx-lang]');if(b)apply(b.dataset.vxLang);});
-  const observer=new MutationObserver(records=>{if(lang!=='fa')return;for(const record of records){for(const node of record.addedNodes){if(node.nodeType===Node.ELEMENT_NODE)translateText(node,'fa');}}});
-  const start=()=>{apply(lang);observer.observe(document.body,{childList:true,subtree:true});};
+  const start=()=>{
+    document.documentElement.dataset.vxLang=lang;
+    document.documentElement.lang=lang;
+    document.documentElement.dir=lang==='fa'?'rtl':'ltr';
+    document.documentElement.classList.remove('vx-admin-fa','vx-admin-en');
+    document.documentElement.classList.add('vx-admin-'+lang);
+    document.querySelectorAll('[data-vx-lang]').forEach(b=>b.classList.toggle('active',b.dataset.vxLang===lang));
+  };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
   })();</script>`;
 }
