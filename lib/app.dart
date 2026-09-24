@@ -816,6 +816,7 @@ class _VelixeoAppState extends State<VelixeoApp> {
             child: child ?? const SizedBox.shrink(),
           ),
           home: AppUpdateGate(
+            fa: controller.fa,
             child: controller.booting
                 ? SplashPage(fa: controller.fa)
                 : controller.authenticated
