@@ -70,7 +70,7 @@ const shell = (body: string, title = 'VELIXEO Admin') => `<!doctype html>
 
 
 export function adminLoginHtmlFa(error?: string) {
-  return \`<!doctype html>
+  return `<!doctype html>
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8" />
@@ -97,12 +97,12 @@ h1{font-size:22px;line-height:1.65;margin:0 0 5px;font-weight:800}p{margin:0;col
 @media(max-width:520px){.vx-login{padding:16px}.vx-card{padding:23px 20px}.vx-lang{left:12px;bottom:12px}}
 </style>
 </head>
-<body><main class="vx-login"><section class="vx-card"><div class="vx-brand"><div class="vx-logo">V</div><div><b>VELIXEO</b><small>Admin Console</small></div></div><h1>ورود به پنل مدیریت</h1><p>برای مدیریت امن VELIXEO وارد حساب مدیر شوید.</p><form method="post" action="/admin/login" autocomplete="on"><div class="vx-field"><label for="identifier">ایمیل یا شماره تلفن</label><input id="identifier" name="identifier" autocomplete="username" required></div><div class="vx-field"><label for="password">رمز عبور</label><input id="password" name="password" type="password" autocomplete="current-password" required></div><button class="vx-submit" type="submit">ورود به مدیریت</button>\${error ? \`<div class="vx-error">\${esc(error)}</div>\` : ''}</form></section></main><div class="vx-lang"><button type="button" data-lang="en">EN</button><button type="button" class="active" data-lang="fa">فارسی</button></div><script>document.querySelectorAll('[data-lang]').forEach(b=>b.onclick=()=>{document.cookie='velixeo_admin_lang='+b.dataset.lang+'; Path=/admin; Max-Age=31536000; SameSite=Lax';location.reload()})</script></body>
-</html>\`;
+<body><main class="vx-login"><section class="vx-card"><div class="vx-brand"><div class="vx-logo">V</div><div><b>VELIXEO</b><small>Admin Console</small></div></div><h1>ورود به پنل مدیریت</h1><p>برای مدیریت امن VELIXEO وارد حساب مدیر شوید.</p><form method="post" action="/admin/login" autocomplete="on"><div class="vx-field"><label for="identifier">ایمیل یا شماره تلفن</label><input id="identifier" name="identifier" autocomplete="username" required></div><div class="vx-field"><label for="password">رمز عبور</label><input id="password" name="password" type="password" autocomplete="current-password" required></div><button class="vx-submit" type="submit">ورود به مدیریت</button>${error ? `<div class="vx-error">${esc(error)}</div>` : ''}</form></section></main><div class="vx-lang"><button type="button" data-lang="en">EN</button><button type="button" class="active" data-lang="fa">فارسی</button></div><script>document.querySelectorAll('[data-lang]').forEach(b=>b.onclick=()=>{document.cookie='velixeo_admin_lang='+b.dataset.lang+'; Path=/admin; Max-Age=31536000; SameSite=Lax';location.reload()})</script></body>
+</html>`;
 }
 
 export function adminLoginHtmlEn(error?: string) {
-  return \`<!doctype html>
+  return `<!doctype html>
 <html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8" />
@@ -129,8 +129,8 @@ h1{font-size:22px;line-height:1.4;margin:0 0 7px;font-weight:700}p{margin:0;colo
 @media(max-width:520px){.vx-login{padding:16px}.vx-card{padding:23px 20px}.vx-lang{right:12px;bottom:12px}}
 </style>
 </head>
-<body><main class="vx-login"><section class="vx-card"><div class="vx-brand"><div class="vx-logo">V</div><div><b>VELIXEO</b><small>Admin Console</small></div></div><h1>Admin sign in</h1><p>Sign in with an administrator account to securely manage VELIXEO.</p><form method="post" action="/admin/login" autocomplete="on"><div class="vx-field"><label for="identifier">Email or phone</label><input id="identifier" name="identifier" autocomplete="username" required></div><div class="vx-field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required></div><button class="vx-submit" type="submit">Sign in to Admin</button>\${error ? \`<div class="vx-error">\${esc(error)}</div>\` : ''}</form></section></main><div class="vx-lang"><button type="button" class="active" data-lang="en">EN</button><button type="button" data-lang="fa">فارسی</button></div><script>document.querySelectorAll('[data-lang]').forEach(b=>b.onclick=()=>{document.cookie='velixeo_admin_lang='+b.dataset.lang+'; Path=/admin; Max-Age=31536000; SameSite=Lax';location.reload()})</script></body>
-</html>\`;
+<body><main class="vx-login"><section class="vx-card"><div class="vx-brand"><div class="vx-logo">V</div><div><b>VELIXEO</b><small>Admin Console</small></div></div><h1>Admin sign in</h1><p>Sign in with an administrator account to securely manage VELIXEO.</p><form method="post" action="/admin/login" autocomplete="on"><div class="vx-field"><label for="identifier">Email or phone</label><input id="identifier" name="identifier" autocomplete="username" required></div><div class="vx-field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required></div><button class="vx-submit" type="submit">Sign in to Admin</button>${error ? `<div class="vx-error">${esc(error)}</div>` : ''}</form></section></main><div class="vx-lang"><button type="button" class="active" data-lang="en">EN</button><button type="button" data-lang="fa">فارسی</button></div><script>document.querySelectorAll('[data-lang]').forEach(b=>b.onclick=()=>{document.cookie='velixeo_admin_lang='+b.dataset.lang+'; Path=/admin; Max-Age=31536000; SameSite=Lax';location.reload()})</script></body>
+</html>`;
 }
 
 export function adminLoginHtml(error?: string) {
