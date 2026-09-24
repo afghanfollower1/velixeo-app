@@ -844,120 +844,23 @@ function renderAdminEnPresentation(html: string) {
 
 export function adminLocaleChrome(lang: AdminLang) {
   const fa = lang === 'fa';
-  return `<style id="velixeo-admin-design-systems">
-  :root{--vx-sky:#38bdf8;--vx-sky-hover:#7dd3fc;--vx-ink:#24343d;--vx-muted:#74818b;--vx-soft:#edf8fd;--vx-bg:#f6f9fc;--vx-line:#e7eef2;--vx-green:#158365;--vx-orange:#ad670d;--vx-red:#c54152}
-  .vx-locale{position:fixed;right:18px;bottom:18px;z-index:99999;background:#fff;border:1px solid #dfe8f1;border-radius:12px;padding:5px;display:flex;gap:4px;box-shadow:0 8px 30px rgba(20,60,100,.12)}
-  .vx-locale button{border:0;border-radius:8px;padding:7px 10px;background:transparent;color:#61758b;font:600 11px Inter,Arial,sans-serif;cursor:pointer}
-  .vx-locale button.active{background:var(--vx-sky);color:#183b4b}
-  .vx-admin-menu-toggle{display:none;position:fixed;top:14px;z-index:100000;width:42px;height:42px;border:1px solid var(--vx-line);border-radius:13px;background:#fff;color:#4d7081;box-shadow:0 8px 28px rgba(20,60,100,.1);font-size:20px;align-items:center;justify-content:center}
+  return `<style id="velixeo-admin-locale-chrome">
+  .vx-locale{position:fixed;right:18px;bottom:18px;z-index:99999;background:#fff;border:1px solid #e7eef2;border-radius:12px;padding:4px;display:flex;gap:4px;box-shadow:0 8px 30px rgba(20,60,100,.10)}
+  .vx-locale button{border:0;border-radius:9px;padding:7px 11px;background:transparent;color:#78909e;font:600 11px Inter,Arial,sans-serif;cursor:pointer}
+  .vx-locale button.active{background:#eef9fe;color:#318eb6}
+  .vx-admin-menu-toggle{display:none;position:fixed;top:14px;z-index:100000;width:42px;height:42px;border:1px solid #e7eef2;border-radius:14px;background:#fff;color:#4d7081;box-shadow:0 8px 28px rgba(20,60,100,.10);font-size:20px;align-items:center;justify-content:center}
   .vx-admin-backdrop{display:none}
-
-  /* Persian Admin — independent RTL presentation */
-  html.vx-admin-fa body{direction:rtl;font-family:"Vazirmatn",Tahoma,Arial,sans-serif;line-height:1.75;background:var(--vx-bg);color:var(--vx-ink);letter-spacing:0}
-  html.vx-admin-fa .layout{direction:rtl;grid-template-columns:minmax(0,1fr) 244px;min-height:100vh}
-  html.vx-admin-fa .side{grid-column:2;grid-row:1;background:#fff;color:#8795a1;border-left:1px solid #edf1f5;border-right:0;padding:32px 22px;box-shadow:none;text-align:right}
-  html.vx-admin-fa .main{grid-column:1;grid-row:1;padding:30px 38px;direction:rtl;min-width:0}
-  html.vx-admin-fa .brand{direction:rtl;flex-direction:row-reverse;justify-content:flex-end;color:var(--vx-ink);border:0;padding:0 2px 10px;margin-bottom:20px}
-  html.vx-admin-fa .brand b{color:var(--vx-ink);font-size:19px;letter-spacing:0}
-  html.vx-admin-fa .brand small{color:#97a8b1}
-  html.vx-admin-fa .cap{color:#b0bac2;padding:15px 12px 7px;font-size:10px;letter-spacing:0;text-align:right}
-  html.vx-admin-fa .nav{direction:rtl;justify-content:flex-start;text-align:right;color:#8795a1;padding:12px 13px;border-radius:12px;font-size:12px;gap:12px}
-  html.vx-admin-fa .nav:hover{background:#f7fbfd;color:#318eb6}
-  html.vx-admin-fa .nav.active{background:var(--vx-soft);color:#318eb6;box-shadow:none;font-weight:700}
-  html.vx-admin-fa .subnav{padding:0;margin:0;border:0}
-  html.vx-admin-fa .topbar{direction:rtl;grid-template-columns:auto minmax(250px,1fr);background:rgba(246,249,252,.96);height:64px}
-  html.vx-admin-fa .topbar .search{grid-column:2;grid-row:1;margin-right:auto;margin-left:0}
-  html.vx-admin-fa .topbar .admin{grid-column:1;grid-row:1}
-  html.vx-admin-fa .search{border-radius:14px;height:40px;border-color:var(--vx-line)}
-  html.vx-admin-fa .avatar{border-radius:15px;background:#e2f3fe;color:#438aa8}
-  html.vx-admin-fa .head{direction:rtl;text-align:right;margin:7px 0 24px;align-items:flex-end}
-  html.vx-admin-fa .head h1{font-size:24px;font-weight:800;line-height:1.55}
-  html.vx-admin-fa .head p{font-size:12px;line-height:1.9}
-  html.vx-admin-fa .crumb{font-size:10px;color:#a1b1bc}
-  html.vx-admin-fa .stats{direction:rtl;gap:14px;margin-bottom:22px}
-  html.vx-admin-fa .stat{padding:20px;border-radius:20px;border-color:#eef2f5;box-shadow:none}
-  html.vx-admin-fa .stat strong{font-size:25px}
-  html.vx-admin-fa .card{direction:rtl;text-align:right;border-radius:20px;padding:21px;margin-bottom:18px;border-color:#eef2f5;box-shadow:none}
-  html.vx-admin-fa .cardhead{direction:rtl}
-  html.vx-admin-fa .cardhead h2,html.vx-admin-fa .cardhead h3{font-size:15px;font-weight:700}
-  html.vx-admin-fa .table th,html.vx-admin-fa .table td,html.vx-admin-fa table th,html.vx-admin-fa table td{text-align:right;padding:14px 10px;line-height:1.75;font-size:11px}
-  html.vx-admin-fa input,html.vx-admin-fa select,html.vx-admin-fa textarea{text-align:right;font-family:"Vazirmatn",Tahoma,Arial,sans-serif}
-  html.vx-admin-fa .mono,html.vx-admin-fa input.mono,html.vx-admin-fa textarea.mono{direction:ltr;text-align:left;font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
-  html.vx-admin-fa .field label{font-size:11px}
-  html.vx-admin-fa .field input,html.vx-admin-fa .field select,html.vx-admin-fa .field textarea{border-radius:12px;padding:11px 14px;font-size:12px;border-color:#dfe8ed}
-  html.vx-admin-fa .field input,html.vx-admin-fa .field select{height:44px}
-  html.vx-admin-fa .btn{min-height:40px;border-radius:13px;background:var(--vx-sky);color:#183b4b;font-family:"Vazirmatn",Tahoma,Arial,sans-serif;font-size:11px;font-weight:700;box-shadow:0 4px 12px #38bdf821}
-  html.vx-admin-fa .btn:hover{background:var(--vx-sky-hover)}
-  html.vx-admin-fa .btn.ghost{background:#fff;border:1px solid var(--vx-line);color:#347996}
-  html.vx-admin-fa .tabs{direction:rtl;border-bottom:1px solid var(--vx-line);gap:5px}
-  html.vx-admin-fa .tab{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;padding:12px 14px;font-size:11px}
-  html.vx-admin-fa .tab.active{color:#2288b1;border-bottom-color:var(--vx-sky)}
-  html.vx-admin-fa .modulehero,html.vx-admin-fa .nhero{background:#edf7fc;color:#245168;border:1px solid #dceef8}
-  html.vx-admin-fa .modulehero p,html.vx-admin-fa .nhero p{color:var(--vx-muted)}
   html.vx-admin-fa .vx-locale{right:auto;left:18px}
-
-  /* English Admin — independent LTR presentation */
-  html.vx-admin-en body{direction:ltr;font-family:"Inter",Arial,sans-serif;line-height:1.6;background:var(--vx-bg);color:var(--vx-ink)}
-  html.vx-admin-en .layout{direction:ltr;grid-template-columns:244px minmax(0,1fr);min-height:100vh}
-  html.vx-admin-en .side{grid-column:1;grid-row:1;background:#fff;color:#8795a1;border-right:1px solid #edf1f5;border-left:0;padding:32px 22px;box-shadow:none;text-align:left}
-  html.vx-admin-en .main{grid-column:2;grid-row:1;padding:30px 38px;direction:ltr;min-width:0}
-  html.vx-admin-en .brand{direction:ltr;color:var(--vx-ink);border:0;padding:0 2px 10px;margin-bottom:20px}
-  html.vx-admin-en .brand b{color:var(--vx-ink);font-size:19px}
-  html.vx-admin-en .brand small{color:#97a8b1}
-  html.vx-admin-en .cap{color:#b0bac2;padding:15px 12px 7px;font-size:10px}
-  html.vx-admin-en .nav{direction:ltr;color:#8795a1;padding:12px 13px;border-radius:12px;font-size:12px;gap:12px}
-  html.vx-admin-en .nav:hover{background:#f7fbfd;color:#318eb6}
-  html.vx-admin-en .nav.active{background:var(--vx-soft);color:#318eb6;box-shadow:none;font-weight:600}
-  html.vx-admin-en .topbar{direction:ltr;background:rgba(246,249,252,.96);height:64px}
-  html.vx-admin-en .search{border-radius:14px;height:40px;border-color:var(--vx-line)}
-  html.vx-admin-en .avatar{border-radius:15px;background:#e2f3fe;color:#438aa8}
-  html.vx-admin-en .head{margin:7px 0 24px;align-items:flex-end}
-  html.vx-admin-en .head h1{font-size:24px;font-weight:700;line-height:1.4}
-  html.vx-admin-en .head p{font-size:12px}
-  html.vx-admin-en .stats{gap:14px;margin-bottom:22px}
-  html.vx-admin-en .stat{padding:20px;border-radius:20px;border-color:#eef2f5;box-shadow:none}
-  html.vx-admin-en .stat strong{font-size:25px}
-  html.vx-admin-en .card{border-radius:20px;padding:21px;margin-bottom:18px;border-color:#eef2f5;box-shadow:none}
-  html.vx-admin-en .cardhead h2,html.vx-admin-en .cardhead h3{font-size:15px;font-weight:600}
-  html.vx-admin-en .table th,html.vx-admin-en .table td{padding:14px 10px;font-size:11px}
-  html.vx-admin-en .field label{font-size:11px}
-  html.vx-admin-en .field input,html.vx-admin-en .field select,html.vx-admin-en .field textarea{font-family:"Inter",Arial,sans-serif;border-radius:12px;padding:11px 14px;font-size:12px;border-color:#dfe8ed}
-  html.vx-admin-en .field input,html.vx-admin-en .field select{height:44px}
-  html.vx-admin-en .btn{min-height:40px;border-radius:13px;background:var(--vx-sky);color:#183b4b;font-size:11px;font-weight:600;box-shadow:0 4px 12px #38bdf821}
-  html.vx-admin-en .btn:hover{background:var(--vx-sky-hover)}
-  html.vx-admin-en .btn.ghost{background:#fff;border:1px solid var(--vx-line);color:#347996}
-  html.vx-admin-en .tabs{border-bottom:1px solid var(--vx-line);gap:5px}
-  html.vx-admin-en .tab{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;padding:12px 14px;font-size:11px}
-  html.vx-admin-en .tab.active{color:#2288b1;border-bottom-color:var(--vx-sky)}
-  html.vx-admin-en .modulehero,html.vx-admin-en .nhero{background:#edf7fc;color:#245168;border:1px solid #dceef8}
-  html.vx-admin-en .modulehero p,html.vx-admin-en .nhero p{color:var(--vx-muted)}
-
-  @media(max-width:1080px){
-    html.vx-admin-fa .layout{grid-template-columns:minmax(0,1fr) 205px}
-    html.vx-admin-en .layout{grid-template-columns:205px minmax(0,1fr)}
-    html.vx-admin-fa .main,html.vx-admin-en .main{padding:25px 24px}
-  }
-  @media(max-width:760px){
-    html.vx-admin-fa .layout,html.vx-admin-en .layout{display:block}
-    html.vx-admin-fa .main,html.vx-admin-en .main{padding:66px 14px 18px}
-    html.vx-admin-fa .topbar,html.vx-admin-en .topbar{position:relative}
-    html.vx-admin-fa .topbar .search,html.vx-admin-en .topbar .search{display:none}
+  @media(max-width:900px){
     .vx-admin-menu-toggle{display:flex}
     html.vx-admin-fa .vx-admin-menu-toggle{right:14px;left:auto}
     html.vx-admin-en .vx-admin-menu-toggle{left:14px;right:auto}
-    html.vx-admin-fa .side,html.vx-admin-en .side{position:fixed;top:0;height:100vh;width:260px;z-index:99998;overflow:auto;transition:transform .2s ease;box-shadow:0 24px 60px rgba(20,60,100,.16)}
-    html.vx-admin-fa .side{right:0;left:auto;transform:translateX(110%)}
-    html.vx-admin-en .side{left:0;right:auto;transform:translateX(-110%)}
-    html.vx-admin-fa body.vx-admin-menu-open .side,html.vx-admin-en body.vx-admin-menu-open .side{transform:translateX(0)}
-    body.vx-admin-menu-open .vx-admin-backdrop{display:block;position:fixed;inset:0;z-index:99997;background:rgba(36,52,61,.22)}
-    .stats{grid-template-columns:1fr 1fr}
-    .grid,.grid.eq{grid-template-columns:1fr}
+    html.vx-admin-fa .admin-sidebar{right:0;left:auto;transform:translateX(110%)}
+    html.vx-admin-en .admin-sidebar{left:0;right:auto;transform:translateX(-110%)}
+    body.vx-admin-menu-open .admin-sidebar{transform:translateX(0)!important}
+    body.vx-admin-menu-open .vx-admin-backdrop{display:block;position:fixed;inset:0;z-index:99997;background:rgba(36,52,61,.22);backdrop-filter:blur(2px)}
   }
-  @media(max-width:480px){
-    .stats{grid-template-columns:1fr}
-    html.vx-admin-fa .main,html.vx-admin-en .main{padding-left:12px;padding-right:12px}
-    .vx-locale{bottom:12px}
-  }
+  @media(max-width:480px){.vx-locale{bottom:12px}}
   </style>
   <button type="button" class="vx-admin-menu-toggle" aria-label="${fa ? 'باز کردن فهرست مدیریت' : 'Open admin menu'}">☰</button>
   <div class="vx-admin-backdrop" data-vx-close-menu></div>
@@ -976,11 +879,11 @@ export function adminLocaleChrome(lang: AdminLang) {
         location.reload();
       });
     });
-    const toggle=()=>document.body.classList.toggle('vx-admin-menu-open');
-    document.querySelector('.vx-admin-menu-toggle')?.addEventListener('click',toggle);
-    document.querySelector('[data-vx-close-menu]')?.addEventListener('click',()=>document.body.classList.remove('vx-admin-menu-open'));
-    document.querySelectorAll('.side a,.side button').forEach(item=>item.addEventListener('click',()=>{
-      if(innerWidth<=760)document.body.classList.remove('vx-admin-menu-open');
+    const close=()=>document.body.classList.remove('vx-admin-menu-open');
+    document.querySelector('.vx-admin-menu-toggle')?.addEventListener('click',()=>document.body.classList.toggle('vx-admin-menu-open'));
+    document.querySelector('[data-vx-close-menu]')?.addEventListener('click',close);
+    document.querySelectorAll('.admin-sidebar a,.admin-sidebar button').forEach(item=>item.addEventListener('click',()=>{
+      if(innerWidth<=900)close();
     }));
   })();</script>`;
 }
