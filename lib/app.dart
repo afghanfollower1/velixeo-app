@@ -2722,15 +2722,160 @@ class _TwoFactorLoginPageState extends State<TwoFactorLoginPage>
     return widget.controller.fa
         ? Directionality(
             textDirection: TextDirection.rtl,
-            child: _buildTwoFactorView(context),
+            child: _buildPersianTwoFactorView(context),
           )
         : Directionality(
             textDirection: TextDirection.ltr,
-            child: _buildTwoFactorView(context),
+            child: _buildEnglishTwoFactorView(context),
           );
   }
 
-  Widget _buildTwoFactorView(BuildContext context) {
+  Widget _buildPersianTwoFactorView(BuildContext context) {
+    final c = widget.controller;
+    final challenge = c.pendingTwoFactor;
+    final whatsappInbound = challenge?.isWhatsAppInbound == true;
+
+    return Scaffold(
+      appBar: AppBar(title: Text(tr(c.fa, 'تأیید ورود', 'Verify sign-in'))),
+      body: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          const SizedBox(height: 28),
+          Center(
+            child: Container(
+              width: 78,
+              height: 78,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F4FF),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Icon(
+                whatsappInbound ? Icons.chat_rounded : Icons.phonelink_lock_rounded,
+                color: whatsappInbound ? const Color(0xFF20A76F) : VelixeoDesign.sky,
+                size: 39,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            tr(c.fa, 'احراز هویت دو مرحله‌ای', 'Two-step verification'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            challenge == null
+                ? tr(c.fa, 'جلسه تأیید در دسترس نیست.', 'Verification session is unavailable.')
+                : whatsappInbound
+                    ? tr(
+                        c.fa,
+                        'پیام تأیید را از همان شماره WhatsApp تأییدشده حساب ارسال کنید. اگر WhatsApp روی گوشی دیگری است، لینک وریفای و پیام را از پایین کپی کنید.',
+                        'Send the verification message from the verified WhatsApp number on this account. If WhatsApp is on another phone, copy the verification link and message below.',
+                      )
+                    : tr(
+                        c.fa,
+                        'کد ۶ رقمی به ${challenge.maskedTarget} ارسال شد.',
+                        'A 6-digit code was sent to ${challenge.maskedTarget}.',
+                      ),
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFF6E8194), height: 1.5),
+          ),
+          const SizedBox(height: 24),
+          if (whatsappInbound) ...[
+            PrimaryButton(
+              label: tr(c.fa, 'باز کردن واتساپ روی همین گوشی', 'Open WhatsApp on this phone'),
+              onPressed: whatsappOpening ? null : _openWhatsApp,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              tr(c.fa, 'اگر WhatsApp روی گوشی دیگری است:', 'If WhatsApp is on another phone:'),
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              tr(
+                c.fa,
+                'لینک وریفای را به گوشی دوم منتقل کنید و همان‌جا باز کنید. چت Velixeo با پیام آماده باز می‌شود؛ پیام را بدون تغییر ارسال کنید.',
+                'Move the verification link to the other phone and open it there. The Velixeo chat opens with a prepared message; send it without editing.',
+              ),
+              style: const TextStyle(fontSize: 11.5, color: VelixeoDesign.muted, height: 1.45),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: challenge?.whatsappLink?.isNotEmpty == true
+                    ? () => _copyTwoFactorValue(
+                          challenge!.whatsappLink!,
+                          tr(c.fa, 'لینک وریفای کپی شد.', 'Verification link copied.'),
+                        )
+                    : null,
+                icon: const Icon(Icons.link_rounded),
+                label: Text(tr(c.fa, 'کپی لینک وریفای', 'Copy verification link')),
+              ),
+            ),
+            const SizedBox(height: 10),
+            _twoFactorCopyBox(
+              title: tr(c.fa, 'پیام تأیید', 'Verification message'),
+              value: challenge?.verificationMessage ?? '',
+              buttonLabel: tr(c.fa, 'کپی پیام تأیید', 'Copy verification message'),
+            ),
+            const SizedBox(height: 18),
+            const LinearProgressIndicator(),
+            const SizedBox(height: 12),
+            Text(
+              whatsappChecking
+                  ? tr(c.fa, 'در حال بررسی پیام واتساپ...', 'Checking your WhatsApp message...')
+                  : tr(c.fa, 'منتظر پیام واتساپ شما هستیم...', 'Waiting for your WhatsApp message...'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF6E8194),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (whatsappStatus?.isNotEmpty == true) ...[
+              const SizedBox(height: 10),
+              Text(
+                whatsappStatus!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+              ),
+            ],
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: whatsappChecking ? null : _pollWhatsApp,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(tr(c.fa, 'بررسی وضعیت', 'Check status')),
+            ),
+          ] else ...[
+            TextField(
+              controller: code,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 10,
+              ),
+              decoration: const InputDecoration(counterText: '', hintText: '••••••'),
+              onSubmitted: (_) => verify(),
+            ),
+            const SizedBox(height: 18),
+            PrimaryButton(
+              label: c.authBusy
+                  ? tr(c.fa, 'درحال بررسی...', 'Verifying...')
+                  : tr(c.fa, 'تأیید و ورود', 'Verify and sign in'),
+              onPressed: c.authBusy || challenge == null ? null : verify,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+Widget _buildEnglishTwoFactorView(BuildContext context) {
     final c = widget.controller;
     final challenge = c.pendingTwoFactor;
     final whatsappInbound = challenge?.isWhatsAppInbound == true;
@@ -4742,7 +4887,7 @@ class DigitalAccountsHubPage extends StatelessWidget {
 
   Widget _buildPersian(BuildContext context) => Directionality(
         textDirection: TextDirection.rtl,
-        child: _buildPage(
+        child: _buildPersianPage(
           context,
           title: 'حساب‌های دیجیتال',
           heroTitle: 'همهٔ حساب‌ها و ابزارهای دیجیتال',
@@ -4756,7 +4901,7 @@ class DigitalAccountsHubPage extends StatelessWidget {
 
   Widget _buildEnglish(BuildContext context) => Directionality(
         textDirection: TextDirection.ltr,
-        child: _buildPage(
+        child: _buildEnglishPage(
           context,
           title: 'Digital Accounts',
           heroTitle: 'Digital accounts & tools',
@@ -4768,7 +4913,173 @@ class DigitalAccountsHubPage extends StatelessWidget {
         ),
       );
 
-  Widget _buildPage(
+  Widget _buildPersianPage(
+    BuildContext context, {
+    required String title,
+    required String heroTitle,
+    required String heroBody,
+    required String emptyTitle,
+    required String emptyBody,
+    required String priceFallback,
+    required TextDirection direction,
+  }) {
+    final c = controller;
+    final items = c.catalogServices
+        .where((service) => service.category == 'DIGITAL_ACCOUNT')
+        .toList(growable: false);
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: RefreshIndicator(
+        onRefresh: c.refreshAccount,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 30),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(21),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFEEFBFA), Color(0xFFE4F4FC)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                border: Border.all(color: const Color(0xFFDCEEF2)),
+                borderRadius: BorderRadius.circular(23),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEAF8F4),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Icon(
+                      Icons.manage_accounts_rounded,
+                      color: Color(0xFF69AE9B),
+                      size: 29,
+                    ),
+                  ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          heroTitle,
+                          style: const TextStyle(
+                            color: Color(0xFF2C5366),
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          heroBody,
+                          style: const TextStyle(
+                            color: Color(0xFF7293A5),
+                            fontSize: 10.5,
+                            height: 1.65,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            if (items.isEmpty)
+              EmptyCard(
+                icon: Icons.manage_accounts_outlined,
+                title: emptyTitle,
+                subtitle: emptyBody,
+              )
+            else
+              ...items.map((service) {
+                final color = catalogColor(service.category);
+                final titleText = direction == TextDirection.rtl
+                    ? service.titleFa
+                    : service.titleEn;
+                final subtitle = service.basePriceAfn == null
+                    ? priceFallback
+                    : (direction == TextDirection.rtl ? 'از ' : 'From ') +
+                        c.money(service.basePriceAfn!);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: InkWell(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CatalogServicePage(
+                          controller: c,
+                          service: service,
+                        ),
+                      ),
+                    ),
+                    borderRadius: BorderRadius.circular(18),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFFEEF2F5)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: .10),
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            child: Icon(Icons.manage_accounts_rounded, color: color),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  titleText,
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: VelixeoBrand.ink,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  subtitle,
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    color: VelixeoBrand.muted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            direction == TextDirection.rtl
+                                ? Icons.chevron_left_rounded
+                                : Icons.chevron_right_rounded,
+                            size: 18,
+                            color: const Color(0xFF97A8B2),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+
+Widget _buildEnglishPage(
     BuildContext context, {
     required String title,
     required String heroTitle,
@@ -4957,7 +5268,7 @@ class CatalogServicePage extends StatelessWidget {
 
   Widget _buildDigitalPersian(BuildContext context) => Directionality(
         textDirection: TextDirection.rtl,
-        child: _buildDigitalPage(
+        child: _buildPersianDigitalPage(
           context,
           appBarTitle: 'جزئیات حساب دیجیتال',
           heading: service.titleFa,
@@ -4978,7 +5289,7 @@ class CatalogServicePage extends StatelessWidget {
 
   Widget _buildDigitalEnglish(BuildContext context) => Directionality(
         textDirection: TextDirection.ltr,
-        child: _buildDigitalPage(
+        child: _buildEnglishDigitalPage(
           context,
           appBarTitle: 'Digital product details',
           heading: service.titleEn,
@@ -4997,7 +5308,168 @@ class CatalogServicePage extends StatelessWidget {
         ),
       );
 
-  Widget _buildDigitalPage(
+  Widget _buildPersianDigitalPage(
+    BuildContext context, {
+    required String appBarTitle,
+    required String heading,
+    required String subtitle,
+    required String integrationBadge,
+    required String basePriceLabel,
+    required String livePriceLabel,
+    required String rangeLabel,
+    required String integrationLabel,
+    required String notAvailable,
+    required String notConnected,
+    required String notice,
+    required String disabledAction,
+    required String backAction,
+    required String? description,
+  }) =>
+      Scaffold(
+        appBar: AppBar(title: Text(appBarTitle)),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+          children: [
+            Text(
+              heading,
+              style: const TextStyle(
+                fontSize: 21,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 11,
+                color: VelixeoBrand.muted,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 25),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4FAFF),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEAF8F4),
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: const Icon(
+                      Icons.manage_accounts_rounded,
+                      color: Color(0xFF69AE9B),
+                      size: 37,
+                    ),
+                  ),
+                  const SizedBox(height: 13),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF4DF),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      integrationBadge,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: Color(0xFFAD670D),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (description?.trim().isNotEmpty == true) ...[
+              const SizedBox(height: 16),
+              Text(
+                description!,
+                style: const TextStyle(
+                  fontSize: 11,
+                  height: 1.7,
+                  color: VelixeoBrand.muted,
+                ),
+              ),
+            ],
+            const SizedBox(height: 15),
+            _PaymentDetailCard(
+              rows: [
+                (
+                  basePriceLabel,
+                  service.basePriceAfn == null
+                      ? notAvailable
+                      : controller.money(
+                          service.basePriceAfn!,
+                          showBase: true,
+                        ),
+                ),
+                (livePriceLabel, '—'),
+                (
+                  rangeLabel,
+                  service.minQty == null && service.maxQty == null
+                      ? '—'
+                      : (service.minQty?.toString() ?? '—') +
+                          ' – ' +
+                          (service.maxQty?.toString() ?? '—'),
+                ),
+                (integrationLabel, notConnected),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF6E8),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    size: 17,
+                    color: Color(0xFFAD670D),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      notice,
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        height: 1.55,
+                        color: Color(0xFF8A682B),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 15),
+            FilledButton.icon(
+              onPressed: null,
+              icon: const Icon(Icons.lock_outline_rounded, size: 17),
+              label: Text(disabledAction),
+            ),
+            const SizedBox(height: 9),
+            OutlinedButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(backAction),
+            ),
+          ],
+        ),
+      );
+
+Widget _buildEnglishDigitalPage(
     BuildContext context, {
     required String appBarTitle,
     required String heading,
@@ -5238,7 +5710,7 @@ class ComingSoonServicePage extends StatelessWidget {
 
   Widget _buildPersian(BuildContext context) => Directionality(
         textDirection: TextDirection.rtl,
-        child: _buildPage(
+        child: _buildPersianPage(
           context,
           badge: 'به‌زودی',
           title: 'شارژ موبایل',
@@ -5250,7 +5722,7 @@ class ComingSoonServicePage extends StatelessWidget {
 
   Widget _buildEnglish(BuildContext context) => Directionality(
         textDirection: TextDirection.ltr,
-        child: _buildPage(
+        child: _buildEnglishPage(
           context,
           badge: 'Coming soon',
           title: 'Mobile top-up',
@@ -5260,7 +5732,90 @@ class ComingSoonServicePage extends StatelessWidget {
         ),
       );
 
-  Widget _buildPage(
+  Widget _buildPersianPage(
+    BuildContext context, {
+    required String badge,
+    required String title,
+    required String body,
+    required String action,
+  }) =>
+      Scaffold(
+        appBar: AppBar(),
+        body: SafeArea(
+          top: false,
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                children: [
+                  Container(
+                    width: 74,
+                    height: 74,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEAF7FD),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: const Icon(
+                      Icons.phone_iphone_rounded,
+                      color: Color(0xFF5BA8C8),
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF4DF),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      badge,
+                      style: const TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFB58036),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 17),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 23,
+                      fontWeight: FontWeight.w700,
+                      color: VelixeoBrand.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    body,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      height: 2,
+                      color: VelixeoBrand.muted,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(action),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+Widget _buildEnglishPage(
     BuildContext context, {
     required String badge,
     required String title,
@@ -5977,15 +6532,279 @@ class _NotificationsPageState extends State<NotificationsPage> {
     return widget.controller.fa
         ? Directionality(
             textDirection: TextDirection.rtl,
-            child: _buildNotificationsView(context),
+            child: _buildPersianNotificationsView(context),
           )
         : Directionality(
             textDirection: TextDirection.ltr,
-            child: _buildNotificationsView(context),
+            child: _buildEnglishNotificationsView(context),
           );
   }
 
-  Widget _buildNotificationsView(BuildContext context) {
+  Widget _buildPersianNotificationsView(BuildContext context) {
+    final c = widget.controller;
+    final filters = <(String, String)>[
+      ('ALL', tr(c.fa, 'همه', 'All')),
+      ('ORDER', tr(c.fa, 'سفارش‌ها', 'Orders')),
+      ('WALLET', tr(c.fa, 'کیف پول', 'Wallet')),
+      ('SUPPORT', tr(c.fa, 'پشتیبانی', 'Support')),
+      ('SYSTEM', tr(c.fa, 'سیستم', 'System')),
+    ];
+    return AnimatedBuilder(
+      animation: c,
+      builder: (context, _) {
+        final items = visible(c);
+        return Scaffold(
+          backgroundColor: const Color(0xFFF5F8FC),
+          body: SafeArea(
+            child: RefreshIndicator(
+              onRefresh: c.refreshAccount,
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Container(
+                      margin: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(26),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFEEF9FD), Color(0xFFE5F5FB)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        border: Border.all(color: const Color(0xFFDDEFF6)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              IconButton.filledTonal(
+                                style: IconButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF507383)),
+                                onPressed: () => Navigator.pop(context),
+                                icon: const Icon(Icons.arrow_back_rounded),
+                              ),
+                              const SizedBox(width: 10),
+                              Container(
+                                width: 48,
+                                height: 48,
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15)),
+                                child: const BrandMark(size: 40, wordmark: false),
+                              ),
+                              const SizedBox(width: 11),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      tr(c.fa, 'مرکز اعلان‌ها', 'Notification Center'),
+                                      style: const TextStyle(color: Color(0xFF2C5366), fontSize: 18, fontWeight: FontWeight.w700),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      tr(c.fa, 'سفارش‌ها، کیف پول، پشتیبانی و بروزرسانی‌ها', 'Orders, wallet, support & updates'),
+                                      style: const TextStyle(color: Color(0xFF7293A5), fontSize: 10.5),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 18),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: .78), borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE3EFF4))),
+                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text(tr(c.fa, 'خوانده‌نشده', 'Unread'), style: const TextStyle(color: Color(0xFF7893A2), fontSize: 10)),
+                                    const SizedBox(height: 4),
+                                    Text('${c.unreadNotificationCount}', style: const TextStyle(color: Color(0xFF2C5366), fontSize: 23, fontWeight: FontWeight.w700)),
+                                  ]),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: .78), borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE3EFF4))),
+                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text(tr(c.fa, 'مجموع', 'Total'), style: const TextStyle(color: Color(0xFF7893A2), fontSize: 10)),
+                                    const SizedBox(height: 4),
+                                    Text('${c.notifications.length}', style: const TextStyle(color: Color(0xFF2C5366), fontSize: 23, fontWeight: FontWeight.w700)),
+                                  ]),
+                                ),
+                              ),
+                              if (c.unreadNotificationCount > 0) ...[
+                                const SizedBox(width: 10),
+                                FilledButton(
+                                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFF38BDF8), foregroundColor: const Color(0xFF183B4B), minimumSize: const Size(86, 58), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                                  onPressed: c.markAllNotificationsRead,
+                                  child: Text(tr(c.fa, 'خواندن همه', 'Read all'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 48,
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        scrollDirection: Axis.horizontal,
+                        itemCount: filters.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 7),
+                        itemBuilder: (_, i) {
+                          final item = filters[i];
+                          final active = filter == item.$1;
+                          final count = countType(c, item.$1);
+                          return ChoiceChip(
+                            selected: active,
+                            onSelected: (_) => setState(() => filter = item.$1),
+                            label: Text('${item.$2}  $count'),
+                            showCheckmark: false,
+                            selectedColor: VelixeoDesign.sky,
+                            backgroundColor: Colors.white,
+                            side: BorderSide(color: active ? VelixeoDesign.sky : const Color(0xFFE0E8F0)),
+                            labelStyle: TextStyle(color: active ? Colors.white : const Color(0xFF5D6C7E), fontSize: 11, fontWeight: FontWeight.w800),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  if (items.isEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(18),
+                        child: EmptyCard(
+                          icon: Icons.notifications_none_rounded,
+                          title: 'Nothing here yet',
+                          subtitle: filter == 'ALL' ? 'Your important VELIXEO updates will appear here.' : 'No notifications in this category yet.',
+                        ),
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(14, 8, 14, 28),
+                      sliver: SliverList.separated(
+                        itemCount: items.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final notice = items[index];
+                          final color = _notificationColor(notice.type);
+                          final title = c.fa ? notice.titleFa : notice.titleEn;
+                          final body = c.fa ? notice.bodyFa : notice.bodyEn;
+                          final action = c.fa ? notice.actionLabelFa : notice.actionLabelEn;
+                          return Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(21),
+                              onTap: () => _openNotificationAction(context, c, notice),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                padding: const EdgeInsets.all(15),
+                                decoration: BoxDecoration(
+                                  color: notice.isRead ? Colors.white : color.withValues(alpha: .055),
+                                  borderRadius: BorderRadius.circular(21),
+                                  border: Border.all(color: notice.isRead ? VelixeoDesign.line : color.withValues(alpha: .24)),
+                                  boxShadow: const [BoxShadow(color: Color(0x0D133F69), blurRadius: 20, offset: Offset(0, 8))],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                          width: 46,
+                                          height: 46,
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(colors: [color.withValues(alpha: .72), color]),
+                                            borderRadius: BorderRadius.circular(15),
+                                          ),
+                                          child: Icon(_notificationIcon(notice.type), color: Colors.white, size: 23),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(children: [
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                  decoration: BoxDecoration(color: color.withValues(alpha: .10), borderRadius: BorderRadius.circular(999)),
+                                                  child: Text(_notificationTypeLabel(c.fa, notice.type), style: TextStyle(color: color, fontSize: 9.5, fontWeight: FontWeight.w900)),
+                                                ),
+                                                if (notice.priority == 'HIGH') ...[
+                                                  const SizedBox(width: 5),
+                                                  const Icon(Icons.bolt_rounded, size: 15, color: Color(0xFFF29A2E)),
+                                                ],
+                                                const Spacer(),
+                                                Text(_relativeNotificationTime(c.fa, notice.publishAt), style: const TextStyle(color: Color(0xFF8A9AA9), fontSize: 10)),
+                                                if (!notice.isRead) ...[
+                                                  const SizedBox(width: 7),
+                                                  Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                                                ],
+                                              ]),
+                                              const SizedBox(height: 7),
+                                              Text(title, style: TextStyle(fontSize: 14, height: 1.25, fontWeight: notice.isRead ? FontWeight.w800 : FontWeight.w900, color: const Color(0xFF17263A))),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 11),
+                                    Text(body, style: TextStyle(color: notice.isRead ? const Color(0xFF7C8997) : const Color(0xFF506276), fontSize: 12.2, height: 1.48)),
+                                    if (notice.imageUrl?.trim().isNotEmpty == true) ...[
+                                      const SizedBox(height: 11),
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(14),
+                                        child: AspectRatio(
+                                          aspectRatio: 2.3,
+                                          child: Image.network(
+                                            notice.imageUrl!,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                    if (notice.hasAction) ...[
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+                                        decoration: BoxDecoration(color: color.withValues(alpha: .075), borderRadius: BorderRadius.circular(12)),
+                                        child: Row(
+                                          children: [
+                                            Expanded(child: Text(action?.trim().isNotEmpty == true ? action! : '${tr(c.fa, 'باز کردن', 'Open')} ${_notificationTypeLabel(c.fa, notice.type)}', style: TextStyle(color: color, fontSize: 10.8, fontWeight: FontWeight.w900))),
+                                            Icon(Icons.arrow_forward_rounded, color: color, size: 17),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+Widget _buildEnglishNotificationsView(BuildContext context) {
     final c = widget.controller;
     final filters = <(String, String)>[
       ('ALL', tr(c.fa, 'همه', 'All')),
@@ -6967,7 +7786,7 @@ class _AddFundsPageState extends State<AddFundsPage>
 
   Widget _buildPersianAddFunds(BuildContext context) => Directionality(
         textDirection: TextDirection.rtl,
-        child: _buildAddFundsPage(
+        child: _buildPersianAddFundsPage(
           context,
           appBarTitle: 'افزایش موجودی',
           heading: 'کیف پولت را آماده کن',
@@ -6988,7 +7807,7 @@ class _AddFundsPageState extends State<AddFundsPage>
 
   Widget _buildEnglishAddFunds(BuildContext context) => Directionality(
         textDirection: TextDirection.ltr,
-        child: _buildAddFundsPage(
+        child: _buildEnglishAddFundsPage(
           context,
           appBarTitle: 'Add funds',
           heading: 'Top up your wallet',
@@ -7007,7 +7826,315 @@ class _AddFundsPageState extends State<AddFundsPage>
         ),
       );
 
-  Widget _buildAddFundsPage(
+  Widget _buildPersianAddFundsPage(
+    BuildContext context, {
+    required String appBarTitle,
+    required String heading,
+    required String subtitle,
+    required String walletLabel,
+    required String amountLabel,
+    required String methodTitle,
+    required String methodSubtitle,
+    required String serverNotice,
+    required String summaryLabel,
+    required String actionLabel,
+    required String inactiveLabel,
+    required String historyLabel,
+    required String refreshLabel,
+  }) {
+    final configured = c.paymentCapabilities.hesabPayConfigured;
+    final value = int.tryParse(amount.text.trim()) ?? 0;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(appBarTitle),
+        actions: [
+          IconButton(
+            tooltip: refreshLabel,
+            onPressed: busy ? null : refresh,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: refresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+          children: [
+            Text(
+              heading,
+              style: const TextStyle(
+                fontSize: 21,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 11,
+                color: VelixeoBrand.muted,
+              ),
+            ),
+            const SizedBox(height: 17),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F8FC),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: const Color(0xFFE4F0F6)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.account_balance_wallet_outlined,
+                    size: 17,
+                    color: Color(0xFF5BA8C8),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      walletLabel,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF76909F),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    c.money(c.balanceAfn, showBase: true),
+                    textDirection: TextDirection.ltr,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF287FA7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 17),
+            TextField(
+              controller: amount,
+              keyboardType: TextInputType.number,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: amountLabel,
+                suffixText: 'AFN',
+              ),
+            ),
+            const SizedBox(height: 10),
+            GridView.count(
+              crossAxisCount: 4,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 1.75,
+              children: [200, 500, 1000, 2000]
+                  .map(
+                    (preset) => OutlinedButton(
+                      onPressed: busy
+                          ? null
+                          : () => setState(() {
+                                amount.text = preset.toString();
+                              }),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: value == preset
+                            ? const Color(0xFFEAF8FE)
+                            : Colors.white,
+                        side: BorderSide(
+                          color: value == preset
+                              ? VelixeoBrand.sky
+                              : VelixeoBrand.line,
+                        ),
+                        padding: EdgeInsets.zero,
+                      ),
+                      child: Text(
+                        preset.toString(),
+                        textDirection: TextDirection.ltr,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: value == preset
+                              ? const Color(0xFF2D8DB4)
+                              : const Color(0xFF687F8D),
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              methodTitle,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: VelixeoBrand.ink,
+              ),
+            ),
+            const SizedBox(height: 9),
+            Container(
+              padding: const EdgeInsets.all(17),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: configured
+                      ? const Color(0xFFBDE5D1)
+                      : VelixeoBrand.line,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEDF7F1),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: const Text(
+                      'H',
+                      textDirection: TextDirection.ltr,
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        color: Color(0xFF4B9771),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 23,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'HesabPay',
+                          textDirection: TextDirection.ltr,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: VelixeoBrand.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          configured ? methodSubtitle : inactiveLabel,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: VelixeoBrand.muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 17,
+                    height: 17,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: configured
+                            ? const Color(0xFF41B5E4)
+                            : const Color(0xFFCFDDE5),
+                        width: configured ? 5 : 1,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F8FC),
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(color: const Color(0xFFE4F0F6)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.shield_outlined,
+                    color: Color(0xFF65AACA),
+                    size: 17,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      serverNotice,
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        height: 1.6,
+                        color: Color(0xFF66808F),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFEEF2F5)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      summaryLabel,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: VelixeoBrand.muted,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    c.money(value),
+                    textDirection: TextDirection.ltr,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: VelixeoBrand.ink,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed:
+                  configured && !busy && value > 0 ? startPayment : null,
+              child: Text(configured ? actionLabel : inactiveLabel),
+            ),
+            const SizedBox(height: 9),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PaymentHistoryPage(controller: c),
+                ),
+              ),
+              icon: const Icon(Icons.history_rounded, size: 17),
+              label: Text(historyLabel),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+Widget _buildEnglishAddFundsPage(
     BuildContext context, {
     required String appBarTitle,
     required String heading,
@@ -7404,15 +8531,146 @@ class _PaymentResultPageState extends State<PaymentResultPage> {
 
   Widget _buildPersian(BuildContext context) => Directionality(
         textDirection: TextDirection.rtl,
-        child: _buildPage(context, true),
+        child: _buildPersianPage(context, true),
       );
 
   Widget _buildEnglish(BuildContext context) => Directionality(
         textDirection: TextDirection.ltr,
-        child: _buildPage(context, false),
+        child: _buildEnglishPage(context, false),
       );
 
-  Widget _buildPage(BuildContext context, bool fa) {
+  Widget _buildPersianPage(BuildContext context, bool fa) {
+    final ref = payment.externalId?.trim().isNotEmpty == true
+        ? payment.externalId!
+        : payment.id;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(fa ? 'وضعیت پرداخت' : 'Payment status'),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 26, 20, 30),
+        children: [
+          Center(
+            child: Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: tone.withValues(alpha: .10),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Icon(resultIcon, size: 34, color: tone),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            title(fa),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: VelixeoBrand.ink,
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            subtitle(fa),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              height: 1.7,
+              color: VelixeoBrand.muted,
+            ),
+          ),
+          const SizedBox(height: 24),
+          _PaymentDetailCard(
+            rows: [
+              (
+                fa ? 'مبلغ' : 'Amount',
+                c.money(payment.amountAfn, showBase: true),
+              ),
+              (fa ? 'درگاه' : 'Gateway', payment.gateway),
+              (fa ? 'شمارهٔ پیگیری' : 'Reference', ref),
+              (
+                fa ? 'زمان' : 'Time',
+                payment.createdAt.toLocal().toString().substring(0, 16),
+              ),
+            ],
+          ),
+          if (payment.failureReason?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF1F2),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Text(
+                payment.failureReason!,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  height: 1.55,
+                  color: VelixeoBrand.red,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 18),
+          if (!['PAID', 'FAILED', 'CANCELLED', 'REFUNDED']
+              .contains(payment.status))
+            FilledButton.icon(
+              onPressed: checking ? null : checkAgain,
+              icon: checking
+                  ? const SizedBox(
+                      width: 15,
+                      height: 15,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh_rounded, size: 18),
+              label: Text(fa ? 'بررسی دوباره' : 'Check again'),
+            )
+          else if (payment.status == 'PAID')
+            FilledButton(
+              onPressed: () => Navigator.popUntil(
+                context,
+                (route) => route.isFirst,
+              ),
+              child: Text(fa ? 'مشاهدهٔ کیف پول' : 'View wallet'),
+            )
+          else
+            FilledButton(
+              onPressed: () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => AddFundsPage(controller: c)),
+              ),
+              child: Text(fa ? 'تلاش دوباره' : 'Try again'),
+            ),
+          const SizedBox(height: 10),
+          OutlinedButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PaymentHistoryPage(controller: c),
+              ),
+            ),
+            child: Text(fa ? 'تاریخچهٔ پرداخت' : 'Payment history'),
+          ),
+          if (payment.status == 'FAILED') ...[
+            const SizedBox(height: 10),
+            TextButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => SupportPage(host: c)),
+              ),
+              icon: const Icon(Icons.support_agent_rounded, size: 18),
+              label: Text(fa ? 'تماس با پشتیبانی' : 'Contact support'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+Widget _buildEnglishPage(BuildContext context, bool fa) {
     final ref = payment.externalId?.trim().isNotEmpty == true
         ? payment.externalId!
         : payment.id;
@@ -7555,7 +8813,7 @@ class PaymentHistoryPage extends StatelessWidget {
 
   Widget _buildPersian(BuildContext context) => Directionality(
         textDirection: TextDirection.rtl,
-        child: _buildPage(
+        child: _buildPersianPage(
           context,
           title: 'تاریخچهٔ پرداخت‌ها',
           heading: 'پرداخت‌ها، شفاف و مرتب',
@@ -7569,7 +8827,7 @@ class PaymentHistoryPage extends StatelessWidget {
 
   Widget _buildEnglish(BuildContext context) => Directionality(
         textDirection: TextDirection.ltr,
-        child: _buildPage(
+        child: _buildEnglishPage(
           context,
           title: 'Payment history',
           heading: 'Your payments, clearly organized',
@@ -7581,7 +8839,64 @@ class PaymentHistoryPage extends StatelessWidget {
         ),
       );
 
-  Widget _buildPage(
+  Widget _buildPersianPage(
+    BuildContext context, {
+    required String title,
+    required String heading,
+    required String subtitle,
+    required String emptyTitle,
+    required String emptyBody,
+    required String detailsLabel,
+    required bool fa,
+  }) {
+    final payments = controller.payments;
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: RefreshIndicator(
+        onRefresh: controller.refreshPaymentsAndWallet,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+          children: [
+            Text(
+              heading,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 11,
+                color: VelixeoBrand.muted,
+              ),
+            ),
+            const SizedBox(height: 20),
+            if (payments.isEmpty)
+              EmptyCard(
+                icon: Icons.payments_outlined,
+                title: emptyTitle,
+                subtitle: emptyBody,
+              )
+            else
+              ...payments.map(
+                (payment) => _PaymentHistoryCard(
+                  payment: payment,
+                  controller: controller,
+                  fa: fa,
+                  detailsLabel: detailsLabel,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+Widget _buildEnglishPage(
     BuildContext context, {
     required String title,
     required String heading,
@@ -8383,14 +9698,14 @@ class _ServerStatusPageState extends State<ServerStatusPage> {
   Widget build(BuildContext context) => widget.controller.fa
       ? Directionality(
           textDirection: TextDirection.rtl,
-          child: _buildPage(context, true),
+          child: _buildPersianPage(context, true),
         )
       : Directionality(
           textDirection: TextDirection.ltr,
-          child: _buildPage(context, false),
+          child: _buildEnglishPage(context, false),
         );
 
-  Widget _buildPage(BuildContext context, bool fa) {
+  Widget _buildPersianPage(BuildContext context, bool fa) {
     final tone = online ? VelixeoBrand.green : VelixeoBrand.red;
     final services = <String>[
       fa ? 'هستهٔ برنامه' : 'Application core',
@@ -8402,7 +9717,163 @@ class _ServerStatusPageState extends State<ServerStatusPage> {
     return Scaffold(
       appBar: AppBar(title: Text(fa ? 'وضعیت سرورها' : 'Server status')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+        padding: VelixeoFaDesign.pagePadding,
+        children: [
+          Text(
+            fa ? 'همه‌چیز، زیر نظر' : 'Keeping an eye on everything',
+            style: const TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w700,
+              color: VelixeoBrand.ink,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            fa
+                ? 'وضعیت خدمات VELIXEO را اینجا ببین.'
+                : 'Check the status of VELIXEO services.',
+            style: const TextStyle(fontSize: 11, color: VelixeoBrand.muted),
+          ),
+          const SizedBox(height: 18),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFEEF2F5)),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: tone.withValues(alpha: .10),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: checking
+                      ? const Padding(
+                          padding: EdgeInsets.all(20),
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          online
+                              ? Icons.check_rounded
+                              : Icons.wifi_off_rounded,
+                          color: tone,
+                          size: 30,
+                        ),
+                ),
+                const SizedBox(height: 13),
+                Text(
+                  checking
+                      ? (fa ? 'در حال بررسی…' : 'Checking…')
+                      : online
+                          ? (fa
+                              ? 'خدمات در دسترس هستند'
+                              : 'Services are available')
+                          : (fa
+                              ? 'اتصال برقرار نیست'
+                              : 'Services are unavailable'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: VelixeoBrand.ink,
+                  ),
+                ),
+                if (checkedAt != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    (fa ? 'آخرین بررسی: ' : 'Last check: ') +
+                        checkedAt!
+                            .toLocal()
+                            .toString()
+                            .substring(0, 16),
+                    textDirection: TextDirection.ltr,
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      color: VelixeoBrand.muted,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...services.map(
+            (name) => Container(
+              margin: const EdgeInsets.only(bottom: 9),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 15,
+                vertical: 15,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFEEF2F5)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: Color(0xFF506D7E),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: checking
+                          ? const Color(0xFFACB8BF)
+                          : tone,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    checking
+                        ? (fa ? 'در حال بررسی' : 'Checking')
+                        : online
+                            ? (fa ? 'در دسترس' : 'Available')
+                            : (fa ? 'نامشخص' : 'Unknown'),
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      color: VelixeoBrand.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 7),
+          OutlinedButton.icon(
+            onPressed: checking ? null : check,
+            icon: const Icon(Icons.refresh_rounded, size: 17),
+            label: Text(fa ? 'بررسی دوباره' : 'Check again'),
+          ),
+        ],
+      ),
+    );
+  }
+
+Widget _buildEnglishPage(BuildContext context, bool fa) {
+    final tone = online ? VelixeoBrand.green : VelixeoBrand.red;
+    final services = <String>[
+      fa ? 'هستهٔ برنامه' : 'Application core',
+      fa ? 'سفارش‌های اجتماعی' : 'Social orders',
+      fa ? 'شماره و پیامک' : 'Numbers & SMS',
+      fa ? 'پرداخت HesabPay' : 'HesabPay payments',
+      fa ? 'پشتیبانی' : 'Support',
+    ];
+    return Scaffold(
+      appBar: AppBar(title: Text(fa ? 'وضعیت سرورها' : 'Server status')),
+      body: ListView(
+        padding: VelixeoEnDesign.pagePadding,
         children: [
           Text(
             fa ? 'همه‌چیز، زیر نظر' : 'Keeping an eye on everything',
@@ -8597,17 +10068,194 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
   Widget build(BuildContext context) => c.fa
       ? Directionality(
           textDirection: TextDirection.rtl,
-          child: _buildPage(context, true),
+          child: _buildPersianPage(context, true),
         )
       : Directionality(
           textDirection: TextDirection.ltr,
-          child: _buildPage(context, false),
+          child: _buildEnglishPage(context, false),
         );
 
-  Widget _buildPage(BuildContext context, bool fa) => Scaffold(
+  Widget _buildPersianPage(BuildContext context, bool fa) => Scaffold(
         appBar: AppBar(title: Text(fa ? 'حذف حساب' : 'Delete account')),
         body: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+          padding: VelixeoFaDesign.pagePadding,
+          children: [
+            Text(
+              fa ? 'قبل از خداحافظی…' : 'Before you go…',
+              style: const TextStyle(
+                fontSize: 21,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              fa
+                  ? 'حذف حساب، نیاز به بررسی دقیق دارد.'
+                  : 'Please review the details before deleting your account.',
+              style: const TextStyle(
+                fontSize: 11,
+                color: VelixeoBrand.muted,
+              ),
+            ),
+            const SizedBox(height: 17),
+            Container(
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF1F2),
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(color: const Color(0xFFF7DDE0)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: VelixeoBrand.red,
+                    size: 19,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      fa
+                          ? 'حذف حساب دائمی است و امکان بازگردانی آن وجود ندارد.'
+                          : 'Account deletion is permanent and cannot be undone.',
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        height: 1.6,
+                        color: VelixeoBrand.red,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(17),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(19),
+                border: Border.all(color: const Color(0xFFEEF2F5)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    fa ? 'چه اتفاقی می‌افتد؟' : 'What happens next?',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _DeleteInfoRow(
+                    text: fa
+                        ? 'دسترسی به حساب و خدماتت از بین می‌رود.'
+                        : 'You will lose access to your account and services.',
+                  ),
+                  _DeleteInfoRow(
+                    text: fa
+                        ? 'پیش از حذف، سفارش‌ها و موجودی کیف پول باید تعیین تکلیف شوند.'
+                        : 'Open orders and your wallet balance should be resolved first.',
+                  ),
+                  _DeleteInfoRow(
+                    text: fa
+                        ? 'سوابق لازم برای امنیت و حسابداری طبق سیاست سرویس نگهداری می‌شوند.'
+                        : 'Records required for security and accounting are retained.',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            _PaymentDetailCard(
+              rows: [
+                (
+                  fa ? 'موجودی فعلی' : 'Current balance',
+                  c.money(c.balanceAfn, showBase: true),
+                ),
+                (
+                  fa ? 'سفارش‌های ثبت‌شده' : 'Recorded orders',
+                  '${c.orders.length}',
+                ),
+              ],
+            ),
+            if (c.user?.hasPassword == true) ...[
+              const SizedBox(height: 13),
+              TextField(
+                controller: password,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText:
+                      fa ? 'رمز عبور فعلی' : 'Current password',
+                ),
+              ),
+            ],
+            const SizedBox(height: 13),
+            TextField(
+              controller: reason,
+              maxLength: 300,
+              maxLines: 3,
+              decoration: InputDecoration(
+                labelText:
+                    fa ? 'دلیل (اختیاری)' : 'Reason (optional)',
+              ),
+            ),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              value: understood,
+              onChanged: (value) =>
+                  setState(() => understood = value == true),
+              title: Text(
+                fa
+                    ? 'می‌دانم این عمل حساب فعلی را به‌صورت دائمی حذف می‌کند.'
+                    : 'I understand this permanently deletes my current account.',
+                style: const TextStyle(fontSize: 10.5),
+              ),
+            ),
+            const SizedBox(height: 7),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => SupportPage(host: c)),
+              ),
+              icon: const Icon(Icons.support_agent_rounded, size: 17),
+              label: Text(
+                fa ? 'گفتگو با پشتیبانی' : 'Contact support',
+              ),
+            ),
+            const SizedBox(height: 10),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: VelixeoBrand.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: !understood || busy ? null : deleteNow,
+              icon: busy
+                  ? const SizedBox(
+                      width: 15,
+                      height: 15,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.delete_outline_rounded, size: 18),
+              label: Text(
+                busy
+                    ? (fa ? 'در حال حذف…' : 'Deleting…')
+                    : (fa ? 'بررسی و حذف حساب' : 'Review and delete account'),
+              ),
+            ),
+          ],
+        ),
+      );
+
+Widget _buildEnglishPage(BuildContext context, bool fa) => Scaffold(
+        appBar: AppBar(title: Text(fa ? 'حذف حساب' : 'Delete account')),
+        body: ListView(
+          padding: VelixeoEnDesign.pagePadding,
           children: [
             Text(
               fa ? 'قبل از خداحافظی…' : 'Before you go…',
@@ -10937,7 +12585,7 @@ class _SecurityPageState extends State<SecurityPage> {
 
   Widget _buildPersianSecurity(BuildContext context) => Directionality(
         textDirection: TextDirection.rtl,
-        child: _buildSecurityPage(
+        child: _buildPersianSecurityPage(
           context,
           appBarTitle: 'امنیت و ورود',
           heading: 'امنیتت، زیر نظر تو',
@@ -10965,7 +12613,7 @@ class _SecurityPageState extends State<SecurityPage> {
 
   Widget _buildEnglishSecurity(BuildContext context) => Directionality(
         textDirection: TextDirection.ltr,
-        child: _buildSecurityPage(
+        child: _buildEnglishSecurityPage(
           context,
           appBarTitle: 'Security & login',
           heading: 'Your security, your control',
@@ -10991,7 +12639,325 @@ class _SecurityPageState extends State<SecurityPage> {
         ),
       );
 
-  Widget _buildSecurityPage(
+  Widget _buildPersianSecurityPage(
+    BuildContext context, {
+    required String appBarTitle,
+    required String heading,
+    required String subtitle,
+    required String progressTitle,
+    required String progressBody,
+    required String verificationTitle,
+    required String emailTitle,
+    required String noEmail,
+    required String phoneTitle,
+    required String noPhone,
+    required String twoFactorTitle,
+    required String twoFactorLabel,
+    required String twoFactorBody,
+    required String enabledLabel,
+    required String disabledLabel,
+    required String enableLabel,
+    required String disableLabel,
+    required String passwordSetLabel,
+    required String passwordChangeLabel,
+    required bool fa,
+  }) {
+    final s = state;
+    if (s == null) {
+      return Scaffold(
+        appBar: AppBar(title: Text(appBarTitle)),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final completed = [
+      s.emailVerified,
+      s.phoneVerified,
+      s.twoFactorEnabled,
+    ].where((value) => value).length;
+    final progress = completed / 3;
+
+    return Scaffold(
+      appBar: AppBar(title: Text(appBarTitle)),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+        children: [
+          Text(
+            heading,
+            style: const TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w700,
+              color: VelixeoBrand.ink,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 11,
+              color: VelixeoBrand.muted,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFEEF2F5)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 43,
+                      height: 43,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEAF7FD),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.shield_outlined,
+                        color: Color(0xFF59A8C9),
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            progressTitle,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: VelixeoBrand.ink,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            progressBody,
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              height: 1.5,
+                              color: VelixeoBrand.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 15),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(99),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 7,
+                    backgroundColor: const Color(0xFFEAF0F4),
+                    color: VelixeoBrand.sky,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 22),
+          Text(
+            verificationTitle,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: VelixeoBrand.ink,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _SecurityVerificationCard(
+            icon: Icons.alternate_email_rounded,
+            title: emailTitle,
+            subtitle: s.email ?? noEmail,
+            verified: s.emailVerified,
+            channelReady: s.verification.email,
+            sending: emailSending,
+            onSend: busy ||
+                    s.emailVerified ||
+                    s.email?.isNotEmpty != true
+                ? null
+                : sendSecurityEmailCode,
+            challenge: emailChallenge,
+            otpController: emailOtp,
+            verifying: emailVerifying,
+            onConfirm: confirmSecurityEmailCode,
+            fa: fa,
+          ),
+          const SizedBox(height: 10),
+          _SecurityVerificationCard(
+            icon: Icons.chat_outlined,
+            title: phoneTitle,
+            subtitle: s.phone ?? noPhone,
+            verified: s.phoneVerified,
+            channelReady: s.verification.whatsapp,
+            sending: phoneSending,
+            onSend: busy ||
+                    s.phoneVerified ||
+                    s.phone?.isNotEmpty != true
+                ? null
+                : sendSecurityPhoneCode,
+            challenge: phoneChallenge,
+            otpController: phoneOtp,
+            verifying: phoneVerifying,
+            onConfirm: confirmSecurityPhoneCode,
+            fa: fa,
+          ),
+          const SizedBox(height: 22),
+          Text(
+            twoFactorTitle,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: VelixeoBrand.ink,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(17),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(19),
+              border: Border.all(color: const Color(0xFFEEF2F5)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        twoFactorLabel,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: VelixeoBrand.ink,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: s.twoFactorEnabled
+                            ? const Color(0xFFEAF8F1)
+                            : const Color(0xFFF1F4F6),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        s.twoFactorEnabled
+                            ? enabledLabel
+                            : disabledLabel,
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          color: s.twoFactorEnabled
+                              ? VelixeoBrand.green
+                              : const Color(0xFF7A8992),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  twoFactorBody,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    height: 1.55,
+                    color: VelixeoBrand.muted,
+                  ),
+                ),
+                if (s.twoFactorEnabled &&
+                    s.twoFactorMethod?.isNotEmpty == true) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F9FB),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.verified_user_outlined,
+                          size: 15,
+                          color: Color(0xFF5A9FBE),
+                        ),
+                        const SizedBox(width: 7),
+                        Text(
+                          s.twoFactorMethod!,
+                          textDirection: TextDirection.ltr,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF5E7887),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: s.twoFactorEnabled
+                      ? OutlinedButton(
+                          onPressed: busy ? null : disableTwoFactor,
+                          child: Text(disableLabel),
+                        )
+                      : FilledButton(
+                          onPressed: busy ? null : enableTwoFactor,
+                          child: Text(enableLabel),
+                        ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          _SecurityPasswordMenu(
+            hasPassword: s.hasPassword,
+            direction:
+                fa ? TextDirection.rtl : TextDirection.ltr,
+            setLabel: passwordSetLabel,
+            changeLabel: passwordChangeLabel,
+            onSet: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SetPasswordPage(controller: c),
+                ),
+              );
+              await load();
+            },
+            onChange: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ChangePasswordPage(controller: c),
+                ),
+              );
+              await load();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+Widget _buildEnglishSecurityPage(
     BuildContext context, {
     required String appBarTitle,
     required String heading,
@@ -11580,7 +13546,7 @@ class _SetPasswordPageState extends State<SetPasswordPage> {
 
   Widget _buildPersian(BuildContext context) => Directionality(
         textDirection: TextDirection.rtl,
-        child: _buildPage(
+        child: _buildPersianPage(
           context,
           appBarTitle: 'تعیین رمز عبور',
           heading: 'یک رمز امن انتخاب کن',
@@ -11595,7 +13561,7 @@ class _SetPasswordPageState extends State<SetPasswordPage> {
 
   Widget _buildEnglish(BuildContext context) => Directionality(
         textDirection: TextDirection.ltr,
-        child: _buildPage(
+        child: _buildEnglishPage(
           context,
           appBarTitle: 'Set password',
           heading: 'Choose a secure password',
@@ -11608,7 +13574,79 @@ class _SetPasswordPageState extends State<SetPasswordPage> {
         ),
       );
 
-  Widget _buildPage(
+  Widget _buildPersianPage(
+    BuildContext context, {
+    required String appBarTitle,
+    required String heading,
+    required String subtitle,
+    required String newLabel,
+    required String confirmLabel,
+    required String showLabel,
+    required String actionLabel,
+    required bool fa,
+  }) =>
+      Scaffold(
+        appBar: AppBar(title: Text(appBarTitle)),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+          children: [
+            Text(
+              heading,
+              style: const TextStyle(
+                fontSize: 21,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 11,
+                height: 1.65,
+                color: VelixeoBrand.muted,
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: password,
+              obscureText: hidden,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: newLabel,
+                prefixIcon: const Icon(Icons.lock_outline_rounded),
+                suffixIcon: TextButton(
+                  onPressed: () => setState(() => hidden = !hidden),
+                  child: Text(showLabel),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirm,
+              obscureText: hidden,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: confirmLabel,
+                prefixIcon: const Icon(Icons.lock_reset_rounded),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _PasswordRulesCard(fa: fa),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: busy ||
+                      password.text.length < 8 ||
+                      password.text != confirm.text
+                  ? null
+                  : submit,
+              child: Text(actionLabel),
+            ),
+          ],
+        ),
+      );
+
+Widget _buildEnglishPage(
     BuildContext context, {
     required String appBarTitle,
     required String heading,
@@ -11755,7 +13793,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
   Widget _buildPersian(BuildContext context) => Directionality(
         textDirection: TextDirection.rtl,
-        child: _buildPage(
+        child: _buildPersianPage(
           context,
           appBarTitle: 'تغییر رمز عبور',
           heading: 'وقت یک رمز تازه است',
@@ -11771,7 +13809,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
   Widget _buildEnglish(BuildContext context) => Directionality(
         textDirection: TextDirection.ltr,
-        child: _buildPage(
+        child: _buildEnglishPage(
           context,
           appBarTitle: 'Change password',
           heading: 'Time for a fresh password',
@@ -11785,7 +13823,90 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         ),
       );
 
-  Widget _buildPage(
+  Widget _buildPersianPage(
+    BuildContext context, {
+    required String appBarTitle,
+    required String heading,
+    required String subtitle,
+    required String currentLabel,
+    required String nextLabel,
+    required String confirmLabel,
+    required String showLabel,
+    required String actionLabel,
+    required bool fa,
+  }) =>
+      Scaffold(
+        appBar: AppBar(title: Text(appBarTitle)),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+          children: [
+            Text(
+              heading,
+              style: const TextStyle(
+                fontSize: 21,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 11,
+                height: 1.65,
+                color: VelixeoBrand.muted,
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: current,
+              obscureText: hidden,
+              decoration: InputDecoration(
+                labelText: currentLabel,
+                prefixIcon: const Icon(Icons.lock_outline_rounded),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: next,
+              obscureText: hidden,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: nextLabel,
+                prefixIcon: const Icon(Icons.password_rounded),
+                suffixIcon: TextButton(
+                  onPressed: () => setState(() => hidden = !hidden),
+                  child: Text(showLabel),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirm,
+              obscureText: hidden,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: confirmLabel,
+                prefixIcon: const Icon(Icons.lock_reset_outlined),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _PasswordRulesCard(fa: fa),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: busy ||
+                      next.text.length < 8 ||
+                      next.text != confirm.text ||
+                      current.text.isEmpty
+                  ? null
+                  : submit,
+              child: Text(actionLabel),
+            ),
+          ],
+        ),
+      );
+
+Widget _buildEnglishPage(
     BuildContext context, {
     required String appBarTitle,
     required String heading,
