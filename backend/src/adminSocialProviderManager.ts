@@ -999,6 +999,8 @@ export function registerAdminSocialProviderManager(
         fixedPrice = await convertSocialPriceToAfn(prisma, new Prisma.Decimal(raw), text(body, 'fixedCurrency') || 'AFN');
       }
       const oldMeta = jsonObject(route.service.metadata);
+      const oldRouteMeta = jsonObject(route.metadata);
+      const refillEnabled = checked(body, 'refillEnabled');
       const titleEn = text(body, 'titleEn') || route.providerName || route.service.titleEn;
       await prisma.$transaction([
         prisma.service.update({
@@ -1033,6 +1035,14 @@ export function registerAdminSocialProviderManager(
           data: {
             enabled: true,
             markupPercent: mode === 'AUTO_MARKUP' ? markup : null,
+            providerRefill: refillEnabled,
+            metadata: {
+              ...oldRouteMeta,
+              _providerRefillDetected: typeof oldRouteMeta._providerRefillDetected === 'boolean'
+                ? oldRouteMeta._providerRefillDetected
+                : route.providerRefill,
+              _velixeoRefillOverride: refillEnabled,
+            } as Prisma.InputJsonValue,
           },
         }),
       ]);
@@ -1041,6 +1051,7 @@ export function registerAdminSocialProviderManager(
         markup: markup.toString(),
         fixedAfn: fixedPrice?.toString() ?? null,
         visible: checked(body, 'enabled'),
+        refillEnabled,
       });
       return reply.code(303).redirect(`/admin/v3/social/provider-services?provider=${providerId}${sourceCategoryQuery}&msg=${encodeURIComponent(checked(body,'enabled') ? 'Service saved and published to the app.' : 'Service saved as a draft.')}`);
     } catch (error) {
