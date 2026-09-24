@@ -13127,35 +13127,35 @@ class _SecurityPageState extends State<SecurityPage> {
       s.twoFactorEnabled,
     ].where((value) => value).length;
     final progress = completed / 3;
+    final secure = completed == 3;
 
     return Scaffold(
-      appBar: AppBar(title: Text(appBarTitle)),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
-        children: [
-          Text(
-            heading,
-            style: const TextStyle(
-              fontSize: 21,
-              fontWeight: FontWeight.w700,
-              color: VelixeoBrand.ink,
+      body: SafeArea(
+        child: ListView(
+          padding: VelixeoFaDesign.pagePadding,
+          children: [
+            VelixeoFaPageHeader(
+              title: appBarTitle,
+              subtitle: subtitle,
+              onBack: () => Navigator.maybePop(context),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              fontSize: 11,
-              color: VelixeoBrand.muted,
+            Text(
+              heading,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
+              ),
             ),
-          ),
-          const SizedBox(height: 18),
+            const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: secure ? VelixeoBrand.successSoft : Colors.white,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFEEF2F5)),
+              border: Border.all(
+                color: secure ? const Color(0xFFBFE7D7) : const Color(0xFFEEF2F5),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -13166,12 +13166,14 @@ class _SecurityPageState extends State<SecurityPage> {
                       width: 43,
                       height: 43,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEAF7FD),
+                        color: secure
+                            ? const Color(0xFFDDF5EA)
+                            : const Color(0xFFEAF7FD),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(
-                        Icons.shield_outlined,
-                        color: Color(0xFF59A8C9),
+                      child: Icon(
+                        secure ? Icons.verified_user_rounded : Icons.shield_outlined,
+                        color: secure ? VelixeoBrand.green : const Color(0xFF59A8C9),
                         size: 22,
                       ),
                     ),
@@ -13181,20 +13183,26 @@ class _SecurityPageState extends State<SecurityPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            progressTitle,
-                            style: const TextStyle(
+                            secure
+                                ? (fa ? 'حساب کاربری شما امن است' : 'Your account is secure')
+                                : progressTitle,
+                            style: TextStyle(
                               fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: VelixeoBrand.ink,
+                              fontWeight: FontWeight.w700,
+                              color: secure ? VelixeoBrand.green : VelixeoBrand.ink,
                             ),
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            progressBody,
-                            style: const TextStyle(
+                            secure
+                                ? (fa
+                                    ? 'ایمیل، شماره و ورود دومرحله‌ای شما تأیید و فعال است.'
+                                    : 'Email, phone and two-factor sign-in are verified and active.')
+                                : progressBody,
+                            style: TextStyle(
                               fontSize: 10.5,
                               height: 1.5,
-                              color: VelixeoBrand.muted,
+                              color: secure ? const Color(0xFF4C8E78) : VelixeoBrand.muted,
                             ),
                           ),
                         ],
@@ -13209,7 +13217,7 @@ class _SecurityPageState extends State<SecurityPage> {
                     value: progress,
                     minHeight: 7,
                     backgroundColor: const Color(0xFFEAF0F4),
-                    color: VelixeoBrand.sky,
+                    color: secure ? VelixeoBrand.green : VelixeoBrand.sky,
                   ),
                 ),
               ],
@@ -13403,7 +13411,8 @@ class _SecurityPageState extends State<SecurityPage> {
               await load();
             },
           ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -13445,35 +13454,35 @@ Widget _buildEnglishSecurityPage(
       s.twoFactorEnabled,
     ].where((value) => value).length;
     final progress = completed / 3;
+    final secure = completed == 3;
 
     return Scaffold(
-      appBar: AppBar(title: Text(appBarTitle)),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
-        children: [
-          Text(
-            heading,
-            style: const TextStyle(
-              fontSize: 21,
-              fontWeight: FontWeight.w700,
-              color: VelixeoBrand.ink,
+      body: SafeArea(
+        child: ListView(
+          padding: VelixeoEnDesign.pagePadding,
+          children: [
+            VelixeoEnPageHeader(
+              title: appBarTitle,
+              subtitle: subtitle,
+              onBack: () => Navigator.maybePop(context),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              fontSize: 11,
-              color: VelixeoBrand.muted,
+            Text(
+              heading,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: VelixeoBrand.ink,
+              ),
             ),
-          ),
-          const SizedBox(height: 18),
+            const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: secure ? VelixeoBrand.successSoft : Colors.white,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFEEF2F5)),
+              border: Border.all(
+                color: secure ? const Color(0xFFBFE7D7) : const Color(0xFFEEF2F5),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -13484,12 +13493,14 @@ Widget _buildEnglishSecurityPage(
                       width: 43,
                       height: 43,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEAF7FD),
+                        color: secure
+                            ? const Color(0xFFDDF5EA)
+                            : const Color(0xFFEAF7FD),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(
-                        Icons.shield_outlined,
-                        color: Color(0xFF59A8C9),
+                      child: Icon(
+                        secure ? Icons.verified_user_rounded : Icons.shield_outlined,
+                        color: secure ? VelixeoBrand.green : const Color(0xFF59A8C9),
                         size: 22,
                       ),
                     ),
@@ -13499,20 +13510,26 @@ Widget _buildEnglishSecurityPage(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            progressTitle,
-                            style: const TextStyle(
+                            secure
+                                ? (fa ? 'حساب کاربری شما امن است' : 'Your account is secure')
+                                : progressTitle,
+                            style: TextStyle(
                               fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: VelixeoBrand.ink,
+                              fontWeight: FontWeight.w700,
+                              color: secure ? VelixeoBrand.green : VelixeoBrand.ink,
                             ),
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            progressBody,
-                            style: const TextStyle(
+                            secure
+                                ? (fa
+                                    ? 'ایمیل، شماره و ورود دومرحله‌ای شما تأیید و فعال است.'
+                                    : 'Email, phone and two-factor sign-in are verified and active.')
+                                : progressBody,
+                            style: TextStyle(
                               fontSize: 10.5,
                               height: 1.5,
-                              color: VelixeoBrand.muted,
+                              color: secure ? const Color(0xFF4C8E78) : VelixeoBrand.muted,
                             ),
                           ),
                         ],
@@ -13527,7 +13544,7 @@ Widget _buildEnglishSecurityPage(
                     value: progress,
                     minHeight: 7,
                     backgroundColor: const Color(0xFFEAF0F4),
-                    color: VelixeoBrand.sky,
+                    color: secure ? VelixeoBrand.green : VelixeoBrand.sky,
                   ),
                 ),
               ],
@@ -13721,7 +13738,8 @@ Widget _buildEnglishSecurityPage(
               await load();
             },
           ),
-        ],
+          ],
+        ),
       ),
     );
   }
