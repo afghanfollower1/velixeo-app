@@ -1270,4 +1270,43 @@ export function registerAdminSocialProviderManager(
     await audit(prisma, admin.id, 'SOCIAL_SERVICE_VISIBILITY', 'Service', id, `${updated.titleEn}: ${updated.enabled ? 'live' : 'hidden'}`);
     return reply.code(303).redirect(`/admin/v3/social/my-services?msg=${encodeURIComponent(updated.enabled ? 'Service is now live in the app.' : 'Service hidden from the app.')}`);
   });
+
+  app.post('/admin/v3/social/my-services/refill-toggle', async (request, reply) => {
+    const admin = await requireAdmin(request, reply, resolveAdmin);
+    if (!admin) return;
+    const routeId = text(request.body as Body, 'routeId');
+    const route = await prisma.serviceProviderRoute.findFirst({
+      where: { id: routeId, provider: { kind: ProviderKind.SOCIAL } },
+      include: { service: true },
+    });
+    if (!route || jsonObject(route.service.metadata).rawCatalog === true) {
+      return reply.code(303).redirect('/admin/v3/social/my-services?error=1&msg=Service%20route%20not%20found');
+    }
+    const routeMeta = jsonObject(route.metadata);
+    const next = !route.providerRefill;
+    await prisma.serviceProviderRoute.update({
+      where: { id: route.id },
+      data: {
+        providerRefill: next,
+        metadata: {
+          ...routeMeta,
+          _providerRefillDetected: typeof routeMeta._providerRefillDetected === 'boolean'
+            ? routeMeta._providerRefillDetected
+            : route.providerRefill,
+          _velixeoRefillOverride: next,
+        } as Prisma.InputJsonValue,
+      },
+    });
+    await audit(
+      prisma,
+      admin.id,
+      'SOCIAL_SERVICE_REFILL_OVERRIDE',
+      'ServiceProviderRoute',
+      route.id,
+      `${route.service.titleEn}: refill ${next ? 'enabled' : 'disabled'}`,
+    );
+    return reply.code(303).redirect(
+      `/admin/v3/social/my-services?msg=${encodeURIComponent(next ? 'Refill enabled for this service.' : 'Refill disabled for this service.')}`,
+    );
+  });
 }
