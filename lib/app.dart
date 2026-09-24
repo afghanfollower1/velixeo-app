@@ -6631,7 +6631,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               IconButton.filledTonal(
                                 style: IconButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF507383)),
                                 onPressed: () => Navigator.pop(context),
-                                icon: const Icon(Icons.arrow_back_rounded),
+                                icon: const Icon(Icons.arrow_forward_rounded),
                               ),
                               const SizedBox(width: 10),
                               Container(
@@ -6732,8 +6732,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
                         padding: const EdgeInsets.all(18),
                         child: EmptyCard(
                           icon: Icons.notifications_none_rounded,
-                          title: 'Nothing here yet',
-                          subtitle: filter == 'ALL' ? 'Your important VELIXEO updates will appear here.' : 'No notifications in this category yet.',
+                          title: 'هنوز اعلانی اینجا نیست',
+                          subtitle: filter == 'ALL'
+                              ? 'اعلان‌های مهم VELIXEO اینجا نمایش داده می‌شوند.'
+                              : 'در این دسته هنوز اعلانی وجود ندارد.',
                         ),
                       ),
                     )
