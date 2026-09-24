@@ -85,8 +85,8 @@ class _SupportPageState extends State<SupportPage> {
 
   Color statusColor(String status) {
     switch (status) {
-      case 'PENDING_USER': return const Color(0xFF158365);
-      case 'CLOSED': return const Color(0xFF74818B);
+      case 'PENDING_USER': return VelixeoBrand.green;
+      case 'CLOSED': return VelixeoBrand.muted;
       default: return const Color(0xFFEFAF38);
     }
   }
@@ -122,7 +122,7 @@ class _SupportPageState extends State<SupportPage> {
                       style: const TextStyle(
                         fontSize: 21,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF24343D),
+                        color: VelixeoBrand.ink,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -130,7 +130,7 @@ class _SupportPageState extends State<SupportPage> {
                       t('سؤال یا مشکلت را برای ما بنویس.', 'Tell us what you need help with.'),
                       style: const TextStyle(
                         fontSize: 11,
-                        color: Color(0xFF74818B),
+                        color: VelixeoBrand.muted,
                       ),
                     ),
                     const SizedBox(height: 15),
@@ -222,7 +222,7 @@ class _SupportPageState extends State<SupportPage> {
                                           children: [
                                             Text(ticket.subject, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900)),
                                             const SizedBox(height: 4),
-                                            Text('${statusLabel(ticket.status)} • ${ticket.messages.length} ${t('پیام', 'messages')}', style: const TextStyle(fontSize: 11, color: Color(0xFF74818B))),
+                                            Text('${statusLabel(ticket.status)} • ${ticket.messages.length} ${t('پیام', 'messages')}', style: const TextStyle(fontSize: 11, color: VelixeoBrand.muted)),
                                           ],
                                         ),
                                       ),
@@ -256,7 +256,7 @@ Widget _buildEnglishSupportScaffold(BuildContext context) => Scaffold(
                       style: const TextStyle(
                         fontSize: 21,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF24343D),
+                        color: VelixeoBrand.ink,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -264,7 +264,7 @@ Widget _buildEnglishSupportScaffold(BuildContext context) => Scaffold(
                       t('سؤال یا مشکلت را برای ما بنویس.', 'Tell us what you need help with.'),
                       style: const TextStyle(
                         fontSize: 11,
-                        color: Color(0xFF74818B),
+                        color: VelixeoBrand.muted,
                       ),
                     ),
                     const SizedBox(height: 15),
@@ -356,7 +356,7 @@ Widget _buildEnglishSupportScaffold(BuildContext context) => Scaffold(
                                           children: [
                                             Text(ticket.subject, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900)),
                                             const SizedBox(height: 4),
-                                            Text('${statusLabel(ticket.status)} • ${ticket.messages.length} ${t('پیام', 'messages')}', style: const TextStyle(fontSize: 11, color: Color(0xFF74818B))),
+                                            Text('${statusLabel(ticket.status)} • ${ticket.messages.length} ${t('پیام', 'messages')}', style: const TextStyle(fontSize: 11, color: VelixeoBrand.muted)),
                                           ],
                                         ),
                                       ),
@@ -440,7 +440,7 @@ Widget _buildPersianPage(BuildContext context) => Directionality(
                 style: const TextStyle(
                   fontSize: 21,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF24343D),
+                  color: VelixeoBrand.ink,
                 ),
               ),
               const SizedBox(height: 4),
@@ -448,7 +448,7 @@ Widget _buildPersianPage(BuildContext context) => Directionality(
                 fa ? 'جزئیات بیشتر، کمک دقیق‌تر.' : 'More details help us give you a better answer.',
                 style: const TextStyle(
                   fontSize: 11,
-                  color: Color(0xFF74818B),
+                  color: VelixeoBrand.muted,
                 ),
               ),
               const SizedBox(height: 20),
@@ -492,7 +492,7 @@ Widget _buildPersianPage(BuildContext context) => Directionality(
                   children: [
                     const Icon(
                       Icons.info_outline_rounded,
-                      color: Color(0xFFAD670D),
+                      color: VelixeoBrand.orange,
                       size: 17,
                     ),
                     const SizedBox(width: 8),
@@ -547,7 +547,7 @@ Widget _buildEnglishPage(BuildContext context) => Directionality(
                 style: const TextStyle(
                   fontSize: 21,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF24343D),
+                  color: VelixeoBrand.ink,
                 ),
               ),
               const SizedBox(height: 4),
@@ -555,7 +555,7 @@ Widget _buildEnglishPage(BuildContext context) => Directionality(
                 fa ? 'جزئیات بیشتر، کمک دقیق‌تر.' : 'More details help us give you a better answer.',
                 style: const TextStyle(
                   fontSize: 11,
-                  color: Color(0xFF74818B),
+                  color: VelixeoBrand.muted,
                 ),
               ),
               const SizedBox(height: 20),
@@ -599,7 +599,7 @@ Widget _buildEnglishPage(BuildContext context) => Directionality(
                   children: [
                     const Icon(
                       Icons.info_outline_rounded,
-                      color: Color(0xFFAD670D),
+                      color: VelixeoBrand.orange,
                       size: 17,
                     ),
                     const SizedBox(width: 8),
@@ -772,7 +772,7 @@ class _SupportTicketPageState extends State<SupportTicketPage> {
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF24343D),
+                color: VelixeoBrand.ink,
               ),
             ),
             const SizedBox(height: 4),
@@ -781,7 +781,7 @@ class _SupportTicketPageState extends State<SupportTicketPage> {
               textDirection: TextDirection.ltr,
               style: const TextStyle(
                 fontSize: 10.5,
-                color: Color(0xFF74818B),
+                color: VelixeoBrand.muted,
               ),
             ),
             const SizedBox(height: 14),
@@ -810,8 +810,8 @@ class _SupportTicketPageState extends State<SupportTicketPage> {
                     style: TextStyle(
                       fontSize: 9,
                       color: closed
-                          ? const Color(0xFF74818B)
-                          : const Color(0xFFAD670D),
+                          ? VelixeoBrand.muted
+                          : VelixeoBrand.orange,
                     ),
                   ),
                 ),
@@ -1006,7 +1006,7 @@ Widget _buildEnglishConversationPage(
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF24343D),
+                color: VelixeoBrand.ink,
               ),
             ),
             const SizedBox(height: 4),
@@ -1015,7 +1015,7 @@ Widget _buildEnglishConversationPage(
               textDirection: TextDirection.ltr,
               style: const TextStyle(
                 fontSize: 10.5,
-                color: Color(0xFF74818B),
+                color: VelixeoBrand.muted,
               ),
             ),
             const SizedBox(height: 14),
@@ -1044,8 +1044,8 @@ Widget _buildEnglishConversationPage(
                     style: TextStyle(
                       fontSize: 9,
                       color: closed
-                          ? const Color(0xFF74818B)
-                          : const Color(0xFFAD670D),
+                          ? VelixeoBrand.muted
+                          : VelixeoBrand.orange,
                     ),
                   ),
                 ),
