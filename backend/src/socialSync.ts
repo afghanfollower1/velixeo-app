@@ -250,6 +250,13 @@ export async function syncSocialProviderCatalog(
 
     for (const [catalogIndex, row] of services.entries()) {
       const current = byCode.get(row.service);
+      const currentRouteMeta = jsonObject(current?.metadata);
+      const refillOverride = typeof currentRouteMeta._velixeoRefillOverride === 'boolean'
+        ? currentRouteMeta._velixeoRefillOverride
+        : null;
+      const dripFeedOverride = typeof currentRouteMeta._velixeoDripFeedOverride === 'boolean'
+        ? currentRouteMeta._velixeoDripFeedOverride
+        : null;
       const providerRate = new Prisma.Decimal(row.rate || '0');
       const providerRateScaled = decimalToScaled(providerRate);
       const costAfn = fx == null
@@ -263,11 +270,18 @@ export async function syncSocialProviderCatalog(
         providerCurrency: currency,
         providerMinQty: row.min || null,
         providerMaxQty: row.max || null,
-        providerRefill: row.refill,
+        providerRefill: refillOverride ?? row.refill,
         providerCancel: row.cancel,
         costAfn,
         lastSyncedAt: syncedAt,
-        metadata: { ...row.raw, _velixeoCatalogIndex: catalogIndex } as Prisma.InputJsonValue,
+        metadata: {
+          ...row.raw,
+          _velixeoCatalogIndex: catalogIndex,
+          _providerRefillDetected: row.refill,
+          _providerDripFeedDetected: row.dripfeed,
+          ...(refillOverride == null ? {} : { _velixeoRefillOverride: refillOverride }),
+          ...(dripFeedOverride == null ? {} : { _velixeoDripFeedOverride: dripFeedOverride }),
+        } as Prisma.InputJsonValue,
       };
 
       if (current) {

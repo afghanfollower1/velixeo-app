@@ -481,6 +481,8 @@ const translations: Record<string, string> = {
   'Get / Refresh Services': 'دریافت / بروزرسانی سرویس‌ها',
   'Choose provider': 'انتخاب ارائه‌دهنده',
   'Provider Category': 'دسته‌بندی ارائه‌دهنده',
+  'Provider Service Type': 'نوع سرویس ارائه‌دهنده',
+  'Original Provider Price': 'قیمت اصلی ارائه‌دهنده',
   'Min / Max': 'حداقل / حداکثر',
   'Refill': 'جبران',
   'Edit VELIXEO Service': 'ویرایش سرویس VELIXEO',
@@ -499,6 +501,41 @@ const translations: Record<string, string> = {
   'Sync a provider to load services.': 'برای بارگذاری سرویس‌ها، ارائه‌دهنده را همگام‌سازی کنید.',
   'No SMM provider yet.': 'هنوز ارائه‌دهنده SMM اضافه نشده است.',
   'No routes yet.': 'هنوز مسیری ثبت نشده است.',
+'Brand / Network': 'برند / شبکه اجتماعی',
+  'Search provider services': 'جستجوی سرویس‌های ارائه‌دهنده',
+  'Service ID, name or provider category': 'شناسه سرویس، نام یا دسته‌بندی ارائه‌دهنده',
+  'Show Services': 'نمایش سرویس‌ها',
+  'Customer-facing Persian Name': 'نام فارسی برای مشتری',
+  'Refill / Drop Guarantee': 'جبران ریزش / ضمانت',
+  'Provider API detected:': 'تشخیص API ارائه‌دهنده:',
+  'Available': 'موجود',
+  'Not available': 'موجود نیست',
+  'Enabled · Provider': 'فعال · ارائه‌دهنده',
+  'Enabled · Manual': 'فعال · دستی',
+  'Disabled manually': 'دستی غیرفعال شده',
+  'Refill · Auto': 'جبران ریزش · خودکار',
+  'Refill · Manual': 'جبران ریزش · دستی',
+  'Refill disabled': 'جبران ریزش غیرفعال',
+  'Provider supports refill': 'ارائه‌دهنده جبران ریزش دارد',
+  'Provider reports no refill': 'ارائه‌دهنده جبران ریزش ندارد',
+  'Provider supports cancel': 'ارائه‌دهنده قابلیت لغو دارد',
+  'No cancel': 'قابلیت لغو ندارد',
+  'Add from Provider Services': 'افزودن از سرویس‌های ارائه‌دهنده',
+  'Drip-feed · Auto': 'دریپ‌فید · خودکار',
+  'Drip-feed · Manual': 'دریپ‌فید · دستی',
+  'Drip-feed disabled': 'دریپ‌فید غیرفعال',
+  'No drip-feed': 'دریپ‌فید ندارد',
+  'Provider supports drip-feed': 'ارائه‌دهنده دریپ‌فید دارد',
+  'Provider reports no drip-feed': 'ارائه‌دهنده دریپ‌فید ندارد',
+  'This area shows the provider catalog only. Nothing is added to VELIXEO until you press + and save the service configuration.': 'این بخش فقط کاتالوگ ارائه‌دهنده را نشان می‌دهد. تا زمانی که روی + نزنید و تنظیمات سرویس را ذخیره نکنید، سرویسی به VELIXEO اضافه نمی‌شود.',
+  'Choose a provider service and press + to select its brand, category, pricing and refill settings.': 'یک سرویس ارائه‌دهنده را انتخاب کنید و روی + بزنید تا برند، دسته‌بندی، قیمت و تنظیمات جبران ریزش را مشخص کنید.',
+  'Save as draft by leaving “Visible to users” off. Only services you add here appear under Services and in the customer app.': 'با خاموش گذاشتن «نمایش برای کاربران» سرویس به‌صورت پیش‌نویس ذخیره می‌شود. فقط سرویس‌هایی که اینجا اضافه می‌کنید در بخش سرویس‌ها و اپ مشتری نمایش داده می‌شوند.',
+  'This list contains only VELIXEO services that you explicitly added from a provider. Use the refill switch here for a quick manual override.': 'این فهرست فقط سرویس‌های VELIXEO را نشان می‌دهد که خودتان از ارائه‌دهنده اضافه کرده‌اید. از کلید جبران ریزش برای فعال یا غیرفعال‌سازی دستی استفاده کنید.',
+  'No VELIXEO social services yet. Open Provider Services and press + to add one.': 'هنوز سرویس شبکه اجتماعی به VELIXEO اضافه نشده است. وارد سرویس‌های ارائه‌دهنده شوید و با + سرویس اضافه کنید.',
+  'No Social Media provider exists yet. Add a provider first, then sync its services.': 'هنوز ارائه‌دهنده شبکه اجتماعی اضافه نشده است. ابتدا ارائه‌دهنده را اضافه کنید و سپس سرویس‌هایش را همگام‌سازی کنید.',
+  'Choose a provider to browse its API service catalog.': 'برای مشاهده کاتالوگ سرویس‌های API یک ارائه‌دهنده انتخاب کنید.',
+  'Refill enabled for this service.': 'جبران ریزش برای این سرویس فعال شد.',
+  'Refill disabled for this service.': 'جبران ریزش برای این سرویس غیرفعال شد.',
 
   // Virtual numbers
   'Virtual Numbers Entry Banner': 'بنر ورودی شماره‌های مجازی',
@@ -822,6 +859,10 @@ function adminPersianText(clean: string): string | null {
   if (statusTranslations[clean]) return statusTranslations[clean];
   let m: RegExpMatchArray | null;
   if ((m = clean.match(/^(\d+) orders have been recorded today\.$/))) return adminFaNumber(m[1]) + ' سفارش امروز ثبت شده است.';
+  if ((m = clean.match(/^(.+) catalog — choose a service, then add it to the exact VELIXEO brand and category\.$/))) return 'کاتالوگ ' + m[1] + ' — سرویس را انتخاب کنید و سپس برند و دسته‌بندی دقیق VELIXEO را مشخص کنید.';
+  if ((m = clean.match(/^(\d+) total synced services · (\d+) categories$/))) return adminFaNumber(m[1]) + ' سرویس همگام‌شده · ' + adminFaNumber(m[2]) + ' دسته‌بندی';
+  if ((m = clean.match(/^(\d+) matching services$/))) return adminFaNumber(m[1]) + ' سرویس مطابق';
+  if ((m = clean.match(/^(\d+) services$/))) return adminFaNumber(m[1]) + ' سرویس';
   if ((m = clean.match(/^(\d+) matched$/))) return adminFaNumber(m[1]) + ' مورد مطابق';
   if ((m = clean.match(/^(\d+) on this page$/))) return adminFaNumber(m[1]) + ' مورد در این صفحه';
   if ((m = clean.match(/^Page (\d+) \/ (\d+)$/))) return 'صفحه ' + adminFaNumber(m[1]) + ' از ' + adminFaNumber(m[2]);

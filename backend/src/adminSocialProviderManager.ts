@@ -211,13 +211,21 @@ const socialManagerCss = `
 .tiny{font-size:10px;color:var(--muted);line-height:1.7}
 .iconbtn{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:#fff;color:#65798e;display:inline-grid;place-items:center;cursor:pointer;text-decoration:none;padding:0}
 .iconbtn:hover{color:#2288b1;border-color:#9edcf4;background:#f7fbfd}.iconbtn.green{color:#158365}.iconbtn.red{color:#c54152}.iconbtn.purple{color:#7661c9}.iconbtn.orange{color:#ad670d}
+.provider-service-link{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid #d9ebf4;border-radius:10px;background:#f6fbfe;color:#2d7f9f;font-size:11px;font-weight:650;white-space:nowrap}
+.provider-service-link:hover{background:#edf8fd;border-color:#9edcf4}
+.provider-picker{display:grid;grid-template-columns:minmax(220px,320px) minmax(220px,1fr) auto;gap:10px;align-items:end}
+.refill-control{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:#fbfdfe;margin:8px 0 14px}
+.refill-control .meta{font-size:11px;color:var(--muted);line-height:1.7}
+.refill-control .toggle{display:inline-flex;align-items:center;gap:9px;font-size:12px;font-weight:650}
+.refill-control .toggle input{width:19px;height:19px;accent-color:#38bdf8}
+.provider-capability{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px}
 #route-content .table{min-width:950px}
 #route-content .card{margin-bottom:18px}
 html.vx-admin-fa #route-content .provider-name,html.vx-admin-fa #route-content .split-title,html.vx-admin-fa #route-content .searchbar{direction:rtl}
 html.vx-admin-en #route-content .provider-name,html.vx-admin-en #route-content .split-title,html.vx-admin-en #route-content .searchbar{direction:ltr}
 html.vx-admin-fa #route-content .source-categories{direction:rtl}
 html.vx-admin-en #route-content .source-categories{direction:ltr}
-@media(max-width:680px){.searchbar{align-items:stretch}.searchbar form{width:100%}.searchbar input,.searchbar select{width:100%}#route-content .table{min-width:820px}}
+@media(max-width:680px){.searchbar{align-items:stretch}.searchbar form{width:100%}.searchbar input,.searchbar select{width:100%}.provider-picker{grid-template-columns:1fr}.provider-picker .btn{width:100%}#route-content .table{min-width:820px}}
 </style>`;
 
 function pill(label: string, kind = '') {
@@ -228,9 +236,10 @@ function socialTabs(active: string) {
   const items = [
     ['/admin/v3?section=social&tab=overview', 'Overview', 'overview'],
     ['/admin/v3/social/providers', 'Providers', 'providers'],
+    ['/admin/v3/social/provider-services', 'Provider Services', 'provider-services'],
+    ['/admin/v3/social/my-services', 'Services', 'services'],
     ['/admin/v3/social/brands', 'Brands', 'brands'],
     ['/admin/v3/social/categories', 'Categories', 'categories'],
-    ['/admin/v3/social/my-services', 'My Services', 'services'],
     ['/admin/v3/social/order-settings', 'Order Settings', 'order-settings'],
     ['/admin/v3?section=social&tab=routing', 'Routing', 'routing'],
     ['/admin/v3?section=social&tab=orders', 'Orders', 'orders'],
@@ -363,7 +372,7 @@ async function providersPage(prisma: PrismaClient, admin: AdminIdentity, request
     return { provider, meta, sync, serviceCount };
   }));
 
-  const rows = data.map(({ provider, meta, sync, serviceCount }) => `<tr><td><div class="provider-name"><div class="provider-logo">${esc(provider.name.charAt(0).toUpperCase())}</div><div><b>${esc(provider.name)}</b><br><span class="mono muted">${esc(provider.slug)}</span></div></div></td><td><span id="balance-${provider.id}" class="pill info">Checking…</span><br><span id="balance-time-${provider.id}" class="tiny">Auto refresh: 60 sec</span></td><td>${esc(provider.currencyCode || meta.defaultCurrency || 'AUTO')}</td><td><b>${serviceCount.toLocaleString('en-US')}</b><br><span class="tiny">API last sync: ${sync.lastServiceCount.toLocaleString('en-US')}</span></td><td>${sync.autoSync ? pill(`Every ${sync.syncMinutes} min`, 'ok') : pill('Off')}<br><span class="tiny">Last: ${esc(dateText(sync.lastSyncAt))}</span></td><td><span id="status-${provider.id}">${provider.enabled ? pill('Enabled','ok') : pill('Disabled','bad')}</span></td><td><div class="switch"><form method="post" action="/admin/v3/social/providers/toggle"><input type="hidden" name="id" value="${provider.id}"><button class="${provider.enabled?'on':''}" title="${provider.enabled?'Disable provider':'Enable provider'}" aria-label="Toggle provider"></button></form></div></td><td><div class="actions">${meta.websiteUrl ? `<a class="iconbtn orange" href="${esc(meta.websiteUrl)}" target="_blank" rel="noreferrer" title="Open provider website">${icon('link')}</a>` : `<span class="iconbtn" title="No provider website configured">${icon('link')}</span>`}<a class="iconbtn" href="/admin/v3/social/providers?edit=${provider.id}" title="Edit provider">${icon('edit')}</a><button type="button" class="iconbtn purple" onclick="refreshProviderStatuses()" title="Check balance now">${icon('wallet')}</button><form method="post" action="/admin/v3/social/provider-services/sync"><input type="hidden" name="providerId" value="${provider.id}"><button class="iconbtn green" title="Synchronize provider services">${icon('sync')}</button></form><a class="iconbtn" href="/admin/v3/social/provider-services?provider=${provider.id}" title="Provider service list">${icon('list')}</a><form method="post" action="/admin/v3/social/providers/delete" onsubmit="return confirm('Delete this provider? Raw imported services will also be removed. Published services without another route will be hidden.');"><input type="hidden" name="id" value="${provider.id}"><button class="iconbtn red" title="Delete provider">${icon('trash')}</button></form></div></td></tr>`).join('');
+  const rows = data.map(({ provider, meta, sync, serviceCount }) => `<tr><td><div class="provider-name"><div class="provider-logo">${esc(provider.name.charAt(0).toUpperCase())}</div><div><b>${esc(provider.name)}</b><br><span class="mono muted">${esc(provider.slug)}</span></div></div></td><td><span id="balance-${provider.id}" class="pill info">Checking…</span><br><span id="balance-time-${provider.id}" class="tiny">Auto refresh: 60 sec</span></td><td>${esc(provider.currencyCode || meta.defaultCurrency || 'AUTO')}</td><td><b>${serviceCount.toLocaleString('en-US')}</b><br><span class="tiny">API last sync: ${sync.lastServiceCount.toLocaleString('en-US')}</span></td><td>${sync.autoSync ? pill(`Every ${sync.syncMinutes} min`, 'ok') : pill('Off')}<br><span class="tiny">Last: ${esc(dateText(sync.lastSyncAt))}</span></td><td><span id="status-${provider.id}">${provider.enabled ? pill('Enabled','ok') : pill('Disabled','bad')}</span></td><td><div class="switch"><form method="post" action="/admin/v3/social/providers/toggle"><input type="hidden" name="id" value="${provider.id}"><button class="${provider.enabled?'on':''}" title="${provider.enabled?'Disable provider':'Enable provider'}" aria-label="Toggle provider"></button></form></div></td><td><div class="actions">${meta.websiteUrl ? `<a class="iconbtn orange" href="${esc(meta.websiteUrl)}" target="_blank" rel="noreferrer" title="Open provider website">${icon('link')}</a>` : `<span class="iconbtn" title="No provider website configured">${icon('link')}</span>`}<a class="iconbtn" href="/admin/v3/social/providers?edit=${provider.id}" title="Edit provider">${icon('edit')}</a><button type="button" class="iconbtn purple" onclick="refreshProviderStatuses()" title="Check balance now">${icon('wallet')}</button><form method="post" action="/admin/v3/social/provider-services/sync"><input type="hidden" name="providerId" value="${provider.id}"><button class="iconbtn green" title="Synchronize provider services">${icon('sync')}</button></form><a class="provider-service-link" href="/admin/v3/social/provider-services?provider=${provider.id}" title="Provider service list">${icon('list')} Provider Services</a><form method="post" action="/admin/v3/social/providers/delete" onsubmit="return confirm('Delete this provider? Raw imported services will also be removed. Published services without another route will be hidden.');"><input type="hidden" name="id" value="${provider.id}"><button class="iconbtn red" title="Delete provider">${icon('trash')}</button></form></div></td></tr>`).join('');
 
   const script = `
 async function refreshProviderStatuses(){
@@ -406,7 +415,7 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
   });
   const providerId = q.provider || providers[0]?.id || '';
   const provider = providers.find(item => item.id === providerId) ?? null;
-  const categories = await loadCategories(prisma);
+  const [categories, brands] = await Promise.all([loadCategories(prisma), loadSocialBrands(prisma)]);
 
   const sourceIndexRows = providerId
     ? await prisma.serviceProviderRoute.findMany({
@@ -439,7 +448,9 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
   const where: Prisma.ServiceProviderRouteWhereInput = providerId
     ? {
         providerId,
-        ...(activeSourceCategory ? { providerCategory: activeSourceCategory === 'Uncategorized' ? null : activeSourceCategory } : {}),
+        ...(activeSourceCategory
+          ? { providerCategory: activeSourceCategory === 'Uncategorized' ? null : activeSourceCategory }
+          : {}),
         ...(q.q ? {
           OR: [
             { providerServiceCode: { contains: q.q, mode: 'insensitive' } },
@@ -468,6 +479,7 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
     route,
     sale: await socialRouteSaleRateAfn(prisma, route.service, route),
   })));
+
   const selected = q.route
     ? await prisma.serviceProviderRoute.findFirst({
         where: { id: q.route, provider: { kind: ProviderKind.SOCIAL } },
@@ -475,29 +487,147 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
       })
     : null;
   const selectedMeta = selected ? jsonObject(selected.service.metadata) : {};
+  const selectedRouteMeta = selected ? jsonObject(selected.metadata) : {};
   const isPublished = selected ? selectedMeta.rawCatalog !== true : false;
+  const selectedCategorySlug = String(selectedMeta.categorySlug || selected?.service.socialGroup || '');
+  const selectedCategory = categories.find(item => item.slug === selectedCategorySlug) ?? null;
+  const selectedBrand = normalizeBrandKey(selectedCategory?.platform || selected?.service.socialPlatform || '');
+  const detectedRefill = selected
+    ? (typeof selectedRouteMeta._providerRefillDetected === 'boolean'
+        ? selectedRouteMeta._providerRefillDetected
+        : selected.providerRefill)
+    : false;
+  const detectedDripFeed = selected
+    ? (typeof selectedRouteMeta._providerDripFeedDetected === 'boolean'
+        ? selectedRouteMeta._providerDripFeedDetected
+        : Boolean(selectedRouteMeta.dripfeed ?? selectedRouteMeta.drip_feed))
+    : false;
+  const dripFeedEnabled = selected
+    ? (typeof selectedRouteMeta._velixeoDripFeedOverride === 'boolean'
+        ? selectedRouteMeta._velixeoDripFeedOverride
+        : detectedDripFeed)
+    : false;
 
   const rows = priced.map(({ route, sale }) => {
     const meta = jsonObject(route.service.metadata);
+    const routeMeta = jsonObject(route.metadata);
     const raw = meta.rawCatalog === true;
+    const detected = typeof routeMeta._providerRefillDetected === 'boolean'
+      ? routeMeta._providerRefillDetected
+      : route.providerRefill;
     const appState = raw ? pill('Not added') : route.service.enabled ? pill('Live','ok') : pill('Draft','warn');
-    return `<tr><td class="mono">${esc(route.providerServiceCode)}</td><td class="service-name"><b>${esc(route.providerName || route.service.titleEn)}</b><br><span class="tiny">${esc(route.providerType || 'Default')}</span></td><td><b>${esc(route.providerRate?.toString() || '—')}</b> ${esc(route.providerCurrency || '')}</td><td class="money">${sale == null ? '—' : money(sale)}</td><td>${esc(route.providerMinQty ?? '—')} – ${esc(route.providerMaxQty ?? '—')}</td><td>${route.providerRefill ? pill('Yes','ok') : pill('No')}</td><td>${route.providerCancel ? pill('Yes','ok') : pill('No')}</td><td>${appState}</td><td><a class="iconbtn ${raw?'green':'purple'}" href="/admin/v3/social/provider-services?provider=${route.providerId}&route=${route.id}${q.q?`&q=${encodeURIComponent(q.q)}`:(!q.q && activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:'')}" title="${raw?'Add this service to VELIXEO':'Edit VELIXEO service'}">${raw?icon('plus'):icon('edit')}</a></td></tr>`;
+    const refillState = route.providerRefill
+      ? pill(detected ? 'Refill · Auto' : 'Refill · Manual','ok')
+      : pill(detected ? 'Refill disabled' : 'No refill');
+    const dripDetected = typeof routeMeta._providerDripFeedDetected === 'boolean'
+      ? routeMeta._providerDripFeedDetected
+      : Boolean(routeMeta.dripfeed ?? routeMeta.drip_feed);
+    const dripEnabled = typeof routeMeta._velixeoDripFeedOverride === 'boolean'
+      ? routeMeta._velixeoDripFeedOverride
+      : dripDetected;
+    const dripState = dripEnabled
+      ? pill(dripDetected ? 'Drip-feed · Auto' : 'Drip-feed · Manual','ok')
+      : pill(dripDetected ? 'Drip-feed disabled' : 'No drip-feed');
+    return `<tr><td class="mono">${esc(route.providerServiceCode)}</td><td class="service-name"><b>${esc(route.providerName || route.service.titleEn)}</b><br><span class="tiny">${esc(route.providerType || 'Default')}</span></td><td><b>${esc(route.providerRate?.toString() || '—')}</b> ${esc(route.providerCurrency || '')}</td><td class="money">${sale == null ? '—' : money(sale)}</td><td>${esc(route.providerMinQty ?? '—')} – ${esc(route.providerMaxQty ?? '—')}</td><td>${refillState}</td><td>${dripState}</td><td>${route.providerCancel ? pill('Yes','ok') : pill('No')}</td><td>${appState}</td><td><a class="iconbtn ${raw?'green':'purple'}" href="/admin/v3/social/provider-services?provider=${route.providerId}&route=${route.id}${q.q?`&q=${encodeURIComponent(q.q)}`:(!q.q && activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:'')}" title="${raw?'Add this service to VELIXEO':'Edit VELIXEO service'}">${raw?icon('plus'):icon('edit')}</a></td></tr>`;
   }).join('');
 
-
-  const categoryOptions = categories.filter(item => item.enabled).map(item => `<option value="${esc(item.slug)}" ${String(selectedMeta.categorySlug || selected?.service.socialGroup || '')===item.slug?'selected':''}>${esc(item.platform)} → ${esc(item.titleEn)}</option>`).join('');
+  const brandOptions = brands
+    .filter(item => item.enabled)
+    .map(item => `<option value="${esc(item.key)}" ${normalizeBrandKey(item.key)===selectedBrand?'selected':''}>${esc(item.titleEn)} · ${esc(item.titleFa)}</option>`)
+    .join('');
+  const categoryOptions = categories
+    .filter(item => item.enabled)
+    .map(item => `<option value="${esc(item.slug)}" data-platform="${esc(normalizeBrandKey(item.platform))}" ${selectedCategorySlug===item.slug?'selected':''}>${esc(item.titleEn)} · ${esc(item.titleFa)}</option>`)
+    .join('');
   const currentMode = selected?.service.basePriceAfn != null ? 'FIXED' : 'AUTO_MARKUP';
-  const config = selected ? `<div class="card"><div class="cardhead"><div><h2>${isPublished?'Edit VELIXEO Service':'Add Service to VELIXEO'}</h2><span class="muted">Provider #${esc(selected.providerServiceCode)} · ${esc(selected.provider.name)}</span></div><a class="btn ghost" href="/admin/v3/social/provider-services?provider=${selected.providerId}${activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:''}">Close</a></div><div class="notice"><b>Original provider name:</b> ${esc(selected.providerName || selected.service.titleEn)}<br><b>Provider cost:</b> ${esc(selected.providerRate?.toString() || '—')} ${esc(selected.providerCurrency || '')} · Min ${esc(selected.providerMinQty ?? '—')} · Max ${esc(selected.providerMaxQty ?? '—')}</div><form method="post" action="/admin/v3/social/provider-services/publish"><input type="hidden" name="routeId" value="${selected.id}"><input type="hidden" name="providerId" value="${selected.providerId}"><input type="hidden" name="sourceCategory" value="${esc(activeSourceCategory)}"><div class="field"><label>VELIXEO Category</label><select name="categorySlug" required><option value="">Choose category</option>${categoryOptions}</select></div><div class="field"><label>Customer-facing English Name</label><input name="titleEn" value="${esc(isPublished ? selected.service.titleEn : (selected.providerName || selected.service.titleEn))}" required></div><div class="field"><label>English Description</label><textarea name="descriptionEn">${esc(selected.service.descriptionEn || '')}</textarea></div><div class="forms"><div class="field"><label>Pricing Mode</label><select name="pricingMode"><option value="AUTO_MARKUP" ${currentMode==='AUTO_MARKUP'?'selected':''}>Auto Markup — follows provider price</option><option value="FIXED" ${currentMode==='FIXED'?'selected':''}>Fixed Sale Price</option></select></div><div class="field"><label>Profit / Markup %</label><input name="markup" value="${esc(selected.markupPercent?.toString() ?? selected.provider.defaultMarkupPercent.toString())}" placeholder="30"></div><div class="field"><label>Fixed Sale Price</label><input name="fixedPrice" value="${selected.service.basePriceAfn == null ? '' : esc(selected.service.basePriceAfn.toString())}" placeholder="Only for Fixed mode"></div><div class="field"><label>Fixed Price Currency</label><select name="fixedCurrency"><option>AFN</option><option>USD</option><option>TOMAN</option></select></div><div class="field"><label>Minimum Quantity</label><input type="number" name="minQty" value="${esc(selected.service.minQty ?? selected.providerMinQty ?? '')}"></div><div class="field"><label>Maximum Quantity</label><input type="number" name="maxQty" value="${esc(selected.service.maxQty ?? selected.providerMaxQty ?? '')}"></div><div class="field"><label>Sort Order</label><input type="number" name="sortOrder" value="${esc(selected.service.sortOrder)}"></div><div class="field"><label>Refill / Guarantee Days</label><input type="number" name="refillDays" value="${esc(selected.service.refillDays ?? '')}" placeholder="30"></div></div><label class="check"><input type="checkbox" name="featured" ${selected.service.featured?'checked':''}> Featured service</label><label class="check"><input type="checkbox" name="enabled" ${selected.service.enabled?'checked':''}> Visible to users immediately</label><div class="notice">Leave “Visible to users” OFF to save this as a draft. You can add several services first and publish them later from My Services.</div><button class="btn">${isPublished?'Save Changes':'Add to VELIXEO'}</button></form></div>` : `<div class="card empty">Click the + icon beside any provider service to choose a VELIXEO category, customer name and selling price.</div>`;
+
+  const config = selected ? `<div class="card"><div class="cardhead"><div><h2>${isPublished?'Edit VELIXEO Service':'Add Service to VELIXEO'}</h2><span class="muted">Provider #${esc(selected.providerServiceCode)} · ${esc(selected.provider.name)}</span></div><a class="btn ghost" href="/admin/v3/social/provider-services?provider=${selected.providerId}${activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:''}">Close</a></div>
+  <div class="notice"><b>Original provider name:</b> ${esc(selected.providerName || selected.service.titleEn)}<br><b>Provider cost:</b> ${esc(selected.providerRate?.toString() || '—')} ${esc(selected.providerCurrency || '')} · Min ${esc(selected.providerMinQty ?? '—')} · Max ${esc(selected.providerMaxQty ?? '—')}</div>
+  <form method="post" action="/admin/v3/social/provider-services/publish">
+    <input type="hidden" name="routeId" value="${selected.id}">
+    <input type="hidden" name="providerId" value="${selected.providerId}">
+    <input type="hidden" name="sourceCategory" value="${esc(activeSourceCategory)}">
+    <div class="forms">
+      <div class="field"><label>Brand / Network</label><select id="socialBrandSelect" name="brandKey" required><option value="">Choose brand</option>${brandOptions}</select></div>
+      <div class="field"><label>VELIXEO Category</label><select id="socialCategorySelect" name="categorySlug" required><option value="">Choose category</option>${categoryOptions}</select></div>
+      <div class="field"><label>Provider Service Type</label><input value="${esc(selected.providerType || 'Default')}" readonly></div>
+      <div class="field"><label>Original Provider Price</label><input value="${esc(selected.providerRate?.toString() || '—')} ${esc(selected.providerCurrency || '')}" readonly></div>
+    </div>
+    <div class="field"><label>Customer-facing English Name</label><input name="titleEn" value="${esc(isPublished ? selected.service.titleEn : (selected.providerName || selected.service.titleEn))}" required></div>
+    <div class="field"><label>Customer-facing Persian Name</label><input name="titleFa" value="${esc(isPublished ? selected.service.titleFa : '')}" placeholder="نام فارسی سرویس"></div>
+    <div class="forms">
+      <div class="field"><label>English Description</label><textarea name="descriptionEn">${esc(selected.service.descriptionEn || '')}</textarea></div>
+      <div class="field"><label>Persian Description</label><textarea name="descriptionFa">${esc(selected.service.descriptionFa || '')}</textarea></div>
+    </div>
+    <div class="forms">
+      <div class="field"><label>Pricing Mode</label><select name="pricingMode"><option value="AUTO_MARKUP" ${currentMode==='AUTO_MARKUP'?'selected':''}>Auto Markup — follows provider price</option><option value="FIXED" ${currentMode==='FIXED'?'selected':''}>Fixed Sale Price</option></select></div>
+      <div class="field"><label>Profit / Markup %</label><input name="markup" value="${esc(selected.markupPercent?.toString() ?? selected.provider.defaultMarkupPercent.toString())}" placeholder="30"></div>
+      <div class="field"><label>Fixed Sale Price</label><input name="fixedPrice" value="${selected.service.basePriceAfn == null ? '' : esc(selected.service.basePriceAfn.toString())}" placeholder="Only for Fixed mode"></div>
+      <div class="field"><label>Fixed Price Currency</label><select name="fixedCurrency"><option>AFN</option><option>USD</option><option>TOMAN</option></select></div>
+      <div class="field"><label>Minimum Quantity</label><input type="number" name="minQty" value="${esc(selected.service.minQty ?? selected.providerMinQty ?? '')}"></div>
+      <div class="field"><label>Maximum Quantity</label><input type="number" name="maxQty" value="${esc(selected.service.maxQty ?? selected.providerMaxQty ?? '')}"></div>
+      <div class="field"><label>Sort Order</label><input type="number" name="sortOrder" value="${esc(selected.service.sortOrder)}"></div>
+      <div class="field"><label>Refill / Guarantee Days</label><input type="number" name="refillDays" min="0" value="${esc(selected.service.refillDays ?? '')}" placeholder="30"></div>
+    </div>
+    <div class="refill-control">
+      <div><b>Refill / Drop Guarantee</b><div class="meta">Provider API detected: <strong>${detectedRefill ? 'Available' : 'Not available'}</strong>. The switch starts with the provider value, but you can manually enable or disable it for this VELIXEO service.</div></div>
+      <label class="toggle"><input type="checkbox" name="refillEnabled" ${selected.providerRefill?'checked':''}> <span>Enabled</span></label>
+    </div>
+    <div class="refill-control">
+      <div><b>Drip-feed</b><div class="meta">Provider API detected: <strong>${detectedDripFeed ? 'Available' : 'Not available'}</strong>. It is enabled automatically when supported, and you can override it for this service.</div></div>
+      <label class="toggle"><input type="checkbox" name="dripFeedEnabled" ${dripFeedEnabled?'checked':''}> <span>Enabled</span></label>
+    </div>
+    <div class="provider-capability">${detectedRefill?pill('Provider supports refill','ok'):pill('Provider reports no refill')}${detectedDripFeed?pill('Provider supports drip-feed','ok'):pill('Provider reports no drip-feed')}${selected.providerCancel?pill('Provider supports cancel','ok'):pill('No cancel')}</div>
+    <label class="check"><input type="checkbox" name="featured" ${selected.service.featured?'checked':''}> Featured service</label>
+    <label class="check"><input type="checkbox" name="enabled" ${selected.service.enabled?'checked':''}> Visible to users immediately</label>
+    <div class="notice">Save as draft by leaving “Visible to users” off. Only services you add here appear under Services and in the customer app.</div>
+    <button class="btn">${isPublished?'Save Changes':'Add to VELIXEO'}</button>
+  </form></div>` : `<div class="card empty">Choose a provider service and press + to select its brand, category, pricing and refill settings.</div>`;
+
+  const providerPicker = `<div class="card"><form method="get" action="/admin/v3/social/provider-services" class="provider-picker">
+    <div class="field" style="margin:0"><label>Provider</label><select name="provider">${providers.map(item=>`<option value="${item.id}" ${item.id===providerId?'selected':''}>${esc(item.name)}</option>`).join('')}</select></div>
+    <div class="field" style="margin:0"><label>Search provider services</label><input name="q" value="${esc(q.q)}" placeholder="Service ID, name or provider category"></div>
+    <button class="btn">Show Services</button>
+  </form>
+  ${provider ? `<div class="actions" style="margin-top:12px"><a class="btn ghost" href="/admin/v3/social/providers">Providers</a><form method="post" action="/admin/v3/social/provider-services/sync"><input type="hidden" name="providerId" value="${provider.id}"><button class="btn">${icon('sync')} Get / Refresh All Services</button></form></div>` : ''}
+  <div class="notice" style="margin-top:12px">This area shows the provider catalog only. Nothing is added to VELIXEO until you press + and save the service configuration.</div>
+  ${sourceCategories.length ? `<div class="source-categories">${sourceCategories.map(item => `<a class="source-category ${!q.q && item.name===activeSourceCategory?'active':''}" href="/admin/v3/social/provider-services?provider=${encodeURIComponent(providerId)}&sourceCategory=${encodeURIComponent(item.name)}"><span>${esc(item.name)}</span><span class="count">${item.count.toLocaleString('en-US')}</span></a>`).join('')}</div>` : ''}
+  </div>`;
+
+  const script = selected ? `
+(() => {
+  const brand = document.getElementById('socialBrandSelect');
+  const category = document.getElementById('socialCategorySelect');
+  if (!brand || !category) return;
+  const sync = () => {
+    const value = String(brand.value || '').toUpperCase();
+    let selectedVisible = false;
+    for (const option of Array.from(category.options)) {
+      if (!option.value) { option.hidden = false; continue; }
+      const visible = !value || String(option.dataset.platform || '').toUpperCase() === value;
+      option.hidden = !visible;
+      if (visible && option.selected) selectedVisible = true;
+    }
+    if (!selectedVisible && category.value) category.value = '';
+  };
+  brand.addEventListener('change', sync);
+  sync();
+})();` : undefined;
 
   return shell({
     request,
     admin,
-    title: provider ? provider.name + ' — Service List' : 'Provider Service List',
-    subtitle: 'Fetch this provider’s real catalog, then add selected services to your VELIXEO categories.',
-    active: 'providers',
+    title: 'Provider Services',
+    subtitle: provider
+      ? `${provider.name} catalog — choose a service, then add it to the exact VELIXEO brand and category.`
+      : 'Choose a provider to browse its API service catalog.',
+    active: 'provider-services',
     message: q.msg,
     error: q.error,
-    body: `<div class="card"><div class="cardhead"><div class="searchbar"><a class="btn ghost" href="/admin/v3/social/providers">← Providers</a><form method="get" action="/admin/v3/social/provider-services" class="searchbar"><input type="hidden" name="provider" value="${esc(providerId)}"><input name="q" value="${esc(q.q)}" placeholder="Search all provider services"><button class="btn ghost">Search</button>${q.q ? `<a class="btn ghost" href="/admin/v3/social/provider-services?provider=${encodeURIComponent(providerId)}">Clear</a>` : ''}</form></div>${provider ? `<form method="post" action="/admin/v3/social/provider-services/sync"><input type="hidden" name="providerId" value="${provider.id}"><button class="btn">${icon('sync')} Get / Refresh All Services</button></form>` : ''}</div><div class="notice">Categories below come directly from the provider API. Sync downloads the complete API catalog; nothing is shown to customers until you explicitly add it to VELIXEO.</div>${sourceCategories.length ? `<div class="source-categories">${sourceCategories.map(item => `<a class="source-category ${!q.q && item.name===activeSourceCategory?'active':''}" href="/admin/v3/social/provider-services?provider=${encodeURIComponent(providerId)}&sourceCategory=${encodeURIComponent(item.name)}"><span>${esc(item.name)}</span><span class="count">${item.count.toLocaleString('en-US')}</span></a>`).join('')}</div>` : ''}</div><div class="grid"><div class="card"><div class="cardhead"><div class="catalog-title"><h2>${q.q ? 'Search Results' : esc(activeSourceCategory || provider?.name || 'Provider Catalog')}</h2>${!q.q && activeSourceCategory ? pill(sourceCategoryMap.get(activeSourceCategory)?.count?.toLocaleString('en-US') + ' services','info') : ''}</div><span class="muted">${q.q ? priced.length.toLocaleString('en-US') + ' matching services' : sourceIndexRows.length.toLocaleString('en-US') + ' total synced services · ' + sourceCategories.length.toLocaleString('en-US') + ' categories'}</span></div><div class="tablewrap"><table class="table"><thead><tr><th>ID</th><th>Original Service Name</th><th>Provider Cost</th><th>VELIXEO Sale</th><th>Min / Max</th><th>Refill</th><th>Cancel</th><th>App Status</th><th>Add</th></tr></thead><tbody>${rows || `<tr><td colspan="9" class="empty">${provider ? 'No services found in this provider category. Try Sync or another category.' : 'Add or select a provider first.'}</td></tr>`}</tbody></table></div></div>${config}</div>`,
+    script,
+    body: providers.length
+      ? `${providerPicker}<div class="grid"><div class="card"><div class="cardhead"><div class="catalog-title"><h2>${q.q ? 'Search Results' : esc(activeSourceCategory || provider?.name || 'Provider Catalog')}</h2>${!q.q && activeSourceCategory ? pill(sourceCategoryMap.get(activeSourceCategory)?.count?.toLocaleString('en-US') + ' services','info') : ''}</div><span class="muted">${q.q ? priced.length.toLocaleString('en-US') + ' matching services' : sourceIndexRows.length.toLocaleString('en-US') + ' total synced services · ' + sourceCategories.length.toLocaleString('en-US') + ' categories'}</span></div><div class="tablewrap"><table class="table"><thead><tr><th>ID</th><th>Original Service Name</th><th>Provider Cost</th><th>VELIXEO Sale</th><th>Min / Max</th><th>Refill</th><th>Drip-feed</th><th>Cancel</th><th>App Status</th><th>Add</th></tr></thead><tbody>${rows || `<tr><td colspan="10" class="empty">${provider ? 'No services found. Sync the provider or choose another provider category.' : 'Choose a provider first.'}</td></tr>`}</tbody></table></div></div>${config}</div>`
+      : '<div class="card empty">No Social Media provider exists yet. Add a provider first, then sync its services.</div>',
   });
 }
 
@@ -587,6 +717,7 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
       ...(q.q ? {
         OR: [
           { titleEn: { contains: q.q, mode: 'insensitive' } },
+          { titleFa: { contains: q.q, mode: 'insensitive' } },
           { slug: { contains: q.q, mode: 'insensitive' } },
           { socialGroup: { contains: q.q, mode: 'insensitive' } },
         ],
@@ -604,17 +735,31 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
   });
   const rows = services.map(service => {
     const primary = service.routes[0];
-    return `<tr><td><b>${esc(service.titleEn)}</b><br><span class="mono muted">${esc(service.slug)}</span></td><td>${esc(service.socialPlatform || 'OTHER')} → ${esc(service.socialGroup || '—')}</td><td>${primary ? esc(primary.provider.name) : '—'}${service.routes.length > 1 ? ` +${service.routes.length - 1}` : ''}</td><td>${service.basePriceAfn != null ? `<span class="price-fixed">Fixed · ${money(service.basePriceAfn)}</span>` : '<span class="price-auto">Auto Markup</span>'}</td><td>${service.minQty ?? '—'} – ${service.maxQty ?? '—'}</td><td>${service.featured?pill('Featured','info'):''} ${service.enabled?pill('Live','ok'):pill('Draft / Hidden','warn')}</td><td><div class="actions">${primary ? `<a class="iconbtn" href="/admin/v3/social/provider-services?provider=${primary.providerId}&route=${primary.id}" title="Edit service">${icon('edit')}</a>` : ''}<form method="post" action="/admin/v3/social/my-services/toggle"><input type="hidden" name="id" value="${service.id}"><button class="iconbtn ${service.enabled?'orange':'green'}" title="${service.enabled?'Hide from customer app':'Publish to customer app'}">${icon('eye')}</button></form></div></td></tr>`;
+    const refillMeta = primary ? jsonObject(primary.metadata) : {};
+    const detected = primary
+      ? (typeof refillMeta._providerRefillDetected === 'boolean'
+          ? refillMeta._providerRefillDetected
+          : primary.providerRefill)
+      : false;
+    const refill = primary
+      ? (primary.providerRefill
+          ? pill(detected ? 'Enabled · Provider' : 'Enabled · Manual','ok')
+          : pill(detected ? 'Disabled manually' : 'No refill'))
+      : pill('No route');
+    const refillToggle = primary
+      ? `<form method="post" action="/admin/v3/social/my-services/refill-toggle"><input type="hidden" name="routeId" value="${primary.id}"><button class="iconbtn ${primary.providerRefill?'orange':'green'}" title="${primary.providerRefill?'Disable refill':'Enable refill'}">${icon('sync')}</button></form>`
+      : '';
+    return `<tr><td><b>${esc(service.titleFa || service.titleEn)}</b><br><span class="muted">${esc(service.titleEn)}</span><br><span class="mono tiny">${esc(service.slug)}</span></td><td>${esc(service.socialPlatform || 'OTHER')} → ${esc(service.socialGroup || '—')}</td><td>${primary ? esc(primary.provider.name) : '—'}${service.routes.length > 1 ? ` +${service.routes.length - 1}` : ''}</td><td>${service.basePriceAfn != null ? `<span class="price-fixed">Fixed · ${money(service.basePriceAfn)}</span>` : '<span class="price-auto">Auto Markup</span>'}</td><td>${service.minQty ?? '—'} – ${service.maxQty ?? '—'}</td><td><div class="actions">${refill}${refillToggle}</div>${service.refillDays ? `<span class="tiny">${service.refillDays} guarantee days</span>` : ''}</td><td>${service.featured?pill('Featured','info'):''} ${service.enabled?pill('Live','ok'):pill('Draft / Hidden','warn')}</td><td><div class="actions">${primary ? `<a class="iconbtn" href="/admin/v3/social/provider-services?provider=${primary.providerId}&route=${primary.id}" title="Edit service">${icon('edit')}</a>` : ''}<form method="post" action="/admin/v3/social/my-services/toggle"><input type="hidden" name="id" value="${service.id}"><button class="iconbtn ${service.enabled?'orange':'green'}" title="${service.enabled?'Hide from customer app':'Publish to customer app'}">${icon('eye')}</button></form></div></td></tr>`;
   }).join('');
   return shell({
     request,
     admin,
-    title: 'My Services',
-    subtitle: 'Everything you have added to VELIXEO, including drafts that customers cannot see yet.',
+    title: 'Services',
+    subtitle: 'Only services you have added to VELIXEO are shown here. Provider catalog items stay in Provider Services.',
     active: 'services',
     message: q.msg,
     error: q.error,
-    body: `<div class="card"><div class="cardhead"><form method="get" action="/admin/v3/social/my-services" class="searchbar"><input name="q" value="${esc(q.q)}" placeholder="Search service, slug or category"><button class="btn ghost">Search</button></form><a class="btn" href="/admin/v3/social/providers">${icon('plus')} Choose Provider</a></div><div class="tablewrap"><table class="table"><thead><tr><th>VELIXEO Service</th><th>Brand / Category</th><th>Provider</th><th>Pricing</th><th>Min / Max</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="empty">No VELIXEO social services yet.</td></tr>'}</tbody></table></div></div>`,
+    body: `<div class="card"><div class="cardhead"><form method="get" action="/admin/v3/social/my-services" class="searchbar"><input name="q" value="${esc(q.q)}" placeholder="Search service, slug or category"><button class="btn ghost">Search</button></form><a class="btn" href="/admin/v3/social/provider-services">${icon('plus')} Add from Provider Services</a></div><div class="notice">This list contains only VELIXEO services that you explicitly added from a provider. Use the refill switch here for a quick manual override.</div><div class="tablewrap"><table class="table"><thead><tr><th>VELIXEO Service</th><th>Brand / Category</th><th>Provider</th><th>Pricing</th><th>Min / Max</th><th>Refill</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="8" class="empty">No VELIXEO social services yet. Open Provider Services and press + to add one.</td></tr>'}</tbody></table></div></div>`,
   });
 }
 
@@ -648,7 +793,7 @@ async function orderSettingsPage(prisma: PrismaClient, admin: AdminIdentity, req
         <div class="cardhead"><h2>How it works</h2>${pill('Server enforced','ok')}</div>
         <div class="notice"><b>Provider/API ID:</b> customers see the order number returned by the SMM provider, but it is labeled only as “Order ID”.</div>
         <div class="notice"><b>VELIXEO Sequential ID:</b> customers see a VELIXEO number starting from your chosen value, such as 100063, 100064, 100065… Provider IDs remain private for status, refill and cancellation.</div>
-        <div class="notice"><b>Refill:</b> no manual capability switch is needed. Sync reads the provider API <span class="mono">refill</span> flag automatically. A refill button appears only for completed eligible orders and disappears when the configured window expires.</div>
+        <div class="notice"><b>Refill:</b> Sync reads the provider API <span class="mono">refill</span> flag automatically when a service is added. You can then manually enable or disable refill per VELIXEO service; that override is preserved on future provider syncs.</div>
         <div class="notice"><b>Cancel:</b> the provider API <span class="mono">cancel</span> flag is also synchronized automatically and the button is hidden for terminal/partial orders.</div>
       </div>
     </div>`,
@@ -669,6 +814,7 @@ export function registerAdminSocialProviderManager(
     const redirects: Record<string, string> = {
       providers: '/admin/v3/social/providers',
       catalog: '/admin/v3/social/provider-services',
+      'provider-services': '/admin/v3/social/provider-services',
       brands: '/admin/v3/social/brands',
       categories: '/admin/v3/social/categories',
       services: '/admin/v3/social/my-services',
@@ -850,8 +996,6 @@ export function registerAdminSocialProviderManager(
   app.get('/admin/v3/social/provider-services', async (request, reply) => {
     const admin = await requireAdmin(request, reply, resolveAdmin);
     if (!admin) return;
-    const q = query(request);
-    if (!q.provider) return reply.code(303).redirect('/admin/v3/social/providers');
     return reply.type('text/html; charset=utf-8').send(await providerServicesPage(prisma, admin, request));
   });
 
@@ -894,6 +1038,9 @@ export function registerAdminSocialProviderManager(
         fixedPrice = await convertSocialPriceToAfn(prisma, new Prisma.Decimal(raw), text(body, 'fixedCurrency') || 'AFN');
       }
       const oldMeta = jsonObject(route.service.metadata);
+      const oldRouteMeta = jsonObject(route.metadata);
+      const refillEnabled = checked(body, 'refillEnabled');
+      const dripFeedEnabled = checked(body, 'dripFeedEnabled');
       const titleEn = text(body, 'titleEn') || route.providerName || route.service.titleEn;
       await prisma.$transaction([
         prisma.service.update({
@@ -928,6 +1075,18 @@ export function registerAdminSocialProviderManager(
           data: {
             enabled: true,
             markupPercent: mode === 'AUTO_MARKUP' ? markup : null,
+            providerRefill: refillEnabled,
+            metadata: {
+              ...oldRouteMeta,
+              _providerRefillDetected: typeof oldRouteMeta._providerRefillDetected === 'boolean'
+                ? oldRouteMeta._providerRefillDetected
+                : route.providerRefill,
+              _velixeoRefillOverride: refillEnabled,
+              _providerDripFeedDetected: typeof oldRouteMeta._providerDripFeedDetected === 'boolean'
+                ? oldRouteMeta._providerDripFeedDetected
+                : Boolean(oldRouteMeta.dripfeed ?? oldRouteMeta.drip_feed),
+              _velixeoDripFeedOverride: dripFeedEnabled,
+            } as Prisma.InputJsonValue,
           },
         }),
       ]);
@@ -936,6 +1095,8 @@ export function registerAdminSocialProviderManager(
         markup: markup.toString(),
         fixedAfn: fixedPrice?.toString() ?? null,
         visible: checked(body, 'enabled'),
+        refillEnabled,
+        dripFeedEnabled,
       });
       return reply.code(303).redirect(`/admin/v3/social/provider-services?provider=${providerId}${sourceCategoryQuery}&msg=${encodeURIComponent(checked(body,'enabled') ? 'Service saved and published to the app.' : 'Service saved as a draft.')}`);
     } catch (error) {
@@ -1138,5 +1299,44 @@ export function registerAdminSocialProviderManager(
     const updated = await prisma.service.update({ where: { id }, data: { enabled: !service.enabled } });
     await audit(prisma, admin.id, 'SOCIAL_SERVICE_VISIBILITY', 'Service', id, `${updated.titleEn}: ${updated.enabled ? 'live' : 'hidden'}`);
     return reply.code(303).redirect(`/admin/v3/social/my-services?msg=${encodeURIComponent(updated.enabled ? 'Service is now live in the app.' : 'Service hidden from the app.')}`);
+  });
+
+  app.post('/admin/v3/social/my-services/refill-toggle', async (request, reply) => {
+    const admin = await requireAdmin(request, reply, resolveAdmin);
+    if (!admin) return;
+    const routeId = text(request.body as Body, 'routeId');
+    const route = await prisma.serviceProviderRoute.findFirst({
+      where: { id: routeId, provider: { kind: ProviderKind.SOCIAL } },
+      include: { service: true },
+    });
+    if (!route || jsonObject(route.service.metadata).rawCatalog === true) {
+      return reply.code(303).redirect('/admin/v3/social/my-services?error=1&msg=Service%20route%20not%20found');
+    }
+    const routeMeta = jsonObject(route.metadata);
+    const next = !route.providerRefill;
+    await prisma.serviceProviderRoute.update({
+      where: { id: route.id },
+      data: {
+        providerRefill: next,
+        metadata: {
+          ...routeMeta,
+          _providerRefillDetected: typeof routeMeta._providerRefillDetected === 'boolean'
+            ? routeMeta._providerRefillDetected
+            : route.providerRefill,
+          _velixeoRefillOverride: next,
+        } as Prisma.InputJsonValue,
+      },
+    });
+    await audit(
+      prisma,
+      admin.id,
+      'SOCIAL_SERVICE_REFILL_OVERRIDE',
+      'ServiceProviderRoute',
+      route.id,
+      `${route.service.titleEn}: refill ${next ? 'enabled' : 'disabled'}`,
+    );
+    return reply.code(303).redirect(
+      `/admin/v3/social/my-services?msg=${encodeURIComponent(next ? 'Refill enabled for this service.' : 'Refill disabled for this service.')}`,
+    );
   });
 }
