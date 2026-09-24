@@ -584,3 +584,148 @@ class _VelixeoHeaderButton extends StatelessWidget {
         ),
       );
 }
+
+
+class VelixeoFaAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const VelixeoFaAppBar({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.actions = const [],
+    this.showBack = true,
+    this.onBack,
+  });
+
+  final String title;
+  final String? subtitle;
+  final List<Widget> actions;
+  final bool showBack;
+  final VoidCallback? onBack;
+
+  @override
+  Size get preferredSize => Size.fromHeight(subtitle?.trim().isNotEmpty == true ? 76 : 64);
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AppBar(
+          toolbarHeight: preferredSize.height,
+          automaticallyImplyLeading: false,
+          leadingWidth: showBack ? 62 : 0,
+          leading: showBack
+              ? Padding(
+                  padding: const EdgeInsetsDirectional.only(start: 14),
+                  child: _VelixeoHeaderButton(
+                    icon: Icons.arrow_forward_rounded,
+                    onTap: onBack ?? () => Navigator.maybePop(context),
+                  ),
+                )
+              : null,
+          titleSpacing: showBack ? 8 : 20,
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: VelixeoFaDesign.fontFamily,
+                  color: VelixeoBrand.ink,
+                  fontSize: 18,
+                  height: 1.55,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (subtitle?.trim().isNotEmpty == true)
+                Text(
+                  subtitle!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: VelixeoFaDesign.fontFamily,
+                    color: VelixeoBrand.muted,
+                    fontSize: 9.5,
+                    height: 1.7,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+            ],
+          ),
+          actions: actions,
+        ),
+      );
+}
+
+class VelixeoEnAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const VelixeoEnAppBar({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.actions = const [],
+    this.showBack = true,
+    this.onBack,
+  });
+
+  final String title;
+  final String? subtitle;
+  final List<Widget> actions;
+  final bool showBack;
+  final VoidCallback? onBack;
+
+  @override
+  Size get preferredSize => Size.fromHeight(subtitle?.trim().isNotEmpty == true ? 72 : 62);
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: AppBar(
+          toolbarHeight: preferredSize.height,
+          automaticallyImplyLeading: false,
+          leadingWidth: showBack ? 62 : 0,
+          leading: showBack
+              ? Padding(
+                  padding: const EdgeInsetsDirectional.only(start: 14),
+                  child: _VelixeoHeaderButton(
+                    icon: Icons.arrow_back_rounded,
+                    onTap: onBack ?? () => Navigator.maybePop(context),
+                  ),
+                )
+              : null,
+          titleSpacing: showBack ? 8 : 20,
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: VelixeoEnDesign.fontFamily,
+                  color: VelixeoBrand.ink,
+                  fontSize: 18,
+                  height: 1.35,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (subtitle?.trim().isNotEmpty == true)
+                Text(
+                  subtitle!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: VelixeoEnDesign.fontFamily,
+                    color: VelixeoBrand.muted,
+                    fontSize: 9.5,
+                    height: 1.45,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+            ],
+          ),
+          actions: actions,
+        ),
+      );
+}
