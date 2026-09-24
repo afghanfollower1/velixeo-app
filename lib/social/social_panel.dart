@@ -509,10 +509,10 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
             child: Row(children: [
-              Text(t('شناسه سفارش', 'Order ID'), style: const TextStyle(color: Color(0xFF74818B))),
+              Text(t('شناسه سفارش', 'Order ID'), style: const TextStyle(color: VelixeoBrand.muted)),
               const Spacer(),
               SelectableText(order.displayOrderId, style: const TextStyle(fontWeight: FontWeight.w700)),
-              IconButton(onPressed: copyId, tooltip: t('کپی شناسه', 'Copy Order ID'), icon: const Icon(Icons.copy_rounded, size: 19, color: Color(0xFF38BDF8))),
+              IconButton(onPressed: copyId, tooltip: t('کپی شناسه', 'Copy Order ID'), icon: const Icon(Icons.copy_rounded, size: 19, color: VelixeoBrand.sky)),
             ]),
           ),
           const SizedBox(height: 10),
@@ -908,7 +908,7 @@ Widget buildEnglishNewOrder() {
             ],
           ),
           const SizedBox(height: 6),
-          Text(fa ? service.titleFa : service.titleEn, style: const TextStyle(color: Color(0xFF74818B))),
+          Text(fa ? service.titleFa : service.titleEn, style: const TextStyle(color: VelixeoBrand.muted)),
           const SizedBox(height: 16),
           ...service.orderFields
               .where((field) => field.key != 'runs' && field.key != 'interval')
@@ -965,7 +965,7 @@ Widget buildEnglishNewOrder() {
               padding: const EdgeInsets.only(bottom: 12),
               child: Text(
                 t('محدوده سفارش: ${service.minQty ?? '—'} تا ${service.maxQty ?? '—'}', 'Order range: ${service.minQty ?? '—'} to ${service.maxQty ?? '—'}'),
-                style: const TextStyle(fontSize: 12, color: Color(0xFF74818B)),
+                style: const TextStyle(fontSize: 12, color: VelixeoBrand.muted),
               ),
             ),
           if (service.providerEta?.trim().isNotEmpty == true)
@@ -979,7 +979,7 @@ Widget buildEnglishNewOrder() {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.schedule_rounded, size: 18, color: Color(0xFF74818B)),
+                  const Icon(Icons.schedule_rounded, size: 18, color: VelixeoBrand.muted),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -1053,7 +1053,7 @@ Widget buildEnglishNewOrder() {
                     onTap: showTerms,
                     child: Text(
                       t('مشاهده قوانین', 'terms & conditions'),
-                      style: const TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.w700),
+                      style: const TextStyle(color: VelixeoBrand.sky, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ],
@@ -1101,7 +1101,7 @@ Widget buildEnglishOrderForm(SocialService service) {
             ],
           ),
           const SizedBox(height: 6),
-          Text(fa ? service.titleFa : service.titleEn, style: const TextStyle(color: Color(0xFF74818B))),
+          Text(fa ? service.titleFa : service.titleEn, style: const TextStyle(color: VelixeoBrand.muted)),
           const SizedBox(height: 16),
           ...service.orderFields
               .where((field) => field.key != 'runs' && field.key != 'interval')
@@ -1158,7 +1158,7 @@ Widget buildEnglishOrderForm(SocialService service) {
               padding: const EdgeInsets.only(bottom: 12),
               child: Text(
                 t('محدوده سفارش: ${service.minQty ?? '—'} تا ${service.maxQty ?? '—'}', 'Order range: ${service.minQty ?? '—'} to ${service.maxQty ?? '—'}'),
-                style: const TextStyle(fontSize: 12, color: Color(0xFF74818B)),
+                style: const TextStyle(fontSize: 12, color: VelixeoBrand.muted),
               ),
             ),
           if (service.providerEta?.trim().isNotEmpty == true)
@@ -1172,7 +1172,7 @@ Widget buildEnglishOrderForm(SocialService service) {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.schedule_rounded, size: 18, color: Color(0xFF74818B)),
+                  const Icon(Icons.schedule_rounded, size: 18, color: VelixeoBrand.muted),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -1246,7 +1246,7 @@ Widget buildEnglishOrderForm(SocialService service) {
                     onTap: showTerms,
                     child: Text(
                       t('مشاهده قوانین', 'terms & conditions'),
-                      style: const TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.w700),
+                      style: const TextStyle(color: VelixeoBrand.sky, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ],
@@ -1882,7 +1882,7 @@ Widget _buildPersianPage(BuildContext context) {
                 ),
                 child: const Icon(
                   Icons.check_rounded,
-                  color: Color(0xFF158365),
+                  color: VelixeoBrand.green,
                   size: 34,
                 ),
               ),
@@ -1894,7 +1894,7 @@ Widget _buildPersianPage(BuildContext context) {
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF24343D),
+                color: VelixeoBrand.ink,
               ),
             ),
             const SizedBox(height: 6),
@@ -1905,7 +1905,7 @@ Widget _buildPersianPage(BuildContext context) {
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 11,
-                color: Color(0xFF74818B),
+                color: VelixeoBrand.muted,
               ),
             ),
             const SizedBox(height: 23),
@@ -1991,7 +1991,7 @@ Widget _buildEnglishPage(BuildContext context) {
                 ),
                 child: const Icon(
                   Icons.check_rounded,
-                  color: Color(0xFF158365),
+                  color: VelixeoBrand.green,
                   size: 34,
                 ),
               ),
@@ -2003,7 +2003,7 @@ Widget _buildEnglishPage(BuildContext context) {
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF24343D),
+                color: VelixeoBrand.ink,
               ),
             ),
             const SizedBox(height: 6),
@@ -2014,7 +2014,7 @@ Widget _buildEnglishPage(BuildContext context) {
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 11,
-                color: Color(0xFF74818B),
+                color: VelixeoBrand.muted,
               ),
             ),
             const SizedBox(height: 23),
@@ -2105,7 +2105,7 @@ class _SocialSuccessLine extends StatelessWidget {
               label,
               style: const TextStyle(
                 fontSize: 10.5,
-                color: Color(0xFF74818B),
+                color: VelixeoBrand.muted,
               ),
             ),
             const Spacer(),
@@ -2508,7 +2508,7 @@ class _ServiceCard extends StatelessWidget {
                   Expanded(child: Text(fa ? service.titleFa : service.titleEn, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14))),
                   if (service.featured) const Icon(Icons.star_rounded, color: Color(0xFFFFA928), size: 19),
                   const SizedBox(width: 4),
-                  Icon(selected ? Icons.check_circle_rounded : Icons.chevron_right_rounded, color: const Color(0xFF38BDF8)),
+                  Icon(selected ? Icons.check_circle_rounded : Icons.chevron_right_rounded, color: VelixeoBrand.sky),
                 ],
               ),
               const SizedBox(height: 8),
@@ -2545,9 +2545,9 @@ class _MiniBadge extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 13, color: good ? const Color(0xFF0A8B5B) : const Color(0xFF74818B)),
+            Icon(icon, size: 13, color: good ? const Color(0xFF0A8B5B) : VelixeoBrand.muted),
             const SizedBox(width: 4),
-            Text(text, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: good ? const Color(0xFF0A8B5B) : const Color(0xFF74818B))),
+            Text(text, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: good ? const Color(0xFF0A8B5B) : VelixeoBrand.muted)),
           ],
         ),
       );
@@ -2611,7 +2611,7 @@ class _DripRunOrderCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               '${fa ? 'شناسه Drip-feed' : 'Drip-feed ID'}: ${order.displayOrderId}-R${run.runIndex}',
-              style: const TextStyle(fontSize: 11, color: Color(0xFF74818B)),
+              style: const TextStyle(fontSize: 11, color: VelixeoBrand.muted),
             ),
             const SizedBox(height: 5),
             Text(
@@ -2624,7 +2624,7 @@ class _DripRunOrderCard extends StatelessWidget {
                 '${fa ? 'لینک' : 'Link'}: ${order.orderLink}',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11, color: Color(0xFF74818B)),
+                style: const TextStyle(fontSize: 11, color: VelixeoBrand.muted),
               ),
             ],
             const SizedBox(height: 10),
@@ -2700,7 +2700,7 @@ class _OrderCard extends StatelessWidget {
                   },
                   tooltip: fa ? 'کپی شناسه' : 'Copy Order ID',
                   visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.copy_rounded, size: 17, color: Color(0xFF38BDF8)),
+                  icon: const Icon(Icons.copy_rounded, size: 17, color: VelixeoBrand.sky),
                 ),
               ],
             ),
@@ -2717,15 +2717,15 @@ class _OrderCard extends StatelessWidget {
             ],
             if (order.orderLink?.isNotEmpty == true) ...[
               const SizedBox(height: 8),
-              Text('${fa ? 'لینک' : 'Link'}: ${order.orderLink}', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Color(0xFF74818B))),
+              Text('${fa ? 'لینک' : 'Link'}: ${order.orderLink}', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: VelixeoBrand.muted)),
             ],
             if (order.providerEta?.trim().isNotEmpty == true) ...[
               const SizedBox(height: 6),
-              Text('${fa ? 'زمان تقریبی' : 'ETA'}: ${order.providerEta}', style: const TextStyle(fontSize: 11, color: Color(0xFF74818B))),
+              Text('${fa ? 'زمان تقریبی' : 'ETA'}: ${order.providerEta}', style: const TextStyle(fontSize: 11, color: VelixeoBrand.muted)),
             ],
             if (order.failureReason?.isNotEmpty == true) ...[
               const SizedBox(height: 8),
-              Text(order.failureReason!, style: const TextStyle(fontSize: 11, color: Color(0xFFC54152))),
+              Text(order.failureReason!, style: const TextStyle(fontSize: 11, color: VelixeoBrand.red)),
             ],
             if (order.actions.isNotEmpty) ...[
               const Divider(height: 22),
@@ -2733,7 +2733,7 @@ class _OrderCard extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 6),
                     child: Row(
                       children: [
-                        Icon(action.action == 'REFILL' ? Icons.restart_alt_rounded : Icons.cancel_outlined, size: 16, color: const Color(0xFF74818B)),
+                        Icon(action.action == 'REFILL' ? Icons.restart_alt_rounded : Icons.cancel_outlined, size: 16, color: VelixeoBrand.muted),
                         const SizedBox(width: 6),
                         Expanded(child: Text('${action.action} • ${action.status}', style: const TextStyle(fontSize: 11))),
                         if (action.action == 'REFILL' && !['COMPLETED','REJECTED'].contains(action.status.toUpperCase()))
@@ -2799,7 +2799,7 @@ class _StatusBadge extends StatelessWidget {
       color = const Color(0xFF177B8D);
       bg = const Color(0xFFE6F7FA);
     } else {
-      color = const Color(0xFF38BDF8);
+      color = VelixeoBrand.sky;
       bg = const Color(0xFFEAF6FF);
     }
     return Container(
@@ -2822,7 +2822,7 @@ class _InfoRow extends StatelessWidget {
         children: [
           Expanded(
             flex: 4,
-            child: Text(label, style: const TextStyle(color: Color(0xFF74818B))),
+            child: Text(label, style: const TextStyle(color: VelixeoBrand.muted)),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -2860,7 +2860,7 @@ class _EmptyState extends StatelessWidget {
               const SizedBox(height: 16),
               Text(title, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
               const SizedBox(height: 7),
-              Text(subtitle, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF74818B), height: 1.5)),
+              Text(subtitle, textAlign: TextAlign.center, style: const TextStyle(color: VelixeoBrand.muted, height: 1.5)),
             ],
           ),
         ),
