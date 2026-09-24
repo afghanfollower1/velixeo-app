@@ -53,7 +53,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
   Map<String, String>? _pendingNotificationOpen;
   ({String title, String body, Map<String, String> data})? _foregroundPush;
 
-  bool get fa => false; // English-first release. Persian layout will be enabled in the next design pass.
+  bool get fa => language == AppLang.fa;
   bool get googleConfigured => googleAuth.configured;
   int get unreadNotificationCount => notifications.where((notice) => !notice.isRead).length;
 
@@ -805,7 +805,7 @@ class _VelixeoAppState extends State<VelixeoApp> {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
-        final theme = VelixeoDesign.theme(controller.fa);
+        final theme = controller.fa ? VelixeoFaDesign.theme : VelixeoEnDesign.theme;
 
         return MaterialApp(
           debugShowCheckedModeBanner: false,
