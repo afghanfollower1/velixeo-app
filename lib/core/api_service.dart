@@ -160,6 +160,15 @@ class ApiService {
         refreshToken: json['refreshToken'] as String,
       );
 
+  Future<bool> health() async {
+    try {
+      final response = await _send('GET', '/health');
+      return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<AppSession> register({
     String fullName = '',
     required String identifier,
