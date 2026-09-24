@@ -160,15 +160,15 @@ class _PremiumPanelPageState extends State<PremiumPanelPage> {
 
   Widget _buildPersianPremium(BuildContext context) => Directionality(
         textDirection: TextDirection.rtl,
-        child: _buildPremiumCatalog(context),
+        child: _buildPersianPremiumCatalog(context),
       );
 
   Widget _buildEnglishPremium(BuildContext context) => Directionality(
         textDirection: TextDirection.ltr,
-        child: _buildPremiumCatalog(context),
+        child: _buildEnglishPremiumCatalog(context),
       );
 
-  Widget _buildPremiumCatalog(BuildContext context) {
+  Widget _buildPersianPremiumCatalog(BuildContext context) {
     final groups = ['ALL', ...{
       for (final product in catalog.products) product.group,
     }];
@@ -179,7 +179,173 @@ class _PremiumPanelPageState extends State<PremiumPanelPage> {
       body: RefreshIndicator(
         onRefresh: load,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 30),
+          padding: VelixeoFaDesign.pagePadding,
+          children: [
+            _PremiumBanner(fa: fa, banner: catalog.banner),
+            const SizedBox(height: 14),
+            TextField(
+              controller: search,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search_rounded),
+                hintText: t('جستجوی تلگرام پریمیوم، اسنپ‌چت پلاس...', 'Search Telegram Premium, Snapchat+...'),
+                suffixIcon: search.text.isEmpty
+                    ? null
+                    : IconButton(onPressed: search.clear, icon: const Icon(Icons.close_rounded)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 38,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: groups.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 7),
+                itemBuilder: (context, index) {
+                  final value = groups[index];
+                  final selected = group == value;
+                  return ChoiceChip(
+                    label: Text(groupLabel(value)),
+                    selected: selected,
+                    onSelected: (_) => setState(() => group = value),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    t('محصولات پریمیوم', 'Premium products'),
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                  ),
+                ),
+                Text(
+                  t('${visibleProducts.length} محصول', '${visibleProducts.length} products'),
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF718197)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            if (loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 36),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (error != null)
+              _PremiumNotice(
+                icon: Icons.cloud_off_rounded,
+                title: t('دریافت اطلاعات انجام نشد', 'Could not load Premium catalog'),
+                body: error!,
+              )
+            else if (visibleProducts.isEmpty)
+              _PremiumNotice(
+                icon: Icons.workspace_premium_outlined,
+                title: t('محصولی پیدا نشد', 'No products found'),
+                body: t(
+                  'محصولات از پنل مدیریت VELIXEO اضافه می‌شوند.',
+                  'Products are managed from VELIXEO Admin.',
+                ),
+              )
+            else
+              ...visibleProducts.map((product) {
+                final color = groupColor(product.group);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(18),
+                    onTap: () => openProduct(product),
+                    child: Container(
+                      padding: const EdgeInsets.all(13),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFFE7EEF2)),
+                      ),
+                      child: Row(
+                        children: [
+                          _PremiumProductIcon(product: product, color: color, size: 50),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(children: [
+                                  Flexible(
+                                    child: Text(
+                                      fa ? product.titleFa : product.titleEn,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13.5),
+                                    ),
+                                  ),
+                                  if (product.featured) ...[
+                                    const SizedBox(width: 5),
+                                    const Icon(Icons.star_rounded, color: Color(0xFFFFA928), size: 17),
+                                  ],
+                                ]),
+                                const SizedBox(height: 4),
+                                Text(
+                                  t(
+                                    'تحویل ${product.deliveryMinHours} تا ${product.deliveryMaxHours} ساعت',
+                                    'Delivery in ${product.deliveryMinHours}–${product.deliveryMaxHours} hours',
+                                  ),
+                                  style: const TextStyle(fontSize: 10.5, color: Color(0xFF76879A)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              if (product.minPriceAfn != null) ...[
+                                Text(
+                                  t('از', 'From'),
+                                  style: const TextStyle(fontSize: 9.5, color: Color(0xFF8795A6)),
+                                ),
+                                Text(
+                                  host.money(product.minPriceAfn!),
+                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900, color: Color(0xFF38BDF8)),
+                                ),
+                              ],
+                              const SizedBox(height: 4),
+                              const Icon(Icons.chevron_right_rounded, color: Color(0xFF7F8C9B)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            if (orders.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              Text(
+                t('سفارش‌های اخیر پریمیوم', 'Recent Premium orders'),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 9),
+              ...orders.take(5).map((order) => _PremiumOrderCard(host: host, order: order)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+Widget _buildEnglishPremiumCatalog(BuildContext context) {
+    final groups = ['ALL', ...{
+      for (final product in catalog.products) product.group,
+    }];
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(t('اکانت‌های پریمیوم', 'Premium Accounts')),
+      ),
+      body: RefreshIndicator(
+        onRefresh: load,
+        child: ListView(
+          padding: VelixeoEnDesign.pagePadding,
           children: [
             _PremiumBanner(fa: fa, banner: catalog.banner),
             const SizedBox(height: 14),
@@ -513,10 +679,14 @@ class _PremiumProductPageState extends State<PremiumProductPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => fa
+      ? _buildPersianPage(context)
+      : _buildEnglishPage(context);
+
+Widget _buildPersianPage(BuildContext context) {
     final description = fa ? product.descriptionFa : product.descriptionEn;
     final instructions = fa ? product.instructionsFa : product.instructionsEn;
-    return Scaffold(
+    return Directionality(textDirection: TextDirection.rtl, child: Scaffold(
       appBar: AppBar(title: Text(fa ? product.titleFa : product.titleEn)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
@@ -653,7 +823,150 @@ class _PremiumProductPageState extends State<PremiumProductPage> {
           ),
         ],
       ),
-    );
+    ))
+  }
+
+Widget _buildEnglishPage(BuildContext context) {
+    final description = fa ? product.descriptionFa : product.descriptionEn;
+    final instructions = fa ? product.instructionsFa : product.instructionsEn;
+    return Directionality(textDirection: TextDirection.ltr, child: Scaffold(
+      appBar: AppBar(title: Text(fa ? product.titleFa : product.titleEn)),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(17),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFF0F8FF), Color(0xFFEEF1FE)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              border: Border.all(color: const Color(0xFFE3E7F5)),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Row(
+              children: [
+                _PremiumProductIcon(product: product, color: const Color(0xFF7E8AC5), size: 64),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(fa ? product.titleFa : product.titleEn, style: const TextStyle(color: Color(0xFF344B63), fontSize: 19, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 5),
+                      Text(
+                        t(
+                          'تحویل ${product.deliveryMinHours} تا ${product.deliveryMaxHours} ساعت',
+                          'Delivery in ${product.deliveryMinHours}–${product.deliveryMaxHours} hours',
+                        ),
+                        style: const TextStyle(color: Color(0xFF74818B), fontSize: 11.5),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (description?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 14),
+            Text(description!, style: const TextStyle(color: Color(0xFF74818B), height: 1.55)),
+          ],
+          const SizedBox(height: 18),
+          Text(t('انتخاب پکیج', 'Choose a package'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 9),
+          ...product.packages.map((pkg) {
+            final selected = selectedPackage?.id == pkg.id;
+            final title = fa ? pkg.titleFa : pkg.titleEn;
+            final duration = fa ? pkg.durationFa : pkg.durationEn;
+            final badge = fa ? pkg.badgeFa : pkg.badgeEn;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: InkWell(
+                onTap: pkg.available ? () => setState(() => selectedPackage = pkg) : null,
+                borderRadius: BorderRadius.circular(15),
+                child: Container(
+                  padding: const EdgeInsets.all(13),
+                  decoration: BoxDecoration(
+                    color: selected ? const Color(0xFFFFF8E9) : Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: selected ? const Color(0xFFFFA928) : const Color(0xFFE7EEF2), width: selected ? 1.5 : 1),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded, color: pkg.available ? const Color(0xFFF3A523) : const Color(0xFFB3BDC8)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Row(children: [
+                            Flexible(child: Text(title.isNotEmpty ? title : duration, style: const TextStyle(fontWeight: FontWeight.w900))),
+                            if (badge?.trim().isNotEmpty == true) ...[
+                              const SizedBox(width: 6),
+                              Container(padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3), decoration: BoxDecoration(color: const Color(0xFFFFEBC4), borderRadius: BorderRadius.circular(999)), child: Text(badge!, style: const TextStyle(fontSize: 8.5, color: Color(0xFFA96B08), fontWeight: FontWeight.w800))),
+                            ],
+                          ]),
+                          if (duration.isNotEmpty) Text(duration, style: const TextStyle(fontSize: 10.5, color: Color(0xFF7D8B9B))),
+                          if (!pkg.available) Text(t('ناموجود', 'Out of stock'), style: const TextStyle(fontSize: 10, color: Color(0xFFC54152))),
+                        ]),
+                      ),
+                      Text(host.money(pkg.priceAfn), style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF38BDF8))),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+          if (instructions?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 9),
+            _PremiumNotice(icon: Icons.info_outline_rounded, title: t('قبل از خرید', 'Before purchase'), body: instructions!),
+          ],
+          const SizedBox(height: 18),
+          Text(t('اطلاعات موردنیاز', 'Required information'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 4),
+          Text(
+            t('فقط اطلاعات لازم برای فعال‌سازی را وارد کنید. رمز عبور درخواست نمی‌شود.', 'Enter only the information needed for activation. Passwords are not requested.'),
+            style: const TextStyle(fontSize: 11, color: Color(0xFF7C8A9B)),
+          ),
+          const SizedBox(height: 10),
+          ...product.formFields.map((field) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: fieldWidget(field),
+              )),
+          if (error != null) ...[
+            const SizedBox(height: 4),
+            _PremiumNotice(icon: Icons.error_outline_rounded, title: t('سفارش ثبت نشد', 'Order not placed'), body: error!, error: true),
+          ],
+          const SizedBox(height: 18),
+          Container(
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(color: const Color(0xFFF6F9FC), borderRadius: BorderRadius.circular(15), border: Border.all(color: const Color(0xFFE4EAF1))),
+            child: Row(children: [
+              const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF38BDF8)),
+              const SizedBox(width: 10),
+              Expanded(child: Text(t('موجودی کیف پول', 'Wallet balance'), style: const TextStyle(fontWeight: FontWeight.w800))),
+              Text(host.money(host.balanceAfn), style: const TextStyle(fontWeight: FontWeight.w900)),
+            ]),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 50,
+            child: FilledButton(
+              onPressed: submitting || selectedPackage == null ? null : submit,
+              child: Text(
+                selectedPackage == null
+                    ? t('پکیج موجودی نیست', 'No package available')
+                    : submitting
+                        ? t('در حال ثبت...', 'Placing order...')
+                        : t(
+                            'پرداخت و ثبت سفارش — ${host.money(selectedPackage!.priceAfn)}',
+                            'Pay & place order — ${host.money(selectedPackage!.priceAfn)}',
+                          ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ))
   }
 }
 
