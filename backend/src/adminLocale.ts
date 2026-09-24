@@ -951,6 +951,7 @@ export function registerAdminLocale(app: FastifyInstance) {
   app.addHook('onSend', async (request, reply, payload) => {
     const url = request.raw.url || '';
     if (!url.startsWith('/admin')) return payload;
+    if (url.startsWith('/admin/login')) return payload;
     const contentType = String(reply.getHeader('content-type') || '');
     if (!contentType.includes('text/html') || typeof payload !== 'string') return payload;
     if (payload.includes('velixeo-admin-locale-script')) return payload;
