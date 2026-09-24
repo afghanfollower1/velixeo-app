@@ -2718,6 +2718,18 @@ class _TwoFactorLoginPageState extends State<TwoFactorLoginPage>
 
   @override
   Widget build(BuildContext context) {
+    return widget.controller.fa
+        ? Directionality(
+            textDirection: TextDirection.rtl,
+            child: _buildTwoFactorView(context),
+          )
+        : Directionality(
+            textDirection: TextDirection.ltr,
+            child: _buildTwoFactorView(context),
+          );
+  }
+
+  Widget _buildTwoFactorView(BuildContext context) {
     final c = widget.controller;
     final challenge = c.pendingTwoFactor;
     final whatsappInbound = challenge?.isWhatsAppInbound == true;
@@ -6640,6 +6652,18 @@ class _AddFundsPageState extends State<AddFundsPage>
 
   @override
   Widget build(BuildContext context) {
+    return widget.controller.fa
+        ? Directionality(
+            textDirection: TextDirection.rtl,
+            child: _buildAddFundsView(context),
+          )
+        : Directionality(
+            textDirection: TextDirection.ltr,
+            child: _buildAddFundsView(context),
+          );
+  }
+
+  Widget _buildAddFundsView(BuildContext context) {
     final configured = c.paymentCapabilities.hesabPayConfigured;
     final environment = c.paymentCapabilities.hesabPayEnvironment;
     final recent = c.payments.take(8).toList(growable: false);
@@ -8100,6 +8124,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    return widget.controller.fa
+        ? Directionality(
+            textDirection: TextDirection.rtl,
+            child: _buildEditProfileView(context),
+          )
+        : Directionality(
+            textDirection: TextDirection.ltr,
+            child: _buildEditProfileView(context),
+          );
+  }
+
+  Widget _buildEditProfileView(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(tr(c.fa, 'ویرایش پروفایل', 'Edit profile'))),
       body: ListView(
@@ -8140,7 +8176,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
           ),
           const SizedBox(height: 24),
-          const SectionTitle('Basic information'),
+          SectionTitle(tr(c.fa, 'اطلاعات پایه', 'Basic information')),
           const SizedBox(height: 10),
           TextField(
             controller: fullName,
@@ -9167,6 +9203,18 @@ class _SecurityPageState extends State<SecurityPage> {
 
   @override
   Widget build(BuildContext context) {
+    return widget.controller.fa
+        ? Directionality(
+            textDirection: TextDirection.rtl,
+            child: _buildSecurityView(context),
+          )
+        : Directionality(
+            textDirection: TextDirection.ltr,
+            child: _buildSecurityView(context),
+          );
+  }
+
+  Widget _buildSecurityView(BuildContext context) {
     final s = state;
     return Scaffold(
       appBar: AppBar(title: Text(tr(c.fa, 'امنیت و ورود', 'Security & login'))),
@@ -9178,7 +9226,7 @@ class _SecurityPageState extends State<SecurityPage> {
                 Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Color(0xFF082D58), VelixeoDesign.sky]),
+                    gradient: const LinearGradient(colors: [Color(0xFFEEF9FD), Color(0xFFE4F4FC)]),
                     borderRadius: BorderRadius.circular(22),
                   ),
                   child: Row(
@@ -9186,21 +9234,21 @@ class _SecurityPageState extends State<SecurityPage> {
                       Container(
                         width: 54,
                         height: 54,
-                        decoration: BoxDecoration(color: Colors.white.withValues(alpha: .14), borderRadius: BorderRadius.circular(17)),
-                        child: const Icon(Icons.shield_rounded, color: Colors.white, size: 29),
+                        decoration: BoxDecoration(color: const Color(0xFFE6F4FA), borderRadius: BorderRadius.circular(17)),
+                        child: const Icon(Icons.shield_rounded, color: Color(0xFF4B9FC1), size: 29),
                       ),
                       const SizedBox(width: 13),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(tr(c.fa, 'حفاظت از حساب VELIXEO', 'Protect your VELIXEO account'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
+                            Text(tr(c.fa, 'حفاظت از حساب VELIXEO', 'Protect your VELIXEO account'), style: const TextStyle(color: Color(0xFF2C5366), fontWeight: FontWeight.w700, fontSize: 16)),
                             const SizedBox(height: 4),
                             Text(
                               s.twoFactorEnabled
                                   ? tr(c.fa, 'احراز دو مرحله‌ای فعال است.', 'Two-step verification is enabled.')
                                   : tr(c.fa, 'با فعال‌کردن 2FA یک لایه امنیتی دیگر اضافه کنید.', 'Add another layer of protection with 2FA.'),
-                              style: const TextStyle(color: Color(0xFFD8ECFF), fontSize: 11.5, height: 1.4),
+                              style: const TextStyle(color: Color(0xFF7293A5), fontSize: 11, height: 1.55),
                             ),
                           ],
                         ),
