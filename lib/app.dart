@@ -947,7 +947,8 @@ class BrandMark extends StatelessWidget {
             SizedBox(width: size * .18),
             Text(
               'VELIXEO',
-              style: const TextStyle(fontFamily: 'Inter',
+              style: TextStyle(
+                fontFamily: 'Inter',
                 fontSize: size * .43,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.7,
