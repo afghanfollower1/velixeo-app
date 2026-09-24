@@ -4723,20 +4723,61 @@ class DigitalAccountsHubPage extends StatelessWidget {
   final AppController controller;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => controller.fa
+      ? _buildPersian(context)
+      : _buildEnglish(context);
+
+  Widget _buildPersian(BuildContext context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: _buildPage(
+          context,
+          title: 'حساب‌های دیجیتال',
+          heroTitle: 'همهٔ حساب‌ها و ابزارهای دیجیتال',
+          heroBody: 'VPN، استریم، لایسنس، ابزارهای آنلاین و حساب‌های دیجیتال را از این بخش تهیه کن.',
+          emptyTitle: 'هنوز حساب دیجیتال اضافه نشده',
+          emptyBody: 'محصولات این بخش از پنل مدیریت حساب‌های دیجیتال اضافه می‌شوند.',
+          priceFallback: 'قیمت و تحویل توسط مدیریت تعیین می‌شود',
+          direction: TextDirection.rtl,
+        ),
+      );
+
+  Widget _buildEnglish(BuildContext context) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: _buildPage(
+          context,
+          title: 'Digital Accounts',
+          heroTitle: 'Digital accounts & tools',
+          heroBody: 'Get VPN, streaming, licenses, online tools and digital accounts from one place.',
+          emptyTitle: 'No digital accounts yet',
+          emptyBody: 'Products for this section are created from Digital Accounts in Admin.',
+          priceFallback: 'Pricing and delivery are managed from Admin',
+          direction: TextDirection.ltr,
+        ),
+      );
+
+  Widget _buildPage(
+    BuildContext context, {
+    required String title,
+    required String heroTitle,
+    required String heroBody,
+    required String emptyTitle,
+    required String emptyBody,
+    required String priceFallback,
+    required TextDirection direction,
+  }) {
     final c = controller;
     final items = c.catalogServices
         .where((service) => service.category == 'DIGITAL_ACCOUNT')
         .toList(growable: false);
     return Scaffold(
-      appBar: AppBar(title: Text(tr(c.fa, 'اکانت‌های دیجیتال', 'Digital Accounts'))),
+      appBar: AppBar(title: Text(title)),
       body: RefreshIndicator(
         onRefresh: c.refreshAccount,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 30),
           children: [
             Container(
-              padding: const EdgeInsets.all(22),
+              padding: const EdgeInsets.all(21),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [Color(0xFFEEFBFA), Color(0xFFE4F4FC)],
@@ -4748,32 +4789,43 @@ class DigitalAccountsHubPage extends StatelessWidget {
               ),
               child: Row(
                 children: [
+                  Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEAF8F4),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Icon(
+                      Icons.manage_accounts_rounded,
+                      color: Color(0xFF69AE9B),
+                      size: 29,
+                    ),
+                  ),
+                  const SizedBox(width: 13),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          tr(c.fa, 'اکانت‌ها و خدمات دیجیتال', 'Digital accounts & services'),
-                          style: const TextStyle(color: Color(0xFF2C5366), fontSize: 19, fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(height: 7),
-                        Text(
-                          tr(
-                            c.fa,
-                            'نتفلیکس، VPN، سرویس‌های استریم، ابزارهای آنلاین، لایسنس‌ها و اکانت‌های دیجیتال از این بخش مدیریت می‌شوند.',
-                            'Netflix, VPN, streaming services, online tools, licenses and other digital accounts belong here.',
+                          heroTitle,
+                          style: const TextStyle(
+                            color: Color(0xFF2C5366),
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
                           ),
-                          style: const TextStyle(color: Color(0xFF7293A5), fontSize: 11.5, height: 1.65),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          heroBody,
+                          style: const TextStyle(
+                            color: Color(0xFF7293A5),
+                            fontSize: 10.5,
+                            height: 1.65,
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    width: 58,
-                    height: 58,
-                    decoration: BoxDecoration(color: const Color(0xFFEAF8F4), borderRadius: BorderRadius.circular(18)),
-                    child: const Icon(Icons.manage_accounts_rounded, color: Color(0xFF69AE9B), size: 30),
                   ),
                 ],
               ),
@@ -4782,49 +4834,83 @@ class DigitalAccountsHubPage extends StatelessWidget {
             if (items.isEmpty)
               EmptyCard(
                 icon: Icons.manage_accounts_outlined,
-                title: tr(c.fa, 'هنوز اکانت دیجیتال اضافه نشده', 'No digital accounts yet'),
-                subtitle: tr(
-                  c.fa,
-                  'محصولات این بخش از پنل ادمین Digital Accounts اضافه می‌شوند.',
-                  'Products for this section are created from Digital Accounts in Admin.',
-                ),
+                title: emptyTitle,
+                subtitle: emptyBody,
               )
             else
               ...items.map((service) {
                 final color = catalogColor(service.category);
+                final titleText = direction == TextDirection.rtl
+                    ? service.titleFa
+                    : service.titleEn;
+                final subtitle = service.basePriceAfn == null
+                    ? priceFallback
+                    : (direction == TextDirection.rtl ? 'از ' : 'From ') +
+                        c.money(service.basePriceAfn!);
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: SoftCard(
+                  child: InkWell(
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => CatalogServicePage(controller: c, service: service)),
+                      MaterialPageRoute(
+                        builder: (_) => CatalogServicePage(
+                          controller: c,
+                          service: service,
+                        ),
+                      ),
                     ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(color: color.withValues(alpha: .10), borderRadius: BorderRadius.circular(15)),
-                          child: Icon(Icons.manage_accounts_rounded, color: color),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(c.fa ? service.titleFa : service.titleEn, style: const TextStyle(fontWeight: FontWeight.w900)),
-                              const SizedBox(height: 3),
-                              Text(
-                                service.basePriceAfn == null
-                                    ? tr(c.fa, 'قیمت و تحویل از پنل ادمین مدیریت می‌شود', 'Pricing and delivery are managed from Admin')
-                                    : tr(c.fa, 'از ${c.money(service.basePriceAfn!)}', 'From ${c.money(service.basePriceAfn!)}'),
-                                style: const TextStyle(fontSize: 11.5, color: VelixeoDesign.muted),
-                              ),
-                            ],
+                    borderRadius: BorderRadius.circular(18),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFFEEF2F5)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: .10),
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            child: Icon(Icons.manage_accounts_rounded, color: color),
                           ),
-                        ),
-                        const Icon(Icons.chevron_right_rounded),
-                      ],
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  titleText,
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: VelixeoBrand.ink,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  subtitle,
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    color: VelixeoBrand.muted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            direction == TextDirection.rtl
+                                ? Icons.chevron_left_rounded
+                                : Icons.chevron_right_rounded,
+                            size: 18,
+                            color: const Color(0xFF97A8B2),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -4835,6 +4921,7 @@ class DigitalAccountsHubPage extends StatelessWidget {
     );
   }
 }
+
 
 class CatalogServicePage extends StatelessWidget {
   const CatalogServicePage({super.key, required this.controller, required this.service});
