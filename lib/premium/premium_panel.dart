@@ -723,13 +723,11 @@ class _PremiumProductIcon extends StatelessWidget {
     required this.product,
     required this.color,
     required this.size,
-    this.darkBackground = false,
   });
 
   final PremiumProduct product;
   final Color color;
   final double size;
-  final bool darkBackground;
 
   @override
   Widget build(BuildContext context) {
@@ -738,17 +736,17 @@ class _PremiumProductIcon extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: darkBackground ? Colors.white.withValues(alpha: .15) : color.withValues(alpha: .10),
+        color: color.withValues(alpha: .10),
         borderRadius: BorderRadius.circular(size * .28),
       ),
       clipBehavior: Clip.antiAlias,
       child: image.isEmpty
-          ? Icon(Icons.workspace_premium_rounded, color: darkBackground ? Colors.white : color, size: size * .48)
+          ? Icon(Icons.workspace_premium_rounded, color: color, size: size * .48)
           : Image.network(
               image,
               fit: BoxFit.contain,
               cacheWidth: 192,
-              errorBuilder: (_, __, ___) => Icon(Icons.workspace_premium_rounded, color: darkBackground ? Colors.white : color),
+              errorBuilder: (_, __, ___) => Icon(Icons.workspace_premium_rounded, color: color),
             ),
     );
   }
