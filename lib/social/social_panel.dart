@@ -1233,7 +1233,7 @@ class _SocialInfoHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        minHeight: 155,
+        constraints: const BoxConstraints(minHeight: 155),
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
