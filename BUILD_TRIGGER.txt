@@ -1,19 +1,14 @@
-Trigger signed Android build - VELIXEO v0.12.0 - 2026-09-24.
+Trigger signed Android build - VELIXEO v0.13.0 - 2026-09-24.
 Release scope:
-1) Match the supplied VELIXEO reference UI across the complete mobile and Admin product surface.
-2) App coverage: 41/41 primary routes/screens with independent Persian RTL and English LTR presentation.
-3) Admin coverage: 53/53 screens/subscreens with responsive FA/EN presentation.
-4) Apply reference headers, back navigation, typography, spacing, cards, tabs, states and brand icon.
-5) Social Media uses exactly one Admin-managed banner; legacy built-in duplicate hero is removed.
-6) Banner Admin supports create, edit, enable/disable and delete; Social and Virtual routes stay isolated.
-7) Services root is Digital Services and routes to Social, Virtual Numbers, Premium Memberships, Mobile Top-up and Digital Accounts.
-8) Notification Center follows the reference hero, counters, filters, type icons, cards and localized empty/action states.
-9) Wallet uses semantic localized transaction titles/icons for top-up, purchase, refund and adjustments.
-10) Profile displays verified state and real account role (User/Admin).
-11) Security turns green and reports the account secure when email, phone and 2FA are all verified/enabled.
-12) Virtual Numbers uses the reference header/hero with "One number, for what you need" and keeps live provider logic.
-13) VELIXEO brand mark/icon is used consistently; palette remains #38BDF8 / #F6F9FC / #24343D.
-14) Promotions stay removed; Premium and Digital Accounts stay separate; Mobile Top-up stays Coming Soon.
-15) Preserve real provider, wallet, HesabPay, OTP/2FA, support, referrals and updater behavior.
-16) Version: 0.12.0+32.
-17) Release only after Flutter CI, Backend CI and signed preview APK pass.
+1) Restore the intended Social Media light reference hero: «یک قدم جلوتر دیده شو / Take your presence further».
+2) Remove the accidental blank blue Social banner from the customer order screen.
+3) Make My Orders tabs functional: All, In progress, Completed and Pending.
+4) Add Social Orders status filters: All, Pending, In progress, Completed and Cancelled.
+5) Add Social Orders search by VELIXEO order ID or order link.
+6) Keep refill, drip-feed, provider sync and order lifecycle behavior unchanged.
+7) Admin V3 now resolves locale before rendering and uses independent Persian RTL and English LTR presentation paths.
+8) Remove the response-level Admin translation hook.
+9) Keep the supplied VELIXEO design tokens: #38BDF8 / #F6F9FC / #24343D, white sidebar/cards, Vazirmatn FA and Inter EN.
+10) Preserve providers, payments, wallets, banners, notifications, support and settings.
+11) Version: 0.13.0+33.
+12) Release only after Flutter and Backend CI pass.
