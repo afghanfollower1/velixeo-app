@@ -110,13 +110,13 @@ class _InviteFriendsPageState extends State<InviteFriendsPage>{
                 Row(children:[
                   Expanded(child:_Metric(icon:Icons.group_add_rounded,label:t('دوستان دعوت‌شده','Invited friends'),value:'${s.inviteCount}',accent:const Color(0xFF16A875))),
                   const SizedBox(width:10),
-                  Expanded(child:_Metric(icon:Icons.percent_rounded,label:t('نرخ کمیسیون','Commission rate'),value:'${percent(s.rewardPercent)}%',accent:const Color(0xFF1686FF))),
+                  Expanded(child:_Metric(icon:Icons.percent_rounded,label:t('نرخ کمیسیون','Commission rate'),value:'${percent(s.rewardPercent)}%',accent:const Color(0xFF38BDF8))),
                 ]),
                 const SizedBox(height:10),
                 Row(children:[
                   Expanded(child:_Metric(icon:Icons.account_balance_wallet_outlined,label:t('شارژ کاربران دعوت‌شده','Referred top-ups'),value:widget.host.money(s.totalQualifyingTopupsAfn,showBase:true),accent:const Color(0xFF805AD5))),
                   const SizedBox(width:10),
-                  Expanded(child:_Metric(icon:Icons.toll_rounded,label:t('کمیسیون دریافت‌شده','Commission earned'),value:widget.host.money(s.totalRewardsAfn,showBase:true),accent:const Color(0xFF1686FF))),
+                  Expanded(child:_Metric(icon:Icons.toll_rounded,label:t('کمیسیون دریافت‌شده','Commission earned'),value:widget.host.money(s.totalRewardsAfn,showBase:true),accent:const Color(0xFF38BDF8))),
                 ]),
                 const SizedBox(height:14),
                 _Card(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -145,14 +145,14 @@ class _InviteFriendsPageState extends State<InviteFriendsPage>{
                   Row(children:[
                     Expanded(child:OutlinedButton.icon(onPressed:shareWhatsApp,icon:const Icon(Icons.chat_rounded,color:Color(0xFF20A76F)),label:const Text('WhatsApp'))),
                     const SizedBox(width:8),
-                    Expanded(child:OutlinedButton.icon(onPressed:shareTelegram,icon:const Icon(Icons.send_rounded,color:Color(0xFF1686FF)),label:const Text('Telegram'))),
+                    Expanded(child:OutlinedButton.icon(onPressed:shareTelegram,icon:const Icon(Icons.send_rounded,color:Color(0xFF38BDF8)),label:const Text('Telegram'))),
                   ]),
                 ])),
                 const SizedBox(height:14),
                 _Card(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                   Row(children:[
                     Expanded(child:Text(t('دوستان دعوت‌شده','Invited friends'),style:const TextStyle(fontWeight:FontWeight.w900,fontSize:16))),
-                    Text('${s.invites.length}',style:const TextStyle(color:Color(0xFF1686FF),fontWeight:FontWeight.w900)),
+                    Text('${s.invites.length}',style:const TextStyle(color:Color(0xFF38BDF8),fontWeight:FontWeight.w900)),
                   ]),
                   const SizedBox(height:10),
                   if(s.invites.isEmpty)
@@ -216,7 +216,7 @@ class _CopyRow extends StatelessWidget{
    const SizedBox(height:5),
    Row(children:[
     Expanded(child:SelectableText(value,style:const TextStyle(fontSize:12.5,fontWeight:FontWeight.w900),maxLines:2)),
-    IconButton(onPressed:onCopy,icon:const Icon(Icons.copy_rounded,color:Color(0xFF1686FF))),
+    IconButton(onPressed:onCopy,icon:const Icon(Icons.copy_rounded,color:Color(0xFF38BDF8))),
    ]),
   ]),
  );
@@ -228,16 +228,16 @@ class _InviteTile extends StatelessWidget{
   padding:const EdgeInsets.symmetric(vertical:11),
   decoration:const BoxDecoration(border:Border(bottom:BorderSide(color:Color(0xFFEDF2F7)))),
   child:Row(children:[
-   const CircleAvatar(backgroundColor:Color(0xFFEAF5FF),child:Icon(Icons.person_outline_rounded,color:Color(0xFF1686FF))),
+   const CircleAvatar(backgroundColor:Color(0xFFEAF5FF),child:Icon(Icons.person_outline_rounded,color:Color(0xFF38BDF8))),
    const SizedBox(width:10),
    Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
     Text(invite.name,style:const TextStyle(fontWeight:FontWeight.w800)),
     Text(invite.createdAt.toLocal().toString().substring(0,10),style:const TextStyle(fontSize:10,color:Color(0xFF8A98A6))),
    ])),
    Column(crossAxisAlignment:CrossAxisAlignment.end,children:[
-    Text(invite.rewardCount>0?(fa?'${invite.rewardCount} شارژ موفق':'${invite.rewardCount} verified top-ups'):(fa?'هنوز شارژ نشده':'No top-up yet'),style:const TextStyle(fontSize:10,fontWeight:FontWeight.w800,color:Color(0xFF18A875))),
+    Text(invite.rewardCount>0?(fa?'${invite.rewardCount} شارژ موفق':'${invite.rewardCount} verified top-ups'):(fa?'هنوز شارژ نشده':'No top-up yet'),style:const TextStyle(fontSize:10,fontWeight:FontWeight.w800,color:Color(0xFF158365))),
     if(invite.qualifyingTopupAfn>0)Text(fa?'شارژ: ${money(invite.qualifyingTopupAfn,showBase:true)}':'Top-ups: ${money(invite.qualifyingTopupAfn,showBase:true)}',style:const TextStyle(fontSize:9.5,color:Color(0xFF718399))),
-    if(invite.rewardAfn>0)Text(fa?'کمیسیون: ${money(invite.rewardAfn,showBase:true)}':'Commission: ${money(invite.rewardAfn,showBase:true)}',style:const TextStyle(fontSize:10,color:Color(0xFF1686FF),fontWeight:FontWeight.w800)),
+    if(invite.rewardAfn>0)Text(fa?'کمیسیون: ${money(invite.rewardAfn,showBase:true)}':'Commission: ${money(invite.rewardAfn,showBase:true)}',style:const TextStyle(fontSize:10,color:Color(0xFF38BDF8),fontWeight:FontWeight.w800)),
    ]),
   ]),
  );
