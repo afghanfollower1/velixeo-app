@@ -138,7 +138,10 @@ class _InviteFriendsPageState extends State<InviteFriendsPage>{
   }) {
     final s = summary;
     return Scaffold(
-      appBar: AppBar(title: Text(appBarTitle)),
+      appBar: VelixeoFaAppBar(
+        title: appBarTitle,
+        subtitle: subtitle,
+      ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -383,7 +386,10 @@ Widget _buildEnglishReferralPage(
   }) {
     final s = summary;
     return Scaffold(
-      appBar: AppBar(title: Text(appBarTitle)),
+      appBar: VelixeoEnAppBar(
+        title: appBarTitle,
+        subtitle: subtitle,
+      ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
