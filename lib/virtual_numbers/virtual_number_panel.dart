@@ -1204,7 +1204,7 @@ class _SearchPickerSheetState<T> extends State<_SearchPickerSheet<T>> {
           ),
           Expanded(
             child:rows.isEmpty
-              ?const Center(child:Text('No results',style:TextStyle(color:Color(0xFF718399))))
+              ?Center(child:Text(Directionality.of(context)==TextDirection.rtl?'نتیجه‌ای پیدا نشد':'No results',style:const TextStyle(color:Color(0xFF74818B))))
               :ListView.separated(
                 controller:controller,
                 padding:const EdgeInsets.fromLTRB(12,2,12,20),
