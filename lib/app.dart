@@ -1624,6 +1624,8 @@ class _AuthPageState extends State<AuthPage> {
   final referralCode = TextEditingController();
   bool registerMode = false;
   bool hidden = true;
+  bool rememberMe = true;
+  bool termsAccepted = false;
   String registerMethod = 'EMAIL';
   String loginMethod = 'EMAIL';
   String countryCode = 'AF';
@@ -1939,248 +1941,497 @@ class _AuthPageState extends State<AuthPage> {
 
   @override
   Widget build(BuildContext context) {
+    return widget.controller.fa
+        ? _buildPersianAuth(context)
+        : _buildEnglishAuth(context);
+  }
+
+  Widget _buildPersianAuth(BuildContext context) {
     final c = widget.controller;
-    final fa = c.fa;
-    return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 34, 20, 28),
-          children: [
-            Text(
-              registerMode
-                  ? tr(fa, 'شروع یک تجربهٔ ساده‌تر', 'A simpler experience starts here')
-                  : tr(fa, 'سلام، خوش برگشتی', 'Welcome back'),
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontSize: 23,
-                    fontWeight: FontWeight.w700,
-                    color: VelixeoDesign.ink,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              registerMode
-                  ? tr(
-                      fa,
-                      'حسابت را بساز و خدمات دلخواهت را پیدا کن.',
-                      'Create your account and discover your services.',
-                    )
-                  : tr(
-                      fa,
-                      'برای ادامه، وارد حساب VELIXEO شو.',
-                      'Sign in to continue your VELIXEO journey.',
-                    ),
-              style: const TextStyle(
-                fontSize: 14,
-                color: VelixeoDesign.muted,
-              ),
-            ),
-            const SizedBox(height: 28),
-            if (registerMode) ...[
-              TextField(
-                controller: fullName,
-                textCapitalization: TextCapitalization.words,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.badge_outlined),
-                  hintText: tr(fa, 'نام و نام خانوادگی', 'Full name'),
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(22, 36, 22, 28),
+            children: [
+              Text(
+                registerMode ? 'شروع یک تجربهٔ ساده‌تر' : 'سلام، خوش برگشتی',
+                style: const TextStyle(
+                  fontSize: 23,
+                  height: 1.55,
+                  fontWeight: FontWeight.w700,
+                  color: VelixeoBrand.ink,
                 ),
               ),
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(color: const Color(0xFFF3F7FA), borderRadius: BorderRadius.circular(12)),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _AuthMethodButton(
-                        selected: registerMethod == 'EMAIL',
-                        icon: Icons.alternate_email_rounded,
-                        label: tr(fa, 'ایمیل', 'Email'),
-                        onTap: () => setState(() {
-                          registerMethod = 'EMAIL';
-                          identifier.clear();
-                        }),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: _AuthMethodButton(
-                        selected: registerMethod == 'PHONE',
-                        icon: Icons.phone_iphone_rounded,
-                        label: tr(fa, 'موبایل', 'Mobile'),
-                        onTap: () => setState(() {
-                          registerMethod = 'PHONE';
-                          identifier.clear();
-                        }),
-                      ),
-                    ),
-                  ],
+              const SizedBox(height: 6),
+              Text(
+                registerMode
+                    ? 'حسابت را بساز و خدمات دلخواهت را پیدا کن.'
+                    : 'برای ادامه، وارد حساب VELIXEO شو.',
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.8,
+                  color: VelixeoBrand.muted,
                 ),
               ),
-              const SizedBox(height: 14),
-              registrationIdentifier(fa),
-              const SizedBox(height: 14),
-              TextField(
-                controller: referralCode,
-                textCapitalization: TextCapitalization.characters,
-                autocorrect: false,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.redeem_rounded),
-                  hintText: tr(fa, 'کد دعوت (اختیاری)', 'Referral code (optional)'),
-                  helperText: tr(
-                    fa,
-                    'اگر دوستی شما را دعوت کرده، کد VXL او را اینجا وارد کنید.',
-                    'If a friend invited you, enter their VXL code here.',
+              const SizedBox(height: 25),
+              if (registerMode) ...[
+                TextField(
+                  controller: fullName,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'نام کامل',
+                    prefixIcon: Icon(Icons.badge_outlined),
                   ),
                 ),
-              ),
-            ] else ...[
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF3F7FA),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _AuthMethodButton(
-                        selected: loginMethod == 'EMAIL',
-                        icon: Icons.alternate_email_rounded,
-                        label: tr(fa, 'ورود با ایمیل', 'Email'),
-                        onTap: () => setState(() {
-                          loginMethod = 'EMAIL';
-                          identifier.clear();
-                        }),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: _AuthMethodButton(
-                        selected: loginMethod == 'PHONE',
-                        icon: Icons.phone_iphone_rounded,
-                        label: tr(fa, 'ورود با موبایل', 'Mobile'),
-                        onTap: () => setState(() {
-                          loginMethod = 'PHONE';
-                          identifier.clear();
-                        }),
-                      ),
-                    ),
+                const SizedBox(height: 13),
+                DropdownButtonFormField<String>(
+                  value: registerMethod,
+                  decoration: const InputDecoration(
+                    labelText: 'روش ثبت‌نام',
+                    prefixIcon: Icon(Icons.how_to_reg_outlined),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'EMAIL', child: Text('ایمیل')),
+                    DropdownMenuItem(value: 'PHONE', child: Text('شماره تماس')),
                   ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      registerMethod = value;
+                      identifier.clear();
+                    });
+                  },
                 ),
-              ),
-              const SizedBox(height: 14),
-              loginIdentifier(fa),
-            ],
-            const SizedBox(height: 14),
-            TextField(
-              controller: password,
-              obscureText: hidden,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.lock_outline),
-                hintText: tr(fa, 'رمز عبور', 'Password'),
-                suffixIcon: IconButton(
-                  onPressed: () => setState(() => hidden = !hidden),
-                  icon: Icon(hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                const SizedBox(height: 13),
+                registrationIdentifier(true),
+                const SizedBox(height: 13),
+              ] else ...[
+                DropdownButtonFormField<String>(
+                  value: loginMethod,
+                  decoration: const InputDecoration(
+                    labelText: 'روش ورود',
+                    prefixIcon: Icon(Icons.login_rounded),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'EMAIL', child: Text('ایمیل')),
+                    DropdownMenuItem(value: 'PHONE', child: Text('شماره تماس')),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      loginMethod = value;
+                      identifier.clear();
+                    });
+                  },
                 ),
-              ),
-            ),
-            if (registerMode) ...[
-              const SizedBox(height: 14),
+                const SizedBox(height: 13),
+                loginIdentifier(true),
+                const SizedBox(height: 13),
+              ],
               TextField(
-                controller: confirm,
+                controller: password,
                 obscureText: hidden,
                 decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.lock_reset_outlined),
-                  hintText: tr(fa, 'تکرار رمز عبور', 'Confirm password'),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Icon(
-                    registerMethod == 'EMAIL'
-                        ? (c.verificationCapabilities.email ? Icons.verified_user_rounded : Icons.info_outline_rounded)
-                        : ((c.verificationCapabilities.sms || c.verificationCapabilities.whatsapp) ? Icons.verified_user_rounded : Icons.info_outline_rounded),
-                    size: 17,
-                    color: VelixeoDesign.sky,
-                  ),
-                  const SizedBox(width: 7),
-                  Expanded(
-                    child: Text(
-                      registerMethod == 'EMAIL'
-                          ? tr(fa, 'در صورت فعال بودن SMTP، کد OTP به ایمیل ارسال می‌شود.', 'OTP will be sent by email when SMTP is configured.')
-                          : tr(fa, 'برای ثبت‌نام با موبایل، همین شماره باید یک حساب فعال WhatsApp داشته باشد.', 'To register with mobile, this exact number must have an active WhatsApp account.'),
-                      style: const TextStyle(fontSize: 10.5, color: Color(0xFF6E8194)),
+                  labelText: 'رمز عبور',
+                  prefixIcon: const Icon(Icons.lock_outline_rounded),
+                  suffixIcon: IconButton(
+                    onPressed: () => setState(() => hidden = !hidden),
+                    icon: Icon(
+                      hidden
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
                     ),
                   ),
-                ],
+                ),
               ),
-            ],
-            const SizedBox(height: 22),
-            PrimaryButton(
-              label: c.authBusy
-                  ? tr(fa, 'لطفاً صبر کنید...', 'Please wait...')
-                  : registerMode
-                      ? tr(fa, 'ساخت حساب', 'Create account')
-                      : tr(fa, 'ورود', 'Sign in'),
-              onPressed: c.authBusy ? null : submit,
-            ),
-            if (!registerMode) ...[
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  const Expanded(child: Divider()),
-                  Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text(tr(fa, 'یا', 'or'))),
-                  const Expanded(child: Divider()),
-                ],
-              ),
+              if (registerMode) ...[
+                const SizedBox(height: 13),
+                TextField(
+                  controller: confirm,
+                  obscureText: hidden,
+                  decoration: const InputDecoration(
+                    labelText: 'تکرار رمز عبور',
+                    prefixIcon: Icon(Icons.lock_reset_outlined),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const _AuthPasswordHint(
+                  text: 'حداقل ۸ نویسه، شامل حرف و عدد',
+                ),
+                const SizedBox(height: 13),
+                TextField(
+                  controller: referralCode,
+                  textCapitalization: TextCapitalization.characters,
+                  autocorrect: false,
+                  decoration: const InputDecoration(
+                    labelText: 'کد دعوت (اختیاری)',
+                    prefixIcon: Icon(Icons.redeem_rounded),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: termsAccepted,
+                  onChanged: (value) => setState(() => termsAccepted = value == true),
+                  title: const Text(
+                    'شرایط استفاده و حریم خصوصی را می‌پذیرم.',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                _AuthVerificationNotice(
+                  text: registerMethod == 'EMAIL'
+                      ? 'کد تأیید به ایمیل ارسال می‌شود.'
+                      : 'این شماره باید یک حساب فعال WhatsApp داشته باشد.',
+                ),
+              ] else ...[
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: rememberMe,
+                  onChanged: (value) => setState(() => rememberMe = value == true),
+                  title: const Text(
+                    'مرا به خاطر بسپار',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                ),
+              ],
               const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: OutlinedButton.icon(
-                  onPressed: c.authBusy || !c.googleConfigured
-                      ? null
-                      : () async {
-                          final ok = await c.loginWithGoogle();
-                          if (!mounted) return;
-                          if (!ok && c.pendingTwoFactor != null) {
-                            await Navigator.push(context, MaterialPageRoute(builder: (_) => TwoFactorLoginPage(controller: c)));
-                          } else if (!ok) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(errorMessage(c.authError ?? 'google_sign_in_failed'))),
-                            );
-                          }
-                        },
-                  icon: const Text('G', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Color(0xFF4285F4))),
-                  label: Text(c.googleConfigured ? tr(fa, 'ادامه با Google', 'Continue with Google') : tr(fa, 'Google — در انتظار تنظیم OAuth', 'Google — OAuth setup pending')),
+              FilledButton(
+                onPressed: c.authBusy || (registerMode && !termsAccepted)
+                    ? null
+                    : submit,
+                child: Text(
+                  c.authBusy
+                      ? 'لطفاً صبر کنید…'
+                      : registerMode
+                          ? 'ساخت حساب'
+                          : 'ورود',
+                ),
+              ),
+              if (!registerMode) ...[
+                const SizedBox(height: 18),
+                const _AuthDivider(label: 'یا ادامه با'),
+                const SizedBox(height: 13),
+                SizedBox(
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: c.authBusy || !c.googleConfigured
+                        ? null
+                        : () => _googleLogin(c),
+                    icon: const Text(
+                      'G',
+                      textDirection: TextDirection.ltr,
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w700,
+                        fontSize: 17,
+                        color: Color(0xFF4285F4),
+                      ),
+                    ),
+                    label: Text(
+                      c.googleConfigured
+                          ? 'ورود با Google'
+                          : 'Google — در انتظار تنظیم OAuth',
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 17),
+              Center(
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      registerMode ? 'قبلاً ثبت‌نام کرده‌ای؟ ' : 'حساب نداری؟ ',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: VelixeoBrand.muted,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: c.authBusy ? null : _toggleAuthMode,
+                      child: Text(registerMode ? 'ورود' : 'ساخت حساب'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => c.setLanguage(AppLang.en),
+                  icon: const Icon(Icons.language_rounded, size: 17),
+                  label: const Text('English'),
                 ),
               ),
             ],
-            const SizedBox(height: 18),
-            OutlinedButton(
-              onPressed: c.authBusy
-                  ? null
-                  : () => setState(() {
-                        registerMode = !registerMode;
-                        confirm.clear();
-                        identifier.clear();
-                      }),
-              child: Text(registerMode ? tr(fa, 'حساب دارید؟ وارد شوید', 'Already have an account? Sign in') : tr(fa, 'حساب ندارید؟ ثبت‌نام کنید', 'New here? Create account')),
-            ),
-            const SizedBox(height: 18),
-            Center(
-              child: TextButton.icon(
-                onPressed: () => c.setLanguage(fa ? AppLang.en : AppLang.fa),
-                icon: const Icon(Icons.language),
-                label: Text(fa ? 'English' : 'فارسی'),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
+
+  Widget _buildEnglishAuth(BuildContext context) {
+    final c = widget.controller;
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Scaffold(
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(22, 36, 22, 28),
+            children: [
+              Text(
+                registerMode
+                    ? 'A simpler experience starts here'
+                    : 'Welcome back',
+                style: const TextStyle(
+                  fontSize: 23,
+                  height: 1.35,
+                  fontWeight: FontWeight.w700,
+                  color: VelixeoBrand.ink,
+                ),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                registerMode
+                    ? 'Create your account and discover your services.'
+                    : 'Sign in to continue your VELIXEO journey.',
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.6,
+                  color: VelixeoBrand.muted,
+                ),
+              ),
+              const SizedBox(height: 25),
+              if (registerMode) ...[
+                TextField(
+                  controller: fullName,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Full name',
+                    prefixIcon: Icon(Icons.badge_outlined),
+                  ),
+                ),
+                const SizedBox(height: 13),
+                DropdownButtonFormField<String>(
+                  value: registerMethod,
+                  decoration: const InputDecoration(
+                    labelText: 'Registration method',
+                    prefixIcon: Icon(Icons.how_to_reg_outlined),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'EMAIL', child: Text('Email')),
+                    DropdownMenuItem(value: 'PHONE', child: Text('Phone number')),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      registerMethod = value;
+                      identifier.clear();
+                    });
+                  },
+                ),
+                const SizedBox(height: 13),
+                registrationIdentifier(false),
+                const SizedBox(height: 13),
+              ] else ...[
+                DropdownButtonFormField<String>(
+                  value: loginMethod,
+                  decoration: const InputDecoration(
+                    labelText: 'Sign-in method',
+                    prefixIcon: Icon(Icons.login_rounded),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'EMAIL', child: Text('Email')),
+                    DropdownMenuItem(value: 'PHONE', child: Text('Phone number')),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      loginMethod = value;
+                      identifier.clear();
+                    });
+                  },
+                ),
+                const SizedBox(height: 13),
+                loginIdentifier(false),
+                const SizedBox(height: 13),
+              ],
+              TextField(
+                controller: password,
+                obscureText: hidden,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  prefixIcon: const Icon(Icons.lock_outline_rounded),
+                  suffixIcon: IconButton(
+                    onPressed: () => setState(() => hidden = !hidden),
+                    icon: Icon(
+                      hidden
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                    ),
+                  ),
+                ),
+              ),
+              if (registerMode) ...[
+                const SizedBox(height: 13),
+                TextField(
+                  controller: confirm,
+                  obscureText: hidden,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirm password',
+                    prefixIcon: Icon(Icons.lock_reset_outlined),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const _AuthPasswordHint(
+                  text: 'At least 8 characters, including a letter and a number',
+                ),
+                const SizedBox(height: 13),
+                TextField(
+                  controller: referralCode,
+                  textCapitalization: TextCapitalization.characters,
+                  autocorrect: false,
+                  decoration: const InputDecoration(
+                    labelText: 'Referral code (optional)',
+                    prefixIcon: Icon(Icons.redeem_rounded),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: termsAccepted,
+                  onChanged: (value) => setState(() => termsAccepted = value == true),
+                  title: const Text(
+                    'I agree to the terms of use and privacy policy.',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                _AuthVerificationNotice(
+                  text: registerMethod == 'EMAIL'
+                      ? 'A verification code will be sent to your email.'
+                      : 'This exact phone number must have an active WhatsApp account.',
+                ),
+              ] else ...[
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: rememberMe,
+                  onChanged: (value) => setState(() => rememberMe = value == true),
+                  title: const Text(
+                    'Remember me',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
+              FilledButton(
+                onPressed: c.authBusy || (registerMode && !termsAccepted)
+                    ? null
+                    : submit,
+                child: Text(
+                  c.authBusy
+                      ? 'Please wait…'
+                      : registerMode
+                          ? 'Create account'
+                          : 'Sign in',
+                ),
+              ),
+              if (!registerMode) ...[
+                const SizedBox(height: 18),
+                const _AuthDivider(label: 'Or continue with'),
+                const SizedBox(height: 13),
+                SizedBox(
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: c.authBusy || !c.googleConfigured
+                        ? null
+                        : () => _googleLogin(c),
+                    icon: const Text(
+                      'G',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 17,
+                        color: Color(0xFF4285F4),
+                      ),
+                    ),
+                    label: Text(
+                      c.googleConfigured
+                          ? 'Continue with Google'
+                          : 'Google — OAuth setup pending',
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 17),
+              Center(
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      registerMode
+                          ? 'Already have an account? '
+                          : 'New to VELIXEO? ',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: VelixeoBrand.muted,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: c.authBusy ? null : _toggleAuthMode,
+                      child: Text(
+                        registerMode ? 'Sign in' : 'Create an account',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => c.setLanguage(AppLang.fa),
+                  icon: const Icon(Icons.language_rounded, size: 17),
+                  label: const Text('فارسی'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _toggleAuthMode() {
+    setState(() {
+      registerMode = !registerMode;
+      confirm.clear();
+      identifier.clear();
+      termsAccepted = false;
+    });
+  }
+
+  Future<void> _googleLogin(AppController c) async {
+    final ok = await c.loginWithGoogle();
+    if (!mounted) return;
+    if (!ok && c.pendingTwoFactor != null) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => TwoFactorLoginPage(controller: c)),
+      );
+    } else if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage(c.authError ?? 'google_sign_in_failed')),
+        ),
+      );
+    }
+  }
+
 }
 
 class _AuthMethodButton extends StatelessWidget {
