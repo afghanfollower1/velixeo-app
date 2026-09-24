@@ -145,7 +145,7 @@ class _InviteFriendsPageState extends State<InviteFriendsPage>{
               onRefresh: load,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                padding: VelixeoFaDesign.pagePadding,
                 children: [
                   Text(
                     heading,
@@ -390,7 +390,7 @@ Widget _buildEnglishReferralPage(
               onRefresh: load,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                padding: VelixeoEnDesign.pagePadding,
                 children: [
                   Text(
                     heading,
