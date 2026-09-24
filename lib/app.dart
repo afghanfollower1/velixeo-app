@@ -12,6 +12,7 @@ import 'core/google_auth_service.dart';
 import 'core/models.dart';
 import 'core/push_service.dart';
 import 'core/update_service.dart';
+import 'design/velixeo_design.dart';
 import 'social/social_panel.dart';
 import 'support/support_page.dart';
 import 'virtual_numbers/virtual_number_panel.dart';
@@ -804,83 +805,7 @@ class _VelixeoAppState extends State<VelixeoApp> {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
-        final theme = ThemeData(
-          useMaterial3: true,
-          brightness: Brightness.light,
-          colorScheme: const ColorScheme.light(
-            primary: Color(0xFF1686FF),
-            secondary: Color(0xFF37B6FF),
-            surface: Colors.white,
-            onSurface: Color(0xFF162235),
-            outline: Color(0xFFE3EAF2),
-          ),
-          scaffoldBackgroundColor: const Color(0xFFF7F9FC),
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Colors.white,
-            foregroundColor: Color(0xFF162235),
-            surfaceTintColor: Colors.transparent,
-            centerTitle: false,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            titleTextStyle: TextStyle(
-              color: Color(0xFF162235),
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          cardTheme: CardThemeData(
-            color: Colors.white,
-            elevation: 0,
-            margin: EdgeInsets.zero,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-              side: const BorderSide(color: Color(0xFFE7EDF4)),
-            ),
-          ),
-          dividerTheme: const DividerThemeData(color: Color(0xFFEDF1F6), thickness: 1),
-          navigationBarTheme: NavigationBarThemeData(
-            height: 68,
-            backgroundColor: Colors.white,
-            indicatorColor: const Color(0xFFE8F3FF),
-            elevation: 0,
-            labelTextStyle: WidgetStateProperty.resolveWith((states) => TextStyle(
-              color: states.contains(WidgetState.selected) ? const Color(0xFF1686FF) : const Color(0xFF8995A5),
-              fontSize: 11,
-              fontWeight: states.contains(WidgetState.selected) ? FontWeight.w800 : FontWeight.w600,
-            )),
-            iconTheme: WidgetStateProperty.resolveWith((states) => IconThemeData(
-              color: states.contains(WidgetState.selected) ? const Color(0xFF1686FF) : const Color(0xFF8995A5),
-              size: 23,
-            )),
-          ),
-          inputDecorationTheme: InputDecorationTheme(
-            filled: true,
-            fillColor: Colors.white,
-            hintStyle: const TextStyle(color: Color(0xFF9AA6B6), fontSize: 14),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFE3EAF2)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFE3EAF2)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFF1686FF), width: 1.4),
-            ),
-          ),
-          filledButtonTheme: FilledButtonThemeData(
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF1686FF),
-              foregroundColor: Colors.white,
-              minimumSize: const Size(0, 50),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              textStyle: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-          ),
-        );
+        final theme = VelixeoDesign.theme(controller.fa);
 
         return MaterialApp(
           debugShowCheckedModeBanner: false,
@@ -892,7 +817,7 @@ class _VelixeoAppState extends State<VelixeoApp> {
           ),
           home: AppUpdateGate(
             child: controller.booting
-                ? const SplashPage()
+                ? SplashPage(fa: controller.fa)
                 : controller.authenticated
                     ? MainShell(controller: controller)
                     : controller.languageConfirmed
@@ -906,18 +831,100 @@ class _VelixeoAppState extends State<VelixeoApp> {
 }
 
 class SplashPage extends StatelessWidget {
-  const SplashPage({super.key});
+  const SplashPage({super.key, required this.fa});
+  final bool fa;
 
   @override
-  Widget build(BuildContext context) => const Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              BrandMark(size: 86),
-              SizedBox(height: 28),
-              SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2.5)),
+  Widget build(BuildContext context) => Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const _SplashBrandOrb(),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'VELIXEO.',
+                    textDirection: TextDirection.ltr,
+                    style: TextStyle(fontFamily: 'Inter',
+                      fontSize: 29,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 4,
+                      color: VelixeoDesign.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    tr(fa, 'دنیای دیجیتال، در دسترس تو', 'Your digital world, within reach'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF7892A4),
+                    ),
+                  ),
+                  const SizedBox(height: 60),
+                  const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      backgroundColor: Color(0xFFDCF2FB),
+                      color: Color(0xFF36B1E4),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    tr(fa, 'در حال آماده‌سازی…', 'Getting everything ready…'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF7892A4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
+class _SplashBrandOrb extends StatelessWidget {
+  const _SplashBrandOrb();
+
+  @override
+  Widget build(BuildContext context) => Transform.rotate(
+        angle: -0.14,
+        child: Container(
+          width: 86,
+          height: 86,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(29),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF78D9F6), Color(0xFF2FB0E5)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x3030B4E5),
+                blurRadius: 40,
+                offset: Offset(0, 18),
+              ),
             ],
+          ),
+          child: const Text(
+            'V',
+            textDirection: TextDirection.ltr,
+            style: TextStyle(fontFamily: 'Inter',
+              color: Colors.white,
+              fontSize: 49,
+              height: 1,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
       );
@@ -941,8 +948,9 @@ class BrandMark extends StatelessWidget {
             Text(
               'VELIXEO',
               style: TextStyle(
+                fontFamily: 'Inter',
                 fontSize: size * .43,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w800,
                 letterSpacing: 1.7,
                 color: const Color(0xFF092C56),
               ),
@@ -1058,7 +1066,7 @@ class UserAvatar extends StatelessWidget {
               width: size * .34,
               height: size * .34,
               decoration: BoxDecoration(
-                color: const Color(0xFF1686FF),
+                color: VelixeoDesign.sky,
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
               ),
@@ -1128,7 +1136,7 @@ class _AvatarPainter extends CustomPainter {
       Color(0xFF874E25), Color(0xFF2C2C2C),
     ];
     const shirts = [
-      Color(0xFF1686FF), Color(0xFF7457E8), Color(0xFF14A57A), Color(0xFFF29A2E),
+      VelixeoDesign.sky, Color(0xFF7457E8), Color(0xFF14A57A), Color(0xFFF29A2E),
       Color(0xFFE9508B), Color(0xFF4667E8), Color(0xFF0FA7A0), Color(0xFF58708E),
     ];
 
@@ -1225,47 +1233,133 @@ class LanguagePage extends StatelessWidget {
     final fa = controller.fa;
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              const Spacer(),
-              const BrandMark(size: 82),
-              const SizedBox(height: 30),
-              Text(
-                tr(fa, 'زبان خود را انتخاب کنید', 'Choose your language'),
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
-                textAlign: TextAlign.center,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 34, 20, 26),
+          children: [
+            Text(
+              tr(fa, 'به زبان خودت، راحت‌تر', 'Feel right at home'),
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontSize: 23,
+                    fontWeight: FontWeight.w700,
+                    color: VelixeoDesign.ink,
+                  ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              tr(
+                fa,
+                'زبان دلخواهت را انتخاب کن. هر زمان می‌توانی آن را تغییر بدهی.',
+                'Choose your language. You can change it at any time.',
               ),
-              const SizedBox(height: 8),
-              Text(
-                tr(fa, 'هر زبان رابط واقعی خودش را دارد', 'Each language has its own native layout'),
-                style: const TextStyle(color: Color(0xFF607487)),
-                textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                color: VelixeoDesign.muted,
               ),
-              const SizedBox(height: 30),
-              LanguageTile(
-                title: 'فارسی',
-                subtitle: 'رابط راست‌به‌چپ',
-                flag: '🇦🇫',
-                selected: fa,
-                onTap: () => controller.setLanguage(AppLang.fa),
+            ),
+            const SizedBox(height: 24),
+            LanguageTile(
+              title: 'فارسی',
+              subtitle: tr(fa, 'چیدمان راست‌به‌چپ', 'Right-to-left layout'),
+              flag: 'ف',
+              selected: fa,
+              onTap: () => controller.setLanguage(AppLang.fa),
+            ),
+            const SizedBox(height: 12),
+            LanguageTile(
+              title: tr(fa, 'انگلیسی', 'English'),
+              subtitle: tr(fa, 'چیدمان چپ‌به‌راست', 'Left-to-right layout'),
+              flag: 'En',
+              selected: !fa,
+              onTap: () => controller.setLanguage(AppLang.en),
+            ),
+            const SizedBox(height: 20),
+            SoftCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          tr(fa, 'پیش‌نمایش رابط', 'Interface preview'),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: VelixeoDesign.muted,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEAF7FE),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          fa ? 'فارسی' : 'English',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF287495),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    tr(fa, 'سلام، نرگس 👋', 'Hi, Narges 👋'),
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    tr(
+                      fa,
+                      'همهٔ خدمات دیجیتال، یک‌جا.',
+                      'All your digital services, in one place.',
+                    ),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: VelixeoDesign.muted,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          tr(fa, 'موجودی', 'Balance'),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: VelixeoDesign.muted,
+                          ),
+                        ),
+                      ),
+                      const Text(
+                        '2,450 AFN',
+                        textDirection: TextDirection.ltr,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF287FA7),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              LanguageTile(
-                title: 'English',
-                subtitle: 'Left-to-right interface',
-                flag: '🌐',
-                selected: !fa,
-                onTap: () => controller.setLanguage(AppLang.en),
-              ),
-              const Spacer(),
-              PrimaryButton(
-                label: tr(fa, 'ادامه', 'Continue'),
-                onPressed: () => controller.chooseLanguage(controller.language),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 22),
+            PrimaryButton(
+              label: tr(fa, 'ادامه', 'Continue'),
+              onPressed: () => controller.chooseLanguage(controller.language),
+            ),
+          ],
         ),
       ),
     );
@@ -1288,37 +1382,76 @@ class LanguageTile extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: selected ? const Color(0xFF0D78C8) : const Color(0xFFDCE8F1),
-              width: selected ? 1.6 : 1,
+  Widget build(BuildContext context) => Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: selected ? const Color(0xFFEFFAFF) : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: selected ? VelixeoDesign.sky : VelixeoDesign.line,
+              ),
             ),
-          ),
-          child: Row(
-            children: [
-              Text(flag, style: const TextStyle(fontSize: 28)),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-                    Text(subtitle, style: const TextStyle(fontSize: 12, color: Color(0xFF607487))),
-                  ],
+            child: Row(
+              children: [
+                Container(
+                  width: 45,
+                  height: 45,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEAF7FD),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    flag,
+                    textDirection: flag == 'En'
+                        ? TextDirection.ltr
+                        : TextDirection.rtl,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF39AEE0),
+                    ),
+                  ),
                 ),
-              ),
-              Icon(
-                selected ? Icons.radio_button_checked : Icons.radio_button_off,
-                color: const Color(0xFF0D78C8),
-              ),
-            ],
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF8294A1),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  selected
+                      ? Icons.check_rounded
+                      : (Directionality.of(context) == TextDirection.rtl
+                          ? Icons.chevron_left_rounded
+                          : Icons.chevron_right_rounded),
+                  size: 20,
+                  color: selected
+                      ? VelixeoDesign.sky
+                      : const Color(0xFF9AAAB4),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -1660,21 +1793,35 @@ class _AuthPageState extends State<AuthPage> {
     return Scaffold(
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(20, 34, 20, 28),
           children: [
-            const SizedBox(height: 24),
-            const Center(child: BrandMark(size: 66)),
-            const SizedBox(height: 42),
             Text(
-              registerMode ? tr(fa, 'ساخت حساب VELIXEO', 'Create your VELIXEO account') : tr(fa, 'ورود به حساب کاربری', 'Welcome back'),
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
+              registerMode
+                  ? tr(fa, 'شروع یک تجربهٔ ساده‌تر', 'A simpler experience starts here')
+                  : tr(fa, 'سلام، خوش برگشتی', 'Welcome back'),
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontSize: 23,
+                    fontWeight: FontWeight.w700,
+                    color: VelixeoDesign.ink,
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
               registerMode
-                  ? tr(fa, 'با ایمیل یا شماره موبایل ثبت‌نام کنید.', 'Register with email or mobile number.')
-                  : tr(fa, 'برای ادامه وارد حساب خود شوید.', 'Sign in to continue.'),
-              style: const TextStyle(color: Color(0xFF607487)),
+                  ? tr(
+                      fa,
+                      'حسابت را بساز و خدمات دلخواهت را پیدا کن.',
+                      'Create your account and discover your services.',
+                    )
+                  : tr(
+                      fa,
+                      'برای ادامه، وارد حساب VELIXEO شو.',
+                      'Sign in to continue your VELIXEO journey.',
+                    ),
+              style: const TextStyle(
+                fontSize: 14,
+                color: VelixeoDesign.muted,
+              ),
             ),
             const SizedBox(height: 28),
             if (registerMode) ...[
@@ -1689,7 +1836,7 @@ class _AuthPageState extends State<AuthPage> {
               const SizedBox(height: 14),
               Container(
                 padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(color: const Color(0xFFF0F5FA), borderRadius: BorderRadius.circular(14)),
+                decoration: BoxDecoration(color: const Color(0xFFF3F7FA), borderRadius: BorderRadius.circular(12)),
                 child: Row(
                   children: [
                     Expanded(
@@ -1739,8 +1886,8 @@ class _AuthPageState extends State<AuthPage> {
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF0F5FA),
-                  borderRadius: BorderRadius.circular(14),
+                  color: const Color(0xFFF3F7FA),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
@@ -1804,7 +1951,7 @@ class _AuthPageState extends State<AuthPage> {
                         ? (c.verificationCapabilities.email ? Icons.verified_user_rounded : Icons.info_outline_rounded)
                         : ((c.verificationCapabilities.sms || c.verificationCapabilities.whatsapp) ? Icons.verified_user_rounded : Icons.info_outline_rounded),
                     size: 17,
-                    color: const Color(0xFF1686FF),
+                    color: VelixeoDesign.sky,
                   ),
                   const SizedBox(width: 7),
                   Expanded(
@@ -1915,9 +2062,9 @@ class _AuthMethodButton extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, size: 18, color: selected ? const Color(0xFF1686FF) : const Color(0xFF7B8B9C)),
+                Icon(icon, size: 18, color: selected ? VelixeoDesign.sky : const Color(0xFF7B8B9C)),
                 const SizedBox(width: 7),
-                Text(label, style: TextStyle(fontWeight: FontWeight.w900, color: selected ? const Color(0xFF1686FF) : const Color(0xFF7B8B9C))),
+                Text(label, style: TextStyle(fontWeight: FontWeight.w900, color: selected ? VelixeoDesign.sky : const Color(0xFF7B8B9C))),
               ],
             ),
           ),
@@ -2146,7 +2293,7 @@ class _TwoFactorLoginPageState extends State<TwoFactorLoginPage>
               ),
               child: Icon(
                 whatsappInbound ? Icons.chat_rounded : Icons.phonelink_lock_rounded,
-                color: whatsappInbound ? const Color(0xFF20A76F) : const Color(0xFF1686FF),
+                color: whatsappInbound ? const Color(0xFF20A76F) : VelixeoDesign.sky,
                 size: 39,
               ),
             ),
@@ -2193,7 +2340,7 @@ class _TwoFactorLoginPageState extends State<TwoFactorLoginPage>
                 'لینک وریفای را به گوشی دوم منتقل کنید و همان‌جا باز کنید. چت Velixeo با پیام آماده باز می‌شود؛ پیام را بدون تغییر ارسال کنید.',
                 'Move the verification link to the other phone and open it there. The Velixeo chat opens with a prepared message; send it without editing.',
               ),
-              style: const TextStyle(fontSize: 11.5, color: Color(0xFF607487), height: 1.45),
+              style: const TextStyle(fontSize: 11.5, color: VelixeoDesign.muted, height: 1.45),
             ),
             const SizedBox(height: 10),
             SizedBox(
@@ -2404,12 +2551,12 @@ class _MainShellState extends State<MainShell> {
         child: NavigationBar(
           selectedIndex: index,
           onDestinationSelected: (value) => setState(() => index = value),
-          destinations: const [
-            NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Home'),
-            NavigationDestination(icon: Icon(Icons.grid_view_outlined), selectedIcon: Icon(Icons.grid_view_rounded), label: 'Services'),
-            NavigationDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long_rounded), label: 'Orders'),
-            NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet_rounded), label: 'Wallet'),
-            NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Profile'),
+          destinations: [
+            NavigationDestination(icon: const Icon(Icons.home_outlined), selectedIcon: const Icon(Icons.home_rounded), label: tr(c.fa, 'خانه', 'Home')),
+            NavigationDestination(icon: const Icon(Icons.grid_view_outlined), selectedIcon: const Icon(Icons.grid_view_rounded), label: tr(c.fa, 'خدمات', 'Services')),
+            NavigationDestination(icon: const Icon(Icons.receipt_long_outlined), selectedIcon: const Icon(Icons.receipt_long_rounded), label: tr(c.fa, 'سفارش‌ها', 'Orders')),
+            NavigationDestination(icon: const Icon(Icons.account_balance_wallet_outlined), selectedIcon: const Icon(Icons.account_balance_wallet_rounded), label: tr(c.fa, 'کیف پول', 'Wallet')),
+            NavigationDestination(icon: const Icon(Icons.person_outline_rounded), selectedIcon: const Icon(Icons.person_rounded), label: tr(c.fa, 'پروفایل', 'Profile')),
           ],
         ),
       ),
@@ -2434,9 +2581,9 @@ class HomePage extends StatelessWidget {
     switch (status) {
       case 'COMPLETED': return const Color(0xFF18A875);
       case 'PROCESSING':
-      case 'IN_PROGRESS': return const Color(0xFF1686FF);
+      case 'IN_PROGRESS': return VelixeoDesign.sky;
       case 'FAILED':
-      case 'CANCELLED': return const Color(0xFFE65454);
+      case 'CANCELLED': return VelixeoDesign.red;
       default: return const Color(0xFFF0A326);
     }
   }
@@ -2460,7 +2607,7 @@ class HomePage extends StatelessWidget {
       child: RefreshIndicator(
         onRefresh: c.refreshAccount,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
           children: [
             Row(
               children: [
@@ -2468,9 +2615,9 @@ class HomePage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Hello, ${_firstName(identity)}!', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF172235))),
+                      Text(tr(c.fa, 'سلام، ${_firstName(identity)} 👋', 'Hi, ${_firstName(identity)} 👋'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: VelixeoDesign.ink)),
                       const SizedBox(height: 3),
-                      const Text('What would you like to do today?', style: TextStyle(fontSize: 12.5, color: Color(0xFF8793A3))),
+                      Text(tr(c.fa, 'امروز چه کاری می‌خواهی انجام بدهی؟', 'What would you like to do today?'), style: const TextStyle(fontSize: 12.5, color: VelixeoDesign.muted)),
                     ],
                   ),
                 ),
@@ -2489,10 +2636,10 @@ class HomePage extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Container(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
-                gradient: const LinearGradient(colors: [Color(0xFF1265D6), Color(0xFF1895FF)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                borderRadius: BorderRadius.circular(24),
+                gradient: const LinearGradient(colors: [Color(0xFF8ADDFF), Color(0xFFBCEAFF)], begin: Alignment.topLeft, end: Alignment.bottomRight),
                 boxShadow: const [BoxShadow(color: Color(0x221686FF), blurRadius: 24, offset: Offset(0, 10))],
               ),
               child: Row(
@@ -2502,19 +2649,19 @@ class HomePage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Wallet Balance', style: TextStyle(color: Color(0xFFCDE7FF), fontSize: 12, fontWeight: FontWeight.w600)),
+                        Text(tr(c.fa, 'موجودی کیف پول', 'Wallet balance'), style: const TextStyle(color: Color(0xFF4D7990), fontSize: 12, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 6),
-                        Text(c.money(c.balanceAfn), style: const TextStyle(color: Colors.white, fontSize: 27, fontWeight: FontWeight.w900, letterSpacing: -.5)),
+                        Text(c.money(c.balanceAfn), style: const TextStyle(color: Color(0xFF245168), fontSize: 30, fontWeight: FontWeight.w700, letterSpacing: .2)),
                         const SizedBox(height: 4),
-                        Text(c.secondaryBalance(), style: const TextStyle(color: Color(0xFFD9ECFF), fontSize: 11.5)),
+                        Text(c.secondaryBalance(), style: const TextStyle(color: Color(0xFF4D7990), fontSize: 11.5)),
                       ],
                     ),
                   ),
                   FilledButton.icon(
-                    style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF1686FF), minimumSize: const Size(0, 42), padding: const EdgeInsets.symmetric(horizontal: 13), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF245168), minimumSize: const Size(0, 35), padding: const EdgeInsets.symmetric(horizontal: 12), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11))),
                     onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => WalletPage(controller: c))),
                     icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text('Add funds', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+                    label: Text(tr(c.fa, 'افزایش موجودی', 'Add funds'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                   ),
                 ],
               ),
@@ -2525,17 +2672,63 @@ class HomePage extends StatelessWidget {
             ] else ...[
               const SizedBox(height: 14),
               Container(
-                height: 126,
                 padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(color: const Color(0xFF101F3B), borderRadius: BorderRadius.circular(20)),
-                child: Row(children: [
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: const [
-                    Text('Grow your social presence', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w900)),
-                    SizedBox(height: 6),
-                    Text('Fast, reliable digital services in one place.', style: TextStyle(color: Color(0xFFBFD0E6), fontSize: 12, height: 1.4)),
-                  ])),
-                  Container(width: 62, height: 62, decoration: BoxDecoration(color: const Color(0xFF1686FF).withValues(alpha: .18), borderRadius: BorderRadius.circular(20)), child: const Icon(Icons.rocket_launch_rounded, color: Color(0xFF51BEFF), size: 32)),
-                ]),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEDF7FC),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFDCEEF8)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tr(c.fa, 'همهٔ خدمات دیجیتال، یک‌جا', 'All your digital services, in one place'),
+                            style: const TextStyle(
+                              color: VelixeoDesign.ink,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            tr(c.fa, 'سریع، ساده و همیشه در دسترس.', 'Fast, simple and always within reach.'),
+                            style: const TextStyle(
+                              color: Color(0xFF87A3B3),
+                              fontSize: 10.5,
+                              height: 1.7,
+                            ),
+                          ),
+                          const SizedBox(height: 7),
+                          Text(
+                            tr(c.fa, 'مشاهده خدمات', 'Explore services'),
+                            style: const TextStyle(
+                              color: Color(0xFF347996),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Transform.rotate(
+                      angle: -0.16,
+                      child: const Text(
+                        'V',
+                        textDirection: TextDirection.ltr,
+                        style: TextStyle(
+                          fontSize: 64,
+                          height: 1,
+                          color: Color(0xFF76C8EB),
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
             const SizedBox(height: 19),
@@ -2546,11 +2739,23 @@ class HomePage extends StatelessWidget {
                 height: 48,
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE4EAF1))),
-                child: const Row(children: [Icon(Icons.search_rounded, color: Color(0xFF8D99A9), size: 21), SizedBox(width: 10), Expanded(child: Text('Search services...', style: TextStyle(color: Color(0xFF9AA6B6), fontSize: 13.5))), Icon(Icons.tune_rounded, color: Color(0xFF6B7787), size: 19)]),
+                child: Row(
+                  children: [
+                    const Icon(Icons.search_rounded, color: Color(0xFF849AA6), size: 21),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        tr(c.fa, 'جستجوی خدمات…', 'Search services...'),
+                        style: const TextStyle(color: Color(0xFF99A4AB), fontSize: 12.5),
+                      ),
+                    ),
+                    const Icon(Icons.tune_rounded, color: Color(0xFF6B7787), size: 19),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 23),
-            const _HomeSectionHeader(title: 'Services', action: 'View all'),
+            _HomeSectionHeader(title: tr(c.fa, 'خدمات', 'Services'), action: tr(c.fa, 'مشاهده همه', 'View all')),
             const SizedBox(height: 12),
             GridView.builder(
               shrinkWrap: true,
@@ -2563,12 +2768,23 @@ class HomePage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(17),
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _serviceDestination(c, service))),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 12),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(17), border: Border.all(color: const Color(0xFFE8EDF3))),
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
                     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Container(width: 43, height: 43, decoration: BoxDecoration(color: service.color.withValues(alpha: .10), borderRadius: BorderRadius.circular(14)), child: Icon(service.icon, color: service.color, size: 23)),
+                      Container(
+                        width: 54,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          color: service.color.withValues(alpha: .10),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: Colors.white),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.white, offset: Offset(0, 3)),
+                          ],
+                        ),
+                        child: Icon(service.icon, color: service.color, size: 25),
+                      ),
                       const SizedBox(height: 9),
-                      Text(service.en, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Color(0xFF273447))),
+                      Text(c.fa ? service.fa : service.en, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF506D7E))),
                       if (service.en == 'Mobile Top-up') ...[
                         const SizedBox(height: 4),
                         Container(
@@ -2584,7 +2800,7 @@ class HomePage extends StatelessWidget {
             ),
             if (livePopular.isNotEmpty) ...[
               const SizedBox(height: 24),
-              const _HomeSectionHeader(title: 'Popular services', action: 'See all'),
+              _HomeSectionHeader(title: tr(c.fa, 'خدمات محبوب', 'Popular services'), action: tr(c.fa, 'مشاهده همه', 'See all')),
               const SizedBox(height: 12),
               SizedBox(
                 height: 118,
@@ -2603,9 +2819,9 @@ class HomePage extends StatelessWidget {
                         padding: const EdgeInsets.all(13),
                         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(17), border: Border.all(color: const Color(0xFFE8EDF3))),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Row(children: [Container(width: 34, height: 34, decoration: BoxDecoration(color: color.withValues(alpha: .10), borderRadius: BorderRadius.circular(10)), child: Icon(catalogIcon(service.category), color: color, size: 19)), const Spacer(), if (service.basePriceAfn != null) Text(c.money(service.basePriceAfn!), style: const TextStyle(fontSize: 11, color: Color(0xFF1686FF), fontWeight: FontWeight.w900))]),
+                          Row(children: [Container(width: 34, height: 34, decoration: BoxDecoration(color: color.withValues(alpha: .10), borderRadius: BorderRadius.circular(10)), child: Icon(catalogIcon(service.category), color: color, size: 19)), const Spacer(), if (service.basePriceAfn != null) Text(c.money(service.basePriceAfn!), style: const TextStyle(fontSize: 11, color: VelixeoDesign.sky, fontWeight: FontWeight.w900))]),
                           const SizedBox(height: 10),
-                          Text(service.titleEn, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF253247))),
+                          Text(c.fa ? service.titleFa : service.titleEn, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF253247))),
                         ]),
                       ),
                     );
@@ -2615,7 +2831,7 @@ class HomePage extends StatelessWidget {
             ],
             if (recent.isNotEmpty) ...[
               const SizedBox(height: 24),
-              const _HomeSectionHeader(title: 'Recent orders', action: 'View all'),
+              _HomeSectionHeader(title: tr(c.fa, 'سفارش‌های اخیر', 'Recent orders'), action: tr(c.fa, 'مشاهده همه', 'View all')),
               const SizedBox(height: 10),
               ...recent.map((order) {
                 final color = _statusColor(order.status);
@@ -2624,9 +2840,9 @@ class HomePage extends StatelessWidget {
                   padding: const EdgeInsets.all(13),
                   decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE8EDF3))),
                   child: Row(children: [
-                    Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFF1686FF).withValues(alpha: .08), borderRadius: BorderRadius.circular(12)), child: Icon(catalogIcon(order.category), color: const Color(0xFF1686FF), size: 20)),
+                    Container(width: 40, height: 40, decoration: BoxDecoration(color: VelixeoDesign.sky.withValues(alpha: .08), borderRadius: BorderRadius.circular(12)), child: Icon(catalogIcon(order.category), color: VelixeoDesign.sky, size: 20)),
                     const SizedBox(width: 11),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${order.serviceTitleEn ?? order.serviceSlug ?? order.category}${order.isDripRun ? ' · Run ${order.dripRunIndex}/${order.dripRunsAll}' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(c.money(order.totalAmountAfn), style: const TextStyle(fontSize: 11.5, color: Color(0xFF7C8999)))])),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${c.fa ? (order.serviceTitleFa ?? order.serviceSlug ?? order.category) : (order.serviceTitleEn ?? order.serviceSlug ?? order.category)}${order.isDripRun ? ' · ${tr(c.fa, 'مرحله', 'Run')} ${order.dripRunIndex}/${order.dripRunsAll}' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(c.money(order.totalAmountAfn), style: const TextStyle(fontSize: 11.5, color: Color(0xFF7C8999)))])),
                     Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: color.withValues(alpha: .10), borderRadius: BorderRadius.circular(999)), child: Text(order.status.replaceAll('_', ' '), style: TextStyle(fontSize: 9.5, color: color, fontWeight: FontWeight.w800))),
                   ]),
                 );
@@ -2660,7 +2876,7 @@ class _HomeSectionHeader extends StatelessWidget {
   final String title;
   final String action;
   @override
-  Widget build(BuildContext context) => Row(children: [Expanded(child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF1A2739)))), Text(action, style: const TextStyle(color: Color(0xFF1686FF), fontSize: 12, fontWeight: FontWeight.w800))]);
+  Widget build(BuildContext context) => Row(children: [Expanded(child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF1A2739)))), Text(action, style: const TextStyle(color: VelixeoDesign.sky, fontSize: 12, fontWeight: FontWeight.w800))]);
 }
 
 class WalletHero extends StatelessWidget {
@@ -2671,21 +2887,24 @@ class WalletHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = controller;
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(colors: [Color(0xFF1265D6), Color(0xFF1895FF)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-        boxShadow: const [BoxShadow(color: Color(0x201686FF), blurRadius: 20, offset: Offset(0, 8))],
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF8ADDFF), Color(0xFFBCEAFF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
       ),
       child: Row(children: [
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Available balance', style: TextStyle(color: Color(0xFFD4E9FF), fontSize: 12)),
+          Text(tr(c.fa, 'موجودی کیف پول', 'Wallet balance'), style: const TextStyle(color: Color(0xFF4D7990), fontSize: 12)),
           const SizedBox(height: 6),
-          Text(c.money(c.balanceAfn), style: const TextStyle(color: Colors.white, fontSize: 27, fontWeight: FontWeight.w900)),
+          Text(c.money(c.balanceAfn), style: const TextStyle(color: Color(0xFF245168), fontSize: 30, fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
-          Text(c.secondaryBalance(), style: const TextStyle(color: Color(0xFFD8EBFF), fontSize: 11)),
+          Text(c.secondaryBalance(), style: const TextStyle(color: Color(0xFF4D7990), fontSize: 11)),
         ])),
-        Container(width: 48, height: 48, decoration: BoxDecoration(color: Colors.white.withValues(alpha: .16), borderRadius: BorderRadius.circular(15)), child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 25)),
+        Container(width: 48, height: 48, decoration: BoxDecoration(color: Colors.white.withValues(alpha: .70), borderRadius: BorderRadius.circular(15)), child: const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF369FCA), size: 24)),
       ]),
     );
   }
@@ -2789,7 +3008,7 @@ class _ServiceSearchPageState extends State<ServiceSearchPage> {
                       const SizedBox(width: 12),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(c.fa ? service.titleFa : service.titleEn, style: const TextStyle(fontWeight: FontWeight.w900)),
-                        Text(service.category, style: const TextStyle(fontSize: 10, color: Color(0xFF607487))),
+                        Text(service.category, style: const TextStyle(fontSize: 10, color: VelixeoDesign.muted)),
                       ])),
                       const Icon(Icons.chevron_right_rounded),
                     ]),
@@ -2813,7 +3032,7 @@ class ServicesPage extends StatelessWidget {
       child: RefreshIndicator(
         onRefresh: c.refreshAccount,
         child: ListView(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
           children: [
             Row(
               children: [
@@ -2891,7 +3110,7 @@ class ServicesPage extends StatelessWidget {
                             children: [
                               Text(tr(c.fa, 'شبکه‌های اجتماعی', 'Social Media'), style: const TextStyle(fontWeight: FontWeight.w900)),
                               const SizedBox(height: 3),
-                              Text(tr(c.fa, 'سفارش جدید، پیگیری، جبران و لغو', 'Order, track, refill and cancel'), style: const TextStyle(fontSize: 12, color: Color(0xFF607487))),
+                              Text(tr(c.fa, 'سفارش جدید، پیگیری، جبران و لغو', 'Order, track, refill and cancel'), style: const TextStyle(fontSize: 12, color: VelixeoDesign.muted)),
                             ],
                           ),
                         ),
@@ -2922,7 +3141,7 @@ class ServicesPage extends StatelessWidget {
                           children: [
                             Text(tr(c.fa, 'شارژ موبایل', 'Mobile Top-up'), style: const TextStyle(fontWeight: FontWeight.w900)),
                             const SizedBox(height: 3),
-                            Text(tr(c.fa, 'به‌زودی · پس از اتصال API شرکت‌های مخابراتی', 'Coming soon · waiting for telecom APIs'), style: const TextStyle(fontSize: 12, color: Color(0xFF607487))),
+                            Text(tr(c.fa, 'به‌زودی · پس از اتصال API شرکت‌های مخابراتی', 'Coming soon · waiting for telecom APIs'), style: const TextStyle(fontSize: 12, color: VelixeoDesign.muted)),
                           ],
                         ),
                       ),
@@ -2963,7 +3182,7 @@ class ServicesPage extends StatelessWidget {
                                 service.basePriceAfn == null
                                     ? tr(c.fa, 'قیمت از Provider دریافت می‌شود', 'Live provider pricing')
                                     : tr(c.fa, 'از ${c.money(service.basePriceAfn!)}', 'From ${c.money(service.basePriceAfn!)}'),
-                                style: const TextStyle(fontSize: 12, color: Color(0xFF607487)),
+                                style: const TextStyle(fontSize: 12, color: VelixeoDesign.muted),
                               ),
                             ],
                           ),
@@ -2998,17 +3217,18 @@ class DigitalAccountsHubPage extends StatelessWidget {
       body: RefreshIndicator(
         onRefresh: c.refreshAccount,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 30),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 30),
           children: [
             Container(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF3F51D7), Color(0xFF6D63FF)],
+                  colors: [Color(0xFFEEFBFA), Color(0xFFE4F4FC)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: const Color(0xFFDCEEF2)),
+                borderRadius: BorderRadius.circular(23),
               ),
               child: Row(
                 children: [
@@ -3018,7 +3238,7 @@ class DigitalAccountsHubPage extends StatelessWidget {
                       children: [
                         Text(
                           tr(c.fa, 'اکانت‌ها و خدمات دیجیتال', 'Digital accounts & services'),
-                          style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900),
+                          style: const TextStyle(color: Color(0xFF2C5366), fontSize: 19, fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 7),
                         Text(
@@ -3027,7 +3247,7 @@ class DigitalAccountsHubPage extends StatelessWidget {
                             'نتفلیکس، VPN، سرویس‌های استریم، ابزارهای آنلاین، لایسنس‌ها و اکانت‌های دیجیتال از این بخش مدیریت می‌شوند.',
                             'Netflix, VPN, streaming services, online tools, licenses and other digital accounts belong here.',
                           ),
-                          style: const TextStyle(color: Color(0xFFE9E9FF), fontSize: 11.5, height: 1.45),
+                          style: const TextStyle(color: Color(0xFF7293A5), fontSize: 11.5, height: 1.65),
                         ),
                       ],
                     ),
@@ -3036,8 +3256,8 @@ class DigitalAccountsHubPage extends StatelessWidget {
                   Container(
                     width: 58,
                     height: 58,
-                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: .14), borderRadius: BorderRadius.circular(18)),
-                    child: const Icon(Icons.manage_accounts_rounded, color: Colors.white, size: 30),
+                    decoration: BoxDecoration(color: const Color(0xFFEAF8F4), borderRadius: BorderRadius.circular(18)),
+                    child: const Icon(Icons.manage_accounts_rounded, color: Color(0xFF69AE9B), size: 30),
                   ),
                 ],
               ),
@@ -3082,7 +3302,7 @@ class DigitalAccountsHubPage extends StatelessWidget {
                                 service.basePriceAfn == null
                                     ? tr(c.fa, 'قیمت و تحویل از پنل ادمین مدیریت می‌شود', 'Pricing and delivery are managed from Admin')
                                     : tr(c.fa, 'از ${c.money(service.basePriceAfn!)}', 'From ${c.money(service.basePriceAfn!)}'),
-                                style: const TextStyle(fontSize: 11.5, color: Color(0xFF607487)),
+                                style: const TextStyle(fontSize: 11.5, color: VelixeoDesign.muted),
                               ),
                             ],
                           ),
@@ -3113,7 +3333,7 @@ class CatalogServicePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(fa ? service.titleFa : service.titleEn)),
       body: ListView(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
         children: [
           Container(
             height: 150,
@@ -3125,7 +3345,7 @@ class CatalogServicePage extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           if (description?.trim().isNotEmpty == true)
-            Text(description!, style: const TextStyle(color: Color(0xFF607487), height: 1.55)),
+            Text(description!, style: const TextStyle(color: VelixeoDesign.muted, height: 1.55)),
           const SizedBox(height: 14),
           SoftCard(
             child: Column(
@@ -3160,7 +3380,7 @@ class CatalogServicePage extends StatelessWidget {
               'این خدمت از پنل مدیریت VELIXEO کنترل می‌شود. خرید زمانی فعال می‌شود که Provider واقعی برای همین Service Route متصل و تست شود.',
               'This service is controlled from VELIXEO Admin. Purchasing will activate only after a real provider route is connected and verified.',
             ),
-            style: const TextStyle(color: Color(0xFF607487), height: 1.5),
+            style: const TextStyle(color: VelixeoDesign.muted, height: 1.5),
           ),
           const SizedBox(height: 22),
           PrimaryButton(label: tr(fa, 'خرید پس از اتصال Provider فعال می‌شود', 'Purchase unlocks after provider integration'), onPressed: null),
@@ -3210,7 +3430,7 @@ class ComingSoonServicePage extends StatelessWidget {
                   'Mobile Top-up will become available after official telecom provider APIs are connected.',
                 ),
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFF607487), height: 1.6),
+                style: const TextStyle(color: VelixeoDesign.muted, height: 1.6),
               ),
             ],
           ),
@@ -3231,7 +3451,7 @@ class ServicePreviewPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(fa ? service.fa : service.en)),
       body: ListView(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
         children: [
           Container(
             height: 170,
@@ -3253,16 +3473,24 @@ class ServicePreviewPage extends StatelessWidget {
               'حساب کاربری و کیف پول این نسخه واقعی هستند. برای جلوگیری از سفارش جعلی، خرید این سرویس تا اتصال Provider واقعی غیرفعال نگه داشته شده است.',
               'Accounts and wallet are live in this build. Purchasing stays disabled until a real provider API is connected, so the app never creates fake orders.',
             ),
-            style: const TextStyle(color: Color(0xFF607487), height: 1.55),
+            style: const TextStyle(color: VelixeoDesign.muted, height: 1.55),
           ),
           const SizedBox(height: 22),
-          const SoftCard(
+          SoftCard(
             child: Row(
               children: [
-                CircleAvatar(backgroundColor: Color(0xFFE4F4FF), child: Icon(Icons.api_rounded, color: Color(0xFF0D78C8))),
-                SizedBox(width: 12),
-                Expanded(child: Text('Backend Adapter → Provider API', style: TextStyle(fontWeight: FontWeight.w800))),
-                Icon(Icons.lock_outline, color: Color(0xFF607487)),
+                const CircleAvatar(
+                  backgroundColor: Color(0xFFE4F4FF),
+                  child: Icon(Icons.api_rounded, color: VelixeoDesign.sky),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    tr(fa, 'اتصال بک‌اند به API ارائه‌دهنده', 'Backend adapter → Provider API'),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                const Icon(Icons.lock_outline, color: VelixeoDesign.muted),
               ],
             ),
           ),
@@ -3306,7 +3534,7 @@ class OrdersPage extends StatelessWidget {
       child: RefreshIndicator(
         onRefresh: c.refreshAccount,
         child: ListView(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
           children: [
             Text(tr(c.fa, 'سفارش‌های من', 'My Orders'), style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
             const SizedBox(height: 18),
@@ -3323,7 +3551,7 @@ class OrdersPage extends StatelessWidget {
               Text(
                 tr(c.fa, 'بعد از اتصال Provider، سفارش‌های واقعی از Backend همین‌جا نمایش داده می‌شوند.', 'Real backend orders will appear here after provider integration.'),
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFF607487)),
+                style: const TextStyle(color: VelixeoDesign.muted),
               ),
             ] else ...[
               ...c.orders.map(
@@ -3344,7 +3572,7 @@ class OrdersPage extends StatelessWidget {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                               decoration: BoxDecoration(color: const Color(0xFFEAF6FF), borderRadius: BorderRadius.circular(999)),
-                              child: Text(statusLabel(c.fa, order.status), style: const TextStyle(fontSize: 11, color: Color(0xFF0D78C8), fontWeight: FontWeight.w800)),
+                              child: Text(statusLabel(c.fa, order.status), style: const TextStyle(fontSize: 11, color: VelixeoDesign.sky, fontWeight: FontWeight.w800)),
                             ),
                           ],
                         ),
@@ -3353,7 +3581,7 @@ class OrdersPage extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           '${order.createdAt.toLocal().toString().substring(0, 16)} • #${order.dripParentOrderId?.substring(0, 8) ?? order.id.substring(0, 8)}${order.isDripRun ? '-R${order.dripRunIndex}' : ''}',
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF607487)),
+                          style: const TextStyle(fontSize: 12, color: VelixeoDesign.muted),
                         ),
                         if (order.failureReason?.isNotEmpty == true) ...[
                           const SizedBox(height: 7),
@@ -3396,10 +3624,10 @@ Color _notificationColor(String type) {
     case 'ORDER':
     case 'REFILL':
     case 'DRIPFEED':
-      return const Color(0xFF1686FF);
+      return VelixeoDesign.sky;
     case 'PAYMENT':
     case 'WALLET':
-      return const Color(0xFF16A873);
+      return VelixeoDesign.green;
     case 'SUPPORT':
       return const Color(0xFF7457E8);
     case 'ACCOUNT':
@@ -3409,25 +3637,25 @@ Color _notificationColor(String type) {
   }
 }
 
-String _notificationTypeLabel(String type) {
+String _notificationTypeLabel(bool fa, String type) {
   switch (type) {
-    case 'ORDER': return 'Order';
-    case 'REFILL': return 'Refill';
-    case 'DRIPFEED': return 'Drip-feed';
-    case 'PAYMENT': return 'Payment';
-    case 'WALLET': return 'Wallet';
-    case 'SUPPORT': return 'Support';
-    case 'ACCOUNT': return 'Account';
-    default: return 'System';
+    case 'ORDER': return tr(fa, 'سفارش', 'Order');
+    case 'REFILL': return tr(fa, 'جبران', 'Refill');
+    case 'DRIPFEED': return tr(fa, 'دریپ‌فید', 'Drip-feed');
+    case 'PAYMENT': return tr(fa, 'پرداخت', 'Payment');
+    case 'WALLET': return tr(fa, 'کیف پول', 'Wallet');
+    case 'SUPPORT': return tr(fa, 'پشتیبانی', 'Support');
+    case 'ACCOUNT': return tr(fa, 'حساب', 'Account');
+    default: return tr(fa, 'سیستم', 'System');
   }
 }
 
-String _relativeNotificationTime(DateTime value) {
+String _relativeNotificationTime(bool fa, DateTime value) {
   final diff = DateTime.now().difference(value.toLocal());
-  if (diff.inMinutes < 1) return 'Just now';
-  if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-  if (diff.inHours < 24) return '${diff.inHours}h ago';
-  if (diff.inDays < 7) return '${diff.inDays}d ago';
+  if (diff.inMinutes < 1) return tr(fa, 'همین حالا', 'Just now');
+  if (diff.inMinutes < 60) return tr(fa, '${diff.inMinutes} دقیقه پیش', '${diff.inMinutes}m ago');
+  if (diff.inHours < 24) return tr(fa, '${diff.inHours} ساعت پیش', '${diff.inHours}h ago');
+  if (diff.inDays < 7) return tr(fa, '${diff.inDays} روز پیش', '${diff.inDays}d ago');
   return value.toLocal().toString().substring(0, 10);
 }
 
@@ -3489,12 +3717,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
   @override
   Widget build(BuildContext context) {
     final c = widget.controller;
-    const filters = <(String, String)>[
-      ('ALL', 'All'),
-      ('ORDER', 'Orders'),
-      ('WALLET', 'Wallet'),
-      ('SUPPORT', 'Support'),
-      ('SYSTEM', 'System'),
+    final filters = <(String, String)>[
+      ('ALL', tr(c.fa, 'همه', 'All')),
+      ('ORDER', tr(c.fa, 'سفارش‌ها', 'Orders')),
+      ('WALLET', tr(c.fa, 'کیف پول', 'Wallet')),
+      ('SUPPORT', tr(c.fa, 'پشتیبانی', 'Support')),
+      ('SYSTEM', tr(c.fa, 'سیستم', 'System')),
     ];
     return AnimatedBuilder(
       animation: c,
@@ -3540,13 +3768,19 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                 child: const BrandMark(size: 40, wordmark: false),
                               ),
                               const SizedBox(width: 11),
-                              const Expanded(
+                              Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('Notification Center', style: TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900)),
-                                    SizedBox(height: 2),
-                                    Text('Orders, wallet, support & updates', style: TextStyle(color: Color(0xFFD7EDFF), fontSize: 11.5)),
+                                    Text(
+                                      tr(c.fa, 'مرکز اعلان‌ها', 'Notification Center'),
+                                      style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w700),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      tr(c.fa, 'سفارش‌ها، کیف پول، پشتیبانی و بروزرسانی‌ها', 'Orders, wallet, support & updates'),
+                                      style: const TextStyle(color: Color(0xFFD7EDFF), fontSize: 11.5),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -3560,7 +3794,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(color: Colors.white.withValues(alpha: .11), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withValues(alpha: .13))),
                                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    const Text('Unread', style: TextStyle(color: Color(0xFFD6ECFF), fontSize: 10.5)),
+                                    Text(tr(c.fa, 'خوانده‌نشده', 'Unread'), style: const TextStyle(color: Color(0xFFD6ECFF), fontSize: 10.5)),
                                     const SizedBox(height: 4),
                                     Text('${c.unreadNotificationCount}', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
                                   ]),
@@ -3572,7 +3806,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(color: Colors.white.withValues(alpha: .11), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withValues(alpha: .13))),
                                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    const Text('Total', style: TextStyle(color: Color(0xFFD6ECFF), fontSize: 10.5)),
+                                    Text(tr(c.fa, 'مجموع', 'Total'), style: const TextStyle(color: Color(0xFFD6ECFF), fontSize: 10.5)),
                                     const SizedBox(height: 4),
                                     Text('${c.notifications.length}', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
                                   ]),
@@ -3583,7 +3817,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                 FilledButton(
                                   style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF1268C7), minimumSize: const Size(86, 58), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
                                   onPressed: c.markAllNotificationsRead,
-                                  child: const Text('Read all', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
+                                  child: Text(tr(c.fa, 'خواندن همه', 'Read all'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                                 ),
                               ],
                             ],
@@ -3609,9 +3843,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             onSelected: (_) => setState(() => filter = item.$1),
                             label: Text('${item.$2}  $count'),
                             showCheckmark: false,
-                            selectedColor: const Color(0xFF1686FF),
+                            selectedColor: VelixeoDesign.sky,
                             backgroundColor: Colors.white,
-                            side: BorderSide(color: active ? const Color(0xFF1686FF) : const Color(0xFFE0E8F0)),
+                            side: BorderSide(color: active ? VelixeoDesign.sky : const Color(0xFFE0E8F0)),
                             labelStyle: TextStyle(color: active ? Colors.white : const Color(0xFF5D6C7E), fontSize: 11, fontWeight: FontWeight.w800),
                           );
                         },
@@ -3652,7 +3886,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                 decoration: BoxDecoration(
                                   color: notice.isRead ? Colors.white : color.withValues(alpha: .055),
                                   borderRadius: BorderRadius.circular(21),
-                                  border: Border.all(color: notice.isRead ? const Color(0xFFE3EAF2) : color.withValues(alpha: .24)),
+                                  border: Border.all(color: notice.isRead ? VelixeoDesign.line : color.withValues(alpha: .24)),
                                   boxShadow: const [BoxShadow(color: Color(0x0D133F69), blurRadius: 20, offset: Offset(0, 8))],
                                 ),
                                 child: Column(
@@ -3679,14 +3913,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                                 Container(
                                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                                   decoration: BoxDecoration(color: color.withValues(alpha: .10), borderRadius: BorderRadius.circular(999)),
-                                                  child: Text(_notificationTypeLabel(notice.type), style: TextStyle(color: color, fontSize: 9.5, fontWeight: FontWeight.w900)),
+                                                  child: Text(_notificationTypeLabel(c.fa, notice.type), style: TextStyle(color: color, fontSize: 9.5, fontWeight: FontWeight.w900)),
                                                 ),
                                                 if (notice.priority == 'HIGH') ...[
                                                   const SizedBox(width: 5),
                                                   const Icon(Icons.bolt_rounded, size: 15, color: Color(0xFFF29A2E)),
                                                 ],
                                                 const Spacer(),
-                                                Text(_relativeNotificationTime(notice.publishAt), style: const TextStyle(color: Color(0xFF8A9AA9), fontSize: 10)),
+                                                Text(_relativeNotificationTime(c.fa, notice.publishAt), style: const TextStyle(color: Color(0xFF8A9AA9), fontSize: 10)),
                                                 if (!notice.isRead) ...[
                                                   const SizedBox(width: 7),
                                                   Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
@@ -3722,7 +3956,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                         decoration: BoxDecoration(color: color.withValues(alpha: .075), borderRadius: BorderRadius.circular(12)),
                                         child: Row(
                                           children: [
-                                            Expanded(child: Text(action?.trim().isNotEmpty == true ? action! : 'Open ${_notificationTypeLabel(notice.type)}', style: TextStyle(color: color, fontSize: 10.8, fontWeight: FontWeight.w900))),
+                                            Expanded(child: Text(action?.trim().isNotEmpty == true ? action! : '${tr(c.fa, 'باز کردن', 'Open')} ${_notificationTypeLabel(c.fa, notice.type)}', style: TextStyle(color: color, fontSize: 10.8, fontWeight: FontWeight.w900))),
                                             Icon(Icons.arrow_forward_rounded, color: color, size: 17),
                                           ],
                                         ),
@@ -3807,11 +4041,11 @@ class RemoteBannerCard extends StatelessWidget {
                     ? child
                     : Container(
                         decoration: const BoxDecoration(
-                          gradient: LinearGradient(colors: [Color(0xFF0D78C8), Color(0xFF31A8FF)]),
+                          gradient: LinearGradient(colors: [VelixeoDesign.sky, Color(0xFF31A8FF)]),
                         ),
                       ),
                 errorBuilder: (_, __, ___) => Container(
-                  decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF0D78C8), Color(0xFF31A8FF)])),
+                  decoration: const BoxDecoration(gradient: LinearGradient(colors: [VelixeoDesign.sky, Color(0xFF31A8FF)])),
                 ),
               ),
               Container(color: Colors.black.withValues(alpha: .24)),
@@ -3884,7 +4118,7 @@ class WalletPage extends StatelessWidget {
       child: RefreshIndicator(
         onRefresh: c.refreshAccount,
         child: ListView(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
           children: [
             Row(
               children: [
@@ -3989,7 +4223,7 @@ class _AddFundsPageState extends State<AddFundsPage>
         return const Color(0xFF18A875);
       case 'FAILED':
       case 'CANCELLED':
-        return const Color(0xFFE65454);
+        return VelixeoDesign.red;
       default:
         return const Color(0xFFEFAF38);
     }
@@ -4081,7 +4315,7 @@ class _AddFundsPageState extends State<AddFundsPage>
         onRefresh: refresh,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
           children: [
             SoftCard(
               child: Row(
@@ -4108,7 +4342,7 @@ class _AddFundsPageState extends State<AddFundsPage>
                           configured
                               ? tr(c.fa, 'آماده پرداخت • ${environment ?? '—'}', 'Ready • ${environment ?? '—'}')
                               : tr(c.fa, 'منتظر تنظیم امن در سرور', 'Waiting for secure server configuration'),
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF607487)),
+                          style: const TextStyle(fontSize: 12, color: VelixeoDesign.muted),
                         ),
                       ],
                     ),
@@ -4173,7 +4407,7 @@ class _AddFundsPageState extends State<AddFundsPage>
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.shield_outlined, color: Color(0xFF0D78C8)),
+                  const Icon(Icons.shield_outlined, color: VelixeoDesign.sky),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -4232,7 +4466,7 @@ class _AddFundsPageState extends State<AddFundsPage>
                         const SizedBox(height: 7),
                         Text(
                           '${payment.gateway} • ${payment.createdAt.toLocal().toString().substring(0, 16)} • #${payment.id.substring(0, 8)}',
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF607487)),
+                          style: const TextStyle(fontSize: 11, color: VelixeoDesign.muted),
                         ),
                         if (payment.status == 'PAID' && payment.verifiedAt != null) ...[
                           const SizedBox(height: 6),
@@ -4272,7 +4506,7 @@ class ProfilePage extends StatelessWidget {
     final identity = c.user?.email ?? c.user?.phone ?? '—';
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
         children: [
           Text(tr(c.fa, 'پروفایل', 'Profile'), style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
           const SizedBox(height: 18),
@@ -4290,7 +4524,7 @@ class ProfilePage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(c.user?.fullName?.trim().isNotEmpty == true ? c.user!.fullName! : tr(c.fa, 'کاربر VELIXEO', 'VELIXEO User'), style: const TextStyle(fontWeight: FontWeight.w900)),
-                      Text(identity, style: const TextStyle(fontSize: 12, color: Color(0xFF607487))),
+                      Text(identity, style: const TextStyle(fontSize: 12, color: VelixeoDesign.muted)),
                       const SizedBox(height: 3),
                       Text(c.user?.role ?? 'USER', style: const TextStyle(fontSize: 11, color: Color(0xFF18A875), fontWeight: FontWeight.w700)),
                     ],
@@ -4331,7 +4565,7 @@ class ProfilePage extends StatelessWidget {
                   children: [
                     ListTile(
                       title: const Text('فارسی'),
-                      trailing: c.fa ? const Icon(Icons.check, color: Color(0xFF0D78C8)) : null,
+                      trailing: c.fa ? const Icon(Icons.check, color: VelixeoDesign.sky) : null,
                       onTap: () {
                         Navigator.pop(context);
                         c.setLanguage(AppLang.fa);
@@ -4339,7 +4573,7 @@ class ProfilePage extends StatelessWidget {
                     ),
                     ListTile(
                       title: const Text('English'),
-                      trailing: !c.fa ? const Icon(Icons.check, color: Color(0xFF0D78C8)) : null,
+                      trailing: !c.fa ? const Icon(Icons.check, color: VelixeoDesign.sky) : null,
                       onTap: () {
                         Navigator.pop(context);
                         c.setLanguage(AppLang.en);
@@ -4367,7 +4601,7 @@ class ProfilePage extends StatelessWidget {
                               : value == DisplayCurrency.usd
                                   ? 'USD • Dollar'
                                   : 'TOMAN • تومان'),
-                          trailing: c.currency == value ? const Icon(Icons.check, color: Color(0xFF0D78C8)) : null,
+                          trailing: c.currency == value ? const Icon(Icons.check, color: VelixeoDesign.sky) : null,
                           onTap: () {
                             Navigator.pop(context);
                             c.setCurrency(value);
@@ -4467,7 +4701,7 @@ class ProfilePage extends StatelessWidget {
                         child: Text(tr(c.fa, 'لغو', 'Cancel')),
                       ),
                       FilledButton(
-                        style: FilledButton.styleFrom(backgroundColor: const Color(0xFFE65454)),
+                        style: FilledButton.styleFrom(backgroundColor: VelixeoDesign.red),
                         onPressed: !confirmDelete ||
                                 (c.user?.hasPassword == true && passwordController.text.isEmpty)
                             ? null
@@ -4517,7 +4751,7 @@ class ProfilePage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Center(child: Text('VELIXEO • Milestone 1', style: const TextStyle(color: Color(0xFF8AA0B4), fontSize: 12))),
+          Center(child: Text('VELIXEO · ${tr(c.fa, 'نسخه', 'Version')} 0.10.0', style: const TextStyle(color: Color(0xFF8AA0B4), fontSize: 12))),
         ],
       ),
     );
@@ -4668,7 +4902,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             toolbarTitle: tr(c.fa, 'تنظیم تصویر پروفایل', 'Adjust profile photo'),
             toolbarColor: const Color(0xFF0D6FD1),
             toolbarWidgetColor: Colors.white,
-            activeControlsWidgetColor: const Color(0xFF1686FF),
+            activeControlsWidgetColor: VelixeoDesign.sky,
             cropFrameColor: Colors.white,
             cropGridColor: Colors.white70,
             dimmedLayerColor: const Color(0xB3000000),
@@ -4765,7 +4999,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             child: Container(
                               width: 25,
                               height: 25,
-                              decoration: const BoxDecoration(color: Color(0xFF1686FF), shape: BoxShape.circle),
+                              decoration: const BoxDecoration(color: VelixeoDesign.sky, shape: BoxShape.circle),
                               child: const Icon(Icons.check_rounded, color: Colors.white, size: 17),
                             ),
                           ),
@@ -5136,7 +5370,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         Navigator.pop(context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not update profile: ' + error)),
+          SnackBar(content: Text('${tr(c.fa, 'ذخیره پروفایل انجام نشد:', 'Could not update profile:')} $error')),
         );
       }
     } finally {
@@ -5177,7 +5411,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return Scaffold(
       appBar: AppBar(title: Text(tr(c.fa, 'ویرایش پروفایل', 'Edit profile'))),
       body: ListView(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
         children: [
           Center(
             child: Column(
@@ -5678,7 +5912,7 @@ class _WhatsAppInboundDialogState extends State<_WhatsAppInboundDialog>
                 'لینک وریفای را کپی کرده و به گوشی‌ای که WhatsApp روی آن فعال است منتقل کنید. لینک را روی گوشی دوم باز کنید؛ چت رسمی Velixeo با پیام آماده باز می‌شود. پیام را بدون تغییر ارسال کنید.',
                 'Copy the verification link and move it to the phone that has WhatsApp. Open the link on that phone; the official Velixeo chat opens with the message prepared. Send it without editing.',
               ),
-              style: const TextStyle(fontSize: 11.5, height: 1.45, color: Color(0xFF607487)),
+              style: const TextStyle(fontSize: 11.5, height: 1.45, color: VelixeoDesign.muted),
             ),
             const SizedBox(height: 10),
             Container(
@@ -5707,7 +5941,7 @@ class _WhatsAppInboundDialogState extends State<_WhatsAppInboundDialog>
                       'شماره رسمی داخل لینک قرار دارد و در این صفحه نمایش داده نمی‌شود.',
                       'The official number is embedded in the link and is not displayed on this screen.',
                     ),
-                    style: const TextStyle(fontSize: 10.5, color: Color(0xFF607487)),
+                    style: const TextStyle(fontSize: 10.5, color: VelixeoDesign.muted),
                   ),
                   const SizedBox(height: 8),
                   SizedBox(
@@ -6135,7 +6369,7 @@ class _SecurityPageState extends State<SecurityPage> {
                 ? Icons.email_outlined
                 : Icons.chat_rounded;
             return ListTile(
-              leading: Icon(icon, color: const Color(0xFF1686FF)),
+              leading: Icon(icon, color: VelixeoDesign.sky),
               title: Text(method == 'EMAIL' ? 'Email' : method == 'WHATSAPP' ? 'WhatsApp' : 'SMS'),
               subtitle: Text(tr(c.fa, 'روش دریافت کد ورود', 'Login verification method')),
               onTap: () => Navigator.pop(context, method),
@@ -6247,12 +6481,12 @@ class _SecurityPageState extends State<SecurityPage> {
       body: s == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
               children: [
                 Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Color(0xFF082D58), Color(0xFF1686FF)]),
+                    gradient: const LinearGradient(colors: [Color(0xFF082D58), VelixeoDesign.sky]),
                     borderRadius: BorderRadius.circular(22),
                   ),
                   child: Row(
@@ -6409,7 +6643,7 @@ class _SecurityVerificationCard extends StatelessWidget {
                     color: verified ? const Color(0xFFE9F9F2) : const Color(0xFFEAF5FF),
                     borderRadius: BorderRadius.circular(13),
                   ),
-                  child: Icon(icon, color: verified ? const Color(0xFF18A875) : const Color(0xFF1686FF)),
+                  child: Icon(icon, color: verified ? const Color(0xFF18A875) : VelixeoDesign.sky),
                 ),
                 const SizedBox(width: 11),
                 Expanded(
@@ -6423,12 +6657,19 @@ class _SecurityVerificationCard extends StatelessWidget {
                   ),
                 ),
                 if (verified)
-                  const Row(
+                  Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.verified_rounded, color: Color(0xFF18A875), size: 19),
-                      SizedBox(width: 5),
-                      Text('VERIFIED', style: TextStyle(color: Color(0xFF18A875), fontSize: 9.5, fontWeight: FontWeight.w900)),
+                      const Icon(Icons.verified_rounded, color: VelixeoDesign.green, size: 19),
+                      const SizedBox(width: 5),
+                      Text(
+                        tr(fa, 'تأییدشده', 'Verified'),
+                        style: const TextStyle(
+                          color: VelixeoDesign.green,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ],
                   )
                 else
@@ -6537,7 +6778,7 @@ class _SetPasswordPageState extends State<SetPasswordPage> {
     return Scaffold(
       appBar: AppBar(title: Text(tr(c.fa, 'تنظیم رمز عبور', 'Set password'))),
       body: ListView(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
         children: [
           TextField(
             controller: password,
@@ -6640,7 +6881,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     return Scaffold(
       appBar: AppBar(title: Text(tr(c.fa, 'تغییر رمز عبور', 'Change password'))),
       body: ListView(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
         children: [
           TextField(
             controller: current,
@@ -6691,10 +6932,10 @@ class SettingsTile extends StatelessWidget {
           onTap: onTap,
           child: Row(
             children: [
-              Icon(icon, color: const Color(0xFF0D78C8)),
+              Icon(icon, color: VelixeoDesign.sky),
               const SizedBox(width: 12),
               Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w800))),
-              if (value.isNotEmpty) Text(value, style: const TextStyle(color: Color(0xFF607487))),
+              if (value.isNotEmpty) Text(value, style: const TextStyle(color: VelixeoDesign.muted)),
               if (onTap != null) ...[
                 const SizedBox(width: 6),
                 const Icon(Icons.chevron_right, size: 20),
@@ -6713,12 +6954,14 @@ class PrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
         width: double.infinity,
-        height: 54,
+        height: 48,
         child: FilledButton(
           onPressed: onPressed,
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFF0D78C8),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            backgroundColor: VelixeoDesign.sky,
+            foregroundColor: const Color(0xFF183B4B),
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
           ),
           child: Text(label, style: const TextStyle(fontWeight: FontWeight.w800)),
         ),
@@ -6733,9 +6976,9 @@ class SoftCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Card(
         child: InkWell(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(21),
           onTap: onTap,
-          child: Padding(padding: const EdgeInsets.all(16), child: child),
+          child: Padding(padding: const EdgeInsets.all(19), child: child),
         ),
       );
 }
@@ -6816,10 +7059,10 @@ class TransactionTile extends StatelessWidget {
         child: Row(
           children: [
             CircleAvatar(
-              backgroundColor: (positive ? const Color(0xFF18A875) : const Color(0xFFE65454)).withValues(alpha: .1),
+              backgroundColor: (positive ? const Color(0xFF18A875) : VelixeoDesign.red).withValues(alpha: .1),
               child: Icon(
                 positive ? Icons.add_rounded : Icons.remove_rounded,
-                color: positive ? const Color(0xFF18A875) : const Color(0xFFE65454),
+                color: positive ? const Color(0xFF18A875) : VelixeoDesign.red,
               ),
             ),
             const SizedBox(width: 12),
@@ -6829,7 +7072,7 @@ class TransactionTile extends StatelessWidget {
                 children: [
                   Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
                   const SizedBox(height: 3),
-                  Text(subtitle, style: const TextStyle(fontSize: 11, color: Color(0xFF607487))),
+                  Text(subtitle, style: const TextStyle(fontSize: 11, color: VelixeoDesign.muted)),
                 ],
               ),
             ),
@@ -6837,7 +7080,7 @@ class TransactionTile extends StatelessWidget {
             Text(
               amount,
               style: TextStyle(
-                color: positive ? const Color(0xFF18A875) : const Color(0xFFE65454),
+                color: positive ? const Color(0xFF18A875) : VelixeoDesign.red,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -6862,7 +7105,7 @@ class EmptyCard extends StatelessWidget {
               const SizedBox(height: 12),
               Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
               const SizedBox(height: 5),
-              Text(subtitle, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF607487), fontSize: 12)),
+              Text(subtitle, textAlign: TextAlign.center, style: const TextStyle(color: VelixeoDesign.muted, fontSize: 12)),
             ],
           ),
         ),

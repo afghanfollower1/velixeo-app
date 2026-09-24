@@ -1,7 +1,7 @@
 name: velixeo
 publish_to: 'none'
 description: VELIXEO bilingual digital services marketplace.
-version: 0.9.9+29
+version: 0.10.0+30
 
 environment:
   sdk: '>=3.6.0 <4.0.0'
@@ -22,3 +22,10 @@ dependencies:
 
 flutter:
   uses-material-design: true
+  fonts:
+    - family: Vazirmatn
+      fonts:
+        - asset: assets/fonts/Vazirmatn.ttf
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter.ttf
