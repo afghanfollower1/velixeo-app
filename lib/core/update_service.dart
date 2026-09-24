@@ -256,7 +256,7 @@ class _AppUpdateGateState extends State<AppUpdateGate>
       if (!mounted || update == null || _dialogOpen) return;
       _dialogOpen = true;
       try {
-        await _showUpdate(update);
+        await (widget.fa ? _showPersianUpdate(update) : _showEnglishUpdate(update));
       } finally {
         _dialogOpen = false;
       }
@@ -274,7 +274,264 @@ class _AppUpdateGateState extends State<AppUpdateGate>
     return '${mb.toStringAsFixed(1)} MB';
   }
 
-  Future<void> _showUpdate(AppUpdateInfo update) async {
+  Future<void> _showPersianUpdate(AppUpdateInfo update) async {
+    var downloading = false;
+    var progress = -1.0;
+    var downloadedBytes = 0;
+    var totalBytes = -1;
+    var statusText = widget.fa ? 'آمادهٔ دریافت' : 'Ready to download';
+    int? downloadId;
+    var dialogClosed = false;
+
+    Future<void> watchDownload(
+      BuildContext dialogContext,
+      StateSetter setDialogState,
+      int id,
+    ) async {
+      while (!dialogClosed) {
+        AppUpdateDownloadState? state;
+        try {
+          state = await service.getUpdateDownloadStatus(id);
+        } catch (_) {
+          state = null;
+        }
+
+        if (dialogClosed || !dialogContext.mounted) return;
+
+        if (state == null) {
+          setDialogState(() {
+            downloading = false;
+            statusText = widget.fa ? 'وضعیت به‌روزرسانی در دسترس نیست.' : 'Update status is unavailable.';
+          });
+          return;
+        }
+        final current = state;
+
+        setDialogState(() {
+          progress = current.progress;
+          downloadedBytes = current.downloadedBytes;
+          totalBytes = current.totalBytes;
+          statusText = switch (current.status) {
+            'pending' => widget.fa ? 'در انتظار Download Manager اندروید…' : 'Waiting for Android Download Manager...',
+            'running' => widget.fa ? 'در حال دریافت در پس‌زمینه…' : 'Downloading in background...',
+            'paused' => widget.fa ? 'دریافت متوقف شده؛ اندروید دوباره تلاش می‌کند.' : 'Download paused. Android will retry automatically.',
+            'successful' => widget.fa ? 'دریافت کامل شد؛ نصب‌کننده باز می‌شود…' : 'Download complete. Opening installer...',
+            'failed' => widget.fa ? 'دریافت ناموفق بود.' : 'Download failed.',
+            _ => widget.fa ? 'در حال آماده‌سازی…' : 'Preparing update...',
+          };
+        });
+
+        if (current.isSuccessful) {
+          try {
+            await service.openDownloadedUpdate(id);
+            if (dialogContext.mounted) {
+              Navigator.of(dialogContext).pop();
+            }
+          } catch (_) {
+            if (dialogContext.mounted) {
+              setDialogState(() {
+                downloading = false;
+                statusText = widget.fa
+                    ? 'دریافت کامل شد، اما نصب‌کننده باز نشد.'
+                    : 'Download finished, but Android could not open the installer.';
+              });
+            }
+          }
+          return;
+        }
+
+        if (current.isFailed) {
+          if (dialogContext.mounted) {
+            setDialogState(() => downloading = false);
+          }
+          return;
+        }
+
+        await Future<void>.delayed(const Duration(milliseconds: 800));
+      }
+    }
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final percent =
+              progress >= 0 ? '${(progress * 100).clamp(0, 100).round()}%' : null;
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(
+                  Icons.system_update_alt_rounded,
+                  color: Color(0xFF4BA6CB),
+                ),
+                const SizedBox(width: 10),
+                Expanded(child: Text(widget.fa ? 'به‌روزرسانی VELIXEO' : 'VELIXEO update')),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.fa
+                      ? 'نسخهٔ جدید ' + update.version + ' آماده است.'
+                      : 'Version ' + update.version + ' is ready.',
+                  style: const TextStyle(fontWeight: FontWeight.w700, color: VelixeoBrand.ink),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  widget.fa
+                      ? 'دریافت با Download Manager اندروید انجام می‌شود و در پس‌زمینه هم ادامه پیدا می‌کند.'
+                      : 'The update uses Android Download Manager and can continue in the background.',
+                  style: const TextStyle(height: 1.55, fontSize: 12, color: VelixeoBrand.muted),
+                ),
+                if (downloading) ...[
+                  const SizedBox(height: 18),
+                  LinearProgressIndicator(
+                    value: progress >= 0
+                        ? progress.clamp(0.0, 1.0).toDouble()
+                        : null,
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          statusText,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      if (percent != null)
+                        Text(
+                          percent,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (downloadedBytes > 0 || totalBytes > 0) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_formatBytes(downloadedBytes)} / ${_formatBytes(totalBytes)}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF6E8194),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  Text(
+                    widget.fa
+                        ? 'می‌توانی از VELIXEO خارج شوی؛ اندروید دریافت را ادامه می‌دهد و وضعیت را در اعلان‌ها نشان می‌دهد.'
+                        : 'You can leave VELIXEO now. Android will keep downloading and show the update in the notification area.',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF6E8194),
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              if (!downloading)
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text(widget.fa ? 'بعداً' : 'Later'),
+                ),
+              if (downloading && downloadId != null)
+                TextButton(
+                  onPressed: () async {
+                    final id = downloadId!;
+                    await service.cancelUpdateDownload(id);
+                    if (!dialogContext.mounted) return;
+                    setDialogState(() {
+                      downloading = false;
+                      progress = -1;
+                      downloadedBytes = 0;
+                      totalBytes = -1;
+                      downloadId = null;
+                      statusText = widget.fa ? 'دریافت لغو شد.' : 'Download cancelled.';
+                    });
+                  },
+                  child: Text(widget.fa ? 'لغو دریافت' : 'Cancel'),
+                ),
+              FilledButton.icon(
+                onPressed: downloading
+                    ? null
+                    : () async {
+                        final allowed = await service.canInstallPackages();
+                        if (!allowed) {
+                          await service.openInstallPermission();
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                widget.fa
+                                    ? 'گزینهٔ «اجازه از این منبع» را فعال کن، به VELIXEO برگرد و دوباره به‌روزرسانی را بزن.'
+                                    : 'Enable "Allow from this source", return to VELIXEO, then tap Update again. This permission is normally needed only once.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
+                        try {
+                          final initial =
+                              await service.startUpdateDownload(update);
+                          if (!dialogContext.mounted) return;
+                          downloadId = initial.downloadId;
+                          setDialogState(() {
+                            downloading = true;
+                            progress = initial.progress;
+                            downloadedBytes = initial.downloadedBytes;
+                            totalBytes = initial.totalBytes;
+                            statusText = initial.isSuccessful
+                                ? (widget.fa ? 'دریافت کامل شد؛ نصب‌کننده باز می‌شود…' : 'Download complete. Opening installer...')
+                                : (widget.fa ? 'در حال دریافت در پس‌زمینه…' : 'Downloading in background...');
+                          });
+                          unawaited(
+                            watchDownload(
+                              dialogContext,
+                              setDialogState,
+                              initial.downloadId,
+                            ),
+                          );
+                        } catch (_) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                widget.fa
+                                    ? 'دریافت به‌روزرسانی شروع نشد. دوباره تلاش کن.'
+                                    : 'Update download could not start. Please try again.',
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                icon: const Icon(Icons.download_rounded),
+                label: Text(
+                  downloading
+                      ? (progress >= 0
+                          ? '${(progress * 100).clamp(0, 100).round()}%'
+                          : (widget.fa ? 'در حال دریافت…' : 'Downloading...'))
+                      : (widget.fa ? 'همین حالا به‌روزرسانی' : 'Update now'),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    dialogClosed = true;
+  }
+
+Future<void> _showEnglishUpdate(AppUpdateInfo update) async {
     var downloading = false;
     var progress = -1.0;
     var downloadedBytes = 0;
