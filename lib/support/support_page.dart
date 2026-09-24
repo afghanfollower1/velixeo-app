@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/api_service.dart';
+import '../design/velixeo_design.dart';
 import 'support_models.dart';
 
 abstract class SupportPanelHost {
