@@ -1,2 +1,2 @@
-FA/EN design preview rebuild from latest green head.
-Trigger: latest-green-security-profile-password
+FA/EN design preview rebuild from complete independent design-system pass.
+Trigger: full-app-admin-fa-en-final-qa-20260924
