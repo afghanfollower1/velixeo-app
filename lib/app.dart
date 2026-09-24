@@ -4509,53 +4509,26 @@ class _PersianServicesPage extends StatelessWidget {
         child: RefreshIndicator(
           onRefresh: c.refreshAccount,
           child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: VelixeoFaDesign.pagePadding,
             children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'خدمات',
-                          style: TextStyle(
-                            fontSize: 23,
-                            fontWeight: FontWeight.w700,
-                            color: VelixeoBrand.ink,
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          'هر چیزی که برای دنیای دیجیتال نیاز داری.',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: VelixeoBrand.muted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  BrandMark(size: 34, wordmark: false),
-                ],
+              VelixeoFaPageHeader(
+                title: 'خدمات دیجیتال',
+                subtitle: 'هر چیزی که برای دنیای دیجیتال نیاز داری، یک‌جا.',
+                onBack: onBack ?? () => Navigator.maybePop(context),
+                trailing: const BrandMark(size: 34, wordmark: false),
               ),
-              const SizedBox(height: 17),
               _PrototypeSearch(
                 hint: 'جستجو بین خدمات…',
                 direction: TextDirection.rtl,
                 onTap: () => _openServiceSearch(context, c),
               ),
               const SizedBox(height: 20),
-              _ServicesCategoryStrip(
-                fa: true,
-                controller: c,
-              ),
-              const SizedBox(height: 22),
               const Text(
                 'همهٔ خدمات',
                 style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
                   color: VelixeoBrand.ink,
                 ),
               ),
@@ -4587,52 +4560,25 @@ class _EnglishServicesPage extends StatelessWidget {
         child: RefreshIndicator(
           onRefresh: c.refreshAccount,
           child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: VelixeoEnDesign.pagePadding,
             children: [
-              const Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Services',
-                          style: TextStyle(
-                            fontSize: 23,
-                            fontWeight: FontWeight.w700,
-                            color: VelixeoBrand.ink,
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          'Everything you need for your digital world.',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: VelixeoBrand.muted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  BrandMark(size: 34, wordmark: false),
-                ],
+              VelixeoEnPageHeader(
+                title: 'Digital Services',
+                subtitle: 'Everything you need for your digital world, in one place.',
+                onBack: onBack ?? () => Navigator.maybePop(context),
+                trailing: const BrandMark(size: 34, wordmark: false),
               ),
-              const SizedBox(height: 17),
               _PrototypeSearch(
-                hint: 'Search services…',
+                hint: 'Search digital services…',
                 direction: TextDirection.ltr,
                 onTap: () => _openServiceSearch(context, c),
               ),
               const SizedBox(height: 20),
-              _ServicesCategoryStrip(
-                fa: false,
-                controller: c,
-              ),
-              const SizedBox(height: 22),
               const Text(
                 'All services',
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: VelixeoBrand.ink,
                 ),
@@ -4651,63 +4597,6 @@ class _EnglishServicesPage extends StatelessWidget {
   }
 }
 
-class _ServicesCategoryStrip extends StatelessWidget {
-  const _ServicesCategoryStrip({required this.fa, required this.controller});
-  final bool fa;
-  final AppController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final items = HomePage.services;
-    return SizedBox(
-      height: 82,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, i) {
-          final item = items[i];
-          return InkWell(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => _serviceDestination(controller, item)),
-            ),
-            borderRadius: BorderRadius.circular(16),
-            child: SizedBox(
-              width: 66,
-              child: Column(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: item.color.withValues(alpha: .10),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFF0F4F6)),
-                    ),
-                    child: Icon(item.icon, color: item.color, size: 23),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    fa ? item.fa : item.en,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 9,
-                      color: Color(0xFF6E8390),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
 class _ServicesLiveList extends StatelessWidget {
   const _ServicesLiveList({
     required this.controller,
@@ -4721,153 +4610,86 @@ class _ServicesLiveList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = controller;
-    if (c.catalogServices.isEmpty) {
-      return Column(
-        children: [
-          _ServiceListCard(
-            icon: Icons.favorite_rounded,
-            color: VelixeoBrand.sky,
-            title: fa ? 'شبکه‌های اجتماعی' : 'Social Media',
-            subtitle: fa
-                ? 'سفارش، پیگیری، جبران ریزش و سفارش دوره‌ای'
-                : 'Order, track, refill and drip-feed',
-            direction: direction,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => SocialPanelPage(host: c)),
-            ),
-          ),
-          _ServiceListCard(
-            icon: Icons.phone_iphone_rounded,
-            color: VelixeoBrand.sky,
-            title: fa ? 'شماره مجازی' : 'Virtual Numbers',
-            subtitle: fa
-                ? 'خرید شماره، دریافت پیامک و مدیریت شماره‌ها'
-                : 'Buy numbers, receive SMS and manage activations',
-            direction: direction,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => VirtualNumberPanelPage(host: c)),
-            ),
-          ),
-          _ServiceListCard(
-            icon: Icons.workspace_premium_rounded,
-            color: const Color(0xFF9580CA),
-            title: fa ? 'اشتراک‌های پریمیوم' : 'Premium',
-            subtitle: fa
-                ? 'تلگرام پریمیوم، اسنپ‌چت پلاس و اشتراک‌های مشابه'
-                : 'Telegram Premium, Snapchat+ and similar memberships',
-            direction: direction,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => PremiumPanelPage(host: c)),
-            ),
-          ),
-          _ServiceListCard(
-            icon: Icons.layers_rounded,
-            color: const Color(0xFF68A386),
-            title: fa ? 'حساب‌های دیجیتال' : 'Digital Accounts',
-            subtitle: fa
-                ? 'VPN، استریم، لایسنس و محصولات دیجیتال'
-                : 'VPN, streaming, licenses and digital products',
-            direction: direction,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => DigitalAccountsHubPage(controller: c)),
-            ),
-          ),
-          _ServiceListCard(
-            icon: Icons.sim_card_rounded,
-            color: const Color(0xFFD19353),
-            title: fa ? 'شارژ سیم‌کارت' : 'Mobile Top-up',
-            subtitle: fa
-                ? 'به‌زودی · پس از اتصال رسمی API اپراتورها'
-                : 'Coming soon · waiting for official telecom APIs',
-            direction: direction,
-            badge: fa ? 'به‌زودی' : 'Soon',
-            onTap: () {
-              final item = HomePage.services.firstWhere(
-                (service) => service.en == 'Mobile Top-up',
-              );
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ComingSoonServicePage(controller: c, service: item),
-                ),
-              );
-            },
-          ),
-        ],
-      );
-    }
-
-    final widgets = <Widget>[];
-    if (c.catalogServices.any((service) => service.category == 'SOCIAL')) {
-      widgets.add(
+    final topUp = HomePage.services.firstWhere(
+      (service) => service.en == 'Mobile Top-up',
+    );
+    return Column(
+      children: [
         _ServiceListCard(
           icon: Icons.favorite_rounded,
           color: VelixeoBrand.sky,
           title: fa ? 'شبکه‌های اجتماعی' : 'Social Media',
           subtitle: fa
-              ? 'سفارش جدید، پیگیری، جبران و لغو'
-              : 'Order, track, refill and cancel',
+              ? 'سفارش جدید، پیگیری، جبران ریزش و سفارش دوره‌ای'
+              : 'New orders, tracking, refill and drip-feed',
           direction: direction,
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => SocialPanelPage(host: c)),
           ),
         ),
-      );
-    }
-
-    for (final service in c.catalogServices.where(
-      (item) => item.category != 'SOCIAL' && item.category != 'MOBILE_TOPUP',
-    )) {
-      final color = catalogColor(service.category);
-      final price = service.basePriceAfn == null
-          ? (fa ? 'قیمت زنده از ارائه‌دهنده' : 'Live provider pricing')
-          : (fa ? 'از ' : 'From ') + c.money(service.basePriceAfn!);
-      widgets.add(
         _ServiceListCard(
-          icon: catalogIcon(service.category),
-          color: color,
-          title: fa ? service.titleFa : service.titleEn,
-          subtitle: price,
+          icon: Icons.phone_iphone_rounded,
+          color: const Color(0xFF42B7E9),
+          title: fa ? 'شماره مجازی' : 'Virtual Numbers',
+          subtitle: fa
+              ? 'خرید شماره، دریافت OTP و مدیریت شماره‌های فعال'
+              : 'Buy numbers, receive OTP and manage active numbers',
           direction: direction,
-          featured: service.featured,
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => _catalogDestination(c, service)),
+            MaterialPageRoute(builder: (_) => VirtualNumberPanelPage(host: c)),
           ),
         ),
-      );
-    }
-
-    widgets.add(
-      _ServiceListCard(
-        icon: Icons.sim_card_rounded,
-        color: const Color(0xFFD19353),
-        title: fa ? 'شارژ سیم‌کارت' : 'Mobile Top-up',
-        subtitle: fa
-            ? 'به‌زودی · پس از اتصال رسمی API اپراتورها'
-            : 'Coming soon · waiting for official telecom APIs',
-        direction: direction,
-        badge: fa ? 'به‌زودی' : 'Soon',
-        onTap: () {
-          final item = HomePage.services.firstWhere(
-            (service) => service.en == 'Mobile Top-up',
-          );
-          Navigator.push(
+        _ServiceListCard(
+          icon: Icons.workspace_premium_rounded,
+          color: const Color(0xFF9580CA),
+          title: fa ? 'اشتراک پریمیوم' : 'Premium Memberships',
+          subtitle: fa
+              ? 'تلگرام پریمیوم، اسنپ‌چت پلاس و عضویت‌های مشابه'
+              : 'Telegram Premium, Snapchat+ and similar memberships',
+          direction: direction,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => PremiumPanelPage(host: c)),
+          ),
+        ),
+        _ServiceListCard(
+          icon: Icons.sim_card_rounded,
+          color: const Color(0xFFD19353),
+          title: fa ? 'شارژ سیم‌کارت' : 'Mobile Top-up',
+          subtitle: fa
+              ? 'به‌زودی · پس از اتصال رسمی API اپراتورها'
+              : 'Coming soon · waiting for official operator APIs',
+          direction: direction,
+          badge: fa ? 'به‌زودی' : 'Soon',
+          onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => ComingSoonServicePage(controller: c, service: item),
+              builder: (_) => ComingSoonServicePage(
+                controller: c,
+                service: topUp,
+              ),
             ),
-          );
-        },
-      ),
+          ),
+        ),
+        _ServiceListCard(
+          icon: Icons.layers_rounded,
+          color: const Color(0xFF68A386),
+          title: fa ? 'حساب‌های دیجیتال' : 'Digital Accounts',
+          subtitle: fa
+              ? 'VPN، استریم، لایسنس و حساب‌های دیجیتال'
+              : 'VPN, streaming, licenses and digital accounts',
+          direction: direction,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => DigitalAccountsHubPage(controller: c),
+            ),
+          ),
+        ),
+      ],
     );
-
-    return Column(children: widgets);
   }
 }
 
