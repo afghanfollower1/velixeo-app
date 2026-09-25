@@ -1,7 +1,7 @@
 name: velixeo
 publish_to: 'none'
 description: VELIXEO bilingual digital services marketplace.
-version: 0.14.4+38
+version: 0.14.5+39
 
 environment:
   sdk: '>=3.6.0 <4.0.0'
