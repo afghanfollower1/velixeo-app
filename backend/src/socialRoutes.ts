@@ -19,7 +19,7 @@ import { loadSocialBrands, normalizeBrandKey } from './socialBrands.js';
 import { getSocialOrderSettings } from './socialOrderSettings.js';
 import { normalizeCurrencyCode } from './currency.js';
 import { sendAdminOrderAlert, sendAdminRefundAlert } from './adminTelegramEvents.js';
-import { providerStartEtaFromMetadata } from './socialEta.js';
+import { providerAverageEtaFromMetadata, providerStartEtaFromMetadata } from './socialEta.js';
 
 type AuthenticateHook = (
   request: FastifyRequest,
@@ -948,6 +948,44 @@ export function registerSocialRoutes(
       orderBy: [{ socialPlatform: 'asc' }, { socialGroup: 'asc' }, { featured: 'desc' }, { sortOrder: 'asc' }],
     });
 
+    const recentCompleted = services.length
+      ? await prisma.order.findMany({
+          where: {
+            category: ServiceCategory.SOCIAL,
+            status: OrderStatus.COMPLETED,
+            serviceId: { in: services.map((service) => service.id) },
+            providerId: { not: null },
+            completedAt: { not: null },
+            createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+          },
+          select: {
+            serviceId: true,
+            providerId: true,
+            createdAt: true,
+            completedAt: true,
+          },
+          orderBy: { completedAt: 'desc' },
+          take: 5000,
+        })
+      : [];
+    const durationSamples = new Map<string, number[]>();
+    for (const order of recentCompleted) {
+      if (!order.serviceId || !order.providerId || !order.completedAt) continue;
+      const durationMs = order.completedAt.getTime() - order.createdAt.getTime();
+      if (!Number.isFinite(durationMs) || durationMs < 0) continue;
+      const key = `${order.serviceId}:${order.providerId}`;
+      const samples = durationSamples.get(key) ?? [];
+      if (samples.length >= 30) continue;
+      samples.push(Math.max(0, Math.round(durationMs / 60000)));
+      durationSamples.set(key, samples);
+    }
+    const measuredAverage = new Map<string, { minutes: number; samples: number }>();
+    for (const [key, samples] of durationSamples.entries()) {
+      if (!samples.length) continue;
+      const minutes = Math.round(samples.reduce((sum, value) => sum + value, 0) / samples.length);
+      measuredAverage.set(key, { minutes, samples: samples.length });
+    }
+
     const rows = [];
     for (const service of services) {
       const meta = service.metadata && typeof service.metadata === 'object' && !Array.isArray(service.metadata)
@@ -962,6 +1000,19 @@ export function registerSocialRoutes(
       const rateAfn = await customerRateAfn(prisma, service, route);
       if (rateAfn == null) continue;
       const providerType = route.providerType || 'Default';
+      const providerAverage = providerAverageEtaFromMetadata(route.metadata);
+      const measured = measuredAverage.get(`${service.id}:${route.providerId}`) ?? null;
+      const providerAverageMinutes = providerAverage
+        ? providerAverage.minMinutes != null && providerAverage.maxMinutes != null
+          ? Math.round((providerAverage.minMinutes + providerAverage.maxMinutes) / 2)
+          : providerAverage.minMinutes ?? providerAverage.maxMinutes
+        : null;
+      const averageTimeMinutes = providerAverageMinutes ?? measured?.minutes ?? null;
+      const averageTimeSource = providerAverage
+        ? 'PROVIDER_API'
+        : measured
+          ? 'VELIXEO_ORDERS'
+          : 'NONE';
       rows.push({
         id: service.id,
         slug: service.slug,
@@ -979,6 +1030,11 @@ export function registerSocialRoutes(
         maxQty: service.maxQty ?? route.providerMaxQty,
         estimatedMinMinutes: service.estimatedMinMinutes,
         estimatedMaxMinutes: service.estimatedMaxMinutes,
+        advertisedStartTime: providerEtaFromMetadata(route.metadata, route.providerName),
+        averageTimeText: providerAverage?.text ?? null,
+        averageTimeMinutes,
+        averageTimeSource,
+        averageTimeSamples: averageTimeSource === 'VELIXEO_ORDERS' ? measured?.samples ?? 0 : null,
         refillSupported: route.providerRefill,
         cancelSupported: route.providerCancel,
         refillDays: service.refillDays,
