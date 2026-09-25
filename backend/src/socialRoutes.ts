@@ -465,7 +465,7 @@ async function recentSocialAverageMap(prisma: PrismaClient) {
       providerId: { not: null },
       serviceId: { not: null },
       completedAt: { not: null },
-      createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+      completedAt: { gte: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000) },
     },
     select: {
       serviceId: true,
@@ -914,6 +914,9 @@ async function syncSocialOrderRecord(prisma: PrismaClient, order: any) {
     : {};
   const adminOverride = currentOutput.adminStatusOverride === true;
   const effectiveStatus = adminOverride ? order.status : providerMappedStatus;
+  const becameCompleted = !adminOverride
+    && providerMappedStatus === OrderStatus.COMPLETED
+    && order.status !== OrderStatus.COMPLETED;
   await prisma.order.update({
     where: { id: order.id },
     data: {
@@ -945,6 +948,7 @@ async function syncSocialOrderRecord(prisma: PrismaClient, order: any) {
       },
     },
   });
+  if (becameCompleted) socialAverageCache.expiresAt = 0;
   if (!adminOverride) {
     await maybeApplyTerminalRefund(prisma, order, providerMappedStatus, status.remains);
   }
@@ -1349,6 +1353,19 @@ export function registerSocialRoutes(
           service: route.providerServiceCode,
           ...parameters,
         });
+        const providerAverage = providerAverageEtaFromMetadata(route.metadata);
+        const measuredAverage = (await recentSocialAverageMap(prisma)).get(`${service.id}:${route.providerId}`) ?? null;
+        const providerAverageMinutes = providerAverage
+          ? providerAverage.minMinutes != null && providerAverage.maxMinutes != null
+            ? Math.round((providerAverage.minMinutes + providerAverage.maxMinutes) / 2)
+            : providerAverage.minMinutes ?? providerAverage.maxMinutes
+          : null;
+        const orderAverageMinutes = providerAverageMinutes ?? measuredAverage?.minutes ?? null;
+        const orderAverageSource = providerAverage
+          ? 'PROVIDER_API'
+          : measuredAverage
+            ? 'VELIXEO_ORDERS'
+            : 'NONE';
         order = await prisma.order.update({
           where: { id: order.id },
           data: {
@@ -1362,16 +1379,12 @@ export function registerSocialRoutes(
               refillSupported: route.providerRefill,
               cancelSupported: route.providerCancel,
               providerEta: providerEtaFromMetadata(route.metadata, route.providerName),
-              providerAverageTimeText: providerAverageEtaFromMetadata(route.metadata)?.text ?? null,
-              providerAverageTimeMinutes: (() => {
-                const avg = providerAverageEtaFromMetadata(route.metadata);
-                if (!avg) return null;
-                if (avg.minMinutes != null && avg.maxMinutes != null) {
-                  return Math.round((avg.minMinutes + avg.maxMinutes) / 2);
-                }
-                return avg.minMinutes ?? avg.maxMinutes;
-              })(),
-              providerAverageTimeSource: providerAverageEtaFromMetadata(route.metadata) ? 'PROVIDER_API' : 'NONE',
+              providerAverageTimeText: providerAverage?.text ?? null,
+              providerAverageTimeMinutes: orderAverageMinutes,
+              providerAverageTimeSource: orderAverageSource,
+              providerAverageTimeSamples: orderAverageSource === 'VELIXEO_ORDERS'
+                ? measuredAverage?.samples ?? 0
+                : null,
               refillWindowHours: orderSettings.refillWindowHours,
               displayOrderId: orderSettings.orderIdMode === 'PROVIDER'
                 ? result.orderId
