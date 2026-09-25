@@ -15,6 +15,7 @@ const SCALE = 1_000_000n;
 const DEFAULT_SYNC_MINUTES = 10;
 const MIN_SYNC_MINUTES = 1;
 const MAX_SYNC_MINUTES = 1440;
+const MAX_LIVE_PRICE_SYNC_MINUTES = 10;
 
 export type SocialProviderSyncConfig = {
   autoSync: boolean;
@@ -423,7 +424,11 @@ export function startSocialAutoSync(
       const config = await getSocialProviderSyncConfig(prisma, provider.id);
       if (!config.autoSync) continue;
       const last = config.lastSyncAt ? new Date(config.lastSyncAt).getTime() : 0;
-      const dueAt = last + config.syncMinutes * 60_000;
+      // Dynamic customer prices are derived from the provider rate, so an enabled
+      // provider must never keep a source price older than ten minutes. Admins may
+      // choose a faster interval, but a slower configured interval is capped here.
+      const effectiveSyncMinutes = Math.min(config.syncMinutes, MAX_LIVE_PRICE_SYNC_MINUTES);
+      const dueAt = last + effectiveSyncMinutes * 60_000;
       if (last && Date.now() < dueAt) continue;
 
       syncing.add(provider.id);
