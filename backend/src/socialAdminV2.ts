@@ -122,6 +122,21 @@ function normalizeSlug(value: string) {
     .slice(0, 80);
 }
 
+type CatalogSortMode = 'PRICE_ASC' | 'PRICE_DESC' | 'MANUAL';
+const CATALOG_SORT_SETTING_KEY = 'social.catalog.sort_mode';
+
+function normalizeCatalogSortMode(value: unknown): CatalogSortMode {
+  const mode = String(value ?? '').trim().toUpperCase();
+  if (mode === 'PRICE_DESC' || mode === 'MANUAL') return mode;
+  return 'PRICE_ASC';
+}
+
+async function loadCatalogSortMode(prisma: PrismaClient): Promise<CatalogSortMode> {
+  const row = await prisma.systemSetting.findUnique({ where: { key: CATALOG_SORT_SETTING_KEY } });
+  const value = jsonObject(row?.value ?? {});
+  return normalizeCatalogSortMode(value.mode);
+}
+
 function parseCategory(setting: {
   key: string;
   value: Prisma.JsonValue;
@@ -255,7 +270,7 @@ async function renderCategories(prisma: PrismaClient, query: Record<string, unkn
   }
   const editSlug = String(query.edit ?? '').trim();
   const selected = categories.find((item) => item.slug === editSlug) || null;
-  return `<div class="grid2"><div class="card"><h3 class="section">Categoriesی خدمات</h3><div class="table"><table><thead><tr><th>Name</th><th>Platform</th><th>Services</th><th>ترتیب</th><th>Status</th><th></th></tr></thead><tbody>${categories.map((category) => `<tr><td><b>${esc(category.titleFa)}</b><br><span class="muted">${esc(category.titleEn)}</span><br><span class="mono muted">${esc(category.slug)}</span></td><td>${esc(category.platform)}</td><td><b>${counts.get(category.slug) || 0}</b></td><td>${category.sortOrder}</td><td><span class="badge ${category.enabled ? 'ok' : 'bad'}">${category.enabled ? 'Active' : 'Disabled'}</span></td><td><a class="ghost" href="/admin/social?tab=categories&edit=${encodeURIComponent(category.slug)}">Edit</a></td></tr>`).join('') || '<tr><td colspan="6">دسته‌ای ایجاد نشده است.</td></tr>'}</tbody></table></div></div><div class="card"><h3 class="section">${selected ? 'Edit دسته' : 'دسته جدید'}</h3><form method="post" action="/admin/social/categories/save"><div class="grid2"><div class="field"><label>Name فارسی</label><input name="titleFa" value="${esc(selected?.titleFa || '')}" placeholder="فالوور خارجی" required></div><div class="field"><label>English name</label><input name="titleEn" value="${esc(selected?.titleEn || '')}" placeholder="International Followers" required></div></div><div class="grid2"><div class="field"><label>Slug</label><input class="mono" name="slug" value="${esc(selected?.slug || '')}" placeholder="instagram-foreign-followers" ${selected ? 'readonly' : 'required'}></div><div class="field"><label>Platform</label><input name="platform" value="${esc(selected?.platform || 'INSTAGRAM')}" placeholder="INSTAGRAM" required></div></div><div class="field"><label>توضیح فارسی</label><textarea name="descriptionFa">${esc(selected?.descriptionFa || '')}</textarea></div><div class="field"><label>English description</label><textarea name="descriptionEn">${esc(selected?.descriptionEn || '')}</textarea></div><div class="field"><label>ترتیب نمایش</label><input type="number" name="sortOrder" value="${esc(selected?.sortOrder ?? 100)}"></div><label class="check"><input type="checkbox" name="enabled"${selected?.enabled !== false ? ' checked' : ''}> Active باشد</label><button class="btn" type="submit" style="margin-top:12px">Save Category</button></form></div></div>`;
+  return `<div class="grid2"><div class="card"><h3 class="section">Categoriesی خدمات</h3><div class="table"><table><thead><tr><th>Name</th><th>Platform</th><th>Services</th><th>ترتیب</th><th>Status</th><th></th></tr></thead><tbody>${categories.map((category) => `<tr><td><b>${esc(category.titleFa)}</b><br><span class="muted">${esc(category.titleEn)}</span><br><span class="mono muted">${esc(category.slug)}</span></td><td>${esc(category.platform)}</td><td><b>${counts.get(category.slug) || 0}</b></td><td>${category.sortOrder}</td><td><span class="badge ${category.enabled ? 'ok' : 'bad'}">${category.enabled ? 'Active' : 'Disabled'}</span></td><td><div class="row"><a class="ghost" href="/admin/social?tab=categories&edit=${encodeURIComponent(category.slug)}">Edit</a><form method="post" action="/admin/social/categories/delete" onsubmit="return confirm('این دسته حذف و سرویس‌های داخل آن غیرفعال شوند؟')"><input type="hidden" name="slug" value="${esc(category.slug)}"><button class="danger" type="submit">Delete</button></form></div></td></tr>`).join('') || '<tr><td colspan="6">دسته‌ای ایجاد نشده است.</td></tr>'}</tbody></table></div></div><div class="card"><h3 class="section">${selected ? 'Edit دسته' : 'دسته جدید'}</h3><form method="post" action="/admin/social/categories/save">${selected ? `<input type="hidden" name="originalSlug" value="${esc(selected.slug)}">` : ''}<div class="grid2"><div class="field"><label>Name فارسی</label><input name="titleFa" value="${esc(selected?.titleFa || '')}" placeholder="فالوور خارجی" required></div><div class="field"><label>English name</label><input name="titleEn" value="${esc(selected?.titleEn || '')}" placeholder="International Followers" required></div></div><div class="grid2"><div class="field"><label>Slug</label><input class="mono" name="slug" value="${esc(selected?.slug || '')}" placeholder="instagram-foreign-followers" required></div><div class="field"><label>Platform</label><input name="platform" value="${esc(selected?.platform || 'INSTAGRAM')}" placeholder="INSTAGRAM" required></div></div><div class="field"><label>توضیح فارسی</label><textarea name="descriptionFa">${esc(selected?.descriptionFa || '')}</textarea></div><div class="field"><label>English description</label><textarea name="descriptionEn">${esc(selected?.descriptionEn || '')}</textarea></div><div class="field"><label>ترتیب نمایش</label><input type="number" name="sortOrder" value="${esc(selected?.sortOrder ?? 100)}"></div><label class="check"><input type="checkbox" name="enabled"${selected?.enabled !== false ? ' checked' : ''}> Active باشد</label><div class="row" style="margin-top:12px"><button class="btn" type="submit">Save Category</button>${selected ? `<button class="danger" type="submit" formaction="/admin/social/categories/delete" formmethod="post" name="slug" value="${esc(selected.slug)}" onclick="return confirm('این دسته حذف و سرویس‌های داخل آن غیرفعال شوند؟')">Delete Category</button>` : ''}</div></form></div></div>`;
 }
 
 async function renderCatalog(prisma: PrismaClient, query: Record<string, unknown>) {
@@ -291,7 +306,10 @@ async function renderCatalog(prisma: PrismaClient, query: Record<string, unknown
 }
 
 async function renderServices(prisma: PrismaClient) {
-  const categories = await loadCategories(prisma);
+  const [categories, sortMode] = await Promise.all([
+    loadCategories(prisma),
+    loadCatalogSortMode(prisma),
+  ]);
   const categoryMap = new Map(categories.map((category) => [category.slug, category]));
   const services = await prisma.service.findMany({
     where: { category: ServiceCategory.SOCIAL, enabled: true },
@@ -312,7 +330,19 @@ async function renderServices(prisma: PrismaClient) {
       sale: route ? await socialRouteSaleRateAfn(prisma, service, route) : null,
     };
   }));
-  return `<div class="card"><h3 class="section">سرویس‌هایی که کاربران می‌بینند</h3><div class="table"><table><thead><tr><th>سرویس</th><th>دسته</th><th>Provider</th><th>Provider cost</th><th>روش فروش</th><th>قیمت فعلی</th><th>Markup</th><th></th></tr></thead><tbody>${rows.map(({service,route,sale}) => { const category = categoryMap.get(service.socialGroup || ''); return `<tr><td><b>${esc(service.titleFa)}</b><br><span class="muted">${esc(service.titleEn)}</span></td><td>${esc(category?.titleFa || service.socialGroup || 'OTHER')}<br><span class="muted">${esc(service.socialPlatform || 'OTHER')}</span></td><td>${esc(route?.provider.name || '—')}</td><td>${esc(route?.providerRate?.toString() || '—')} ${esc(route?.providerCurrency || '')}</td><td>${service.basePriceAfn == null ? '<span class="badge ok">AUTO</span>' : '<span class="badge">FIXED</span>'}</td><td><b>${sale == null ? '—' : fmtAfn(sale)}</b></td><td>${esc(route?.markupPercent?.toString() ?? route?.provider.defaultMarkupPercent.toString() ?? '—')}%</td><td>${route ? `<a class="ghost" href="/admin/social?tab=catalog&provider=${encodeURIComponent(route.providerId)}&route=${encodeURIComponent(route.id)}">Edit</a>` : ''}</td></tr>`; }).join('') || '<tr><td colspan="8">هنوز سرویسی منتشر نشده است.</td></tr>'}</tbody></table></div></div>`;
+  if (sortMode !== 'MANUAL') {
+    rows.sort((a, b) => {
+      if (a.service.socialPlatform !== b.service.socialPlatform || a.service.socialGroup !== b.service.socialGroup) return 0;
+      if (a.sale == null && b.sale == null) return a.service.sortOrder - b.service.sortOrder;
+      if (a.sale == null) return 1;
+      if (b.sale == null) return -1;
+      if (a.sale === b.sale) return a.service.sortOrder - b.service.sortOrder;
+      const cmp = a.sale < b.sale ? -1 : 1;
+      return sortMode === 'PRICE_DESC' ? -cmp : cmp;
+    });
+  }
+  const sortCard = `<div class="card"><div class="row"><div><h3 class="section" style="margin-bottom:4px">ترتیب نمایش قیمت برای کاربر</h3><div class="muted">مرتب‌سازی فقط داخل هر دسته اعمال می‌شود و قیمت نهایی AFN بعد از Markup ملاک است.</div></div><div class="spacer"></div><form method="post" action="/admin/social/catalog-sort/save" class="row"><select name="mode"><option value="PRICE_ASC"${sortMode === 'PRICE_ASC' ? ' selected' : ''}>ارزان‌ترین اول</option><option value="PRICE_DESC"${sortMode === 'PRICE_DESC' ? ' selected' : ''}>گران‌ترین اول</option><option value="MANUAL"${sortMode === 'MANUAL' ? ' selected' : ''}>ترتیب دستی</option></select><button class="btn" type="submit">ذخیره ترتیب</button></form></div></div>`;
+  return sortCard + `<div class="card"><h3 class="section">سرویس‌هایی که کاربران می‌بینند</h3><div class="table"><table><thead><tr><th>سرویس</th><th>دسته</th><th>Provider</th><th>Provider cost</th><th>روش فروش</th><th>قیمت فعلی</th><th>Markup</th><th></th></tr></thead><tbody>${rows.map(({service,route,sale}) => { const category = categoryMap.get(service.socialGroup || ''); return `<tr><td><b>${esc(service.titleFa)}</b><br><span class="muted">${esc(service.titleEn)}</span></td><td>${esc(category?.titleFa || service.socialGroup || 'OTHER')}<br><span class="muted">${esc(service.socialPlatform || 'OTHER')}</span></td><td>${esc(route?.provider.name || '—')}</td><td>${esc(route?.providerRate?.toString() || '—')} ${esc(route?.providerCurrency || '')}</td><td>${service.basePriceAfn == null ? '<span class="badge ok">AUTO</span>' : '<span class="badge">FIXED</span>'}</td><td><b>${sale == null ? '—' : fmtAfn(sale)}</b></td><td>${esc(route?.markupPercent?.toString() ?? route?.provider.defaultMarkupPercent.toString() ?? '—')}%</td><td>${route ? `<a class="ghost" href="/admin/social?tab=catalog&provider=${encodeURIComponent(route.providerId)}&route=${encodeURIComponent(route.id)}">Edit</a>` : ''}</td></tr>`; }).join('') || '<tr><td colspan="8">هنوز سرویسی منتشر نشده است.</td></tr>'}</tbody></table></div></div>`;
 }
 
 async function renderRouting(prisma: PrismaClient) {
@@ -440,6 +470,7 @@ export function registerSocialAdminV2(
     const admin = await requireAdmin(request, reply, resolveAdmin);
     if (!admin) return;
     const body = request.body as AnyBody;
+    const originalSlug = normalizeSlug(text(body, 'originalSlug'));
     const slug = normalizeSlug(text(body, 'slug'));
     const titleFa = text(body, 'titleFa');
     const titleEn = text(body, 'titleEn');
@@ -447,35 +478,110 @@ export function registerSocialAdminV2(
     if (!slug || !titleFa || !titleEn) {
       return reply.code(303).redirect('/admin/social?tab=categories&error=1&msg=اطلاعات Category ناقص است');
     }
-    const value: SocialCategoryDefinition = {
-      slug,
-      titleFa,
-      titleEn,
-      platform,
-      descriptionFa: text(body, 'descriptionFa'),
-      descriptionEn: text(body, 'descriptionEn'),
-      sortOrder: intValue(body.sortOrder, 100),
-      enabled: checked(body, 'enabled'),
-    };
+    try {
+      const value: SocialCategoryDefinition = {
+        slug,
+        titleFa,
+        titleEn,
+        platform,
+        descriptionFa: text(body, 'descriptionFa'),
+        descriptionEn: text(body, 'descriptionEn'),
+        sortOrder: intValue(body.sortOrder, 100),
+        enabled: checked(body, 'enabled'),
+      };
+      if (originalSlug && originalSlug !== slug) {
+        const [source, target] = await Promise.all([
+          prisma.systemSetting.findUnique({ where: { key: categoryKey(originalSlug) } }),
+          prisma.systemSetting.findUnique({ where: { key: categoryKey(slug) } }),
+        ]);
+        if (!source) throw new Error('CATEGORY_NOT_FOUND');
+        if (target) throw new Error('CATEGORY_SLUG_ALREADY_EXISTS');
+        await prisma.$transaction([
+          prisma.systemSetting.create({
+            data: {
+              key: categoryKey(slug),
+              category: 'social-category',
+              description: `Social service category ${slug}`,
+              value: value as unknown as Prisma.InputJsonValue,
+            },
+          }),
+          prisma.service.updateMany({
+            where: { category: ServiceCategory.SOCIAL, socialGroup: originalSlug },
+            data: { socialGroup: slug, socialPlatform: platform },
+          }),
+          prisma.systemSetting.delete({ where: { key: categoryKey(originalSlug) } }),
+        ]);
+      } else {
+        await prisma.systemSetting.upsert({
+          where: { key: categoryKey(slug) },
+          create: {
+            key: categoryKey(slug),
+            category: 'social-category',
+            description: `Social service category ${slug}`,
+            value: value as unknown as Prisma.InputJsonValue,
+          },
+          update: {
+            category: 'social-category',
+            value: value as unknown as Prisma.InputJsonValue,
+          },
+        });
+        await prisma.service.updateMany({
+          where: { category: ServiceCategory.SOCIAL, socialGroup: slug },
+          data: { socialPlatform: platform },
+        });
+      }
+      await audit(prisma, admin.id, 'SOCIAL_CATEGORY_SAVE', 'SocialCategory', slug, `${platform} → ${titleFa}`, {
+        originalSlug: originalSlug || slug,
+        renamed: Boolean(originalSlug && originalSlug !== slug),
+      });
+      return reply.code(303).redirect(`/admin/social?tab=categories&edit=${encodeURIComponent(slug)}&msg=${encodeURIComponent('Category Save شد')}`);
+    } catch (error) {
+      return reply.code(303).redirect(`/admin/social?tab=categories&error=1&msg=${encodeURIComponent(error instanceof Error ? error.message : 'category_save_failed')}`);
+    }
+  });
+
+  app.post('/admin/social/categories/delete', async (request, reply) => {
+    const admin = await requireAdmin(request, reply, resolveAdmin);
+    if (!admin) return;
+    const slug = normalizeSlug(text(request.body as AnyBody, 'slug'));
+    if (!slug) return reply.code(303).redirect('/admin/social?tab=categories&error=1&msg=CATEGORY_SLUG_REQUIRED');
+    try {
+      const row = await prisma.systemSetting.findUnique({ where: { key: categoryKey(slug) } });
+      if (!row) throw new Error('CATEGORY_NOT_FOUND');
+      const result = await prisma.$transaction(async (tx) => {
+        const disabled = await tx.service.updateMany({
+          where: { category: ServiceCategory.SOCIAL, socialGroup: slug },
+          data: { enabled: false },
+        });
+        await tx.systemSetting.delete({ where: { key: categoryKey(slug) } });
+        return disabled.count;
+      });
+      await audit(prisma, admin.id, 'SOCIAL_CATEGORY_DELETE', 'SocialCategory', slug, `Deleted category ${slug}; disabled ${result} services`, {
+        disabledServiceCount: result,
+      });
+      return reply.code(303).redirect(`/admin/social?tab=categories&msg=${encodeURIComponent(`Category حذف شد؛ ${result} سرویس داخل آن غیرفعال شد`)}`);
+    } catch (error) {
+      return reply.code(303).redirect(`/admin/social?tab=categories&error=1&msg=${encodeURIComponent(error instanceof Error ? error.message : 'category_delete_failed')}`);
+    }
+  });
+
+  app.post('/admin/social/catalog-sort/save', async (request, reply) => {
+    const admin = await requireAdmin(request, reply, resolveAdmin);
+    if (!admin) return;
+    const mode = normalizeCatalogSortMode((request.body as AnyBody).mode);
+    const value = { mode, updatedAt: new Date().toISOString(), updatedBy: admin.id };
     await prisma.systemSetting.upsert({
-      where: { key: categoryKey(slug) },
+      where: { key: CATALOG_SORT_SETTING_KEY },
       create: {
-        key: categoryKey(slug),
-        category: 'social-category',
-        description: `Social service category ${slug}`,
+        key: CATALOG_SORT_SETTING_KEY,
+        category: 'social-settings',
+        description: 'Customer-facing Social Media service sort mode.',
         value: value as unknown as Prisma.InputJsonValue,
       },
-      update: {
-        category: 'social-category',
-        value: value as unknown as Prisma.InputJsonValue,
-      },
+      update: { category: 'social-settings', value: value as unknown as Prisma.InputJsonValue },
     });
-    await prisma.service.updateMany({
-      where: { category: ServiceCategory.SOCIAL, socialGroup: slug },
-      data: { socialPlatform: platform },
-    });
-    await audit(prisma, admin.id, 'SOCIAL_CATEGORY_SAVE', 'SocialCategory', slug, `${platform} → ${titleFa}`);
-    return reply.code(303).redirect(`/admin/social?tab=categories&edit=${encodeURIComponent(slug)}&msg=${encodeURIComponent('Category Save شد')}`);
+    await audit(prisma, admin.id, 'SOCIAL_CATALOG_SORT_UPDATE', 'SystemSetting', CATALOG_SORT_SETTING_KEY, `Catalog sort mode: ${mode}`, value as unknown as Prisma.InputJsonValue);
+    return reply.code(303).redirect(`/admin/social?tab=services&msg=${encodeURIComponent(mode === 'PRICE_ASC' ? 'نمایش سرویس‌ها روی ارزان‌ترین اول تنظیم شد' : mode === 'PRICE_DESC' ? 'نمایش سرویس‌ها روی گران‌ترین اول تنظیم شد' : 'نمایش سرویس‌ها روی ترتیب دستی تنظیم شد')}`);
   });
 
   app.post('/admin/social/catalog/publish', async (request, reply) => {
