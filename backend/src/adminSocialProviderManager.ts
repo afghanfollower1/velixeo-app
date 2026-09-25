@@ -866,6 +866,9 @@ async function categoriesPage(prisma: PrismaClient, admin: AdminIdentity, reques
 
 async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, request: FastifyRequest) {
   const q = query(request);
+  const fa = adminLangFromRequest(request) === 'fa';
+  const l = (faText: string, enText: string) => fa ? faText : enText;
+  const n = (value: number) => value.toLocaleString(fa ? 'fa-AF' : 'en-US');
   const all = await prisma.service.findMany({
     where: {
       category: ServiceCategory.SOCIAL,
@@ -898,13 +901,40 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
       : false;
     const refill = primary
       ? (primary.providerRefill
-          ? pill(detected ? 'Enabled · Provider' : 'Enabled · Manual','ok')
-          : pill(detected ? 'Disabled manually' : 'No refill'))
-      : pill('No route');
+          ? pill(detected ? l('فعال · ارائه‌دهنده','Enabled · Provider') : l('فعال · دستی','Enabled · Manual'),'ok')
+          : pill(detected ? l('دستی غیرفعال شده','Disabled manually') : l('بدون جبران','No refill')))
+      : pill(l('بدون مسیر','No route'));
+    const toggleTitle = primary?.providerRefill
+      ? l('غیرفعال کردن جبران ریزش','Disable refill')
+      : l('فعال کردن جبران ریزش','Enable refill');
     const refillToggle = primary
-      ? `<form method="post" action="/admin/v3/social/my-services/refill-toggle"><input type="hidden" name="routeId" value="${primary.id}"><button class="iconbtn ${primary.providerRefill?'orange':'green'}" title="${primary.providerRefill?'Disable refill':'Enable refill'}">${icon('sync')}</button></form>`
+      ? `<form method="post" action="/admin/v3/social/my-services/refill-toggle"><input type="hidden" name="routeId" value="${primary.id}"><button class="iconbtn ${primary.providerRefill?'orange':'green'}" title="${toggleTitle}" aria-label="${toggleTitle}">${icon('sync')}</button></form>`
       : '';
-    return `<tr><td><b>${esc(service.titleFa || service.titleEn)}</b><br><span class="muted">${esc(service.titleEn)}</span><br><span class="mono tiny">${esc(service.slug)}</span></td><td>${esc(service.socialPlatform || 'OTHER')} → ${esc(service.socialGroup || '—')}</td><td>${primary ? esc(primary.provider.name) : '—'}${service.routes.length > 1 ? ` +${service.routes.length - 1}` : ''}</td><td>${service.basePriceAfn != null ? `<span class="price-fixed">Fixed · ${money(service.basePriceAfn)}</span>` : '<span class="price-auto">Auto Markup</span>'}</td><td>${service.minQty ?? '—'} – ${service.maxQty ?? '—'}</td><td><div class="actions">${refill}${refillToggle}</div>${service.refillDays ? `<span class="tiny">${service.refillDays} guarantee days</span>` : ''}</td><td>${service.featured?pill('Featured','info'):''} ${service.enabled?pill('Live','ok'):pill('Draft / Hidden','warn')}</td><td><div class="actions">${primary ? `<a class="iconbtn" href="/admin/v3/social/provider-services?provider=${primary.providerId}&route=${primary.id}" title="Edit service">${icon('edit')}</a>` : ''}<form method="post" action="/admin/v3/social/my-services/toggle"><input type="hidden" name="id" value="${service.id}"><button class="iconbtn ${service.enabled?'orange':'green'}" title="${service.enabled?'Hide from customer app':'Publish to customer app'}">${icon('eye')}</button></form></div></td></tr>`;
+    const displayTitle = fa
+      ? (service.titleFa || service.titleEn)
+      : service.titleEn;
+    const fixedLabel = fa ? 'ثابت' : 'Fixed';
+    const autoLabel = fa ? 'سود خودکار' : 'Auto Markup';
+    const guarantee = service.refillDays
+      ? `<span class="tiny">${n(service.refillDays)} ${l('روز ضمانت','guarantee days')}</span>`
+      : '';
+    const editTitle = l('ویرایش سرویس','Edit service');
+    const visibilityTitle = service.enabled
+      ? l('پنهان کردن از اپ مشتری','Hide from customer app')
+      : l('انتشار در اپ مشتری','Publish to customer app');
+    return `<tr>
+      <td><b>${esc(displayTitle)}</b><br><span class="mono tiny">${esc(service.slug)}</span></td>
+      <td>${esc(service.socialPlatform || 'OTHER')} → ${esc(service.socialGroup || '—')}</td>
+      <td>${primary ? esc(primary.provider.name) : '—'}${service.routes.length > 1 ? ` +${n(service.routes.length - 1)}` : ''}</td>
+      <td>${service.basePriceAfn != null ? `<span class="price-fixed">${fixedLabel} · ${money(service.basePriceAfn)}</span>` : `<span class="price-auto">${autoLabel}</span>`}</td>
+      <td>${service.minQty ?? '—'} – ${service.maxQty ?? '—'}</td>
+      <td><div class="actions">${refill}${refillToggle}</div>${guarantee}</td>
+      <td>${service.featured?pill(l('ویژه','Featured'),'info'):''} ${service.enabled?pill(l('فعال','Live'),'ok'):pill(l('پیش‌نویس / مخفی','Draft / Hidden'),'warn')}</td>
+      <td><div class="actions">
+        ${primary ? `<a class="iconbtn" href="/admin/v3/social/provider-services?provider=${primary.providerId}&route=${primary.id}" title="${editTitle}" aria-label="${editTitle}">${icon('edit')}</a>` : ''}
+        <form method="post" action="/admin/v3/social/my-services/toggle"><input type="hidden" name="id" value="${service.id}"><button class="iconbtn ${service.enabled?'orange':'green'}" title="${visibilityTitle}" aria-label="${visibilityTitle}">${icon('eye')}</button></form>
+      </div></td>
+    </tr>`;
   }).join('');
   return shell({
     request,
@@ -914,12 +944,14 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
     active: 'services',
     message: q.msg,
     error: q.error,
-    body: `<div class="card"><div class="cardhead"><form method="get" action="/admin/v3/social/my-services" class="searchbar"><input name="q" value="${esc(q.q)}" placeholder="Search service, slug or category"><button class="btn ghost">Search</button></form><a class="btn" href="/admin/v3/social/provider-services">${icon('plus')} Add from Provider Services</a></div><div class="notice">This list contains only VELIXEO services that you explicitly added from a provider. Use the refill switch here for a quick manual override.</div><div class="tablewrap"><table class="table"><thead><tr><th>VELIXEO Service</th><th>Brand / Category</th><th>Provider</th><th>Pricing</th><th>Min / Max</th><th>Refill</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="8" class="empty">No VELIXEO social services yet. Open Provider Services and press + to add one.</td></tr>'}</tbody></table></div></div>`,
+    body: `<div class="card"><div class="cardhead"><form method="get" action="/admin/v3/social/my-services" class="searchbar"><input name="q" value="${esc(q.q)}" placeholder="${l('جستجو بر اساس سرویس، شناسه یا دسته‌بندی','Search service, slug or category')}"><button class="btn ghost">${l('جستجو','Search')}</button></form><a class="btn" href="/admin/v3/social/provider-services">${icon('plus')} ${l('افزودن از سرویس‌های ارائه‌دهنده','Add from Provider Services')}</a></div><div class="notice">${l('این فهرست فقط سرویس‌هایی را نشان می‌دهد که خودتان به VELIXEO اضافه کرده‌اید. سرویس‌های خام ارائه‌دهنده در «سرویس‌های ارائه‌دهنده» باقی می‌مانند.','This list contains only VELIXEO services that you explicitly added from a provider. Provider catalog items stay in Provider Services.')}</div><div class="tablewrap"><table class="table"><thead><tr><th>${l('سرویس VELIXEO','VELIXEO Service')}</th><th>${l('برند / دسته‌بندی','Brand / Category')}</th><th>${l('ارائه‌دهنده','Provider')}</th><th>${l('قیمت‌گذاری','Pricing')}</th><th>${l('حداقل / حداکثر','Min / Max')}</th><th>${l('جبران','Refill')}</th><th>${l('وضعیت','Status')}</th><th>${l('عملیات','Actions')}</th></tr></thead><tbody>${rows || `<tr><td colspan="8" class="empty">${l('هنوز سرویس شبکه اجتماعی به VELIXEO اضافه نشده است. از «سرویس‌های ارائه‌دهنده» با + یک سرویس اضافه کنید.','No VELIXEO social services yet. Open Provider Services and press + to add one.')}</td></tr>`}</tbody></table></div></div>`,
   });
 }
 
 async function orderSettingsPage(prisma: PrismaClient, admin: AdminIdentity, request: FastifyRequest) {
   const q = query(request);
+  const fa = adminLangFromRequest(request) === 'fa';
+  const l = (faText: string, enText: string) => fa ? faText : enText;
   const settings = await getSocialOrderSettings(prisma);
   return shell({
     request,
@@ -931,25 +963,25 @@ async function orderSettingsPage(prisma: PrismaClient, admin: AdminIdentity, req
     error: q.error,
     body: `<div class="grid eq">
       <div class="card">
-        <div class="cardhead"><div><h2>Customer Order ID</h2><span class="muted">Choose what customers see as their Order ID.</span></div></div>
+        <div class="cardhead"><div><h2>${l('شناسه سفارش مشتری','Customer Order ID')}</h2><span class="muted">${l('مشخص کنید مشتری چه شناسه‌ای را به‌عنوان شماره سفارش ببیند.','Choose what customers see as their Order ID.')}</span></div></div>
         <form method="post" action="/admin/v3/social/order-settings/save">
-          <div class="field"><label>Order ID Mode</label><select name="orderIdMode">
-            <option value="PROVIDER" ${settings.orderIdMode==='PROVIDER'?'selected':''}>Provider/API Order ID</option>
-            <option value="SEQUENTIAL" ${settings.orderIdMode==='SEQUENTIAL'?'selected':''}>VELIXEO Sequential Order ID</option>
+          <div class="field"><label>${l('روش شناسه سفارش','Order ID Mode')}</label><select name="orderIdMode">
+            <option value="PROVIDER" ${settings.orderIdMode==='PROVIDER'?'selected':''}>${l('شناسه سفارش ارائه‌دهنده / API','Provider/API Order ID')}</option>
+            <option value="SEQUENTIAL" ${settings.orderIdMode==='SEQUENTIAL'?'selected':''}>${l('شناسه ترتیبی سفارش VELIXEO','VELIXEO Sequential Order ID')}</option>
           </select></div>
-          <div class="field"><label>Sequential Start Number</label><input type="number" min="1" name="startNumber" value="${esc(settings.startNumber)}"><span class="tiny">Example: 100063. Existing assigned numbers are never changed.</span></div>
-          <div class="field"><label>Refill Window After Completion (hours)</label><input type="number" min="1" max="720" name="refillWindowHours" value="${esc(settings.refillWindowHours)}"><span class="tiny">Refill capability itself always comes from the provider API. This only controls how long the button remains available after completion.</span></div>
-          <div class="field"><label>English Terms & Conditions</label><textarea name="termsEn" required>${esc(settings.termsEn)}</textarea></div>
-          <div class="field"><label>Persian Terms & Conditions</label><textarea name="termsFa" required>${esc(settings.termsFa)}</textarea></div>
-          <button class="btn">Save Order Settings</button>
+          <div class="field"><label>${l('شماره شروع ترتیبی','Sequential Start Number')}</label><input type="number" min="1" name="startNumber" value="${esc(settings.startNumber)}"><span class="tiny">${l('نمونه: 100063. شماره‌های قبلی هرگز تغییر نمی‌کنند.','Example: 100063. Existing assigned numbers are never changed.')}</span></div>
+          <div class="field"><label>${l('بازه جبران پس از تکمیل (ساعت)','Refill Window After Completion (hours)')}</label><input type="number" min="1" max="720" name="refillWindowHours" value="${esc(settings.refillWindowHours)}"><span class="tiny">${l('قابلیت جبران از API ارائه‌دهنده می‌آید؛ این مقدار فقط مشخص می‌کند دکمه جبران بعد از تکمیل تا چه مدت در دسترس باشد.','Refill capability itself always comes from the provider API. This only controls how long the button remains available after completion.')}</span></div>
+          <div class="field"><label>${l('شرایط و قوانین انگلیسی','English Terms & Conditions')}</label><textarea name="termsEn" required>${esc(settings.termsEn)}</textarea></div>
+          <div class="field"><label>${l('شرایط و قوانین فارسی','Persian Terms & Conditions')}</label><textarea name="termsFa" required>${esc(settings.termsFa)}</textarea></div>
+          <button class="btn">${l('ذخیره تنظیمات سفارش','Save Order Settings')}</button>
         </form>
       </div>
       <div class="card">
-        <div class="cardhead"><h2>How it works</h2>${pill('Server enforced','ok')}</div>
-        <div class="notice"><b>Provider/API ID:</b> customers see the order number returned by the SMM provider, but it is labeled only as “Order ID”.</div>
-        <div class="notice"><b>VELIXEO Sequential ID:</b> customers see a VELIXEO number starting from your chosen value, such as 100063, 100064, 100065… Provider IDs remain private for status, refill and cancellation.</div>
-        <div class="notice"><b>Refill:</b> Sync reads the provider API <span class="mono">refill</span> flag automatically when a service is added. You can then manually enable or disable refill per VELIXEO service; that override is preserved on future provider syncs.</div>
-        <div class="notice"><b>Cancel:</b> the provider API <span class="mono">cancel</span> flag is also synchronized automatically and the button is hidden for terminal/partial orders.</div>
+        <div class="cardhead"><h2>${l('نحوه کار','How it works')}</h2>${pill(l('اعمال‌شده در سرور','Server enforced'),'ok')}</div>
+        <div class="notice"><b>${l('شناسه ارائه‌دهنده / API:','Provider/API ID:')}</b> ${l('مشتری شماره سفارش برگشتی از ارائه‌دهنده SMM را می‌بیند، اما فقط با عنوان «شناسه سفارش» نمایش داده می‌شود.','Customers see the order number returned by the SMM provider, but it is labeled only as “Order ID”.')}</div>
+        <div class="notice"><b>${l('شناسه ترتیبی VELIXEO:','VELIXEO Sequential ID:')}</b> ${l('مشتری شماره VELIXEO را از مقدار انتخابی شما مثل 100063، 100064 و 100065 می‌بیند. شناسه ارائه‌دهنده برای وضعیت، جبران و لغو خصوصی باقی می‌ماند.','Customers see a VELIXEO number starting from your chosen value, such as 100063, 100064, 100065. Provider IDs remain private for status, refill and cancellation.')}</div>
+        <div class="notice"><b>${l('جبران:','Refill:')}</b> ${l('هنگام همگام‌سازی، قابلیت جبران از API ارائه‌دهنده خوانده می‌شود و بعد می‌توانید برای هر سرویس آن را دستی فعال یا غیرفعال کنید. تنظیم دستی در همگام‌سازی‌های بعدی حفظ می‌شود.','Sync reads the provider refill capability automatically. You can then manually enable or disable refill per VELIXEO service, and that override is preserved on future syncs.')}</div>
+        <div class="notice"><b>${l('لغو:','Cancel:')}</b> ${l('قابلیت لغو نیز از API ارائه‌دهنده همگام می‌شود و برای سفارش‌های نهایی یا جزئی دکمه آن مخفی می‌شود.','The provider cancel capability is synchronized automatically and the button is hidden for terminal or partial orders.')}</div>
       </div>
     </div>`,
   });
