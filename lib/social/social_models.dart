@@ -395,6 +395,12 @@ class SocialOrder {
   String? get remains => output['remains']?.toString();
   String? get startCount => output['startCount']?.toString();
   String? get providerEta => output['providerEta']?.toString();
+  String? get providerAverageTimeText => output['providerAverageTimeText']?.toString();
+  int? get providerAverageTimeMinutes {
+    final value = output['providerAverageTimeMinutes'];
+    return value is num ? value.toInt() : int.tryParse('${value ?? ''}');
+  }
+  String get providerAverageTimeSource => output['providerAverageTimeSource']?.toString() ?? 'NONE';
   int get runs {
     final v = input['runs'];
     return v is num ? v.toInt() : int.tryParse('${v ?? ''}') ?? 1;
