@@ -450,6 +450,53 @@ async function customerRateAfn(
   return service.basePriceAfn ?? providerRateAfn(prisma, route);
 }
 
+type SocialAverageSnapshot = { minutes: number; samples: number };
+let socialAverageCache: { expiresAt: number; values: Map<string, SocialAverageSnapshot> } = {
+  expiresAt: 0,
+  values: new Map(),
+};
+
+async function recentSocialAverageMap(prisma: PrismaClient) {
+  if (Date.now() < socialAverageCache.expiresAt) return socialAverageCache.values;
+  const recentCompleted = await prisma.order.findMany({
+    where: {
+      category: ServiceCategory.SOCIAL,
+      status: OrderStatus.COMPLETED,
+      providerId: { not: null },
+      serviceId: { not: null },
+      completedAt: { not: null },
+      createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+    },
+    select: {
+      serviceId: true,
+      providerId: true,
+      createdAt: true,
+      completedAt: true,
+    },
+    orderBy: { completedAt: 'desc' },
+    take: 5000,
+  });
+  const durationSamples = new Map<string, number[]>();
+  for (const order of recentCompleted) {
+    if (!order.serviceId || !order.providerId || !order.completedAt) continue;
+    const durationMs = order.completedAt.getTime() - order.createdAt.getTime();
+    if (!Number.isFinite(durationMs) || durationMs < 0) continue;
+    const key = `${order.serviceId}:${order.providerId}`;
+    const samples = durationSamples.get(key) ?? [];
+    if (samples.length >= 30) continue;
+    samples.push(Math.max(0, Math.round(durationMs / 60000)));
+    durationSamples.set(key, samples);
+  }
+  const values = new Map<string, SocialAverageSnapshot>();
+  for (const [key, samples] of durationSamples.entries()) {
+    if (!samples.length) continue;
+    const minutes = Math.round(samples.reduce((sum, value) => sum + value, 0) / samples.length);
+    values.set(key, { minutes, samples: samples.length });
+  }
+  socialAverageCache = { expiresAt: Date.now() + 60_000, values };
+  return values;
+}
+
 async function providerCostAfn(
   prisma: PrismaClient,
   route: Parameters<typeof providerRateAfn>[1],
@@ -948,43 +995,7 @@ export function registerSocialRoutes(
       orderBy: [{ socialPlatform: 'asc' }, { socialGroup: 'asc' }, { featured: 'desc' }, { sortOrder: 'asc' }],
     });
 
-    const recentCompleted = services.length
-      ? await prisma.order.findMany({
-          where: {
-            category: ServiceCategory.SOCIAL,
-            status: OrderStatus.COMPLETED,
-            serviceId: { in: services.map((service) => service.id) },
-            providerId: { not: null },
-            completedAt: { not: null },
-            createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-          },
-          select: {
-            serviceId: true,
-            providerId: true,
-            createdAt: true,
-            completedAt: true,
-          },
-          orderBy: { completedAt: 'desc' },
-          take: 5000,
-        })
-      : [];
-    const durationSamples = new Map<string, number[]>();
-    for (const order of recentCompleted) {
-      if (!order.serviceId || !order.providerId || !order.completedAt) continue;
-      const durationMs = order.completedAt.getTime() - order.createdAt.getTime();
-      if (!Number.isFinite(durationMs) || durationMs < 0) continue;
-      const key = `${order.serviceId}:${order.providerId}`;
-      const samples = durationSamples.get(key) ?? [];
-      if (samples.length >= 30) continue;
-      samples.push(Math.max(0, Math.round(durationMs / 60000)));
-      durationSamples.set(key, samples);
-    }
-    const measuredAverage = new Map<string, { minutes: number; samples: number }>();
-    for (const [key, samples] of durationSamples.entries()) {
-      if (!samples.length) continue;
-      const minutes = Math.round(samples.reduce((sum, value) => sum + value, 0) / samples.length);
-      measuredAverage.set(key, { minutes, samples: samples.length });
-    }
+    const measuredAverage = await recentSocialAverageMap(prisma);
 
     const rows = [];
     for (const service of services) {
