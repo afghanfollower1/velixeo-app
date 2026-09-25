@@ -16,3 +16,5 @@ Release scope:
 Release retry trigger: publish signed VELIXEO v0.13.0 after final Admin design validation.
 
 VELIXEO 0.14.0+34: mobile Admin App, role-gated management, secure Admin V3 mobile tools.
+
+Release trigger: signed VELIXEO v0.14.0 Admin App production APK.
