@@ -9,6 +9,7 @@ import {
 } from '@prisma/client';
 import { smmClientForProvider } from './smmPanelAdapter.js';
 import { normalizeCurrencyCode } from './currency.js';
+import { providerStartEtaFromMetadata } from './socialEta.js';
 
 const SCALE = 1_000_000n;
 const DEFAULT_SYNC_MINUTES = 10;
@@ -257,6 +258,7 @@ export async function syncSocialProviderCatalog(
       const dripFeedOverride = typeof currentRouteMeta._velixeoDripFeedOverride === 'boolean'
         ? currentRouteMeta._velixeoDripFeedOverride
         : null;
+      const startEta = providerStartEtaFromMetadata(row.raw as Prisma.JsonValue, row.name);
       const providerRate = new Prisma.Decimal(row.rate || '0');
       const providerRateScaled = decimalToScaled(providerRate);
       const costAfn = fx == null
@@ -279,6 +281,11 @@ export async function syncSocialProviderCatalog(
           _velixeoCatalogIndex: catalogIndex,
           _providerRefillDetected: row.refill,
           _providerDripFeedDetected: row.dripfeed,
+          ...(startEta ? {
+            _providerStartTimeText: startEta.text,
+            _providerStartMinMinutes: startEta.minMinutes,
+            _providerStartMaxMinutes: startEta.maxMinutes,
+          } : {}),
           ...(refillOverride == null ? {} : { _velixeoRefillOverride: refillOverride }),
           ...(dripFeedOverride == null ? {} : { _velixeoDripFeedOverride: dripFeedOverride }),
         } as Prisma.InputJsonValue,
@@ -289,6 +296,20 @@ export async function syncSocialProviderCatalog(
           where: { id: current.id },
           data: routeData,
         });
+        if (
+          startEta
+          && current.service.estimatedMinMinutes == null
+          && current.service.estimatedMaxMinutes == null
+          && (startEta.minMinutes != null || startEta.maxMinutes != null)
+        ) {
+          await prisma.service.update({
+            where: { id: current.serviceId },
+            data: {
+              estimatedMinMinutes: startEta.minMinutes,
+              estimatedMaxMinutes: startEta.maxMinutes,
+            },
+          });
+        }
         updated += 1;
         continue;
       }
@@ -319,6 +340,8 @@ export async function syncSocialProviderCatalog(
           priceUnit: defaultPriceUnit(row.type),
           minQty: row.min || null,
           maxQty: row.max || null,
+          estimatedMinMinutes: startEta?.minMinutes ?? null,
+          estimatedMaxMinutes: startEta?.maxMinutes ?? null,
           socialPlatform: platform,
           socialGroup: group,
           metadata: {
