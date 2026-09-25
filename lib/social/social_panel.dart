@@ -19,6 +19,11 @@ abstract class SocialPanelHost {
   Future<void> refreshAccount();
 }
 
+String _formatSocialCount(int value) => value.toString().replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => ',',
+    );
+
 class SocialPanelPage extends StatefulWidget {
   const SocialPanelPage({super.key, required this.host});
   final SocialPanelHost host;
@@ -45,6 +50,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
   int tab = 0;
   Timer? quoteTimer;
   Timer? statusTimer;
+  Timer? catalogTimer;
   final Map<String, TextEditingController> fields = {};
   final coupon = TextEditingController();
   final orderSearch = TextEditingController();
@@ -62,12 +68,14 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     });
     load();
     statusTimer = Timer.periodic(const Duration(minutes: 1), (_) => autoSyncOrders());
+    catalogTimer = Timer.periodic(const Duration(minutes: 1), (_) => autoRefreshCatalog());
   }
 
   @override
   void dispose() {
     quoteTimer?.cancel();
     statusTimer?.cancel();
+    catalogTimer?.cancel();
     for (final controller in fields.values) {
       controller.dispose();
     }
@@ -97,6 +105,37 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
       });
     } catch (_) {
       // Keep the last known state; the next minute retries automatically.
+    }
+  }
+
+  Future<void> autoRefreshCatalog() async {
+    if (!mounted || loading || submitting) return;
+    try {
+      final fresh = await host.api.socialCatalog();
+      if (!mounted) return;
+      final selectedId = selectedService?.id;
+      SocialService? refreshedSelection;
+      if (selectedId != null) {
+        for (final service in fresh.services) {
+          if (service.id == selectedId) {
+            refreshedSelection = service;
+            break;
+          }
+        }
+      }
+      setState(() {
+        catalog = fresh;
+        final brandKeys = availableBrands.map((brand) => brand.key).toList(growable: false);
+        if (selectedPlatform != null && !brandKeys.contains(selectedPlatform)) {
+          selectedPlatform = brandKeys.isEmpty ? null : brandKeys.first;
+        }
+        final groups = availableGroups;
+        if (selectedGroup != null && !groups.contains(selectedGroup)) selectedGroup = null;
+        selectedService = refreshedSelection;
+      });
+      if (refreshedSelection != null) scheduleQuote();
+    } catch (_) {
+      // Keep the current catalog; live values retry on the next minute.
     }
   }
 
@@ -1041,7 +1080,12 @@ Widget buildEnglishNewOrder() {
             decoration: BoxDecoration(color: const Color(0xFFF4FAFF), borderRadius: BorderRadius.circular(16)),
             child: Column(
               children: [
-                _InfoRow(label: t('نرخ', 'Rate'), value: '${host.money(service.priceRateAfn, showBase: true)} / ${service.priceUnit}'),
+                _InfoRow(label: t('قیمت', 'Price'), value: host.money(service.priceRateAfn)),
+                const SizedBox(height: 8),
+                _InfoRow(
+                  label: t('مبنای قیمت', 'Price unit'),
+                  value: t('برای هر ${_formatSocialCount(service.priceUnit)}', 'Per ${_formatSocialCount(service.priceUnit)}'),
+                ),
                 if (quote != null && quote!.runs > 1) ...[
                   const SizedBox(height: 8),
                   _InfoRow(
@@ -1234,7 +1278,12 @@ Widget buildEnglishOrderForm(SocialService service) {
             decoration: BoxDecoration(color: const Color(0xFFF4FAFF), borderRadius: BorderRadius.circular(16)),
             child: Column(
               children: [
-                _InfoRow(label: t('نرخ', 'Rate'), value: '${host.money(service.priceRateAfn, showBase: true)} / ${service.priceUnit}'),
+                _InfoRow(label: t('قیمت', 'Price'), value: host.money(service.priceRateAfn)),
+                const SizedBox(height: 8),
+                _InfoRow(
+                  label: t('مبنای قیمت', 'Price unit'),
+                  value: t('برای هر ${_formatSocialCount(service.priceUnit)}', 'Per ${_formatSocialCount(service.priceUnit)}'),
+                ),
                 if (quote != null && quote!.runs > 1) ...[
                   const SizedBox(height: 8),
                   _InfoRow(
@@ -2482,17 +2531,30 @@ class _ServiceCard extends StatelessWidget {
   final VoidCallback onTap;
 
   String eta() {
-    if (service.providerEta?.trim().isNotEmpty == true) return service.providerEta!.trim();
-    final min = service.estimatedMinMinutes;
-    final max = service.estimatedMaxMinutes;
-    if (min == null && max == null) return fa ? 'زمان شروع ثبت نشده' : 'Start time not set';
     String fmt(int value) {
-      if (value >= 1440) return fa ? '${(value / 1440).ceil()} روز' : '${(value / 1440).ceil()}d';
-      if (value >= 60) return fa ? '${(value / 60).ceil()} ساعت' : '${(value / 60).ceil()}h';
-      return fa ? '$value دقیقه' : '${value}m';
+      if (value >= 1440) {
+        final days = value / 1440;
+        final shown = days == days.roundToDouble() ? days.round().toString() : days.toStringAsFixed(1);
+        return fa ? '$shown روز' : '$shown days';
+      }
+      if (value >= 60) {
+        final hours = value / 60;
+        final shown = hours == hours.roundToDouble() ? hours.round().toString() : hours.toStringAsFixed(1);
+        return fa ? '$shown ساعت' : '$shown hours';
+      }
+      return fa ? '$value دقیقه' : '$value min';
     }
-    if (min != null && max != null) return '${fmt(min)} – ${fmt(max)}';
-    return fmt(min ?? max!);
+
+    final minutes = service.averageTimeMinutes;
+    if (minutes != null) {
+      return fa ? 'میانگین: ${fmt(minutes)}' : 'Average: ${fmt(minutes)}';
+    }
+    if (service.averageTimeText?.trim().isNotEmpty == true) {
+      return fa
+          ? 'میانگین: ${service.averageTimeText!.trim()}'
+          : 'Average: ${service.averageTimeText!.trim()}';
+    }
+    return fa ? 'میانگین: در حال محاسبه' : 'Average: calculating';
   }
 
   @override
@@ -2523,7 +2585,14 @@ class _ServiceCard extends StatelessWidget {
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  _MiniBadge(text: '${host.money(service.priceRateAfn, showBase: true)} / ${service.priceUnit}', icon: Icons.payments_outlined),
+                  _MiniBadge(
+                    text: fa ? 'قیمت: ${host.money(service.priceRateAfn)}' : 'Price: ${host.money(service.priceRateAfn)}',
+                    icon: Icons.payments_outlined,
+                  ),
+                  _MiniBadge(
+                    text: fa ? 'برای: ${_formatSocialCount(service.priceUnit)}' : 'Per: ${_formatSocialCount(service.priceUnit)}',
+                    icon: Icons.numbers_rounded,
+                  ),
                   _MiniBadge(text: eta(), icon: Icons.schedule_rounded),
                   if (service.refillSupported)
                     _MiniBadge(text: service.refillDays == null ? (fa ? 'جبران ریزش' : 'Refill') : (fa ? 'جبران ${service.refillDays} روزه' : '${service.refillDays}d refill'), icon: Icons.restart_alt_rounded, good: true),
