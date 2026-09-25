@@ -14,3 +14,5 @@ Release scope:
 12) Release only after Flutter and Backend CI pass.
 
 Release retry trigger: publish signed VELIXEO v0.13.0 after final Admin design validation.
+
+VELIXEO 0.14.0+34: mobile Admin App, role-gated management, secure Admin V3 mobile tools.
