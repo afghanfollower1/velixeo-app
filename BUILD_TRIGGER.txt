@@ -28,3 +28,4 @@ Final rebuild VELIXEO 0.14.3+37 after live-average order UI and localized curren
 
 VELIXEO 0.14.4+38: enforce provider catalog refresh no slower than every 10 minutes for live dynamic pricing, keep administrator-set markup on the fresh provider rate, prefer provider API average_time over advertised title Start Time, snapshot provider average on new orders, and show localized Price / Per-unit / currency labels in FA/EN.
 Release trigger: signed VELIXEO v0.14.4 production APK.
+Final VELIXEO 0.14.4 rebuild: include accurate Provider API vs VELIXEO measured average-time labels.
