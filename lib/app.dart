@@ -25,7 +25,12 @@ import 'admin/admin_mobile.dart';
 String tr(bool fa, String faText, String enText) => fa ? faText : enText;
 
 class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNumberPanelHost, PremiumPanelHost, SupportPanelHost, ReferralPanelHost {
-  AppController(this.api, this.googleAuth);
+  AppController(this.api, this.googleAuth) {
+    final deviceLanguage = WidgetsBinding.instance.platformDispatcher.locale.languageCode.toLowerCase();
+    language = deviceLanguage == 'fa' || deviceLanguage == 'prs'
+        ? AppLang.fa
+        : AppLang.en;
+  }
 
   final ApiService api;
   final GoogleAuthService googleAuth;
@@ -60,7 +65,11 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
   int get unreadNotificationCount => notifications.where((notice) => !notice.isRead).length;
 
   Future<void> boot() async {
-    language = await api.restoreLanguage();
+    final savedLanguage = await api.restoreSavedLanguage();
+    if (savedLanguage != null) {
+      language = savedLanguage;
+      notifyListeners();
+    }
     currency = await api.restoreCurrency();
     try {
       verificationCapabilities = await api.verificationCapabilities();
