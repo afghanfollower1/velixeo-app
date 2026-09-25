@@ -9,8 +9,11 @@ import { createHash, randomBytes } from 'node:crypto';
 import {
   AppLocale,
   DisplayCurrency,
+  OrderStatus,
   Prisma,
   PrismaClient,
+  ServiceCategory,
+  SupportStatus,
   UserRole,
   UserStatus,
   WalletEntryType,
@@ -489,6 +492,46 @@ app.get('/admin/login', async (request, reply) => {
   const admin = await adminWebUser(request);
   if (admin) return reply.code(303).redirect('/admin/v3');
   return reply.type('text/html; charset=utf-8').send(adminLoginPage(request));
+});
+
+app.get('/admin/app-entry', async (request, reply) => {
+  const query = (request.query ?? {}) as { ticket?: string };
+  const ticket = String(query.ticket ?? '').trim();
+  if (!ticket) return reply.code(303).redirect('/admin/login');
+  try {
+    const claims = app.jwt.verify<{
+      sub: string;
+      role: UserRole;
+      scope: string;
+      next?: string;
+      lang?: string;
+    }>(ticket);
+    if (claims.scope !== 'admin-mobile-entry' || claims.role !== UserRole.ADMIN) {
+      return reply.code(303).redirect('/admin/login');
+    }
+    const admin = await prisma.user.findFirst({
+      where: { id: claims.sub, role: UserRole.ADMIN, status: UserStatus.ACTIVE },
+      select: { id: true, role: true },
+    });
+    if (!admin) return reply.code(303).redirect('/admin/login');
+    const next = typeof claims.next === 'string'
+      && claims.next.startsWith('/admin/')
+      && !claims.next.startsWith('/admin/login')
+      ? claims.next
+      : '/admin/v3';
+    const lang = claims.lang === 'fa' ? 'fa' : 'en';
+    const webToken = app.jwt.sign(
+      { sub: admin.id, role: admin.role, scope: 'admin-web' },
+      { expiresIn: '8h' },
+    );
+    reply.header('Set-Cookie', [
+      adminCookie(webToken),
+      `velixeo_admin_lang=${lang}; Path=/admin; Secure; SameSite=Strict; Max-Age=${8 * 60 * 60}`,
+    ]);
+    return reply.code(303).redirect(next);
+  } catch {
+    return reply.code(303).redirect('/admin/login');
+  }
 });
 
 const legacyAdminGetRedirects: Record<string, string> = {
@@ -1350,6 +1393,114 @@ app.get('/api/v1/rates', async () => {
     })),
   };
 });
+
+app.get(
+  '/api/v1/admin/mobile/overview',
+  { preHandler: requireAdmin },
+  async () => {
+    const dayStart = new Date();
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const activeOrderStatuses = [
+      OrderStatus.PENDING,
+      OrderStatus.PROCESSING,
+      OrderStatus.PARTIAL,
+      OrderStatus.AWAITING_SMS,
+    ];
+    const validSales = {
+      notIn: [OrderStatus.CANCELLED, OrderStatus.FAILED, OrderStatus.REFUNDED],
+    };
+    const [
+      ordersToday,
+      salesToday,
+      usersToday,
+      openTickets,
+      attentionOrders,
+      socialAttention,
+      virtualAttention,
+      premiumAttention,
+      recentActivity,
+    ] = await Promise.all([
+      prisma.order.count({ where: { createdAt: { gte: dayStart }, status: validSales } }),
+      prisma.order.aggregate({
+        where: { createdAt: { gte: dayStart }, status: validSales },
+        _sum: { totalAmountAfn: true },
+      }),
+      prisma.user.count({ where: { createdAt: { gte: dayStart } } }),
+      prisma.supportTicket.count({
+        where: { status: { notIn: [SupportStatus.RESOLVED, SupportStatus.CLOSED] } },
+      }),
+      prisma.order.count({ where: { status: { in: activeOrderStatuses } } }),
+      prisma.order.count({
+        where: { category: ServiceCategory.SOCIAL, status: { in: activeOrderStatuses } },
+      }),
+      prisma.order.count({
+        where: { category: ServiceCategory.VIRTUAL_NUMBER, status: { in: activeOrderStatuses } },
+      }),
+      prisma.order.count({
+        where: { category: ServiceCategory.PREMIUM, status: { in: activeOrderStatuses } },
+      }),
+      prisma.adminAuditLog.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 6,
+        include: { adminUser: { select: { fullName: true, email: true, phone: true } } },
+      }),
+    ]);
+
+    return {
+      updatedAt: new Date().toISOString(),
+      salesTodayAfn: (salesToday._sum.totalAmountAfn ?? 0n).toString(),
+      ordersToday,
+      usersToday,
+      openTickets,
+      needsAttention: attentionOrders,
+      attention: {
+        social: socialAttention,
+        virtualNumber: virtualAttention,
+        premium: premiumAttention,
+        support: openTickets,
+      },
+      recentActivity: recentActivity.map((row) => ({
+        id: row.id,
+        action: row.action,
+        entityType: row.entityType,
+        entityId: row.entityId,
+        summary: row.summary,
+        createdAt: row.createdAt,
+        adminName: row.adminUser.fullName || row.adminUser.email || row.adminUser.phone || 'Administrator',
+      })),
+    };
+  },
+);
+
+app.post(
+  '/api/v1/admin/mobile/session',
+  { preHandler: requireAdmin },
+  async (request) => {
+    const claims = request.user as JwtClaims;
+    const body = (request.body ?? {}) as { path?: unknown; lang?: unknown };
+    const requestedPath = String(body.path ?? '/admin/v3').trim();
+    const next = requestedPath.startsWith('/admin/')
+      && !requestedPath.startsWith('/admin/login')
+      && !requestedPath.startsWith('/admin/app-entry')
+      ? requestedPath
+      : '/admin/v3';
+    const lang = body.lang === 'fa' ? 'fa' : 'en';
+    const ticket = app.jwt.sign(
+      {
+        sub: claims.sub,
+        role: UserRole.ADMIN,
+        scope: 'admin-mobile-entry',
+        next,
+        lang,
+      },
+      { expiresIn: '90s' },
+    );
+    return {
+      entryPath: `/admin/app-entry?ticket=${encodeURIComponent(ticket)}`,
+      expiresInSeconds: 90,
+    };
+  },
+);
 
 app.get(
   '/api/v1/admin/stats',
