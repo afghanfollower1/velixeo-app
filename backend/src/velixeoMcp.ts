@@ -14,7 +14,7 @@ type J=Record<string,unknown>;
 type McpRequest={jsonrpc?:string;id?:string|number|null;method?:string;params?:J};
 type CategoryRow={slug:string;titleEn:string;titleFa:string;descriptionEn:string;descriptionFa:string;platform:string;sortOrder:number;enabled:boolean;candidateKey:string};
 
-const VERSION='1.1.0';
+const VERSION='1.2.0';
 const TOKEN_KEY='chatgpt.mcp.token_hash';
 const APPROVAL='I_CONFIRM';
 const PROTOCOLS=['2026-07-28','2025-11-25','2025-06-18','2025-03-26'];
@@ -225,6 +225,52 @@ async function updateCategoryContent(p:PrismaClient,a:AdminIdentity,args:J){
  await audit(p,a,'CHATGPT_SOCIAL_CATEGORY_CONTENT_UPDATE','SocialCategory',slug,'ChatGPT updated bilingual category content',{slug} as unknown as Prisma.InputJsonValue);
  return {slug,titleEn:String(next.titleEn||''),titleFa:String(next.titleFa||''),descriptionEn:String(next.descriptionEn||''),descriptionFa:String(next.descriptionFa||'')};
 }
+async function updateCategory(p:PrismaClient,a:AdminIdentity,args:J){
+ needApproval(args);
+ const slug=safeSlug(String(args.category_slug||''));if(!slug)throw new Error('CATEGORY_SLUG_REQUIRED');
+ const key=catKey(slug),row=await p.systemSetting.findUnique({where:{key}});if(!row)throw new Error('CATEGORY_NOT_FOUND');
+ const value=obj(row.value),newSlug=safeSlug(String(args.new_slug??slug))||slug;
+ const platform=args.platform!==undefined?normalizeBrandKey(String(args.platform||'')):normalizeBrandKey(String(value.platform||'OTHER'));
+ const next={...value,slug:newSlug,platform,
+  ...(args.title_en!==undefined?{titleEn:String(args.title_en||'').trim()}:{ }),
+  ...(args.title_fa!==undefined?{titleFa:String(args.title_fa||'').trim()}:{ }),
+  ...(args.description_en!==undefined?{descriptionEn:String(args.description_en||'').trim()}:{ }),
+  ...(args.description_fa!==undefined?{descriptionFa:String(args.description_fa||'').trim()}:{ }),
+  ...(args.sort_order!==undefined?{sortOrder:Number.isFinite(Number(args.sort_order))?Math.floor(Number(args.sort_order)):Number(value.sortOrder||100)}:{ }),
+  ...(args.enabled!==undefined?{enabled:Boolean(args.enabled)}:{ })
+ };
+ let affectedServices=0;
+ if(newSlug!==slug){
+  const exists=await p.systemSetting.findUnique({where:{key:catKey(newSlug)}});if(exists)throw new Error('CATEGORY_SLUG_ALREADY_EXISTS');
+  const moved=await p.$transaction(async tx=>{
+   await tx.systemSetting.create({data:{key:catKey(newSlug),category:'social-category',description:'Social Media customer-facing category.',value:next as Prisma.InputJsonValue}});
+   const changed=await tx.service.updateMany({where:{category:ServiceCategory.SOCIAL,socialGroup:slug},data:{socialGroup:newSlug,socialPlatform:platform}});
+   await tx.systemSetting.delete({where:{key}});
+   return changed.count;
+  });
+  affectedServices=moved;
+ }else{
+  await p.systemSetting.update({where:{key},data:{value:next as Prisma.InputJsonValue}});
+  if(args.platform!==undefined){
+   const changed=await p.service.updateMany({where:{category:ServiceCategory.SOCIAL,socialGroup:slug},data:{socialPlatform:platform}});
+   affectedServices=changed.count;
+  }
+ }
+ await audit(p,a,'CHATGPT_SOCIAL_CATEGORY_UPDATE','SocialCategory',newSlug,'ChatGPT updated social category',{oldSlug:slug,newSlug,platform,affectedServices} as unknown as Prisma.InputJsonValue);
+ return {slug:newSlug,oldSlug:slug,renamed:newSlug!==slug,titleEn:String(next.titleEn||''),titleFa:String(next.titleFa||''),descriptionEn:String(next.descriptionEn||''),descriptionFa:String(next.descriptionFa||''),platform,sortOrder:Number(next.sortOrder||100),enabled:next.enabled!==false,affectedServices};
+}
+async function deleteCategory(p:PrismaClient,a:AdminIdentity,args:J){
+ needApproval(args);
+ const slug=safeSlug(String(args.category_slug||''));if(!slug)throw new Error('CATEGORY_SLUG_REQUIRED');
+ const key=catKey(slug),row=await p.systemSetting.findUnique({where:{key}});if(!row)throw new Error('CATEGORY_NOT_FOUND');
+ const disabledServiceCount=await p.$transaction(async tx=>{
+  const disabled=await tx.service.updateMany({where:{category:ServiceCategory.SOCIAL,socialGroup:slug},data:{enabled:false}});
+  await tx.systemSetting.delete({where:{key}});
+  return disabled.count;
+ });
+ await audit(p,a,'CHATGPT_SOCIAL_CATEGORY_DELETE','SocialCategory',slug,'ChatGPT deleted category and disabled '+disabledServiceCount+' services',{slug,disabledServiceCount} as unknown as Prisma.InputJsonValue);
+ return {deleted:true,slug,disabledServiceCount};
+}
 async function updateServiceContent(p:PrismaClient,a:AdminIdentity,args:J){
  needApproval(args);
  const serviceId=String(args.service_id||'').trim();if(!serviceId)throw new Error('SERVICE_ID_REQUIRED');
@@ -275,6 +321,8 @@ const tools=[
  {name:'publish_social_services',description:'Publish selected provider services with bilingual titles, optional bilingual descriptions, provider start-time metadata, and the exact markup specified by the administrator. Never infer markup. Requires explicit approval.',inputSchema:{type:'object',properties:{provider_id:{type:'string'},brand_key:{type:'string'},category_slug:{type:'string'},candidate_key:{type:'string'},markup_percent:{type:'number',minimum:0,maximum:1000},enabled:{type:'boolean'},items:{type:'array',maxItems:100,items:{type:'object',properties:{provider_service_id:{type:'string'},title_en:{type:'string'},title_fa:{type:'string'},description_en:{type:'string'},description_fa:{type:'string'}},required:['provider_service_id','title_en','title_fa'],additionalProperties:false}},approval:{type:'string',enum:[APPROVAL]}},required:['provider_id','brand_key','category_slug','candidate_key','markup_percent','enabled','items','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false}},
  {name:'set_category_markup',description:'Set the exact administrator-specified markup on already-added routes in one category. Requires explicit approval.',inputSchema:{type:'object',properties:{category_slug:{type:'string'},markup_percent:{type:'number',minimum:0,maximum:1000},approval:{type:'string',enum:[APPROVAL]}},required:['category_slug','markup_percent','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false}},
  {name:'update_social_category_content',description:'Update Persian/English title and description fields for an existing Social Media category. Requires explicit approval.',inputSchema:{type:'object',properties:{category_slug:{type:'string'},title_en:{type:'string'},title_fa:{type:'string'},description_en:{type:'string'},description_fa:{type:'string'},approval:{type:'string',enum:[APPROVAL]}},required:['category_slug','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false}},
+ {name:'update_social_category',description:'Edit an existing Social Media category, including slug, platform, bilingual title/description, display order and enabled status. Renaming a slug migrates assigned services. Requires explicit approval.',inputSchema:{type:'object',properties:{category_slug:{type:'string'},new_slug:{type:'string'},platform:{type:'string'},title_en:{type:'string'},title_fa:{type:'string'},description_en:{type:'string'},description_fa:{type:'string'},sort_order:{type:'integer'},enabled:{type:'boolean'},approval:{type:'string',enum:[APPROVAL]}},required:['category_slug','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false}},
+ {name:'delete_social_category',description:'Delete a Social Media category and disable all VELIXEO services currently assigned to it so they cannot become uncategorized customer-visible services. Requires explicit approval.',inputSchema:{type:'object',properties:{category_slug:{type:'string'},approval:{type:'string',enum:[APPROVAL]}},required:['category_slug','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:true}},
  {name:'update_social_service_content',description:'Update Persian/English title and description fields for an existing VELIXEO Social Media service. Requires explicit approval.',inputSchema:{type:'object',properties:{service_id:{type:'string'},title_en:{type:'string'},title_fa:{type:'string'},description_en:{type:'string'},description_fa:{type:'string'},approval:{type:'string',enum:[APPROVAL]}},required:['service_id','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false}},
  {name:'list_velixeo_social_services',description:'List already-added VELIXEO Social Media services with bilingual descriptions, provider routing, markup and estimated provider start time. Read-only.',inputSchema:{type:'object',properties:{brand_key:{type:'string'},category_slug:{type:'string'},q:{type:'string'},limit:{type:'integer',minimum:1,maximum:200}},additionalProperties:false},annotations:{readOnlyHint:true,destructiveHint:false}},
  {name:'show_social_structure',description:'Show current VELIXEO Social Media brands and categories. Read-only.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,destructiveHint:false}}
@@ -300,6 +348,8 @@ async function execute(p:PrismaClient,a:AdminIdentity,name:string,args:J){
  if(name==='publish_social_services')return publishServices(p,a,args);
  if(name==='set_category_markup')return setMarkup(p,a,args);
  if(name==='update_social_category_content')return updateCategoryContent(p,a,args);
+ if(name==='update_social_category')return updateCategory(p,a,args);
+ if(name==='delete_social_category')return deleteCategory(p,a,args);
  if(name==='update_social_service_content')return updateServiceContent(p,a,args);
  if(name==='list_velixeo_social_services')return listVelixeoServices(p,args);
  if(name==='show_social_structure')return structure(p);
@@ -338,7 +388,7 @@ function connectorHtml(admin:AdminIdentity,lang:'fa'|'en',baseUrl:string,isConfi
  '<div class="card"><div class="cardhead"><h2>',fa?'روش استفاده':'How to use it','</h2></div><div class="notice">',fa?'پس از ساخت لینک، در ChatGPT Developer mode یک Plugin/MCP شخصی ایجاد کن و لینک را به‌عنوان MCP Server URL بده. بعد در همین محیط گفتگو می‌توانی به VELIXEO دستور بدهی.':'After generating the link, create a personal Plugin/MCP connection in ChatGPT Developer mode and paste it as the MCP Server URL. Then manage VELIXEO from the conversation.','</div>',
  '<div class="provider"><div><b>MCP endpoint</b><small class="mono">',endpoint,'</small></div><span class="pill info">v',VERSION,'</span></div>',
  '<div class="provider"><div><b>',fa?'ابزارهای اولیه':'Initial tools','</b><small>',fa?'ارائه‌دهنده، برند، دسته، سرویس، سود و Diagnostics':'Providers, brands, categories, services, markup and diagnostics','</small></div><span class="pill ok">',String(tools.length),'</span></div>',
- '<div class="provider"><div><b>',fa?'ابزار حذف':'Delete tools','</b><small>',fa?'عمداً در نسخه اول وجود ندارد':'Intentionally unavailable in v1','</small></div><span class="pill ok">',fa?'ایمن':'Safe','</span></div></div></div>'
+ '<div class="provider"><div><b>',fa?'ویرایش و حذف دسته‌ها':'Category edit & delete','</b><small>',fa?'ویرایش کامل دسته و حذف امن با غیرفعال‌سازی سرویس‌های داخل آن':'Full category editing plus safe deletion that disables assigned services','</small></div><span class="pill ok">',fa?'فعال':'Available','</span></div></div></div>'
  ].join('');
  return renderAdminV3Page(admin,'settings',body,'','',false,lang,fa?'اتصال ChatGPT':'ChatGPT Connector',fa?'مدیریت مستقیم VELIXEO از داخل ChatGPT':'Manage VELIXEO directly from ChatGPT');
 }
