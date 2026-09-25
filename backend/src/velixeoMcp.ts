@@ -6,14 +6,15 @@ import { brandSettingKey, defaultBrandIcons, loadSocialBrands, normalizeBrandKey
 import { inferSocialGroup, inferSocialPlatform, syncSocialProviderCatalog } from './socialSync.js';
 import { renderAdminV3Page } from './adminFigmaEnglish.js';
 import { adminLangFromRequest } from './adminLocale.js';
+import { providerStartEtaFromMetadata } from './socialEta.js';
 
 type AdminIdentity={id:string;fullName:string|null;email:string|null;phone:string|null};
 type AdminResolver=(request:FastifyRequest)=>Promise<AdminIdentity|null>;
 type J=Record<string,unknown>;
 type McpRequest={jsonrpc?:string;id?:string|number|null;method?:string;params?:J};
-type CategoryRow={slug:string;titleEn:string;titleFa:string;platform:string;sortOrder:number;enabled:boolean;candidateKey:string};
+type CategoryRow={slug:string;titleEn:string;titleFa:string;descriptionEn:string;descriptionFa:string;platform:string;sortOrder:number;enabled:boolean;candidateKey:string};
 
-const VERSION='1.0.0';
+const VERSION='1.1.0';
 const TOKEN_KEY='chatgpt.mcp.token_hash';
 const APPROVAL='I_CONFIRM';
 const PROTOCOLS=['2026-07-28','2025-11-25','2025-06-18','2025-03-26'];
@@ -99,7 +100,7 @@ async function categories(p:PrismaClient):Promise<CategoryRow[]>{
  const rows=await p.systemSetting.findMany({where:{category:'social-category'},orderBy:{key:'asc'}});
  return rows.map(setting=>{
   const v=obj(setting.value),slug=String(v.slug||setting.key.replace(/^social\.category\./,''));
-  return {slug,titleEn:String(v.titleEn||slug),titleFa:String(v.titleFa||v.titleEn||slug),platform:normalizeBrandKey(String(v.platform||'OTHER'))||'OTHER',sortOrder:Number.isFinite(Number(v.sortOrder))?Number(v.sortOrder):100,enabled:v.enabled!==false,candidateKey:normCat(String(v.aiCandidateKey||v.sourceCandidateKey||slug))};
+  return {slug,titleEn:String(v.titleEn||slug),titleFa:String(v.titleFa||v.titleEn||slug),descriptionEn:String(v.descriptionEn||''),descriptionFa:String(v.descriptionFa||''),platform:normalizeBrandKey(String(v.platform||'OTHER'))||'OTHER',sortOrder:Number.isFinite(Number(v.sortOrder))?Number(v.sortOrder):100,enabled:v.enabled!==false,candidateKey:normCat(String(v.aiCandidateKey||v.sourceCandidateKey||slug))};
  });
 }
 async function providerRoutes(p:PrismaClient,providerId:string){
@@ -173,10 +174,11 @@ async function saveCategories(p:PrismaClient,a:AdminIdentity,args:J){
   const row=item as J,candidateKey=normCat(String(row.candidate_key||'')),label=catLabel(candidateKey),slug=safeSlug(String(row.slug||'')||brandKey+'-'+candidateKey);
   if(!candidateKey||!slug)continue;
   const titleEn=String(row.title_en||'').trim()||label.en,titleFa=String(row.title_fa||'').trim()||label.fa;
-  const value={slug,titleEn,titleFa,platform:brandKey,descriptionEn:'',descriptionFa:'',sortOrder:order,enabled:true,aiCandidateKey:candidateKey,createdByChatGPT:true};
+  const descriptionEn=String(row.description_en||'').trim(),descriptionFa=String(row.description_fa||'').trim();
+  const value={slug,titleEn,titleFa,platform:brandKey,descriptionEn,descriptionFa,sortOrder:order,enabled:true,aiCandidateKey:candidateKey,createdByChatGPT:true};
   const key=catKey(slug),existing=await p.systemSetting.findUnique({where:{key}});
   await p.systemSetting.upsert({where:{key},create:{key,category:'social-category',description:'Social Media customer-facing category.',value:value as unknown as Prisma.InputJsonValue},update:{category:'social-category',value:value as unknown as Prisma.InputJsonValue}});
-  saved.push({slug,candidateKey,titleEn,titleFa,created:!existing});order+=10;
+  saved.push({slug,candidateKey,titleEn,titleFa,descriptionEn,descriptionFa,created:!existing});order+=10;
  }
  await audit(p,a,'CHATGPT_SOCIAL_CATEGORIES_SAVE','SocialCategory',null,'ChatGPT saved '+saved.length+' categories under '+brandKey,{brandKey,saved} as unknown as Prisma.InputJsonValue);
  return {brandKey,saved};
@@ -184,7 +186,7 @@ async function saveCategories(p:PrismaClient,a:AdminIdentity,args:J){
 async function listCandidateServices(p:PrismaClient,args:J){
  const providerId=String(args.provider_id||''),brandKey=normalizeBrandKey(String(args.brand_key||'')),candidateKey=normCat(String(args.candidate_key||'')),offset=Math.max(0,Math.floor(Number(args.offset||0))),limit=Math.max(1,Math.min(100,Math.floor(Number(args.limit||50))));
  const routes=(await providerRoutes(p,providerId)).filter(r=>platformOf(r)===brandKey&&candidateOf(r)===candidateKey),page=routes.slice(offset,offset+limit);
- return {providerId,brandKey,candidateKey,total:routes.length,offset,limit,hasMore:offset+page.length<routes.length,services:page.map(r=>({routeId:r.id,providerServiceId:r.providerServiceCode,providerName:r.providerName||r.service.titleEn,providerCategory:r.providerCategory,providerType:r.providerType,providerRate:r.providerRate?.toString()||null,providerCurrency:r.providerCurrency,min:r.providerMinQty,max:r.providerMaxQty,refill:r.providerRefill,cancel:r.providerCancel,alreadyAdded:obj(r.service.metadata).rawCatalog!==true,existingTitleEn:r.service.titleEn,existingTitleFa:r.service.titleFa}))};
+ return {providerId,brandKey,candidateKey,total:routes.length,offset,limit,hasMore:offset+page.length<routes.length,services:page.map(r=>{const eta=providerStartEtaFromMetadata(r.metadata,r.providerName);return {routeId:r.id,serviceId:r.serviceId,providerServiceId:r.providerServiceCode,providerName:r.providerName||r.service.titleEn,providerCategory:r.providerCategory,providerType:r.providerType,providerRate:r.providerRate?.toString()||null,providerCurrency:r.providerCurrency,min:r.providerMinQty,max:r.providerMaxQty,refill:r.providerRefill,cancel:r.providerCancel,providerStartTime:eta?.text||null,providerStartMinMinutes:eta?.minMinutes??null,providerStartMaxMinutes:eta?.maxMinutes??null,alreadyAdded:obj(r.service.metadata).rawCatalog!==true,existingTitleEn:r.service.titleEn,existingTitleFa:r.service.titleFa,existingDescriptionEn:r.service.descriptionEn,existingDescriptionFa:r.service.descriptionFa};})};
 }
 async function publishServices(p:PrismaClient,a:AdminIdentity,args:J){
  needApproval(args);
@@ -197,17 +199,50 @@ async function publishServices(p:PrismaClient,a:AdminIdentity,args:J){
   if(!item||typeof item!=='object'||Array.isArray(item))continue;
   const row=item as J,providerServiceId=String(row.provider_service_id||'').trim(),r=byCode.get(providerServiceId);if(!r)throw new Error('PROVIDER_SERVICE_NOT_FOUND:'+providerServiceId);
   if(platformOf(r)!==brandKey||candidateOf(r)!==candidateKey)throw new Error('SERVICE_OUTSIDE_SELECTED_CATEGORY:'+providerServiceId);
-  const titleEn=String(row.title_en||'').trim(),titleFa=String(row.title_fa||'').trim();if(!titleEn||!titleFa)throw new Error('BILINGUAL_TITLES_REQUIRED:'+providerServiceId);
+  const titleEn=String(row.title_en||'').trim(),titleFa=String(row.title_fa||'').trim(),descriptionEn=String(row.description_en||'').trim(),descriptionFa=String(row.description_fa||'').trim();if(!titleEn||!titleFa)throw new Error('BILINGUAL_TITLES_REQUIRED:'+providerServiceId);
   const sm=obj(r.service.metadata),rm=obj(r.metadata),drip=typeof rm._providerDripFeedDetected==='boolean'?rm._providerDripFeedDetected:Boolean(rm.dripfeed??rm.drip_feed),wasRaw=sm.rawCatalog===true;
   await p.$transaction([
-   p.service.update({where:{id:r.serviceId},data:{titleEn,titleFa,enabled,basePriceAfn:null,minQty:r.providerMinQty,maxQty:r.providerMaxQty,socialPlatform:brandKey,socialGroup:category.slug,metadata:{...sm,rawCatalog:false,addedToVelixeo:true,pricingMode:'AUTO_MARKUP',categorySlug:category.slug,publishedFromProviderId:providerId,publishedAt:String(sm.publishedAt||new Date().toISOString()),managedByChatGPT:true,aiCandidateKey:candidateKey} as Prisma.InputJsonValue}}),
+   p.service.update({where:{id:r.serviceId},data:{titleEn,titleFa,descriptionEn:descriptionEn||null,descriptionFa:descriptionFa||null,enabled,basePriceAfn:null,minQty:r.providerMinQty,maxQty:r.providerMaxQty,socialPlatform:brandKey,socialGroup:category.slug,metadata:{...sm,rawCatalog:false,addedToVelixeo:true,pricingMode:'AUTO_MARKUP',categorySlug:category.slug,publishedFromProviderId:providerId,publishedAt:String(sm.publishedAt||new Date().toISOString()),managedByChatGPT:true,aiCandidateKey:candidateKey} as Prisma.InputJsonValue}}),
    p.serviceProviderRoute.update({where:{id:r.id},data:{enabled:true,markupPercent:markup,metadata:{...rm,_providerRefillDetected:typeof rm._providerRefillDetected==='boolean'?rm._providerRefillDetected:r.providerRefill,_velixeoRefillOverride:typeof rm._velixeoRefillOverride==='boolean'?rm._velixeoRefillOverride:r.providerRefill,_providerDripFeedDetected:drip,_velixeoDripFeedOverride:typeof rm._velixeoDripFeedOverride==='boolean'?rm._velixeoDripFeedOverride:drip} as Prisma.InputJsonValue}})
   ]);
-  saved.push({providerServiceId,serviceId:r.serviceId,titleEn,titleFa,createdFromRawCatalog:wasRaw});
+  saved.push({providerServiceId,serviceId:r.serviceId,titleEn,titleFa,descriptionEn,descriptionFa,createdFromRawCatalog:wasRaw});
  }
  await audit(p,a,'CHATGPT_SOCIAL_SERVICES_PUBLISH','Service',null,'ChatGPT published '+saved.length+' services to '+category.titleEn+' with '+markupNumber+'% markup',{providerId,brandKey,candidateKey,categorySlug,markupPercent:markupNumber,enabled,serviceIds:saved.map(v=>v.serviceId)} as unknown as Prisma.InputJsonValue);
  return {providerId,brandKey,candidateKey,categorySlug,markupPercent:markupNumber,enabled,savedCount:saved.length,saved};
 }
+async function updateCategoryContent(p:PrismaClient,a:AdminIdentity,args:J){
+ needApproval(args);
+ const slug=safeSlug(String(args.category_slug||''));if(!slug)throw new Error('CATEGORY_SLUG_REQUIRED');
+ const key=catKey(slug),row=await p.systemSetting.findUnique({where:{key}});if(!row)throw new Error('CATEGORY_NOT_FOUND');
+ const value=obj(row.value),next={...value,
+  ...(args.title_en!==undefined?{titleEn:String(args.title_en||'').trim()}:{ }),
+  ...(args.title_fa!==undefined?{titleFa:String(args.title_fa||'').trim()}:{ }),
+  ...(args.description_en!==undefined?{descriptionEn:String(args.description_en||'').trim()}:{ }),
+  ...(args.description_fa!==undefined?{descriptionFa:String(args.description_fa||'').trim()}:{ })
+ };
+ await p.systemSetting.update({where:{key},data:{value:next as Prisma.InputJsonValue}});
+ await audit(p,a,'CHATGPT_SOCIAL_CATEGORY_CONTENT_UPDATE','SocialCategory',slug,'ChatGPT updated bilingual category content',{slug} as unknown as Prisma.InputJsonValue);
+ return {slug,titleEn:String(next.titleEn||''),titleFa:String(next.titleFa||''),descriptionEn:String(next.descriptionEn||''),descriptionFa:String(next.descriptionFa||'')};
+}
+async function updateServiceContent(p:PrismaClient,a:AdminIdentity,args:J){
+ needApproval(args);
+ const serviceId=String(args.service_id||'').trim();if(!serviceId)throw new Error('SERVICE_ID_REQUIRED');
+ const service=await p.service.findFirst({where:{id:serviceId,category:ServiceCategory.SOCIAL}});if(!service)throw new Error('SOCIAL_SERVICE_NOT_FOUND');
+ const data:Prisma.ServiceUpdateInput={};
+ if(args.title_en!==undefined)data.titleEn=String(args.title_en||'').trim();
+ if(args.title_fa!==undefined)data.titleFa=String(args.title_fa||'').trim();
+ if(args.description_en!==undefined)data.descriptionEn=String(args.description_en||'').trim()||null;
+ if(args.description_fa!==undefined)data.descriptionFa=String(args.description_fa||'').trim()||null;
+ const saved=await p.service.update({where:{id:serviceId},data});
+ await audit(p,a,'CHATGPT_SOCIAL_SERVICE_CONTENT_UPDATE','Service',serviceId,'ChatGPT updated bilingual service content',{serviceId} as unknown as Prisma.InputJsonValue);
+ return {serviceId,titleEn:saved.titleEn,titleFa:saved.titleFa,descriptionEn:saved.descriptionEn,descriptionFa:saved.descriptionFa};
+}
+async function listVelixeoServices(p:PrismaClient,args:J){
+ const brandKey=normalizeBrandKey(String(args.brand_key||'')),categorySlug=safeSlug(String(args.category_slug||'')),q=String(args.q||'').trim(),limit=Math.max(1,Math.min(200,Math.floor(Number(args.limit||100))));
+ const rows=await p.service.findMany({where:{category:ServiceCategory.SOCIAL,...(brandKey?{socialPlatform:brandKey}:{}),...(categorySlug?{socialGroup:categorySlug}:{}),...(q?{OR:[{titleEn:{contains:q,mode:'insensitive'}},{titleFa:{contains:q,mode:'insensitive'}},{slug:{contains:q,mode:'insensitive'}}]}:{})},include:{routes:{include:{provider:{select:{id:true,name:true}}},orderBy:{priority:'asc'}}},orderBy:[{enabled:'desc'},{sortOrder:'asc'},{titleEn:'asc'}],take:limit});
+ return {count:rows.length,services:rows.map(service=>({id:service.id,slug:service.slug,titleEn:service.titleEn,titleFa:service.titleFa,descriptionEn:service.descriptionEn,descriptionFa:service.descriptionFa,enabled:service.enabled,platform:service.socialPlatform,categorySlug:service.socialGroup,estimatedMinMinutes:service.estimatedMinMinutes,estimatedMaxMinutes:service.estimatedMaxMinutes,routes:service.routes.map(r=>{const eta=providerStartEtaFromMetadata(r.metadata,r.providerServiceCode);return {routeId:r.id,providerId:r.providerId,providerName:r.provider.name,providerServiceId:r.providerServiceCode,markupPercent:r.markupPercent?.toString()||null,refill:r.providerRefill,cancel:r.providerCancel,providerStartTime:eta?.text||null};})}))};
+}
+
 async function setMarkup(p:PrismaClient,a:AdminIdentity,args:J){
  needApproval(args);
  const categorySlug=safeSlug(String(args.category_slug||'')),markupNumber=Number(args.markup_percent);
@@ -219,7 +254,7 @@ async function setMarkup(p:PrismaClient,a:AdminIdentity,args:J){
 }
 async function structure(p:PrismaClient){
  const brands=await loadSocialBrands(p),cats=await categories(p);
- return {brands:brands.map(b=>({key:b.key,titleEn:b.titleEn,titleFa:b.titleFa,enabled:b.enabled,categories:cats.filter(c=>c.platform===b.key).map(c=>({slug:c.slug,titleEn:c.titleEn,titleFa:c.titleFa,enabled:c.enabled,candidateKey:c.candidateKey}))}))};
+ return {brands:brands.map(b=>({key:b.key,titleEn:b.titleEn,titleFa:b.titleFa,enabled:b.enabled,categories:cats.filter(c=>c.platform===b.key).map(c=>({slug:c.slug,titleEn:c.titleEn,titleFa:c.titleFa,descriptionEn:c.descriptionEn,descriptionFa:c.descriptionFa,enabled:c.enabled,candidateKey:c.candidateKey}))}))};
 }
 async function syncProvider(p:PrismaClient,a:AdminIdentity,args:J){
  needApproval(args);const providerId=String(args.provider_id||''),result=await syncSocialProviderCatalog(p,providerId);
