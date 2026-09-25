@@ -703,6 +703,9 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
 (() => {
   const brand = document.getElementById('socialBrandSelect');
   const category = document.getElementById('socialCategorySelect');
+  const form = document.getElementById('service-publish-form');
+  const feedback = document.getElementById('service-config-feedback');
+  const panel = document.getElementById('service-config-panel');
   if (!brand || !category) return;
   const sync = () => {
     const value = String(brand.value || '').toUpperCase();
@@ -717,6 +720,53 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
   };
   brand.addEventListener('change', sync);
   sync();
+
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const submit = form.querySelector('button[type="submit"],button:not([type])');
+    const oldLabel = submit?.textContent || '';
+    if (submit) { submit.disabled = true; submit.textContent = ${JSON.stringify(l('در حال ذخیره…','Saving…'))}; }
+    if (feedback) { feedback.className = 'service-config-feedback'; feedback.textContent = ''; }
+    try {
+      const response = await fetch(form.action, {
+        method: 'POST',
+        body: new FormData(form),
+        headers: { Accept: 'application/json' },
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || ${JSON.stringify(l('ذخیره سرویس انجام نشد.','Could not save the service.'))});
+      const row = document.querySelector('[data-route-id="' + payload.routeId + '"]');
+      const state = row?.querySelector('.route-app-state');
+      if (state) {
+        state.innerHTML = payload.enabled
+          ? '<span class="pill ok">${l('فعال','Live')}</span>'
+          : '<span class="pill warn">${l('پیش‌نویس','Draft')}</span>';
+      }
+      const action = row?.querySelector('[data-route-action]');
+      if (action) {
+        action.classList.remove('green');
+        action.classList.add('purple');
+        action.setAttribute('title', ${JSON.stringify(l('ویرایش سرویس VELIXEO','Edit VELIXEO service'))});
+        action.setAttribute('aria-label', ${JSON.stringify(l('ویرایش سرویس VELIXEO','Edit VELIXEO service'))});
+      }
+      if (feedback) {
+        feedback.className = 'service-config-feedback ok';
+        feedback.textContent = payload.message || ${JSON.stringify(l('سرویس ذخیره شد.','Service saved.'))};
+      }
+      history.replaceState({}, '', payload.returnUrl || location.pathname + location.search);
+      setTimeout(() => {
+        panel?.remove();
+        row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 650);
+    } catch (error) {
+      if (feedback) {
+        feedback.className = 'service-config-feedback bad';
+        feedback.textContent = error instanceof Error ? error.message : ${JSON.stringify(l('ذخیره سرویس انجام نشد.','Could not save the service.'))};
+      }
+    } finally {
+      if (submit) { submit.disabled = false; submit.textContent = oldLabel; }
+    }
+  });
 })();` : undefined;
 
   return shell({
@@ -731,8 +781,8 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
     error: q.error,
     script,
     body: providers.length
-      ? `${providerPicker}<div class="grid"><div class="card"><div class="cardhead"><div class="catalog-title"><h2>${q.q ? 'Search Results' : esc(activeSourceCategory || provider?.name || 'Provider Catalog')}</h2>${!q.q && activeSourceCategory ? pill(sourceCategoryMap.get(activeSourceCategory)?.count?.toLocaleString('en-US') + ' services','info') : ''}</div><span class="muted">${q.q ? priced.length.toLocaleString('en-US') + ' matching services' : sourceIndexRows.length.toLocaleString('en-US') + ' total synced services · ' + sourceCategories.length.toLocaleString('en-US') + ' categories'}</span></div><div class="tablewrap"><table class="table"><thead><tr><th>ID</th><th>Original Service Name</th><th>Provider Cost</th><th>VELIXEO Sale</th><th>Min / Max</th><th>Refill</th><th>Drip-feed</th><th>Cancel</th><th>App Status</th><th>Add</th></tr></thead><tbody>${rows || `<tr><td colspan="10" class="empty">${provider ? 'No services found. Sync the provider or choose another provider category.' : 'Choose a provider first.'}</td></tr>`}</tbody></table></div></div>${config}</div>`
-      : '<div class="card empty">No Social Media provider exists yet. Add a provider first, then sync its services.</div>',
+      ? `${selected ? config : ''}${providerPicker}${selected ? '' : config}<div class="card provider-catalog-card"><div class="cardhead"><div class="catalog-title"><h2>${q.q ? l('نتایج جستجو','Search Results') : esc(activeSourceCategory || provider?.name || l('کاتالوگ ارائه‌دهنده','Provider Catalog'))}</h2>${!q.q && activeSourceCategory ? pill(n(sourceCategoryMap.get(activeSourceCategory)?.count ?? 0) + ' ' + l('سرویس','services'),'info') : ''}</div><span class="muted">${q.q ? n(priced.length) + ' ' + l('سرویس مطابق','matching services') : n(sourceIndexRows.length) + ' ' + l('سرویس همگام‌شده','total synced services') + ' · ' + n(sourceCategories.length) + ' ' + l('دسته‌بندی','categories')}</span></div><div class="tablewrap"><table class="table"><thead><tr><th>ID</th><th>${l('نام اصلی سرویس','Original Service Name')}</th><th>${l('هزینه ارائه‌دهنده','Provider Cost')}</th><th>${l('قیمت فروش VELIXEO','VELIXEO Sale')}</th><th>${l('حداقل / حداکثر','Min / Max')}</th><th>${l('جبران','Refill')}</th><th>${l('دریپ‌فید','Drip-feed')}</th><th>${l('لغو','Cancel')}</th><th>${l('وضعیت در اپ','App Status')}</th><th>${l('افزودن','Add')}</th></tr></thead><tbody>${rows || `<tr><td colspan="10" class="empty">${provider ? l('سرویسی پیدا نشد. ارائه‌دهنده را همگام کنید یا دسته‌بندی دیگری را انتخاب کنید.','No services found. Sync the provider or choose another provider category.') : l('ابتدا ارائه‌دهنده را انتخاب کنید.','Choose a provider first.')}</td></tr>`}</tbody></table></div></div>`
+      : `<div class="card empty">${l('هنوز ارائه‌دهنده شبکه اجتماعی اضافه نشده است. ابتدا ارائه‌دهنده را اضافه و سپس سرویس‌های آن را همگام کنید.','No Social Media provider exists yet. Add a provider first, then sync its services.')}</div>`,
   });
 }
 
