@@ -7,6 +7,13 @@ export type ProviderStartEta = {
   source: 'field' | 'name';
 };
 
+export type ProviderAverageEta = {
+  text: string;
+  minMinutes: number | null;
+  maxMinutes: number | null;
+  source: 'provider';
+};
+
 function jsonObject(value: Prisma.JsonValue | null | undefined): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -51,7 +58,7 @@ export function parseEtaMinutes(textRaw: string) {
   return { minMinutes: null, maxMinutes: null };
 }
 
-function candidateFromFields(row: Record<string, unknown>) {
+function startCandidateFromFields(row: Record<string, unknown>) {
   const keys = [
     '_providerStartTimeText',
     'start_time',
@@ -60,8 +67,25 @@ function candidateFromFields(row: Record<string, unknown>) {
     'estimatedStartTime',
     'estimated_time',
     'estimatedTime',
+  ];
+  for (const key of keys) {
+    const value = row[key];
+    if (value != null && String(value).trim()) return String(value).trim();
+  }
+  return null;
+}
+
+function averageCandidateFromFields(row: Record<string, unknown>) {
+  const keys = [
+    '_providerAverageTimeText',
     'average_time',
     'averageTime',
+    'avg_time',
+    'avgTime',
+    'average_delivery_time',
+    'averageDeliveryTime',
+    'average_completion_time',
+    'averageCompletionTime',
   ];
   for (const key of keys) {
     const value = row[key];
@@ -75,12 +99,22 @@ function candidateFromName(name: string) {
   return match?.[1]?.trim() || null;
 }
 
+export function providerAverageEtaFromMetadata(
+  value: Prisma.JsonValue | null | undefined,
+): ProviderAverageEta | null {
+  const row = jsonObject(value);
+  const text = averageCandidateFromFields(row);
+  if (!text) return null;
+  const parsed = parseEtaMinutes(text);
+  return { text, ...parsed, source: 'provider' };
+}
+
 export function providerStartEtaFromMetadata(
   value: Prisma.JsonValue | null | undefined,
   fallbackName?: string | null,
 ): ProviderStartEta | null {
   const row = jsonObject(value);
-  const fromField = candidateFromFields(row);
+  const fromField = startCandidateFromFields(row);
   if (fromField) {
     const parsed = parseEtaMinutes(fromField);
     return { text: fromField, ...parsed, source: 'field' };
