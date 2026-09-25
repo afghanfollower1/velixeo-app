@@ -748,23 +748,24 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
       return parts.join('.');
     }
 
+    final afnText = fa ? '${fmt(afn)} افغانی' : '${fmt(afn)} AFN';
     switch (currency) {
       case DisplayCurrency.afn:
-        return '${fmt(afn)} AFN';
+        return afnText;
       case DisplayCurrency.usd:
         final rate = rates.afnPerUsd;
-        if (rate == null || rate <= 0) return '${fmt(afn)} AFN';
+        if (rate == null || rate <= 0) return afnText;
         final converted = afn / rate;
-        return showBase
-            ? '\$${converted.toStringAsFixed(2)}  ≈  ${fmt(afn)} AFN'
-            : '\$${converted.toStringAsFixed(2)}';
+        final usdText = fa
+            ? '${converted.toStringAsFixed(2)} دالر'
+            : '\${converted.toStringAsFixed(2)}';
+        return showBase ? '$usdText  ≈  $afnText' : usdText;
       case DisplayCurrency.toman:
         final afnPerToman = rates.afnPerToman;
-        if (afnPerToman == null || afnPerToman <= 0) return '${fmt(afn)} AFN';
+        if (afnPerToman == null || afnPerToman <= 0) return afnText;
         final toman = afn / afnPerToman;
-        return showBase
-            ? '${fmt(toman)} تومان  ≈  ${fmt(afn)} AFN'
-            : '${fmt(toman)} تومان';
+        final tomanText = fa ? '${fmt(toman)} تومان' : '${fmt(toman)} TOMAN';
+        return showBase ? '$tomanText  ≈  $afnText' : tomanText;
     }
   }
 
