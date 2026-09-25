@@ -101,6 +101,11 @@ class SocialService {
     this.estimatedMaxMinutes,
     this.refillDays,
     this.providerEta,
+    this.advertisedStartTime,
+    this.averageTimeText,
+    this.averageTimeMinutes,
+    this.averageTimeSource = 'NONE',
+    this.averageTimeSamples,
   });
 
   final String id;
@@ -122,6 +127,11 @@ class SocialService {
   final bool cancelSupported;
   final int? refillDays;
   final String? providerEta;
+  final String? advertisedStartTime;
+  final String? averageTimeText;
+  final int? averageTimeMinutes;
+  final String averageTimeSource;
+  final int? averageTimeSamples;
   final String providerType;
   final List<SocialOrderField> orderFields;
 
@@ -145,6 +155,11 @@ class SocialService {
         cancelSupported: (json['cancelSupported'] as bool?) ?? false,
         refillDays: (json['refillDays'] as num?)?.toInt(),
         providerEta: json['providerEta']?.toString(),
+        advertisedStartTime: json['advertisedStartTime']?.toString(),
+        averageTimeText: json['averageTimeText']?.toString(),
+        averageTimeMinutes: (json['averageTimeMinutes'] as num?)?.toInt(),
+        averageTimeSource: (json['averageTimeSource'] as String?) ?? 'NONE',
+        averageTimeSamples: (json['averageTimeSamples'] as num?)?.toInt(),
         providerType: (json['providerType'] as String?) ?? 'Default',
         orderFields: ((json['orderFields'] as List<dynamic>?) ?? const [])
             .map((item) => SocialOrderField.fromJson(Map<String, dynamic>.from(item as Map)))
