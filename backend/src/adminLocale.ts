@@ -1027,6 +1027,18 @@ export function adminLocaleChrome(lang: AdminLang) {
         location.reload();
       });
     });
+    const navRoot=document.querySelector('.admin-sidebar nav');
+    if(navRoot&&!navRoot.querySelector('[data-vx-chatgpt-link]')){
+      const link=document.createElement('a');
+      link.className='nav admin-nav'+(location.pathname==='/admin/v3/chatgpt-connector'?' active':'');
+      link.href='/admin/v3/chatgpt-connector';
+      link.dataset.vxChatgptLink='1';
+      link.innerHTML='<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.7 4.3L18 9l-4.3 1.7L12 15l-1.7-4.3L6 9l4.3-1.7L12 3zM18.5 14l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1z"/></svg><span>${fa ? 'اتصال ChatGPT' : 'ChatGPT Connector'}</span>';
+      const labels=navRoot.querySelectorAll('.nav-group-label');
+      const target=labels.length>1?labels[1]:labels[0];
+      if(target)navRoot.insertBefore(link,target);else navRoot.appendChild(link);
+      if(location.pathname==='/admin/v3/chatgpt-connector')navRoot.querySelectorAll('.admin-nav:not([data-vx-chatgpt-link])').forEach(item=>item.classList.remove('active'));
+    }
     const close=()=>document.body.classList.remove('vx-admin-menu-open');
     document.querySelector('.vx-admin-menu-toggle')?.addEventListener('click',()=>document.body.classList.toggle('vx-admin-menu-open'));
     document.querySelector('[data-vx-close-menu]')?.addEventListener('click',close);
