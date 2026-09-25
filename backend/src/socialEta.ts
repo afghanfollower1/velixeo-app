@@ -30,7 +30,9 @@ function unitMinutes(unitRaw: string) {
 
 export function parseEtaMinutes(textRaw: string) {
   const text = textRaw.trim();
-  if (!text) return { minMinutes: null, maxMinutes: null };
+  if (!text || /^(not enough data|n\/a|na|unknown|—|-)$/i.test(text)) {
+    return { minMinutes: null, maxMinutes: null };
+  }
   if (/^(instant|instantly|immediate|immediately|now)$/i.test(text)) {
     return { minMinutes: 0, maxMinutes: 0 };
   }
@@ -46,13 +48,20 @@ export function parseEtaMinutes(textRaw: string) {
     }
   }
 
-  const single = text.match(/(\d+(?:\.\d+)?)\s*(m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)\b/i);
-  if (single) {
-    const multiplier = unitMinutes(single[2] ?? '');
-    if (multiplier != null) {
-      const minutes = Math.round(Number(single[1]) * multiplier);
-      return { minMinutes: minutes, maxMinutes: minutes };
-    }
+  // Provider panels often return compound live averages such as
+  // "1 hour 22 minutes" or "2 days 3 hours". Preserve the whole value.
+  let totalMinutes = 0;
+  let matchedCompound = false;
+  const compound = /(\d+(?:\.\d+)?)\s*(d|day|days|h|hr|hrs|hour|hours|m|min|mins|minute|minutes)\b/gi;
+  for (const match of text.matchAll(compound)) {
+    const multiplier = unitMinutes(match[2] ?? '');
+    if (multiplier == null) continue;
+    totalMinutes += Number(match[1]) * multiplier;
+    matchedCompound = true;
+  }
+  if (matchedCompound && Number.isFinite(totalMinutes)) {
+    const minutes = Math.round(totalMinutes);
+    return { minMinutes: minutes, maxMinutes: minutes };
   }
 
   return { minMinutes: null, maxMinutes: null };
