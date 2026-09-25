@@ -505,6 +505,9 @@ setInterval(refreshProviderStatuses,60000);
 
 async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, request: FastifyRequest) {
   const q = query(request);
+  const fa = adminLangFromRequest(request) === 'fa';
+  const l = (faText: string, enText: string) => fa ? faText : enText;
+  const n = (value: number) => value.toLocaleString(fa ? 'fa-AF' : 'en-US');
   const providers = await prisma.provider.findMany({
     where: { kind: ProviderKind.SOCIAL },
     orderBy: [{ enabled: 'desc' }, { priority: 'asc' }, { name: 'asc' }],
@@ -611,10 +614,14 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
     const detected = typeof routeMeta._providerRefillDetected === 'boolean'
       ? routeMeta._providerRefillDetected
       : route.providerRefill;
-    const appState = raw ? pill('Not added') : route.service.enabled ? pill('Live','ok') : pill('Draft','warn');
+    const appState = raw
+      ? pill(l('اضافه نشده','Not added'))
+      : route.service.enabled
+        ? pill(l('فعال','Live'),'ok')
+        : pill(l('پیش‌نویس','Draft'),'warn');
     const refillState = route.providerRefill
-      ? pill(detected ? 'Refill · Auto' : 'Refill · Manual','ok')
-      : pill(detected ? 'Refill disabled' : 'No refill');
+      ? pill(detected ? l('جبران · خودکار','Refill · Auto') : l('جبران · دستی','Refill · Manual'),'ok')
+      : pill(detected ? l('جبران غیرفعال','Refill disabled') : l('بدون جبران','No refill'));
     const dripDetected = typeof routeMeta._providerDripFeedDetected === 'boolean'
       ? routeMeta._providerDripFeedDetected
       : Boolean(routeMeta.dripfeed ?? routeMeta.drip_feed);
@@ -622,24 +629,26 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
       ? routeMeta._velixeoDripFeedOverride
       : dripDetected;
     const dripState = dripEnabled
-      ? pill(dripDetected ? 'Drip-feed · Auto' : 'Drip-feed · Manual','ok')
-      : pill(dripDetected ? 'Drip-feed disabled' : 'No drip-feed');
-    return `<tr><td class="mono">${esc(route.providerServiceCode)}</td><td class="service-name"><b>${esc(route.providerName || route.service.titleEn)}</b><br><span class="tiny">${esc(route.providerType || 'Default')}</span></td><td><b>${esc(route.providerRate?.toString() || '—')}</b> ${esc(route.providerCurrency || '')}</td><td class="money">${sale == null ? '—' : money(sale)}</td><td>${esc(route.providerMinQty ?? '—')} – ${esc(route.providerMaxQty ?? '—')}</td><td>${refillState}</td><td>${dripState}</td><td>${route.providerCancel ? pill('Yes','ok') : pill('No')}</td><td>${appState}</td><td><a class="iconbtn ${raw?'green':'purple'}" href="/admin/v3/social/provider-services?provider=${route.providerId}&route=${route.id}${q.q?`&q=${encodeURIComponent(q.q)}`:(!q.q && activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:'')}" title="${raw?'Add this service to VELIXEO':'Edit VELIXEO service'}">${raw?icon('plus'):icon('edit')}</a></td></tr>`;
+      ? pill(dripDetected ? l('دریپ‌فید · خودکار','Drip-feed · Auto') : l('دریپ‌فید · دستی','Drip-feed · Manual'),'ok')
+      : pill(dripDetected ? l('دریپ‌فید غیرفعال','Drip-feed disabled') : l('بدون دریپ‌فید','No drip-feed'));
+    const actionTitle = raw ? l('افزودن این سرویس به VELIXEO','Add this service to VELIXEO') : l('ویرایش سرویس VELIXEO','Edit VELIXEO service');
+    return `<tr data-route-id="${route.id}"><td class="mono">${esc(route.providerServiceCode)}</td><td class="service-name"><b>${esc(route.providerName || route.service.titleEn)}</b><br><span class="tiny">${esc(route.providerType || 'Default')}</span></td><td><b>${esc(route.providerRate?.toString() || '—')}</b> ${esc(route.providerCurrency || '')}</td><td class="money">${sale == null ? '—' : money(sale)}</td><td>${esc(route.providerMinQty ?? '—')} – ${esc(route.providerMaxQty ?? '—')}</td><td>${refillState}</td><td>${dripState}</td><td>${route.providerCancel ? pill(l('بله','Yes'),'ok') : pill(l('خیر','No'))}</td><td class="route-app-state">${appState}</td><td><a data-route-action class="iconbtn ${raw?'green':'purple'}" href="/admin/v3/social/provider-services?provider=${route.providerId}&route=${route.id}${q.q?`&q=${encodeURIComponent(q.q)}`:(!q.q && activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:'')}" title="${actionTitle}" aria-label="${actionTitle}">${raw?icon('plus'):icon('edit')}</a></td></tr>`;
   }).join('');
 
   const brandOptions = brands
     .filter(item => item.enabled)
-    .map(item => `<option value="${esc(item.key)}" ${normalizeBrandKey(item.key)===selectedBrand?'selected':''}>${esc(item.titleEn)} · ${esc(item.titleFa)}</option>`)
+    .map(item => `<option value="${esc(item.key)}" ${normalizeBrandKey(item.key)===selectedBrand?'selected':''}>${esc(fa ? item.titleFa : item.titleEn)}</option>`)
     .join('');
   const categoryOptions = categories
     .filter(item => item.enabled)
-    .map(item => `<option value="${esc(item.slug)}" data-platform="${esc(normalizeBrandKey(item.platform))}" ${selectedCategorySlug===item.slug?'selected':''}>${esc(item.titleEn)} · ${esc(item.titleFa)}</option>`)
+    .map(item => `<option value="${esc(item.slug)}" data-platform="${esc(normalizeBrandKey(item.platform))}" ${selectedCategorySlug===item.slug?'selected':''}>${esc(fa ? item.titleFa : item.titleEn)}</option>`)
     .join('');
   const currentMode = selected?.service.basePriceAfn != null ? 'FIXED' : 'AUTO_MARKUP';
 
-  const config = selected ? `<div class="card"><div class="cardhead"><div><h2>${isPublished?'Edit VELIXEO Service':'Add Service to VELIXEO'}</h2><span class="muted">Provider #${esc(selected.providerServiceCode)} · ${esc(selected.provider.name)}</span></div><a class="btn ghost" href="/admin/v3/social/provider-services?provider=${selected.providerId}${activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:''}">Close</a></div>
+  const config = selected ? `<div id="service-config-panel" data-service-config class="card service-config-panel"><div class="cardhead"><div><h2>${isPublished?'Edit VELIXEO Service':'Add Service to VELIXEO'}</h2><span class="muted">Provider #${esc(selected.providerServiceCode)} · ${esc(selected.provider.name)}</span></div><a class="btn ghost" href="/admin/v3/social/provider-services?provider=${selected.providerId}${activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:''}">Close</a></div>
   <div class="notice"><b>Original provider name:</b> ${esc(selected.providerName || selected.service.titleEn)}<br><b>Provider cost:</b> ${esc(selected.providerRate?.toString() || '—')} ${esc(selected.providerCurrency || '')} · Min ${esc(selected.providerMinQty ?? '—')} · Max ${esc(selected.providerMaxQty ?? '—')}</div>
-  <form method="post" action="/admin/v3/social/provider-services/publish">
+  <div id="service-config-feedback" class="service-config-feedback"></div>
+  <form id="service-publish-form" method="post" action="/admin/v3/social/provider-services/publish">
     <input type="hidden" name="routeId" value="${selected.id}">
     <input type="hidden" name="providerId" value="${selected.providerId}">
     <input type="hidden" name="sourceCategory" value="${esc(activeSourceCategory)}">
@@ -687,7 +696,7 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
   </form>
   ${provider ? `<div class="actions" style="margin-top:12px"><a class="btn ghost" href="/admin/v3/social/providers">Providers</a><form method="post" action="/admin/v3/social/provider-services/sync"><input type="hidden" name="providerId" value="${provider.id}"><button class="btn">${icon('sync')} Get / Refresh All Services</button></form></div>` : ''}
   <div class="notice" style="margin-top:12px">This area shows the provider catalog only. Nothing is added to VELIXEO until you press + and save the service configuration.</div>
-  ${sourceCategories.length ? `<div class="source-categories">${sourceCategories.map(item => `<a class="source-category ${!q.q && item.name===activeSourceCategory?'active':''}" href="/admin/v3/social/provider-services?provider=${encodeURIComponent(providerId)}&sourceCategory=${encodeURIComponent(item.name)}"><span>${esc(item.name)}</span><span class="count">${item.count.toLocaleString('en-US')}</span></a>`).join('')}</div>` : ''}
+  ${sourceCategories.length ? `<div class="source-categories">${sourceCategories.map(item => `<a class="source-category ${!q.q && item.name===activeSourceCategory?'active':''}" href="/admin/v3/social/provider-services?provider=${encodeURIComponent(providerId)}&sourceCategory=${encodeURIComponent(item.name)}"><span>${esc(item.name)}</span><span class="count">${n(item.count)}</span></a>`).join('')}</div>` : ''}
   </div>`;
 
   const script = selected ? `
