@@ -4,6 +4,7 @@ import { Prisma, PrismaClient, ProviderKind, ServiceCategory } from '@prisma/cli
 import { brandSettingKey, defaultBrandIcons, loadSocialBrands, normalizeBrandKey } from './socialBrands.js';
 import { inferSocialGroup, inferSocialPlatform, syncSocialProviderCatalog } from './socialSync.js';
 import { adminLangFromRequest, type AdminLang } from './adminLocale.js';
+import { renderAdminV3Page } from './adminFigmaEnglish.js';
 
 type AdminIdentity = { id:string; fullName:string|null; email:string|null; phone:string|null };
 type AdminResolver = (request:FastifyRequest)=>Promise<AdminIdentity|null>;
@@ -322,6 +323,12 @@ export async function adminAiPageBody(prisma:PrismaClient,admin:AdminIdentity,la
 }
 
 export function registerAdminAiAgent(app:FastifyInstance,prisma:PrismaClient,resolve:AdminResolver){
+  app.get('/admin/v3/agent',async(request,reply)=>{
+    const admin=await resolve(request);if(!admin)return reply.code(303).redirect('/admin/login');
+    const lang=adminLangFromRequest(request);
+    const body=await adminAiPageBody(prisma,admin,lang);
+    return reply.type('text/html; charset=utf-8').send(renderAdminV3Page(admin,'social',body,'','',false,lang,lang==='fa'?'دستیار هوشمند':'Admin AI Assistant',lang==='fa'?'مدیریت هوشمند کاتالوگ و ارائه‌دهندگان':'AI-powered provider and catalog management'));
+  });
   app.post('/admin/v3/agent/chat',async(request,reply)=>{
     const admin=await requireAdmin(request,reply,resolve);if(!admin)return;
     const body=(request.body||{}) as Record<string,unknown>,message=String(body.message||'').trim().slice(0,5000);if(!message)return reply.code(400).send({error:'message_required'});
