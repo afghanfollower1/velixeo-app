@@ -9,7 +9,7 @@ import {
 } from '@prisma/client';
 import { smmClientForProvider } from './smmPanelAdapter.js';
 import { normalizeCurrencyCode } from './currency.js';
-import { providerStartEtaFromMetadata } from './socialEta.js';
+import { providerAverageEtaFromMetadata, providerStartEtaFromMetadata } from './socialEta.js';
 
 const SCALE = 1_000_000n;
 const DEFAULT_SYNC_MINUTES = 10;
@@ -259,6 +259,7 @@ export async function syncSocialProviderCatalog(
         ? currentRouteMeta._velixeoDripFeedOverride
         : null;
       const startEta = providerStartEtaFromMetadata(row.raw as Prisma.JsonValue, row.name);
+      const averageEta = providerAverageEtaFromMetadata(row.raw as Prisma.JsonValue);
       const providerRate = new Prisma.Decimal(row.rate || '0');
       const providerRateScaled = decimalToScaled(providerRate);
       const costAfn = fx == null
@@ -285,6 +286,12 @@ export async function syncSocialProviderCatalog(
             _providerStartTimeText: startEta.text,
             _providerStartMinMinutes: startEta.minMinutes,
             _providerStartMaxMinutes: startEta.maxMinutes,
+          } : {}),
+          ...(averageEta ? {
+            _providerAverageTimeText: averageEta.text,
+            _providerAverageMinMinutes: averageEta.minMinutes,
+            _providerAverageMaxMinutes: averageEta.maxMinutes,
+            _providerAverageSource: 'PROVIDER_API',
           } : {}),
           ...(refillOverride == null ? {} : { _velixeoRefillOverride: refillOverride }),
           ...(dripFeedOverride == null ? {} : { _velixeoDripFeedOverride: dripFeedOverride }),
