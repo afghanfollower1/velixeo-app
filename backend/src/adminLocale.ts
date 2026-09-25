@@ -1027,6 +1027,17 @@ export function adminLocaleChrome(lang: AdminLang) {
         location.reload();
       });
     });
+    const navRoot=document.querySelector('.admin-sidebar nav');
+    if(navRoot&&!navRoot.querySelector('[data-vx-agent-nav]')){
+      const agent=document.createElement('a');
+      agent.className='nav admin-nav'+(location.pathname==='/admin/v3/agent'?' active':'');
+      agent.href='/admin/v3/agent';
+      agent.dataset.vxAgentNav='1';
+      agent.innerHTML='<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.7 4.3L18 9l-4.3 1.7L12 15l-1.7-4.3L6 9l4.3-1.7L12 3zM18.5 14l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1z"/></svg><span>${fa ? 'دستیار هوشمند' : 'AI Assistant'}</span>';
+      const firstGroup=navRoot.querySelector('.nav-group-label');
+      if(firstGroup)navRoot.insertBefore(agent,firstGroup);else navRoot.appendChild(agent);
+      if(location.pathname==='/admin/v3/agent')navRoot.querySelectorAll('.admin-nav:not([data-vx-agent-nav])').forEach(item=>item.classList.remove('active'));
+    }
     const close=()=>document.body.classList.remove('vx-admin-menu-open');
     document.querySelector('.vx-admin-menu-toggle')?.addEventListener('click',()=>document.body.classList.toggle('vx-admin-menu-open'));
     document.querySelector('[data-vx-close-menu]')?.addEventListener('click',close);
