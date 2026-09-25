@@ -769,10 +769,41 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
     }
   }
 
-  String serviceMoney(num afn) {
+  String serviceMoney(int afn) {
     String trimDecimal(double value, {int digits = 1}) {
       final fixed = value.toStringAsFixed(digits);
-      return fixed.replaceFirst(RegExp(r'\.0+
+      return fixed.endsWith('.0') ? fixed.substring(0, fixed.length - 2) : fixed;
+    }
+
+    switch (currency) {
+      case DisplayCurrency.afn:
+        return fa ? '$afn افغانی' : '$afn AFN';
+      case DisplayCurrency.usd:
+        final rate = rates.afnPerUsd;
+        if (rate == null || rate <= 0) {
+          return fa ? '$afn افغانی' : '$afn AFN';
+        }
+        final usd = afn / rate;
+        return fa ? '${usd.toStringAsFixed(2)} دالر' : '${usd.toStringAsFixed(2)} USD';
+      case DisplayCurrency.toman:
+        final afnPerToman = rates.afnPerToman;
+        if (afnPerToman == null || afnPerToman <= 0) {
+          return fa ? '$afn افغانی' : '$afn AFN';
+        }
+        final toman = afn / afnPerToman;
+        if (toman >= 1000000) {
+          final compact = trimDecimal(toman / 1000000);
+          return fa ? '$compact میلیون تومان' : '${compact}M TOMAN';
+        }
+        if (toman >= 1000) {
+          final compact = (toman / 1000).round();
+          return fa ? '$compact هزار تومان' : '${compact}K TOMAN';
+        }
+        final compact = toman.round();
+        return fa ? '$compact تومان' : '$compact TOMAN';
+    }
+  }
+
   String secondaryBalance() {
     final usd = rates.afnPerUsd;
     final toman = rates.afnPerToman;
