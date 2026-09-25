@@ -48,10 +48,15 @@ class ApiService {
     _refreshToken ??= await _storage.read(key: _refreshKey);
   }
 
-  Future<AppLang> restoreLanguage() async {
+  Future<AppLang?> restoreSavedLanguage() async {
     final saved = await _storage.read(key: _languageKey);
-    return saved == 'EN' ? AppLang.en : AppLang.fa;
+    if (saved == 'FA') return AppLang.fa;
+    if (saved == 'EN') return AppLang.en;
+    return null;
   }
+
+  Future<AppLang> restoreLanguage() async =>
+      await restoreSavedLanguage() ?? AppLang.fa;
 
   Future<DisplayCurrency> restoreCurrency() async {
     final saved = await _storage.read(key: _currencyKey);
