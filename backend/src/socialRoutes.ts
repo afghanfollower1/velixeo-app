@@ -464,7 +464,6 @@ async function recentSocialAverageMap(prisma: PrismaClient) {
       status: OrderStatus.COMPLETED,
       providerId: { not: null },
       serviceId: { not: null },
-      completedAt: { not: null },
       completedAt: { gte: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000) },
     },
     select: {
