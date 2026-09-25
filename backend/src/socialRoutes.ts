@@ -1362,6 +1362,16 @@ export function registerSocialRoutes(
               refillSupported: route.providerRefill,
               cancelSupported: route.providerCancel,
               providerEta: providerEtaFromMetadata(route.metadata, route.providerName),
+              providerAverageTimeText: providerAverageEtaFromMetadata(route.metadata)?.text ?? null,
+              providerAverageTimeMinutes: (() => {
+                const avg = providerAverageEtaFromMetadata(route.metadata);
+                if (!avg) return null;
+                if (avg.minMinutes != null && avg.maxMinutes != null) {
+                  return Math.round((avg.minMinutes + avg.maxMinutes) / 2);
+                }
+                return avg.minMinutes ?? avg.maxMinutes;
+              })(),
+              providerAverageTimeSource: providerAverageEtaFromMetadata(route.metadata) ? 'PROVIDER_API' : 'NONE',
               refillWindowHours: orderSettings.refillWindowHours,
               displayOrderId: orderSettings.orderIdMode === 'PROVIDER'
                 ? result.orderId
@@ -1397,6 +1407,16 @@ export function registerSocialRoutes(
                   refillSupported: route.providerRefill,
                   cancelSupported: route.providerCancel,
                   providerEta: providerEtaFromMetadata(route.metadata, route.providerName),
+                  providerAverageTimeText: providerAverageEtaFromMetadata(route.metadata)?.text ?? null,
+                  providerAverageTimeMinutes: (() => {
+                    const avg = providerAverageEtaFromMetadata(route.metadata);
+                    if (!avg) return null;
+                    if (avg.minMinutes != null && avg.maxMinutes != null) {
+                      return Math.round((avg.minMinutes + avg.maxMinutes) / 2);
+                    }
+                    return avg.minMinutes ?? avg.maxMinutes;
+                  })(),
+                  providerAverageTimeSource: providerAverageEtaFromMetadata(route.metadata) ? 'PROVIDER_API' : 'NONE',
                   refillWindowHours: orderSettings.refillWindowHours,
                   displayOrderId: order.publicOrderNumber?.toString() ?? order.id.slice(0, 8),
                   providerType: candidateType,
