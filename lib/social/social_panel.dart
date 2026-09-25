@@ -24,6 +24,45 @@ String _formatSocialCount(int value) => value.toString().replaceAllMapped(
       (_) => ',',
     );
 
+String _formatSocialDuration(int value, bool fa) {
+  if (value >= 1440) {
+    final days = value / 1440;
+    final shown = days == days.roundToDouble() ? days.round().toString() : days.toStringAsFixed(1);
+    return fa ? '$shown روز' : '$shown days';
+  }
+  if (value >= 60) {
+    final hours = value / 60;
+    final shown = hours == hours.roundToDouble() ? hours.round().toString() : hours.toStringAsFixed(1);
+    return fa ? '$shown ساعت' : '$shown hours';
+  }
+  return fa ? '$value دقیقه' : '$value min';
+}
+
+String _serviceAverageTimeLabel(SocialService service, bool fa) {
+  final minutes = service.averageTimeMinutes;
+  if (minutes != null) {
+    return fa
+        ? 'میانگین زمان واقعی: ${_formatSocialDuration(minutes, true)}'
+        : 'Live average: ${_formatSocialDuration(minutes, false)}';
+  }
+  final text = service.averageTimeText?.trim();
+  if (text?.isNotEmpty == true) {
+    return fa ? 'میانگین زمان واقعی: $text' : 'Live average: $text';
+  }
+  return fa ? 'میانگین زمان واقعی: در حال محاسبه' : 'Live average: calculating';
+}
+
+String? _orderAverageTimeLabel(SocialOrder order, bool fa) {
+  final minutes = order.providerAverageTimeMinutes;
+  if (minutes != null) {
+    return fa
+        ? _formatSocialDuration(minutes, true)
+        : _formatSocialDuration(minutes, false);
+  }
+  final text = order.providerAverageTimeText?.trim();
+  return text?.isNotEmpty == true ? text : null;
+}
+
 class SocialPanelPage extends StatefulWidget {
   const SocialPanelPage({super.key, required this.host});
   final SocialPanelHost host;
@@ -595,9 +634,12 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
           _InfoRow(label: t('کسر از کیف پول', 'Wallet deduction'), value: host.money(order.totalAmountAfn, showBase: true), strong: true),
           const SizedBox(height: 8),
           _InfoRow(label: t('موجودی فعلی', 'Current balance'), value: host.money(host.balanceAfn, showBase: true), strong: true),
-          if (order.providerEta?.trim().isNotEmpty == true) ...[
+          if (_orderAverageTimeLabel(order, fa) != null) ...[
             const SizedBox(height: 8),
-            _InfoRow(label: t('زمان تقریبی شروع سفارش', 'Estimated start time'), value: order.providerEta!),
+            _InfoRow(
+              label: t('میانگین زمان واقعی', 'Live average time'),
+              value: _orderAverageTimeLabel(order, fa)!,
+            ),
           ],
           const SizedBox(height: 8),
           _InfoRow(label: t('وضعیت', 'Status'), value: statusLabel(order.status)),
@@ -1040,28 +1082,27 @@ Widget buildEnglishNewOrder() {
                 style: const TextStyle(fontSize: 12, color: VelixeoBrand.muted),
               ),
             ),
-          if (service.providerEta?.trim().isNotEmpty == true)
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF4F7FA),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.schedule_rounded, size: 18, color: VelixeoBrand.muted),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '${t('زمان تقریبی شروع سفارش', 'Estimated start time')}: ${service.providerEta!}',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ],
-              ),
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF4F7FA),
+              borderRadius: BorderRadius.circular(12),
             ),
+            child: Row(
+              children: [
+                const Icon(Icons.schedule_rounded, size: 18, color: VelixeoBrand.muted),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _serviceAverageTimeLabel(service, fa),
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+          ),
           TextField(
             controller: coupon,
             textCapitalization: TextCapitalization.characters,
@@ -1238,28 +1279,27 @@ Widget buildEnglishOrderForm(SocialService service) {
                 style: const TextStyle(fontSize: 12, color: VelixeoBrand.muted),
               ),
             ),
-          if (service.providerEta?.trim().isNotEmpty == true)
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF4F7FA),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.schedule_rounded, size: 18, color: VelixeoBrand.muted),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '${t('زمان تقریبی شروع سفارش', 'Estimated start time')}: ${service.providerEta!}',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ],
-              ),
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF4F7FA),
+              borderRadius: BorderRadius.circular(12),
             ),
+            child: Row(
+              children: [
+                const Icon(Icons.schedule_rounded, size: 18, color: VelixeoBrand.muted),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _serviceAverageTimeLabel(service, fa),
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+          ),
           TextField(
             controller: coupon,
             textCapitalization: TextCapitalization.characters,
@@ -2530,32 +2570,7 @@ class _ServiceCard extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  String eta() {
-    String fmt(int value) {
-      if (value >= 1440) {
-        final days = value / 1440;
-        final shown = days == days.roundToDouble() ? days.round().toString() : days.toStringAsFixed(1);
-        return fa ? '$shown روز' : '$shown days';
-      }
-      if (value >= 60) {
-        final hours = value / 60;
-        final shown = hours == hours.roundToDouble() ? hours.round().toString() : hours.toStringAsFixed(1);
-        return fa ? '$shown ساعت' : '$shown hours';
-      }
-      return fa ? '$value دقیقه' : '$value min';
-    }
-
-    final minutes = service.averageTimeMinutes;
-    if (minutes != null) {
-      return fa ? 'میانگین: ${fmt(minutes)}' : 'Average: ${fmt(minutes)}';
-    }
-    if (service.averageTimeText?.trim().isNotEmpty == true) {
-      return fa
-          ? 'میانگین: ${service.averageTimeText!.trim()}'
-          : 'Average: ${service.averageTimeText!.trim()}';
-    }
-    return fa ? 'میانگین: در حال محاسبه' : 'Average: calculating';
-  }
+  String eta() => _serviceAverageTimeLabel(service, fa);
 
   @override
   Widget build(BuildContext context) => InkWell(
@@ -2795,9 +2810,12 @@ class _OrderCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text('${fa ? 'لینک' : 'Link'}: ${order.orderLink}', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: VelixeoBrand.muted)),
             ],
-            if (order.providerEta?.trim().isNotEmpty == true) ...[
+            if (_orderAverageTimeLabel(order, fa) != null) ...[
               const SizedBox(height: 6),
-              Text('${fa ? 'زمان تقریبی شروع' : 'Estimated start'}: ${order.providerEta}', style: const TextStyle(fontSize: 11, color: VelixeoBrand.muted)),
+              Text(
+                '${fa ? 'میانگین زمان واقعی' : 'Live average'}: ${_orderAverageTimeLabel(order, fa)}',
+                style: const TextStyle(fontSize: 11, color: VelixeoBrand.muted),
+              ),
             ],
             if (order.failureReason?.isNotEmpty == true) ...[
               const SizedBox(height: 8),
