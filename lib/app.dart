@@ -18,6 +18,7 @@ import 'support/support_page.dart';
 import 'virtual_numbers/virtual_number_panel.dart';
 import 'premium/premium_panel.dart';
 import 'referrals/referral_page.dart';
+import 'admin/admin_mobile.dart';
 
 // FIGMA_ENGLISH_V1 — UI implementation based on the approved English Figma file.
 
@@ -54,6 +55,7 @@ class AppController extends ChangeNotifier implements SocialPanelHost, VirtualNu
   ({String title, String body, Map<String, String> data})? _foregroundPush;
 
   bool get fa => language == AppLang.fa;
+  bool get isAdmin => user?.role.toUpperCase() == 'ADMIN';
   bool get googleConfigured => googleAuth.configured;
   int get unreadNotificationCount => notifications.where((notice) => !notice.isRead).length;
 
@@ -3110,6 +3112,7 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int index = 0;
+  bool adminMode = false;
 
   @override
   void initState() {
@@ -3124,25 +3127,42 @@ class _MainShellState extends State<MainShell> {
     super.dispose();
   }
 
+  void _enterAdmin() {
+    if (!widget.controller.isAdmin || !mounted) return;
+    setState(() => adminMode = true);
+  }
+
+  void _exitAdmin() {
+    if (!mounted) return;
+    setState(() => adminMode = false);
+  }
+
+  void _selectTab(int value) {
+    setState(() {
+      adminMode = false;
+      index = value;
+    });
+  }
+
   void _openPushRoute(Map<String, String> data) {
     if (!mounted) return;
     final route = (data['route'] ?? 'notifications').trim().toLowerCase();
     switch (route) {
       case 'home':
-        setState(() => index = 0);
+        _selectTab(0);
         break;
       case 'services':
-        setState(() => index = 1);
+        _selectTab(1);
         break;
       case 'orders':
-        setState(() => index = 2);
+        _selectTab(2);
         break;
       case 'wallet':
       case 'payments':
-        setState(() => index = 3);
+        _selectTab(3);
         break;
       case 'profile':
-        setState(() => index = 4);
+        _selectTab(4);
         break;
       case 'support':
         Navigator.push(context, MaterialPageRoute(builder: (_) => SupportPage(host: widget.controller)));
@@ -3156,6 +3176,9 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _handleControllerSignals() {
+    if (adminMode && !widget.controller.isAdmin && mounted) {
+      setState(() => adminMode = false);
+    }
     final opened = widget.controller.takePendingNotificationOpen();
     final foreground = widget.controller.takeForegroundPush();
     if (opened != null) {
@@ -3186,7 +3209,10 @@ class _MainShellState extends State<MainShell> {
                 ),
               ],
             ),
-            action: SnackBarAction(label: widget.controller.fa ? 'باز کردن' : 'Open', onPressed: () => _openPushRoute(foreground.data)),
+            action: SnackBarAction(
+              label: widget.controller.fa ? 'باز کردن' : 'Open',
+              onPressed: () => _openPushRoute(foreground.data),
+            ),
           ),
         );
       });
@@ -3197,25 +3223,45 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     final c = widget.controller;
     final pages = [
-      HomePage(controller: c, onProfileTap: () => setState(() => index = 4)),
-      ServicesPage(controller: c, onBack: () => setState(() => index = 0)),
-      OrdersPage(controller: c, onBack: () => setState(() => index = 0)),
-      WalletPage(controller: c, onBack: () => setState(() => index = 0)),
-      ProfilePage(controller: c, onBack: () => setState(() => index = 0)),
+      HomePage(
+        controller: c,
+        onProfileTap: () => _selectTab(4),
+        onAdminTap: _enterAdmin,
+      ),
+      ServicesPage(controller: c, onBack: () => _selectTab(0)),
+      OrdersPage(controller: c, onBack: () => _selectTab(0)),
+      WalletPage(controller: c, onBack: () => _selectTab(0)),
+      ProfilePage(
+        controller: c,
+        onBack: () => _selectTab(0),
+        onAdminTap: _enterAdmin,
+      ),
     ];
 
     final navigation = c.fa
         ? _FaBottomNavigation(
             index: index,
-            onChanged: (value) => setState(() => index = value),
+            manager: c.isAdmin,
+            onChanged: _selectTab,
           )
         : _EnBottomNavigation(
             index: index,
-            onChanged: (value) => setState(() => index = value),
+            manager: c.isAdmin,
+            onChanged: _selectTab,
           );
 
+    final body = adminMode && c.isAdmin && c.user != null
+        ? AdminMobileDashboard(
+            api: c.api,
+            user: c.user!,
+            fa: c.fa,
+            onExitManagement: _exitAdmin,
+          )
+        : IndexedStack(index: index, children: pages);
+
     return Scaffold(
-      body: IndexedStack(index: index, children: pages),
+      backgroundColor: const Color(0xFFF6F9FC),
+      body: body,
       bottomNavigationBar: navigation,
     );
   }
@@ -3229,9 +3275,14 @@ class _BottomNavItemData {
 }
 
 class _FaBottomNavigation extends StatelessWidget {
-  const _FaBottomNavigation({required this.index, required this.onChanged});
+  const _FaBottomNavigation({
+    required this.index,
+    required this.onChanged,
+    this.manager = false,
+  });
   final int index;
   final ValueChanged<int> onChanged;
+  final bool manager;
 
   static const items = [
     _BottomNavItemData(Icons.home_outlined, Icons.home_rounded, 'خانه'),
@@ -3240,10 +3291,17 @@ class _FaBottomNavigation extends StatelessWidget {
     _BottomNavItemData(Icons.account_balance_wallet_outlined, Icons.account_balance_wallet_rounded, 'کیف پول'),
     _BottomNavItemData(Icons.person_outline_rounded, Icons.person_rounded, 'پروفایل'),
   ];
+  static const managerItems = [
+    _BottomNavItemData(Icons.home_outlined, Icons.home_rounded, 'خانه'),
+    _BottomNavItemData(Icons.grid_view_outlined, Icons.grid_view_rounded, 'خدمات'),
+    _BottomNavItemData(Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'سفارش‌های من'),
+    _BottomNavItemData(Icons.account_balance_wallet_outlined, Icons.account_balance_wallet_rounded, 'کیف پول من'),
+    _BottomNavItemData(Icons.person_outline_rounded, Icons.person_rounded, 'حساب من'),
+  ];
 
   @override
   Widget build(BuildContext context) => _PrototypeBottomNavigation(
-        items: items,
+        items: manager ? managerItems : items,
         index: index,
         onChanged: onChanged,
         direction: TextDirection.rtl,
@@ -3251,9 +3309,14 @@ class _FaBottomNavigation extends StatelessWidget {
 }
 
 class _EnBottomNavigation extends StatelessWidget {
-  const _EnBottomNavigation({required this.index, required this.onChanged});
+  const _EnBottomNavigation({
+    required this.index,
+    required this.onChanged,
+    this.manager = false,
+  });
   final int index;
   final ValueChanged<int> onChanged;
+  final bool manager;
 
   static const items = [
     _BottomNavItemData(Icons.home_outlined, Icons.home_rounded, 'Home'),
@@ -3262,10 +3325,17 @@ class _EnBottomNavigation extends StatelessWidget {
     _BottomNavItemData(Icons.account_balance_wallet_outlined, Icons.account_balance_wallet_rounded, 'Wallet'),
     _BottomNavItemData(Icons.person_outline_rounded, Icons.person_rounded, 'Profile'),
   ];
+  static const managerItems = [
+    _BottomNavItemData(Icons.home_outlined, Icons.home_rounded, 'Home'),
+    _BottomNavItemData(Icons.grid_view_outlined, Icons.grid_view_rounded, 'Services'),
+    _BottomNavItemData(Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'My orders'),
+    _BottomNavItemData(Icons.account_balance_wallet_outlined, Icons.account_balance_wallet_rounded, 'My wallet'),
+    _BottomNavItemData(Icons.person_outline_rounded, Icons.person_rounded, 'My account'),
+  ];
 
   @override
   Widget build(BuildContext context) => _PrototypeBottomNavigation(
-        items: items,
+        items: manager ? managerItems : items,
         index: index,
         onChanged: onChanged,
         direction: TextDirection.ltr,
@@ -3367,9 +3437,15 @@ class _PrototypeBottomNavigation extends StatelessWidget {
 }
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key, required this.controller, this.onProfileTap});
+  const HomePage({
+    super.key,
+    required this.controller,
+    this.onProfileTap,
+    this.onAdminTap,
+  });
   final AppController controller;
   final VoidCallback? onProfileTap;
+  final VoidCallback? onAdminTap;
 
   static const services = [
     ServiceItem('شبکه‌های اجتماعی', 'Social Media', Icons.favorite_rounded, VelixeoBrand.sky),
@@ -3496,6 +3572,13 @@ class HomePage extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 17),
+              if (c.isAdmin) ...[
+                AdminAccessBar(
+                  fa: c.fa,
+                  inManagement: false,
+                  onTap: onAdminTap ?? () {},
+                ),
+              ],
               _PrototypeWalletHero(
                 controller: c,
                 label: 'موجودی کیف پول',
@@ -3624,6 +3707,13 @@ class HomePage extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 17),
+              if (c.isAdmin) ...[
+                AdminAccessBar(
+                  fa: c.fa,
+                  inManagement: false,
+                  onTap: onAdminTap ?? () {},
+                ),
+              ],
               _PrototypeWalletHero(
                 controller: c,
                 label: 'Available balance',
@@ -9306,9 +9396,37 @@ class _PaymentDetailCard extends StatelessWidget {
 }
 
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key, required this.controller, this.onBack});
+  const ProfilePage({
+    super.key,
+    required this.controller,
+    this.onBack,
+    this.onAdminTap,
+  });
   final AppController controller;
   final VoidCallback? onBack;
+  final VoidCallback? onAdminTap;
+
+  void _openAdmin(BuildContext context) {
+    if (!controller.isAdmin) return;
+    if (onAdminTap != null) {
+      onAdminTap!();
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (adminContext) => Scaffold(
+          backgroundColor: const Color(0xFFF6F9FC),
+          body: AdminMobileDashboard(
+            api: controller.api,
+            user: controller.user!,
+            fa: controller.fa,
+            onExitManagement: () => Navigator.maybePop(adminContext),
+          ),
+        ),
+      ),
+    );
+  }
 
   Future<void> _changeLanguage(BuildContext context, AppLang lang) async {
     Navigator.pop(context);
@@ -9448,6 +9566,13 @@ class ProfilePage extends StatelessWidget {
             _ProfileMenuCard(
               direction: TextDirection.rtl,
               rows: [
+                if (c.isAdmin)
+                  _ProfileMenuData(
+                    Icons.admin_panel_settings_outlined,
+                    'مرکز مدیریت',
+                    'اپ مدیر',
+                    () => _openAdmin(context),
+                  ),
                 _ProfileMenuData(
                   Icons.manage_accounts_outlined,
                   'ویرایش پروفایل',
@@ -9514,7 +9639,7 @@ class ProfilePage extends StatelessWidget {
             const SizedBox(height: 18),
             const Center(
               child: Text(
-                'VELIXEO · نسخه 0.12',
+                'VELIXEO · نسخه 0.14',
                 textDirection: TextDirection.ltr,
                 style: TextStyle(
                   fontFamily: 'Inter',
@@ -9562,6 +9687,13 @@ class ProfilePage extends StatelessWidget {
             _ProfileMenuCard(
               direction: TextDirection.ltr,
               rows: [
+                if (c.isAdmin)
+                  _ProfileMenuData(
+                    Icons.admin_panel_settings_outlined,
+                    'Management center',
+                    'Admin app',
+                    () => _openAdmin(context),
+                  ),
                 _ProfileMenuData(
                   Icons.manage_accounts_outlined,
                   'Edit profile',
@@ -9628,7 +9760,7 @@ class ProfilePage extends StatelessWidget {
             const SizedBox(height: 18),
             const Center(
               child: Text(
-                'VELIXEO · Version 0.12',
+                'VELIXEO · Version 0.14',
                 style: TextStyle(
                   fontSize: 9.5,
                   color: Color(0xFF9AAAB3),
