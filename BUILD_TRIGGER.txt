@@ -25,3 +25,6 @@ VELIXEO 0.14.2+36: ChatGPT description tools and provider start-time ETA in Soci
 
 VELIXEO 0.14.3+37: live Social average-time model, one-minute catalog refresh, localized selected-currency labels, and explicit Price / Price unit UI.
 Final rebuild VELIXEO 0.14.3+37 after live-average order UI and localized currency formatting validation.
+
+VELIXEO 0.14.4+38: enforce provider catalog refresh no slower than every 10 minutes for live dynamic pricing, keep administrator-set markup on the fresh provider rate, prefer provider API average_time over advertised title Start Time, snapshot provider average on new orders, and show localized Price / Per-unit / currency labels in FA/EN.
+Release trigger: signed VELIXEO v0.14.4 production APK.
