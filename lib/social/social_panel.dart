@@ -39,17 +39,22 @@ String _formatSocialDuration(int value, bool fa) {
 }
 
 String _serviceAverageTimeLabel(SocialService service, bool fa) {
+  final source = service.averageTimeSource.toUpperCase();
   final minutes = service.averageTimeMinutes;
-  if (minutes != null) {
-    return fa
-        ? 'میانگین زمان واقعی: ${_formatSocialDuration(minutes, true)}'
-        : 'Live average: ${_formatSocialDuration(minutes, false)}';
-  }
   final text = service.averageTimeText?.trim();
-  if (text?.isNotEmpty == true) {
-    return fa ? 'میانگین زمان واقعی: $text' : 'Live average: $text';
+  String? value;
+  if (minutes != null) {
+    value = _formatSocialDuration(minutes, fa);
+  } else if (text?.isNotEmpty == true) {
+    value = text;
   }
-  return fa ? 'میانگین زمان واقعی: در حال محاسبه' : 'Live average: calculating';
+  if (source == 'PROVIDER_API' && value != null) {
+    return fa ? 'میانگین واقعی ارائه‌دهنده: $value' : 'Provider live average: $value';
+  }
+  if (source == 'VELIXEO_ORDERS' && value != null) {
+    return fa ? 'میانگین سفارش‌های VELIXEO: $value' : 'VELIXEO order average: $value';
+  }
+  return fa ? 'میانگین واقعی: در دسترس نیست' : 'Live average: unavailable';
 }
 
 String? _orderAverageTimeLabel(SocialOrder order, bool fa) {
