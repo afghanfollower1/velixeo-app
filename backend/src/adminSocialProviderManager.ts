@@ -1232,6 +1232,7 @@ export function registerAdminSocialProviderManager(
       const refillEnabled = checked(body, 'refillEnabled');
       const dripFeedEnabled = checked(body, 'dripFeedEnabled');
       const titleEn = text(body, 'titleEn') || route.providerName || route.service.titleEn;
+      const startEta = providerStartEtaFromMetadata(route.metadata, route.providerName);
       await prisma.$transaction([
         prisma.service.update({
           where: { id: route.serviceId },
@@ -1246,6 +1247,8 @@ export function registerAdminSocialProviderManager(
             basePriceAfn: fixedPrice,
             minQty: text(body, 'minQty') ? intValue(body.minQty) : route.providerMinQty,
             maxQty: text(body, 'maxQty') ? intValue(body.maxQty) : route.providerMaxQty,
+            estimatedMinMinutes: startEta?.minMinutes ?? route.service.estimatedMinMinutes,
+            estimatedMaxMinutes: startEta?.maxMinutes ?? route.service.estimatedMaxMinutes,
             refillDays: text(body, 'refillDays') ? intValue(body.refillDays) : route.service.refillDays,
             socialPlatform: category.platform,
             socialGroup: category.slug,
