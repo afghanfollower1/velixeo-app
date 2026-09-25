@@ -385,6 +385,9 @@ async function providerStatus(provider: Provider) {
 
 async function providersPage(prisma: PrismaClient, admin: AdminIdentity, request: FastifyRequest) {
   const q = query(request);
+  const fa = adminLangFromRequest(request) === 'fa';
+  const l = (faText: string, enText: string) => fa ? faText : enText;
+  const n = (value: number) => value.toLocaleString(fa ? 'fa-AF' : 'en-US');
   const providers = await prisma.provider.findMany({
     where: { kind: ProviderKind.SOCIAL },
     orderBy: [{ enabled: 'desc' }, { priority: 'asc' }, { name: 'asc' }],
@@ -395,7 +398,16 @@ async function providersPage(prisma: PrismaClient, admin: AdminIdentity, request
       ? await prisma.provider.findFirst({ where: { id: q.edit, kind: ProviderKind.SOCIAL } })
       : null;
     if (q.edit && !selected) {
-      return shell({ request, admin, title: 'Providers', subtitle: 'Provider not found', active: 'providers', body: '<div class="card empty">The selected provider does not exist.</div>', message: q.msg, error: q.error });
+      return shell({
+        request,
+        admin,
+        title: 'Providers',
+        subtitle: 'Provider not found',
+        active: 'providers',
+        body: `<div class="card empty">${l('ارائه‌دهنده انتخاب‌شده وجود ندارد.','The selected provider does not exist.')}</div>`,
+        message: q.msg,
+        error: q.error,
+      });
     }
     const [meta, rateRows] = await Promise.all([
       selected ? getProviderMeta(prisma, selected.id) : Promise.resolve({ websiteUrl: '', defaultCurrency: 'USD', description: '' }),
@@ -413,7 +425,7 @@ async function providersPage(prisma: PrismaClient, admin: AdminIdentity, request
       active: 'providers',
       message: q.msg,
       error: q.error,
-      body: `<div class="card" style="max-width:920px;margin:0 auto"><div class="cardhead"><div class="split-title">${icon('provider')}<div><h2>${selected ? esc(selected.name) : 'Provider Details'}</h2><span class="muted">Connection credentials and business rules</span></div></div><a class="btn ghost" href="/admin/v3/social/providers">${icon('back')} Back to Providers</a></div>${providerForm(selected, meta, sync, currencies)}</div>`,
+      body: `<div class="card" style="max-width:920px;margin:0 auto"><div class="cardhead"><div class="split-title">${icon('provider')}<div><h2>${selected ? esc(selected.name) : l('جزئیات ارائه‌دهنده','Provider Details')}</h2><span class="muted">${l('اطلاعات اتصال و قوانین سرویس','Connection credentials and business rules')}</span></div></div><a class="btn ghost" href="/admin/v3/social/providers">${icon('back')} ${l('بازگشت به ارائه‌دهندگان','Back to Providers')}</a></div>${providerForm(selected, meta, sync, currencies)}</div>`,
     });
   }
 
@@ -426,9 +438,39 @@ async function providersPage(prisma: PrismaClient, admin: AdminIdentity, request
     return { provider, meta, sync, serviceCount };
   }));
 
-  const rows = data.map(({ provider, meta, sync, serviceCount }) => `<tr><td><div class="provider-name"><div class="provider-logo">${esc(provider.name.charAt(0).toUpperCase())}</div><div><b>${esc(provider.name)}</b><br><span class="mono muted">${esc(provider.slug)}</span></div></div></td><td><span id="balance-${provider.id}" class="pill info">Checking…</span><br><span id="balance-time-${provider.id}" class="tiny">Auto refresh: 60 sec</span></td><td>${esc(provider.currencyCode || meta.defaultCurrency || 'AUTO')}</td><td><b>${serviceCount.toLocaleString('en-US')}</b><br><span class="tiny">API last sync: ${sync.lastServiceCount.toLocaleString('en-US')}</span></td><td>${sync.autoSync ? pill(`Every ${sync.syncMinutes} min`, 'ok') : pill('Off')}<br><span class="tiny">Last: ${esc(dateText(sync.lastSyncAt))}</span></td><td><span id="status-${provider.id}">${provider.enabled ? pill('Enabled','ok') : pill('Disabled','bad')}</span></td><td><div class="switch"><form method="post" action="/admin/v3/social/providers/toggle"><input type="hidden" name="id" value="${provider.id}"><button class="${provider.enabled?'on':''}" title="${provider.enabled?'Disable provider':'Enable provider'}" aria-label="Toggle provider"></button></form></div></td><td><div class="actions">${meta.websiteUrl ? `<a class="iconbtn orange" href="${esc(meta.websiteUrl)}" target="_blank" rel="noreferrer" title="Open provider website">${icon('link')}</a>` : `<span class="iconbtn" title="No provider website configured">${icon('link')}</span>`}<a class="iconbtn" href="/admin/v3/social/providers?edit=${provider.id}" title="Edit provider">${icon('edit')}</a><button type="button" class="iconbtn purple" onclick="refreshProviderStatuses()" title="Check balance now">${icon('wallet')}</button><form method="post" action="/admin/v3/social/provider-services/sync"><input type="hidden" name="providerId" value="${provider.id}"><button class="iconbtn green" title="Synchronize provider services">${icon('sync')}</button></form><a class="provider-service-link" href="/admin/v3/social/provider-services?provider=${provider.id}" title="Provider service list">${icon('list')} Provider Services</a><form method="post" action="/admin/v3/social/providers/delete" onsubmit="return confirm('Delete this provider? Raw imported services will also be removed. Published services without another route will be hidden.');"><input type="hidden" name="id" value="${provider.id}"><button class="iconbtn red" title="Delete provider">${icon('trash')}</button></form></div></td></tr>`).join('');
+  const rows = data.map(({ provider, meta, sync, serviceCount }) => {
+    const enabled = provider.enabled;
+    const toggleTitle = enabled ? l('غیرفعال کردن ارائه‌دهنده','Disable provider') : l('فعال کردن ارائه‌دهنده','Enable provider');
+    const deleteConfirm = l(
+      'این ارائه‌دهنده حذف شود؟ سرویس‌های خام واردشده نیز حذف می‌شوند و سرویس‌های منتشرشده بدون مسیر دیگر مخفی خواهند شد.',
+      'Delete this provider? Raw imported services will also be removed. Published services without another route will be hidden.',
+    ).replaceAll("'", "\\'");
+    return `<tr>
+      <td><div class="provider-name"><div class="provider-logo">${esc(provider.name.charAt(0).toUpperCase())}</div><div><b>${esc(provider.name)}</b><br><span class="mono muted">${esc(provider.slug)}</span></div></div></td>
+      <td><span id="balance-${provider.id}" class="pill info">${l('در حال بررسی…','Checking…')}</span><br><span id="balance-time-${provider.id}" class="tiny">${l('بروزرسانی خودکار: ۶۰ ثانیه','Auto refresh: 60 sec')}</span></td>
+      <td>${esc(provider.currencyCode || meta.defaultCurrency || 'AUTO')}</td>
+      <td><b>${n(serviceCount)}</b><br><span class="tiny">${l('آخرین همگام‌سازی API:','API last sync:')} ${n(sync.lastServiceCount)}</span></td>
+      <td>${sync.autoSync ? pill(l(`هر ${n(sync.syncMinutes)} دقیقه`,`Every ${sync.syncMinutes} min`),'ok') : pill(l('خاموش','Off'))}<br><span class="tiny">${l('آخرین:','Last:')} ${esc(dateText(sync.lastSyncAt, fa))}</span></td>
+      <td><span id="status-${provider.id}">${enabled ? pill(l('فعال','Enabled'),'ok') : pill(l('غیرفعال','Disabled'),'bad')}</span></td>
+      <td><div class="switch"><form method="post" action="/admin/v3/social/providers/toggle"><input type="hidden" name="id" value="${provider.id}"><button class="${enabled?'on':''}" title="${toggleTitle}" aria-label="${toggleTitle}"></button></form></div></td>
+      <td><div class="actions">
+        ${meta.websiteUrl
+          ? `<a class="iconbtn orange" href="${esc(meta.websiteUrl)}" target="_blank" rel="noreferrer" title="${l('باز کردن وب‌سایت ارائه‌دهنده','Open provider website')}" aria-label="${l('باز کردن وب‌سایت ارائه‌دهنده','Open provider website')}">${icon('link')}</a>`
+          : `<span class="iconbtn" title="${l('وب‌سایت ارائه‌دهنده تنظیم نشده','No provider website configured')}" aria-label="${l('وب‌سایت ارائه‌دهنده تنظیم نشده','No provider website configured')}">${icon('link')}</span>`}
+        <a class="iconbtn" href="/admin/v3/social/providers?edit=${provider.id}" title="${l('ویرایش ارائه‌دهنده','Edit provider')}" aria-label="${l('ویرایش ارائه‌دهنده','Edit provider')}">${icon('edit')}</a>
+        <button type="button" class="iconbtn purple" onclick="refreshProviderStatuses()" title="${l('بررسی موجودی','Check balance now')}" aria-label="${l('بررسی موجودی','Check balance now')}">${icon('wallet')}</button>
+        <form method="post" action="/admin/v3/social/provider-services/sync"><input type="hidden" name="providerId" value="${provider.id}"><button class="iconbtn green" title="${l('همگام‌سازی سرویس‌های ارائه‌دهنده','Synchronize provider services')}" aria-label="${l('همگام‌سازی سرویس‌های ارائه‌دهنده','Synchronize provider services')}">${icon('sync')}</button></form>
+        <a class="iconbtn" href="/admin/v3/social/provider-services?provider=${provider.id}" title="${l('فهرست سرویس‌های ارائه‌دهنده','Provider service list')}" aria-label="${l('فهرست سرویس‌های ارائه‌دهنده','Provider service list')}">${icon('list')}</a>
+        <form method="post" action="/admin/v3/social/providers/delete" onsubmit="return confirm('${deleteConfirm}');"><input type="hidden" name="id" value="${provider.id}"><button class="iconbtn red" title="${l('حذف ارائه‌دهنده','Delete provider')}" aria-label="${l('حذف ارائه‌دهنده','Delete provider')}">${icon('trash')}</button></form>
+      </div></td>
+    </tr>`;
+  }).join('');
 
+  const statusLabels = fa
+    ? { Connected: 'متصل', Disabled: 'غیرفعال', 'API key missing': 'کلید API ثبت نشده', 'Connection error': 'خطای اتصال' }
+    : { Connected: 'Connected', Disabled: 'Disabled', 'API key missing': 'API key missing', 'Connection error': 'Connection error' };
   const script = `
+const providerStatusLabels=${JSON.stringify(statusLabels)};
 async function refreshProviderStatuses(){
   try{
     const response=await fetch('/admin/v3/social/provider-status',{headers:{Accept:'application/json'},cache:'no-store'});
@@ -439,8 +481,8 @@ async function refreshProviderStatuses(){
       const s=document.getElementById('status-'+item.id);
       const tm=document.getElementById('balance-time-'+item.id);
       if(b){b.textContent=item.balance==='—'?'—':(item.balance+' '+(item.currency||''));b.className='pill '+(item.kind||'info');}
-      if(s){s.innerHTML='<span class="pill '+(item.kind||'info')+'">'+item.status+'</span>';}
-      if(tm){tm.textContent='Updated '+new Date(payload.updatedAt).toLocaleTimeString();}
+      if(s){const label=providerStatusLabels[item.status]||item.status;s.innerHTML='<span class="pill '+(item.kind||'info')+'">'+label+'</span>';}
+      if(tm){tm.textContent=${JSON.stringify(l('بروزرسانی','Updated'))}+' '+new Date(payload.updatedAt).toLocaleTimeString(${JSON.stringify(fa ? 'fa-AF' : 'en-US')});}
     }
   }catch(_error){}
 }
@@ -457,7 +499,7 @@ setInterval(refreshProviderStatuses,60000);
     message: q.msg,
     error: q.error,
     script,
-    body: `<div class="card"><div class="cardhead"><div><h2>SMM Providers</h2><span class="muted">Balances are checked automatically every 60 seconds while this page is open.</span></div><a class="btn" href="/admin/v3/social/providers?mode=new">${icon('plus')} Add Provider</a></div><div class="tablewrap"><table class="table"><thead><tr><th>Provider</th><th>Live Balance</th><th>Currency</th><th>Services</th><th>Service Sync</th><th>Connection</th><th>Active</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="8" class="empty">No providers yet. Add your first SMM provider.</td></tr>'}</tbody></table></div></div><div class="notice"><b>How it works:</b> Website opens the provider site · Edit changes settings · Balance checks the API · Sync downloads/updates the provider catalog · Service List opens that provider’s services · Delete removes the provider safely.</div>`,
+    body: `<div class="card"><div class="cardhead"><div><h2>${l('ارائه‌دهندگان SMM','SMM Providers')}</h2><span class="muted">${l('تا زمانی که این صفحه باز است، موجودی هر ۶۰ ثانیه به‌صورت خودکار بررسی می‌شود.','Balances are checked automatically every 60 seconds while this page is open.')}</span></div><a class="btn" href="/admin/v3/social/providers?mode=new">${icon('plus')} ${l('افزودن ارائه‌دهنده','Add Provider')}</a></div><div class="tablewrap"><table class="table"><thead><tr><th>${l('ارائه‌دهنده','Provider')}</th><th>${l('موجودی زنده','Live Balance')}</th><th>${l('واحد پول','Currency')}</th><th>${l('سرویس‌ها','Services')}</th><th>${l('همگام‌سازی سرویس‌ها','Service Sync')}</th><th>${l('اتصال','Connection')}</th><th>${l('فعال','Active')}</th><th>${l('عملیات','Actions')}</th></tr></thead><tbody>${rows || `<tr><td colspan="8" class="empty">${l('هنوز ارائه‌دهنده‌ای اضافه نشده است.','No providers yet. Add your first SMM provider.')}</td></tr>`}</tbody></table></div></div><div class="notice"><b>${l('راهنما:','How it works:')}</b> ${l('آیکن لینک وب‌سایت را باز می‌کند · ویرایش تنظیمات را تغییر می‌دهد · موجودی API را بررسی می‌کند · همگام‌سازی کاتالوگ را بروزرسانی می‌کند · آیکن فهرست، سرویس‌های همان ارائه‌دهنده را باز می‌کند · حذف، ارائه‌دهنده را ایمن حذف می‌کند.','Website opens the provider site · Edit changes settings · Balance checks the API · Sync downloads/updates the provider catalog · Service List opens that provider’s services · Delete removes the provider safely.')}</div>`,
   });
 }
 
