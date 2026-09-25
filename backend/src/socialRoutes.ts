@@ -19,6 +19,7 @@ import { loadSocialBrands, normalizeBrandKey } from './socialBrands.js';
 import { getSocialOrderSettings } from './socialOrderSettings.js';
 import { normalizeCurrencyCode } from './currency.js';
 import { sendAdminOrderAlert, sendAdminRefundAlert } from './adminTelegramEvents.js';
+import { providerStartEtaFromMetadata } from './socialEta.js';
 
 type AuthenticateHook = (
   request: FastifyRequest,
@@ -92,20 +93,11 @@ function decimalOrNull(value: unknown) {
   return new Prisma.Decimal(raw);
 }
 
-function providerEtaFromMetadata(value: Prisma.JsonValue | null | undefined) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const row = value as Record<string, unknown>;
-  const candidates = [
-    row.average_time,
-    row.averageTime,
-    row.estimated_time,
-    row.estimatedTime,
-    row.time,
-  ];
-  for (const candidate of candidates) {
-    if (candidate != null && String(candidate).trim()) return String(candidate).trim();
-  }
-  return null;
+function providerEtaFromMetadata(
+  value: Prisma.JsonValue | null | undefined,
+  fallbackName?: string | null,
+) {
+  return providerStartEtaFromMetadata(value, fallbackName)?.text ?? null;
 }
 
 function orderDisplayId(order: {
@@ -990,7 +982,7 @@ export function registerSocialRoutes(
         refillSupported: route.providerRefill,
         cancelSupported: route.providerCancel,
         refillDays: service.refillDays,
-        providerEta: providerEtaFromMetadata(route.metadata),
+        providerEta: providerEtaFromMetadata(route.metadata, route.providerName),
         providerType,
         dripFeedSupported: routeDripFeedSupported(route),
         orderFields: orderFields(providerType, routeDripFeedSupported(route)),
@@ -1286,7 +1278,7 @@ export function registerSocialRoutes(
               providerStatus: 'Pending',
               refillSupported: route.providerRefill,
               cancelSupported: route.providerCancel,
-              providerEta: providerEtaFromMetadata(route.metadata),
+              providerEta: providerEtaFromMetadata(route.metadata, route.providerName),
               refillWindowHours: orderSettings.refillWindowHours,
               displayOrderId: orderSettings.orderIdMode === 'PROVIDER'
                 ? result.orderId
@@ -1321,7 +1313,7 @@ export function registerSocialRoutes(
                   providerMessage: explicitFailure,
                   refillSupported: route.providerRefill,
                   cancelSupported: route.providerCancel,
-                  providerEta: providerEtaFromMetadata(route.metadata),
+                  providerEta: providerEtaFromMetadata(route.metadata, route.providerName),
                   refillWindowHours: orderSettings.refillWindowHours,
                   displayOrderId: order.publicOrderNumber?.toString() ?? order.id.slice(0, 8),
                   providerType: candidateType,

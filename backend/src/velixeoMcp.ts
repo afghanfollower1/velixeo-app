@@ -6,14 +6,15 @@ import { brandSettingKey, defaultBrandIcons, loadSocialBrands, normalizeBrandKey
 import { inferSocialGroup, inferSocialPlatform, syncSocialProviderCatalog } from './socialSync.js';
 import { renderAdminV3Page } from './adminFigmaEnglish.js';
 import { adminLangFromRequest } from './adminLocale.js';
+import { providerStartEtaFromMetadata } from './socialEta.js';
 
 type AdminIdentity={id:string;fullName:string|null;email:string|null;phone:string|null};
 type AdminResolver=(request:FastifyRequest)=>Promise<AdminIdentity|null>;
 type J=Record<string,unknown>;
 type McpRequest={jsonrpc?:string;id?:string|number|null;method?:string;params?:J};
-type CategoryRow={slug:string;titleEn:string;titleFa:string;platform:string;sortOrder:number;enabled:boolean;candidateKey:string};
+type CategoryRow={slug:string;titleEn:string;titleFa:string;descriptionEn:string;descriptionFa:string;platform:string;sortOrder:number;enabled:boolean;candidateKey:string};
 
-const VERSION='1.0.0';
+const VERSION='1.1.0';
 const TOKEN_KEY='chatgpt.mcp.token_hash';
 const APPROVAL='I_CONFIRM';
 const PROTOCOLS=['2026-07-28','2025-11-25','2025-06-18','2025-03-26'];
@@ -99,7 +100,7 @@ async function categories(p:PrismaClient):Promise<CategoryRow[]>{
  const rows=await p.systemSetting.findMany({where:{category:'social-category'},orderBy:{key:'asc'}});
  return rows.map(setting=>{
   const v=obj(setting.value),slug=String(v.slug||setting.key.replace(/^social\.category\./,''));
-  return {slug,titleEn:String(v.titleEn||slug),titleFa:String(v.titleFa||v.titleEn||slug),platform:normalizeBrandKey(String(v.platform||'OTHER'))||'OTHER',sortOrder:Number.isFinite(Number(v.sortOrder))?Number(v.sortOrder):100,enabled:v.enabled!==false,candidateKey:normCat(String(v.aiCandidateKey||v.sourceCandidateKey||slug))};
+  return {slug,titleEn:String(v.titleEn||slug),titleFa:String(v.titleFa||v.titleEn||slug),descriptionEn:String(v.descriptionEn||''),descriptionFa:String(v.descriptionFa||''),platform:normalizeBrandKey(String(v.platform||'OTHER'))||'OTHER',sortOrder:Number.isFinite(Number(v.sortOrder))?Number(v.sortOrder):100,enabled:v.enabled!==false,candidateKey:normCat(String(v.aiCandidateKey||v.sourceCandidateKey||slug))};
  });
 }
 async function providerRoutes(p:PrismaClient,providerId:string){
@@ -173,10 +174,11 @@ async function saveCategories(p:PrismaClient,a:AdminIdentity,args:J){
   const row=item as J,candidateKey=normCat(String(row.candidate_key||'')),label=catLabel(candidateKey),slug=safeSlug(String(row.slug||'')||brandKey+'-'+candidateKey);
   if(!candidateKey||!slug)continue;
   const titleEn=String(row.title_en||'').trim()||label.en,titleFa=String(row.title_fa||'').trim()||label.fa;
-  const value={slug,titleEn,titleFa,platform:brandKey,descriptionEn:'',descriptionFa:'',sortOrder:order,enabled:true,aiCandidateKey:candidateKey,createdByChatGPT:true};
+  const descriptionEn=String(row.description_en||'').trim(),descriptionFa=String(row.description_fa||'').trim();
+  const value={slug,titleEn,titleFa,platform:brandKey,descriptionEn,descriptionFa,sortOrder:order,enabled:true,aiCandidateKey:candidateKey,createdByChatGPT:true};
   const key=catKey(slug),existing=await p.systemSetting.findUnique({where:{key}});
   await p.systemSetting.upsert({where:{key},create:{key,category:'social-category',description:'Social Media customer-facing category.',value:value as unknown as Prisma.InputJsonValue},update:{category:'social-category',value:value as unknown as Prisma.InputJsonValue}});
-  saved.push({slug,candidateKey,titleEn,titleFa,created:!existing});order+=10;
+  saved.push({slug,candidateKey,titleEn,titleFa,descriptionEn,descriptionFa,created:!existing});order+=10;
  }
  await audit(p,a,'CHATGPT_SOCIAL_CATEGORIES_SAVE','SocialCategory',null,'ChatGPT saved '+saved.length+' categories under '+brandKey,{brandKey,saved} as unknown as Prisma.InputJsonValue);
  return {brandKey,saved};
@@ -184,7 +186,7 @@ async function saveCategories(p:PrismaClient,a:AdminIdentity,args:J){
 async function listCandidateServices(p:PrismaClient,args:J){
  const providerId=String(args.provider_id||''),brandKey=normalizeBrandKey(String(args.brand_key||'')),candidateKey=normCat(String(args.candidate_key||'')),offset=Math.max(0,Math.floor(Number(args.offset||0))),limit=Math.max(1,Math.min(100,Math.floor(Number(args.limit||50))));
  const routes=(await providerRoutes(p,providerId)).filter(r=>platformOf(r)===brandKey&&candidateOf(r)===candidateKey),page=routes.slice(offset,offset+limit);
- return {providerId,brandKey,candidateKey,total:routes.length,offset,limit,hasMore:offset+page.length<routes.length,services:page.map(r=>({routeId:r.id,providerServiceId:r.providerServiceCode,providerName:r.providerName||r.service.titleEn,providerCategory:r.providerCategory,providerType:r.providerType,providerRate:r.providerRate?.toString()||null,providerCurrency:r.providerCurrency,min:r.providerMinQty,max:r.providerMaxQty,refill:r.providerRefill,cancel:r.providerCancel,alreadyAdded:obj(r.service.metadata).rawCatalog!==true,existingTitleEn:r.service.titleEn,existingTitleFa:r.service.titleFa}))};
+ return {providerId,brandKey,candidateKey,total:routes.length,offset,limit,hasMore:offset+page.length<routes.length,services:page.map(r=>{const eta=providerStartEtaFromMetadata(r.metadata,r.providerName);return {routeId:r.id,serviceId:r.serviceId,providerServiceId:r.providerServiceCode,providerName:r.providerName||r.service.titleEn,providerCategory:r.providerCategory,providerType:r.providerType,providerRate:r.providerRate?.toString()||null,providerCurrency:r.providerCurrency,min:r.providerMinQty,max:r.providerMaxQty,refill:r.providerRefill,cancel:r.providerCancel,providerStartTime:eta?.text||null,providerStartMinMinutes:eta?.minMinutes??null,providerStartMaxMinutes:eta?.maxMinutes??null,alreadyAdded:obj(r.service.metadata).rawCatalog!==true,existingTitleEn:r.service.titleEn,existingTitleFa:r.service.titleFa,existingDescriptionEn:r.service.descriptionEn,existingDescriptionFa:r.service.descriptionFa};})};
 }
 async function publishServices(p:PrismaClient,a:AdminIdentity,args:J){
  needApproval(args);
@@ -197,17 +199,51 @@ async function publishServices(p:PrismaClient,a:AdminIdentity,args:J){
   if(!item||typeof item!=='object'||Array.isArray(item))continue;
   const row=item as J,providerServiceId=String(row.provider_service_id||'').trim(),r=byCode.get(providerServiceId);if(!r)throw new Error('PROVIDER_SERVICE_NOT_FOUND:'+providerServiceId);
   if(platformOf(r)!==brandKey||candidateOf(r)!==candidateKey)throw new Error('SERVICE_OUTSIDE_SELECTED_CATEGORY:'+providerServiceId);
-  const titleEn=String(row.title_en||'').trim(),titleFa=String(row.title_fa||'').trim();if(!titleEn||!titleFa)throw new Error('BILINGUAL_TITLES_REQUIRED:'+providerServiceId);
+  const titleEn=String(row.title_en||'').trim(),titleFa=String(row.title_fa||'').trim(),descriptionEn=String(row.description_en||'').trim(),descriptionFa=String(row.description_fa||'').trim();if(!titleEn||!titleFa)throw new Error('BILINGUAL_TITLES_REQUIRED:'+providerServiceId);
   const sm=obj(r.service.metadata),rm=obj(r.metadata),drip=typeof rm._providerDripFeedDetected==='boolean'?rm._providerDripFeedDetected:Boolean(rm.dripfeed??rm.drip_feed),wasRaw=sm.rawCatalog===true;
+  const startEta=providerStartEtaFromMetadata(r.metadata,r.providerName);
   await p.$transaction([
-   p.service.update({where:{id:r.serviceId},data:{titleEn,titleFa,enabled,basePriceAfn:null,minQty:r.providerMinQty,maxQty:r.providerMaxQty,socialPlatform:brandKey,socialGroup:category.slug,metadata:{...sm,rawCatalog:false,addedToVelixeo:true,pricingMode:'AUTO_MARKUP',categorySlug:category.slug,publishedFromProviderId:providerId,publishedAt:String(sm.publishedAt||new Date().toISOString()),managedByChatGPT:true,aiCandidateKey:candidateKey} as Prisma.InputJsonValue}}),
+   p.service.update({where:{id:r.serviceId},data:{titleEn,titleFa,descriptionEn:descriptionEn||null,descriptionFa:descriptionFa||null,enabled,basePriceAfn:null,minQty:r.providerMinQty,maxQty:r.providerMaxQty,estimatedMinMinutes:startEta?.minMinutes??r.service.estimatedMinMinutes,estimatedMaxMinutes:startEta?.maxMinutes??r.service.estimatedMaxMinutes,socialPlatform:brandKey,socialGroup:category.slug,metadata:{...sm,rawCatalog:false,addedToVelixeo:true,pricingMode:'AUTO_MARKUP',categorySlug:category.slug,publishedFromProviderId:providerId,publishedAt:String(sm.publishedAt||new Date().toISOString()),managedByChatGPT:true,aiCandidateKey:candidateKey} as Prisma.InputJsonValue}}),
    p.serviceProviderRoute.update({where:{id:r.id},data:{enabled:true,markupPercent:markup,metadata:{...rm,_providerRefillDetected:typeof rm._providerRefillDetected==='boolean'?rm._providerRefillDetected:r.providerRefill,_velixeoRefillOverride:typeof rm._velixeoRefillOverride==='boolean'?rm._velixeoRefillOverride:r.providerRefill,_providerDripFeedDetected:drip,_velixeoDripFeedOverride:typeof rm._velixeoDripFeedOverride==='boolean'?rm._velixeoDripFeedOverride:drip} as Prisma.InputJsonValue}})
   ]);
-  saved.push({providerServiceId,serviceId:r.serviceId,titleEn,titleFa,createdFromRawCatalog:wasRaw});
+  saved.push({providerServiceId,serviceId:r.serviceId,titleEn,titleFa,descriptionEn,descriptionFa,createdFromRawCatalog:wasRaw});
  }
  await audit(p,a,'CHATGPT_SOCIAL_SERVICES_PUBLISH','Service',null,'ChatGPT published '+saved.length+' services to '+category.titleEn+' with '+markupNumber+'% markup',{providerId,brandKey,candidateKey,categorySlug,markupPercent:markupNumber,enabled,serviceIds:saved.map(v=>v.serviceId)} as unknown as Prisma.InputJsonValue);
  return {providerId,brandKey,candidateKey,categorySlug,markupPercent:markupNumber,enabled,savedCount:saved.length,saved};
 }
+async function updateCategoryContent(p:PrismaClient,a:AdminIdentity,args:J){
+ needApproval(args);
+ const slug=safeSlug(String(args.category_slug||''));if(!slug)throw new Error('CATEGORY_SLUG_REQUIRED');
+ const key=catKey(slug),row=await p.systemSetting.findUnique({where:{key}});if(!row)throw new Error('CATEGORY_NOT_FOUND');
+ const value=obj(row.value),next={...value,
+  ...(args.title_en!==undefined?{titleEn:String(args.title_en||'').trim()}:{ }),
+  ...(args.title_fa!==undefined?{titleFa:String(args.title_fa||'').trim()}:{ }),
+  ...(args.description_en!==undefined?{descriptionEn:String(args.description_en||'').trim()}:{ }),
+  ...(args.description_fa!==undefined?{descriptionFa:String(args.description_fa||'').trim()}:{ })
+ };
+ await p.systemSetting.update({where:{key},data:{value:next as Prisma.InputJsonValue}});
+ await audit(p,a,'CHATGPT_SOCIAL_CATEGORY_CONTENT_UPDATE','SocialCategory',slug,'ChatGPT updated bilingual category content',{slug} as unknown as Prisma.InputJsonValue);
+ return {slug,titleEn:String(next.titleEn||''),titleFa:String(next.titleFa||''),descriptionEn:String(next.descriptionEn||''),descriptionFa:String(next.descriptionFa||'')};
+}
+async function updateServiceContent(p:PrismaClient,a:AdminIdentity,args:J){
+ needApproval(args);
+ const serviceId=String(args.service_id||'').trim();if(!serviceId)throw new Error('SERVICE_ID_REQUIRED');
+ const service=await p.service.findFirst({where:{id:serviceId,category:ServiceCategory.SOCIAL}});if(!service)throw new Error('SOCIAL_SERVICE_NOT_FOUND');
+ const data:Prisma.ServiceUpdateInput={};
+ if(args.title_en!==undefined)data.titleEn=String(args.title_en||'').trim();
+ if(args.title_fa!==undefined)data.titleFa=String(args.title_fa||'').trim();
+ if(args.description_en!==undefined)data.descriptionEn=String(args.description_en||'').trim()||null;
+ if(args.description_fa!==undefined)data.descriptionFa=String(args.description_fa||'').trim()||null;
+ const saved=await p.service.update({where:{id:serviceId},data});
+ await audit(p,a,'CHATGPT_SOCIAL_SERVICE_CONTENT_UPDATE','Service',serviceId,'ChatGPT updated bilingual service content',{serviceId} as unknown as Prisma.InputJsonValue);
+ return {serviceId,titleEn:saved.titleEn,titleFa:saved.titleFa,descriptionEn:saved.descriptionEn,descriptionFa:saved.descriptionFa};
+}
+async function listVelixeoServices(p:PrismaClient,args:J){
+ const brandKey=normalizeBrandKey(String(args.brand_key||'')),categorySlug=safeSlug(String(args.category_slug||'')),q=String(args.q||'').trim(),limit=Math.max(1,Math.min(200,Math.floor(Number(args.limit||100))));
+ const rows=await p.service.findMany({where:{category:ServiceCategory.SOCIAL,...(brandKey?{socialPlatform:brandKey}:{}),...(categorySlug?{socialGroup:categorySlug}:{}),...(q?{OR:[{titleEn:{contains:q,mode:'insensitive'}},{titleFa:{contains:q,mode:'insensitive'}},{slug:{contains:q,mode:'insensitive'}}]}:{})},include:{routes:{include:{provider:{select:{id:true,name:true}}},orderBy:{priority:'asc'}}},orderBy:[{enabled:'desc'},{sortOrder:'asc'},{titleEn:'asc'}],take:limit});
+ return {count:rows.length,services:rows.map(service=>({id:service.id,slug:service.slug,titleEn:service.titleEn,titleFa:service.titleFa,descriptionEn:service.descriptionEn,descriptionFa:service.descriptionFa,enabled:service.enabled,platform:service.socialPlatform,categorySlug:service.socialGroup,estimatedMinMinutes:service.estimatedMinMinutes,estimatedMaxMinutes:service.estimatedMaxMinutes,routes:service.routes.map(r=>{const eta=providerStartEtaFromMetadata(r.metadata,r.providerName);return {routeId:r.id,providerId:r.providerId,providerName:r.provider.name,providerServiceId:r.providerServiceCode,markupPercent:r.markupPercent?.toString()||null,refill:r.providerRefill,cancel:r.providerCancel,providerStartTime:eta?.text||null};})}))};
+}
+
 async function setMarkup(p:PrismaClient,a:AdminIdentity,args:J){
  needApproval(args);
  const categorySlug=safeSlug(String(args.category_slug||'')),markupNumber=Number(args.markup_percent);
@@ -219,7 +255,7 @@ async function setMarkup(p:PrismaClient,a:AdminIdentity,args:J){
 }
 async function structure(p:PrismaClient){
  const brands=await loadSocialBrands(p),cats=await categories(p);
- return {brands:brands.map(b=>({key:b.key,titleEn:b.titleEn,titleFa:b.titleFa,enabled:b.enabled,categories:cats.filter(c=>c.platform===b.key).map(c=>({slug:c.slug,titleEn:c.titleEn,titleFa:c.titleFa,enabled:c.enabled,candidateKey:c.candidateKey}))}))};
+ return {brands:brands.map(b=>({key:b.key,titleEn:b.titleEn,titleFa:b.titleFa,enabled:b.enabled,categories:cats.filter(c=>c.platform===b.key).map(c=>({slug:c.slug,titleEn:c.titleEn,titleFa:c.titleFa,descriptionEn:c.descriptionEn,descriptionFa:c.descriptionFa,enabled:c.enabled,candidateKey:c.candidateKey}))}))};
 }
 async function syncProvider(p:PrismaClient,a:AdminIdentity,args:J){
  needApproval(args);const providerId=String(args.provider_id||''),result=await syncSocialProviderCatalog(p,providerId);
@@ -234,10 +270,13 @@ const tools=[
  {name:'discover_provider_brands',description:'Detect brands in a synchronized provider catalog with service counts. Read-only.',inputSchema:{type:'object',properties:{provider_id:{type:'string'}},required:['provider_id'],additionalProperties:false},annotations:{readOnlyHint:true,destructiveHint:false}},
  {name:'create_social_brands',description:'Create selected customer-facing Social Media brands. Requires explicit approval.',inputSchema:{type:'object',properties:{provider_id:{type:'string'},brand_keys:{type:'array',items:{type:'string'}},approval:{type:'string',enum:[APPROVAL]}},required:['provider_id','brand_keys','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false}},
  {name:'discover_brand_categories',description:'Analyze one provider brand into categories such as Followers with Refill, Followers without Refill, Likes, Views and Custom Comments. Read-only.',inputSchema:{type:'object',properties:{provider_id:{type:'string'},brand_key:{type:'string'}},required:['provider_id','brand_key'],additionalProperties:false},annotations:{readOnlyHint:true,destructiveHint:false}},
- {name:'create_social_categories',description:'Create selected bilingual categories under a Social Media brand. Requires explicit approval.',inputSchema:{type:'object',properties:{brand_key:{type:'string'},categories:{type:'array',items:{type:'object',properties:{candidate_key:{type:'string'},slug:{type:'string'},title_en:{type:'string'},title_fa:{type:'string'}},required:['candidate_key','slug','title_en','title_fa'],additionalProperties:false}},approval:{type:'string',enum:[APPROVAL]}},required:['brand_key','categories','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false}},
+ {name:'create_social_categories',description:'Create selected bilingual categories under a Social Media brand, including optional Persian and English descriptions. Requires explicit approval.',inputSchema:{type:'object',properties:{brand_key:{type:'string'},categories:{type:'array',items:{type:'object',properties:{candidate_key:{type:'string'},slug:{type:'string'},title_en:{type:'string'},title_fa:{type:'string'},description_en:{type:'string'},description_fa:{type:'string'}},required:['candidate_key','slug','title_en','title_fa'],additionalProperties:false}},approval:{type:'string',enum:[APPROVAL]}},required:['brand_key','categories','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false}},
  {name:'list_category_services',description:'List provider services for a detected brand/category with price, refill, cancel and IDs. Read-only and paginated.',inputSchema:{type:'object',properties:{provider_id:{type:'string'},brand_key:{type:'string'},candidate_key:{type:'string'},offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:100}},required:['provider_id','brand_key','candidate_key'],additionalProperties:false},annotations:{readOnlyHint:true,destructiveHint:false}},
- {name:'publish_social_services',description:'Publish selected provider services with bilingual titles and the exact markup specified by the administrator. Never infer markup. Requires explicit approval.',inputSchema:{type:'object',properties:{provider_id:{type:'string'},brand_key:{type:'string'},category_slug:{type:'string'},candidate_key:{type:'string'},markup_percent:{type:'number',minimum:0,maximum:1000},enabled:{type:'boolean'},items:{type:'array',maxItems:100,items:{type:'object',properties:{provider_service_id:{type:'string'},title_en:{type:'string'},title_fa:{type:'string'}},required:['provider_service_id','title_en','title_fa'],additionalProperties:false}},approval:{type:'string',enum:[APPROVAL]}},required:['provider_id','brand_key','category_slug','candidate_key','markup_percent','enabled','items','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false}},
+ {name:'publish_social_services',description:'Publish selected provider services with bilingual titles, optional bilingual descriptions, provider start-time metadata, and the exact markup specified by the administrator. Never infer markup. Requires explicit approval.',inputSchema:{type:'object',properties:{provider_id:{type:'string'},brand_key:{type:'string'},category_slug:{type:'string'},candidate_key:{type:'string'},markup_percent:{type:'number',minimum:0,maximum:1000},enabled:{type:'boolean'},items:{type:'array',maxItems:100,items:{type:'object',properties:{provider_service_id:{type:'string'},title_en:{type:'string'},title_fa:{type:'string'},description_en:{type:'string'},description_fa:{type:'string'}},required:['provider_service_id','title_en','title_fa'],additionalProperties:false}},approval:{type:'string',enum:[APPROVAL]}},required:['provider_id','brand_key','category_slug','candidate_key','markup_percent','enabled','items','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false}},
  {name:'set_category_markup',description:'Set the exact administrator-specified markup on already-added routes in one category. Requires explicit approval.',inputSchema:{type:'object',properties:{category_slug:{type:'string'},markup_percent:{type:'number',minimum:0,maximum:1000},approval:{type:'string',enum:[APPROVAL]}},required:['category_slug','markup_percent','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false}},
+ {name:'update_social_category_content',description:'Update Persian/English title and description fields for an existing Social Media category. Requires explicit approval.',inputSchema:{type:'object',properties:{category_slug:{type:'string'},title_en:{type:'string'},title_fa:{type:'string'},description_en:{type:'string'},description_fa:{type:'string'},approval:{type:'string',enum:[APPROVAL]}},required:['category_slug','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false}},
+ {name:'update_social_service_content',description:'Update Persian/English title and description fields for an existing VELIXEO Social Media service. Requires explicit approval.',inputSchema:{type:'object',properties:{service_id:{type:'string'},title_en:{type:'string'},title_fa:{type:'string'},description_en:{type:'string'},description_fa:{type:'string'},approval:{type:'string',enum:[APPROVAL]}},required:['service_id','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false}},
+ {name:'list_velixeo_social_services',description:'List already-added VELIXEO Social Media services with bilingual descriptions, provider routing, markup and estimated provider start time. Read-only.',inputSchema:{type:'object',properties:{brand_key:{type:'string'},category_slug:{type:'string'},q:{type:'string'},limit:{type:'integer',minimum:1,maximum:200}},additionalProperties:false},annotations:{readOnlyHint:true,destructiveHint:false}},
  {name:'show_social_structure',description:'Show current VELIXEO Social Media brands and categories. Read-only.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,destructiveHint:false}}
 ] as const;
 
@@ -260,6 +299,9 @@ async function execute(p:PrismaClient,a:AdminIdentity,name:string,args:J){
  if(name==='list_category_services')return listCandidateServices(p,args);
  if(name==='publish_social_services')return publishServices(p,a,args);
  if(name==='set_category_markup')return setMarkup(p,a,args);
+ if(name==='update_social_category_content')return updateCategoryContent(p,a,args);
+ if(name==='update_social_service_content')return updateServiceContent(p,a,args);
+ if(name==='list_velixeo_social_services')return listVelixeoServices(p,args);
  if(name==='show_social_structure')return structure(p);
  throw new Error('UNKNOWN_TOOL:'+name);
 }
