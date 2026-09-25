@@ -22,3 +22,5 @@ Release trigger: signed VELIXEO v0.14.0 Admin App production APK.
 VELIXEO 0.14.1+35: responsive Social Admin, localized splash, no-refresh service editor, custom comments UX.
 
 VELIXEO 0.14.2+36: ChatGPT description tools and provider start-time ETA in Social ordering.
+
+VELIXEO 0.14.3+37: live Social average-time model, one-minute catalog refresh, localized selected-currency labels, and explicit Price / Price unit UI.
