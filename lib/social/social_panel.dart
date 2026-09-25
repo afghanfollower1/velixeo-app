@@ -39,6 +39,15 @@ String _formatSocialDuration(int value, bool fa) {
   return fa ? '$value دقیقه' : '$value min';
 }
 
+String _localizedProviderTime(String value, bool fa) {
+  if (!fa) return value;
+  return value
+      .replaceAll(RegExp(r'\bhours?\b|\bhrs?\b', caseSensitive: false), 'ساعت')
+      .replaceAll(RegExp(r'\bminutes?\b|\bmins?\b', caseSensitive: false), 'دقیقه')
+      .replaceAll(RegExp(r'\bdays?\b', caseSensitive: false), 'روز')
+      .replaceAll(RegExp(r'\binstant(?:ly)?\b', caseSensitive: false), 'فوری');
+}
+
 String _serviceAverageTimeLabel(SocialService service, bool fa) {
   final source = service.averageTimeSource.toUpperCase();
   final minutes = service.averageTimeMinutes;
@@ -47,26 +56,40 @@ String _serviceAverageTimeLabel(SocialService service, bool fa) {
   if (minutes != null) {
     value = _formatSocialDuration(minutes, fa);
   } else if (text?.isNotEmpty == true) {
-    value = text;
+    value = _localizedProviderTime(text!, fa);
   }
-  if (source == 'PROVIDER_API' && value != null) {
-    return fa ? 'میانگین واقعی ارائه‌دهنده: $value' : 'Provider live average: $value';
+  if ((source == 'PROVIDER_API' || source == 'VELIXEO_ORDERS') && value != null) {
+    return fa ? 'میانگین واقعی: $value' : 'Live average: $value';
   }
-  if (source == 'VELIXEO_ORDERS' && value != null) {
-    return fa ? 'میانگین سفارش‌های VELIXEO: $value' : 'VELIXEO order average: $value';
+
+  final advertised = (service.advertisedStartTime?.trim().isNotEmpty == true
+          ? service.advertisedStartTime!.trim()
+          : service.providerEta?.trim()) ??
+      '';
+  if (advertised.isNotEmpty) {
+    final shown = _localizedProviderTime(advertised, fa);
+    return fa ? 'زمان شروع اعلامی: $shown' : 'Advertised start: $shown';
   }
-  return fa ? 'میانگین واقعی: در دسترس نیست' : 'Live average: unavailable';
+  return fa ? 'زمان شروع: در حال پایش' : 'Start time: monitoring';
 }
 
 String? _orderAverageTimeLabel(SocialOrder order, bool fa) {
   final minutes = order.providerAverageTimeMinutes;
   if (minutes != null) {
-    return fa
-        ? _formatSocialDuration(minutes, true)
-        : _formatSocialDuration(minutes, false);
+    final value = _formatSocialDuration(minutes, fa);
+    return fa ? 'میانگین واقعی: $value' : 'Live average: $value';
   }
   final text = order.providerAverageTimeText?.trim();
-  return text?.isNotEmpty == true ? text : null;
+  if (text?.isNotEmpty == true) {
+    final value = _localizedProviderTime(text!, fa);
+    return fa ? 'میانگین واقعی: $value' : 'Live average: $value';
+  }
+  final advertised = order.providerEta?.trim();
+  if (advertised?.isNotEmpty == true) {
+    final value = _localizedProviderTime(advertised!, fa);
+    return fa ? 'زمان شروع اعلامی: $value' : 'Advertised start: $value';
+  }
+  return null;
 }
 
 class SocialPanelPage extends StatefulWidget {
@@ -2821,7 +2844,7 @@ class _OrderCard extends StatelessWidget {
             if (_orderAverageTimeLabel(order, fa) != null) ...[
               const SizedBox(height: 6),
               Text(
-                '${fa ? 'میانگین زمان واقعی' : 'Live average'}: ${_orderAverageTimeLabel(order, fa)}',
+                _orderAverageTimeLabel(order, fa)!,
                 style: const TextStyle(fontSize: 11, color: VelixeoBrand.muted),
               ),
             ],
