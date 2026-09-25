@@ -6,7 +6,7 @@ import { brandSettingKey, defaultBrandIcons, loadSocialBrands, normalizeBrandKey
 import { inferSocialGroup, inferSocialPlatform, syncSocialProviderCatalog } from './socialSync.js';
 import { renderAdminV3Page } from './adminFigmaEnglish.js';
 import { adminLangFromRequest } from './adminLocale.js';
-import { providerStartEtaFromMetadata } from './socialEta.js';
+import { providerAverageEtaFromMetadata, providerStartEtaFromMetadata } from './socialEta.js';
 
 type AdminIdentity={id:string;fullName:string|null;email:string|null;phone:string|null};
 type AdminResolver=(request:FastifyRequest)=>Promise<AdminIdentity|null>;
@@ -14,7 +14,7 @@ type J=Record<string,unknown>;
 type McpRequest={jsonrpc?:string;id?:string|number|null;method?:string;params?:J};
 type CategoryRow={slug:string;titleEn:string;titleFa:string;descriptionEn:string;descriptionFa:string;platform:string;sortOrder:number;enabled:boolean;candidateKey:string};
 
-const VERSION='1.2.0';
+const VERSION='1.2.1';
 const TOKEN_KEY='chatgpt.mcp.token_hash';
 const APPROVAL='I_CONFIRM';
 const PROTOCOLS=['2026-07-28','2025-11-25','2025-06-18','2025-03-26'];
@@ -186,7 +186,7 @@ async function saveCategories(p:PrismaClient,a:AdminIdentity,args:J){
 async function listCandidateServices(p:PrismaClient,args:J){
  const providerId=String(args.provider_id||''),brandKey=normalizeBrandKey(String(args.brand_key||'')),candidateKey=normCat(String(args.candidate_key||'')),offset=Math.max(0,Math.floor(Number(args.offset||0))),limit=Math.max(1,Math.min(100,Math.floor(Number(args.limit||50))));
  const routes=(await providerRoutes(p,providerId)).filter(r=>platformOf(r)===brandKey&&candidateOf(r)===candidateKey),page=routes.slice(offset,offset+limit);
- return {providerId,brandKey,candidateKey,total:routes.length,offset,limit,hasMore:offset+page.length<routes.length,services:page.map(r=>{const eta=providerStartEtaFromMetadata(r.metadata,r.providerName);return {routeId:r.id,serviceId:r.serviceId,providerServiceId:r.providerServiceCode,providerName:r.providerName||r.service.titleEn,providerCategory:r.providerCategory,providerType:r.providerType,providerRate:r.providerRate?.toString()||null,providerCurrency:r.providerCurrency,min:r.providerMinQty,max:r.providerMaxQty,refill:r.providerRefill,cancel:r.providerCancel,providerStartTime:eta?.text||null,providerStartMinMinutes:eta?.minMinutes??null,providerStartMaxMinutes:eta?.maxMinutes??null,alreadyAdded:obj(r.service.metadata).rawCatalog!==true,existingTitleEn:r.service.titleEn,existingTitleFa:r.service.titleFa,existingDescriptionEn:r.service.descriptionEn,existingDescriptionFa:r.service.descriptionFa};})};
+ return {providerId,brandKey,candidateKey,total:routes.length,offset,limit,hasMore:offset+page.length<routes.length,services:page.map(r=>{const eta=providerStartEtaFromMetadata(r.metadata,r.providerName),avg=providerAverageEtaFromMetadata(r.metadata);return {routeId:r.id,serviceId:r.serviceId,providerServiceId:r.providerServiceCode,providerName:r.providerName||r.service.titleEn,providerCategory:r.providerCategory,providerType:r.providerType,providerRate:r.providerRate?.toString()||null,providerCurrency:r.providerCurrency,min:r.providerMinQty,max:r.providerMaxQty,refill:r.providerRefill,cancel:r.providerCancel,providerStartTime:eta?.text||null,providerStartMinMinutes:eta?.minMinutes??null,providerStartMaxMinutes:eta?.maxMinutes??null,providerAverageTime:avg?.text||null,providerAverageMinMinutes:avg?.minMinutes??null,providerAverageMaxMinutes:avg?.maxMinutes??null,lastSyncedAt:r.lastSyncedAt?.toISOString()||null,markupPercent:r.markupPercent?.toString()??r.provider.defaultMarkupPercent.toString(),alreadyAdded:obj(r.service.metadata).rawCatalog!==true,existingTitleEn:r.service.titleEn,existingTitleFa:r.service.titleFa,existingDescriptionEn:r.service.descriptionEn,existingDescriptionFa:r.service.descriptionFa};})};
 }
 async function publishServices(p:PrismaClient,a:AdminIdentity,args:J){
  needApproval(args);
