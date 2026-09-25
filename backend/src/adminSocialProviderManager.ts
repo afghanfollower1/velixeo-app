@@ -68,10 +68,10 @@ const jsonObject = (value: Prisma.JsonValue | null | undefined): Record<string, 
     : {};
 const money = (value: bigint | number | string | null | undefined) =>
   `${Number(value ?? 0).toLocaleString('en-US')} AFN`;
-const dateText = (value: Date | string | null | undefined) => {
+const dateText = (value: Date | string | null | undefined, fa = false) => {
   if (!value) return '—';
   try {
-    return new Date(value).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+    return new Date(value).toLocaleString(fa ? 'fa-AF' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' });
   } catch {
     return '—';
   }
@@ -189,7 +189,8 @@ function icon(name: string) {
 
 const socialManagerCss = `
 <style id="velixeo-social-manager-components">
-.provider-name{display:flex;align-items:center;gap:10px}
+.provider-name{display:flex;align-items:center;gap:10px;min-width:0}
+.provider-name>div:last-child{min-width:0}
 .provider-logo{width:36px;height:36px;border-radius:12px;background:#edf8fd;display:grid;place-items:center;color:#369fca;font-weight:800;flex:0 0 auto}
 .switch{display:inline-flex;align-items:center;gap:7px}.switch form{margin:0}
 .switch button{width:40px;height:23px;border:0;border-radius:99px;position:relative;cursor:pointer;background:#cbd6e1;padding:0}
@@ -198,10 +199,10 @@ const socialManagerCss = `
 .switch button.on:after{left:20px}
 .split-title{display:flex;gap:9px;align-items:center}
 .price-auto{color:#158365;font-weight:700}.price-fixed{color:#7661c9;font-weight:700}
-.service-name{max-width:430px;line-height:1.5}
+.service-name{max-width:430px;line-height:1.5;overflow-wrap:anywhere}
 .searchbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
 .searchbar input,.searchbar select{height:42px;border:1px solid var(--line);border-radius:12px;padding:0 12px;background:#fff;min-width:170px}
-.source-categories{display:flex;gap:8px;overflow:auto;padding:4px 0 12px;scrollbar-width:thin}
+.source-categories{display:flex;gap:8px;overflow:auto;padding:4px 0 12px;scrollbar-width:thin;overscroll-behavior-inline:contain}
 .source-category{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;text-decoration:none;color:#74818b;font-size:12px}
 .source-category:hover{border-color:#9edcf4;background:#f7fbfd;color:#2288b1}
 .source-category.active{background:#eef9fe;border-color:#9edcf4;color:#2288b1;font-weight:650}
@@ -209,23 +210,51 @@ const socialManagerCss = `
 .source-category.active .count{background:#fff;color:#2288b1}
 .catalog-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .tiny{font-size:10px;color:var(--muted);line-height:1.7}
-.iconbtn{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:#fff;color:#65798e;display:inline-grid;place-items:center;cursor:pointer;text-decoration:none;padding:0}
+.iconbtn{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:#fff;color:#65798e;display:inline-grid;place-items:center;cursor:pointer;text-decoration:none;padding:0;flex:0 0 auto}
 .iconbtn:hover{color:#2288b1;border-color:#9edcf4;background:#f7fbfd}.iconbtn.green{color:#158365}.iconbtn.red{color:#c54152}.iconbtn.purple{color:#7661c9}.iconbtn.orange{color:#ad670d}
-.provider-service-link{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid #d9ebf4;border-radius:10px;background:#f6fbfe;color:#2d7f9f;font-size:11px;font-weight:650;white-space:nowrap}
-.provider-service-link:hover{background:#edf8fd;border-color:#9edcf4}
 .provider-picker{display:grid;grid-template-columns:minmax(220px,320px) minmax(220px,1fr) auto;gap:10px;align-items:end}
 .refill-control{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:#fbfdfe;margin:8px 0 14px}
 .refill-control .meta{font-size:11px;color:var(--muted);line-height:1.7}
 .refill-control .toggle{display:inline-flex;align-items:center;gap:9px;font-size:12px;font-weight:650}
 .refill-control .toggle input{width:19px;height:19px;accent-color:#38bdf8}
 .provider-capability{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px}
-#route-content .table{min-width:950px}
+#route-content .table{width:100%;min-width:0;table-layout:auto}
+#route-content .table th,#route-content .table td{white-space:normal;overflow-wrap:anywhere;vertical-align:middle}
+#route-content .tablewrap{max-width:100%;overflow:auto;scrollbar-gutter:stable;overscroll-behavior-inline:contain}
+#route-content .actions{flex-wrap:wrap}
 #route-content .card{margin-bottom:18px}
+.service-config-panel{scroll-margin-top:18px;border-color:#cfe9f6!important;box-shadow:0 16px 40px rgba(54,143,181,.08)}
+.service-config-feedback{display:none;margin:0 0 12px;padding:10px 12px;border-radius:12px;font-size:11px;font-weight:650}
+.service-config-feedback.ok{display:block;background:#eaf8f2;color:#147956}
+.service-config-feedback.bad{display:block;background:#fff1f2;color:#b83949}
 html.vx-admin-fa #route-content .provider-name,html.vx-admin-fa #route-content .split-title,html.vx-admin-fa #route-content .searchbar{direction:rtl}
 html.vx-admin-en #route-content .provider-name,html.vx-admin-en #route-content .split-title,html.vx-admin-en #route-content .searchbar{direction:ltr}
 html.vx-admin-fa #route-content .source-categories{direction:rtl}
 html.vx-admin-en #route-content .source-categories{direction:ltr}
-@media(max-width:680px){.searchbar{align-items:stretch}.searchbar form{width:100%}.searchbar input,.searchbar select{width:100%}.provider-picker{grid-template-columns:1fr}.provider-picker .btn{width:100%}#route-content .table{min-width:820px}}
+@media(max-width:1500px){
+  #route-content table.responsive-admin-table,#route-content table.responsive-admin-table tbody{display:block;width:100%}
+  #route-content table.responsive-admin-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+  #route-content table.responsive-admin-table tbody{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  #route-content table.responsive-admin-table tbody tr{display:block;min-width:0;border:1px solid var(--line);border-radius:16px;padding:8px 13px;background:#fff}
+  #route-content table.responsive-admin-table tbody td{display:grid;grid-template-columns:minmax(105px,.75fr) minmax(0,1.25fr);gap:10px;width:100%;padding:9px 0;border:0;border-bottom:1px solid #edf2f5;text-align:start}
+  #route-content table.responsive-admin-table tbody td::before{content:attr(data-label);font-size:10px;color:#91a3ae;font-weight:650}
+  #route-content table.responsive-admin-table tbody td:first-child{display:block;padding:10px 0 12px}
+  #route-content table.responsive-admin-table tbody td:first-child::before{display:none}
+  #route-content table.responsive-admin-table tbody td:last-child{border-bottom:0}
+  #route-content table.responsive-admin-table tbody td[colspan]{display:block;text-align:center}
+  #route-content table.responsive-admin-table tbody td[colspan]::before{display:none}
+}
+@media(max-width:900px){
+  #route-content table.responsive-admin-table tbody{grid-template-columns:1fr}
+  .provider-picker{grid-template-columns:1fr}
+  .provider-picker .btn{width:100%}
+  .refill-control{align-items:flex-start;flex-direction:column}
+}
+@media(max-width:680px){
+  .searchbar{align-items:stretch}.searchbar form{width:100%}.searchbar input,.searchbar select{width:100%}
+  #route-content .card{padding:14px}
+  #route-content table.responsive-admin-table tbody td{grid-template-columns:minmax(90px,.7fr) minmax(0,1.3fr)}
+}
 </style>`;
 
 function pill(label: string, kind = '') {
@@ -262,8 +291,33 @@ function shell(input: {
   script?: string;
 }) {
   const lang = adminLangFromRequest(input.request);
+  const behavior = `
+<script id="velixeo-social-manager-behavior">
+(()=>{
+  document.querySelectorAll('#route-content table').forEach(table=>{
+    table.classList.add('responsive-admin-table');
+    const labels=Array.from(table.querySelectorAll('thead th')).map(cell=>(cell.textContent||'').trim());
+    table.querySelectorAll('tbody tr').forEach(row=>{
+      Array.from(row.children).forEach((cell,index)=>{
+        if(!cell.dataset.label)cell.dataset.label=labels[index]||'';
+      });
+    });
+  });
+  document.querySelectorAll('#route-content .tablewrap,#route-content .source-categories').forEach(scroller=>{
+    scroller.addEventListener('wheel',event=>{
+      if(scroller.scrollWidth<=scroller.clientWidth)return;
+      if(Math.abs(event.deltaY)<=Math.abs(event.deltaX))return;
+      event.preventDefault();
+      scroller.scrollLeft+=event.deltaY;
+    },{passive:false});
+  });
+  const panel=document.querySelector('[data-service-config]');
+  if(panel)requestAnimationFrame(()=>panel.scrollIntoView({behavior:'smooth',block:'start'}));
+})();
+</script>`;
   const pageBody = socialManagerCss
     + input.body
+    + behavior
     + (input.script ? `<script id="velixeo-social-manager-script">${input.script}</script>` : '');
   return renderAdminV3Page(
     input.admin,
@@ -331,6 +385,9 @@ async function providerStatus(provider: Provider) {
 
 async function providersPage(prisma: PrismaClient, admin: AdminIdentity, request: FastifyRequest) {
   const q = query(request);
+  const fa = adminLangFromRequest(request) === 'fa';
+  const l = (faText: string, enText: string) => fa ? faText : enText;
+  const n = (value: number) => value.toLocaleString(fa ? 'fa-AF' : 'en-US');
   const providers = await prisma.provider.findMany({
     where: { kind: ProviderKind.SOCIAL },
     orderBy: [{ enabled: 'desc' }, { priority: 'asc' }, { name: 'asc' }],
@@ -341,7 +398,16 @@ async function providersPage(prisma: PrismaClient, admin: AdminIdentity, request
       ? await prisma.provider.findFirst({ where: { id: q.edit, kind: ProviderKind.SOCIAL } })
       : null;
     if (q.edit && !selected) {
-      return shell({ request, admin, title: 'Providers', subtitle: 'Provider not found', active: 'providers', body: '<div class="card empty">The selected provider does not exist.</div>', message: q.msg, error: q.error });
+      return shell({
+        request,
+        admin,
+        title: 'Providers',
+        subtitle: 'Provider not found',
+        active: 'providers',
+        body: `<div class="card empty">${l('ارائه‌دهنده انتخاب‌شده وجود ندارد.','The selected provider does not exist.')}</div>`,
+        message: q.msg,
+        error: q.error,
+      });
     }
     const [meta, rateRows] = await Promise.all([
       selected ? getProviderMeta(prisma, selected.id) : Promise.resolve({ websiteUrl: '', defaultCurrency: 'USD', description: '' }),
@@ -359,7 +425,7 @@ async function providersPage(prisma: PrismaClient, admin: AdminIdentity, request
       active: 'providers',
       message: q.msg,
       error: q.error,
-      body: `<div class="card" style="max-width:920px;margin:0 auto"><div class="cardhead"><div class="split-title">${icon('provider')}<div><h2>${selected ? esc(selected.name) : 'Provider Details'}</h2><span class="muted">Connection credentials and business rules</span></div></div><a class="btn ghost" href="/admin/v3/social/providers">${icon('back')} Back to Providers</a></div>${providerForm(selected, meta, sync, currencies)}</div>`,
+      body: `<div class="card" style="max-width:920px;margin:0 auto"><div class="cardhead"><div class="split-title">${icon('provider')}<div><h2>${selected ? esc(selected.name) : l('جزئیات ارائه‌دهنده','Provider Details')}</h2><span class="muted">${l('اطلاعات اتصال و قوانین سرویس','Connection credentials and business rules')}</span></div></div><a class="btn ghost" href="/admin/v3/social/providers">${icon('back')} ${l('بازگشت به ارائه‌دهندگان','Back to Providers')}</a></div>${providerForm(selected, meta, sync, currencies)}</div>`,
     });
   }
 
@@ -372,9 +438,39 @@ async function providersPage(prisma: PrismaClient, admin: AdminIdentity, request
     return { provider, meta, sync, serviceCount };
   }));
 
-  const rows = data.map(({ provider, meta, sync, serviceCount }) => `<tr><td><div class="provider-name"><div class="provider-logo">${esc(provider.name.charAt(0).toUpperCase())}</div><div><b>${esc(provider.name)}</b><br><span class="mono muted">${esc(provider.slug)}</span></div></div></td><td><span id="balance-${provider.id}" class="pill info">Checking…</span><br><span id="balance-time-${provider.id}" class="tiny">Auto refresh: 60 sec</span></td><td>${esc(provider.currencyCode || meta.defaultCurrency || 'AUTO')}</td><td><b>${serviceCount.toLocaleString('en-US')}</b><br><span class="tiny">API last sync: ${sync.lastServiceCount.toLocaleString('en-US')}</span></td><td>${sync.autoSync ? pill(`Every ${sync.syncMinutes} min`, 'ok') : pill('Off')}<br><span class="tiny">Last: ${esc(dateText(sync.lastSyncAt))}</span></td><td><span id="status-${provider.id}">${provider.enabled ? pill('Enabled','ok') : pill('Disabled','bad')}</span></td><td><div class="switch"><form method="post" action="/admin/v3/social/providers/toggle"><input type="hidden" name="id" value="${provider.id}"><button class="${provider.enabled?'on':''}" title="${provider.enabled?'Disable provider':'Enable provider'}" aria-label="Toggle provider"></button></form></div></td><td><div class="actions">${meta.websiteUrl ? `<a class="iconbtn orange" href="${esc(meta.websiteUrl)}" target="_blank" rel="noreferrer" title="Open provider website">${icon('link')}</a>` : `<span class="iconbtn" title="No provider website configured">${icon('link')}</span>`}<a class="iconbtn" href="/admin/v3/social/providers?edit=${provider.id}" title="Edit provider">${icon('edit')}</a><button type="button" class="iconbtn purple" onclick="refreshProviderStatuses()" title="Check balance now">${icon('wallet')}</button><form method="post" action="/admin/v3/social/provider-services/sync"><input type="hidden" name="providerId" value="${provider.id}"><button class="iconbtn green" title="Synchronize provider services">${icon('sync')}</button></form><a class="provider-service-link" href="/admin/v3/social/provider-services?provider=${provider.id}" title="Provider service list">${icon('list')} Provider Services</a><form method="post" action="/admin/v3/social/providers/delete" onsubmit="return confirm('Delete this provider? Raw imported services will also be removed. Published services without another route will be hidden.');"><input type="hidden" name="id" value="${provider.id}"><button class="iconbtn red" title="Delete provider">${icon('trash')}</button></form></div></td></tr>`).join('');
+  const rows = data.map(({ provider, meta, sync, serviceCount }) => {
+    const enabled = provider.enabled;
+    const toggleTitle = enabled ? l('غیرفعال کردن ارائه‌دهنده','Disable provider') : l('فعال کردن ارائه‌دهنده','Enable provider');
+    const deleteConfirm = l(
+      'این ارائه‌دهنده حذف شود؟ سرویس‌های خام واردشده نیز حذف می‌شوند و سرویس‌های منتشرشده بدون مسیر دیگر مخفی خواهند شد.',
+      'Delete this provider? Raw imported services will also be removed. Published services without another route will be hidden.',
+    ).replaceAll("'", "\\'");
+    return `<tr>
+      <td><div class="provider-name"><div class="provider-logo">${esc(provider.name.charAt(0).toUpperCase())}</div><div><b>${esc(provider.name)}</b><br><span class="mono muted">${esc(provider.slug)}</span></div></div></td>
+      <td><span id="balance-${provider.id}" class="pill info">${l('در حال بررسی…','Checking…')}</span><br><span id="balance-time-${provider.id}" class="tiny">${l('بروزرسانی خودکار: ۶۰ ثانیه','Auto refresh: 60 sec')}</span></td>
+      <td>${esc(provider.currencyCode || meta.defaultCurrency || 'AUTO')}</td>
+      <td><b>${n(serviceCount)}</b><br><span class="tiny">${l('آخرین همگام‌سازی API:','API last sync:')} ${n(sync.lastServiceCount)}</span></td>
+      <td>${sync.autoSync ? pill(l(`هر ${n(sync.syncMinutes)} دقیقه`,`Every ${sync.syncMinutes} min`),'ok') : pill(l('خاموش','Off'))}<br><span class="tiny">${l('آخرین:','Last:')} ${esc(dateText(sync.lastSyncAt, fa))}</span></td>
+      <td><span id="status-${provider.id}">${enabled ? pill(l('فعال','Enabled'),'ok') : pill(l('غیرفعال','Disabled'),'bad')}</span></td>
+      <td><div class="switch"><form method="post" action="/admin/v3/social/providers/toggle"><input type="hidden" name="id" value="${provider.id}"><button class="${enabled?'on':''}" title="${toggleTitle}" aria-label="${toggleTitle}"></button></form></div></td>
+      <td><div class="actions">
+        ${meta.websiteUrl
+          ? `<a class="iconbtn orange" href="${esc(meta.websiteUrl)}" target="_blank" rel="noreferrer" title="${l('باز کردن وب‌سایت ارائه‌دهنده','Open provider website')}" aria-label="${l('باز کردن وب‌سایت ارائه‌دهنده','Open provider website')}">${icon('link')}</a>`
+          : `<span class="iconbtn" title="${l('وب‌سایت ارائه‌دهنده تنظیم نشده','No provider website configured')}" aria-label="${l('وب‌سایت ارائه‌دهنده تنظیم نشده','No provider website configured')}">${icon('link')}</span>`}
+        <a class="iconbtn" href="/admin/v3/social/providers?edit=${provider.id}" title="${l('ویرایش ارائه‌دهنده','Edit provider')}" aria-label="${l('ویرایش ارائه‌دهنده','Edit provider')}">${icon('edit')}</a>
+        <button type="button" class="iconbtn purple" onclick="refreshProviderStatuses()" title="${l('بررسی موجودی','Check balance now')}" aria-label="${l('بررسی موجودی','Check balance now')}">${icon('wallet')}</button>
+        <form method="post" action="/admin/v3/social/provider-services/sync"><input type="hidden" name="providerId" value="${provider.id}"><button class="iconbtn green" title="${l('همگام‌سازی سرویس‌های ارائه‌دهنده','Synchronize provider services')}" aria-label="${l('همگام‌سازی سرویس‌های ارائه‌دهنده','Synchronize provider services')}">${icon('sync')}</button></form>
+        <a class="iconbtn" href="/admin/v3/social/provider-services?provider=${provider.id}" title="${l('فهرست سرویس‌های ارائه‌دهنده','Provider service list')}" aria-label="${l('فهرست سرویس‌های ارائه‌دهنده','Provider service list')}">${icon('list')}</a>
+        <form method="post" action="/admin/v3/social/providers/delete" onsubmit="return confirm('${deleteConfirm}');"><input type="hidden" name="id" value="${provider.id}"><button class="iconbtn red" title="${l('حذف ارائه‌دهنده','Delete provider')}" aria-label="${l('حذف ارائه‌دهنده','Delete provider')}">${icon('trash')}</button></form>
+      </div></td>
+    </tr>`;
+  }).join('');
 
+  const statusLabels = fa
+    ? { Connected: 'متصل', Disabled: 'غیرفعال', 'API key missing': 'کلید API ثبت نشده', 'Connection error': 'خطای اتصال' }
+    : { Connected: 'Connected', Disabled: 'Disabled', 'API key missing': 'API key missing', 'Connection error': 'Connection error' };
   const script = `
+const providerStatusLabels=${JSON.stringify(statusLabels)};
 async function refreshProviderStatuses(){
   try{
     const response=await fetch('/admin/v3/social/provider-status',{headers:{Accept:'application/json'},cache:'no-store'});
@@ -385,8 +481,8 @@ async function refreshProviderStatuses(){
       const s=document.getElementById('status-'+item.id);
       const tm=document.getElementById('balance-time-'+item.id);
       if(b){b.textContent=item.balance==='—'?'—':(item.balance+' '+(item.currency||''));b.className='pill '+(item.kind||'info');}
-      if(s){s.innerHTML='<span class="pill '+(item.kind||'info')+'">'+item.status+'</span>';}
-      if(tm){tm.textContent='Updated '+new Date(payload.updatedAt).toLocaleTimeString();}
+      if(s){const label=providerStatusLabels[item.status]||item.status;s.innerHTML='<span class="pill '+(item.kind||'info')+'">'+label+'</span>';}
+      if(tm){tm.textContent=${JSON.stringify(l('بروزرسانی','Updated'))}+' '+new Date(payload.updatedAt).toLocaleTimeString(${JSON.stringify(fa ? 'fa-AF' : 'en-US')});}
     }
   }catch(_error){}
 }
@@ -403,12 +499,15 @@ setInterval(refreshProviderStatuses,60000);
     message: q.msg,
     error: q.error,
     script,
-    body: `<div class="card"><div class="cardhead"><div><h2>SMM Providers</h2><span class="muted">Balances are checked automatically every 60 seconds while this page is open.</span></div><a class="btn" href="/admin/v3/social/providers?mode=new">${icon('plus')} Add Provider</a></div><div class="tablewrap"><table class="table"><thead><tr><th>Provider</th><th>Live Balance</th><th>Currency</th><th>Services</th><th>Service Sync</th><th>Connection</th><th>Active</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="8" class="empty">No providers yet. Add your first SMM provider.</td></tr>'}</tbody></table></div></div><div class="notice"><b>How it works:</b> Website opens the provider site · Edit changes settings · Balance checks the API · Sync downloads/updates the provider catalog · Service List opens that provider’s services · Delete removes the provider safely.</div>`,
+    body: `<div class="card"><div class="cardhead"><div><h2>${l('ارائه‌دهندگان SMM','SMM Providers')}</h2><span class="muted">${l('تا زمانی که این صفحه باز است، موجودی هر ۶۰ ثانیه به‌صورت خودکار بررسی می‌شود.','Balances are checked automatically every 60 seconds while this page is open.')}</span></div><a class="btn" href="/admin/v3/social/providers?mode=new">${icon('plus')} ${l('افزودن ارائه‌دهنده','Add Provider')}</a></div><div class="tablewrap"><table class="table"><thead><tr><th>${l('ارائه‌دهنده','Provider')}</th><th>${l('موجودی زنده','Live Balance')}</th><th>${l('واحد پول','Currency')}</th><th>${l('سرویس‌ها','Services')}</th><th>${l('همگام‌سازی سرویس‌ها','Service Sync')}</th><th>${l('اتصال','Connection')}</th><th>${l('فعال','Active')}</th><th>${l('عملیات','Actions')}</th></tr></thead><tbody>${rows || `<tr><td colspan="8" class="empty">${l('هنوز ارائه‌دهنده‌ای اضافه نشده است.','No providers yet. Add your first SMM provider.')}</td></tr>`}</tbody></table></div></div><div class="notice"><b>${l('راهنما:','How it works:')}</b> ${l('آیکن لینک وب‌سایت را باز می‌کند · ویرایش تنظیمات را تغییر می‌دهد · موجودی API را بررسی می‌کند · همگام‌سازی کاتالوگ را بروزرسانی می‌کند · آیکن فهرست، سرویس‌های همان ارائه‌دهنده را باز می‌کند · حذف، ارائه‌دهنده را ایمن حذف می‌کند.','Website opens the provider site · Edit changes settings · Balance checks the API · Sync downloads/updates the provider catalog · Service List opens that provider’s services · Delete removes the provider safely.')}</div>`,
   });
 }
 
 async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, request: FastifyRequest) {
   const q = query(request);
+  const fa = adminLangFromRequest(request) === 'fa';
+  const l = (faText: string, enText: string) => fa ? faText : enText;
+  const n = (value: number) => value.toLocaleString(fa ? 'fa-AF' : 'en-US');
   const providers = await prisma.provider.findMany({
     where: { kind: ProviderKind.SOCIAL },
     orderBy: [{ enabled: 'desc' }, { priority: 'asc' }, { name: 'asc' }],
@@ -515,10 +614,14 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
     const detected = typeof routeMeta._providerRefillDetected === 'boolean'
       ? routeMeta._providerRefillDetected
       : route.providerRefill;
-    const appState = raw ? pill('Not added') : route.service.enabled ? pill('Live','ok') : pill('Draft','warn');
+    const appState = raw
+      ? pill(l('اضافه نشده','Not added'))
+      : route.service.enabled
+        ? pill(l('فعال','Live'),'ok')
+        : pill(l('پیش‌نویس','Draft'),'warn');
     const refillState = route.providerRefill
-      ? pill(detected ? 'Refill · Auto' : 'Refill · Manual','ok')
-      : pill(detected ? 'Refill disabled' : 'No refill');
+      ? pill(detected ? l('جبران · خودکار','Refill · Auto') : l('جبران · دستی','Refill · Manual'),'ok')
+      : pill(detected ? l('جبران غیرفعال','Refill disabled') : l('بدون جبران','No refill'));
     const dripDetected = typeof routeMeta._providerDripFeedDetected === 'boolean'
       ? routeMeta._providerDripFeedDetected
       : Boolean(routeMeta.dripfeed ?? routeMeta.drip_feed);
@@ -526,78 +629,83 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
       ? routeMeta._velixeoDripFeedOverride
       : dripDetected;
     const dripState = dripEnabled
-      ? pill(dripDetected ? 'Drip-feed · Auto' : 'Drip-feed · Manual','ok')
-      : pill(dripDetected ? 'Drip-feed disabled' : 'No drip-feed');
-    return `<tr><td class="mono">${esc(route.providerServiceCode)}</td><td class="service-name"><b>${esc(route.providerName || route.service.titleEn)}</b><br><span class="tiny">${esc(route.providerType || 'Default')}</span></td><td><b>${esc(route.providerRate?.toString() || '—')}</b> ${esc(route.providerCurrency || '')}</td><td class="money">${sale == null ? '—' : money(sale)}</td><td>${esc(route.providerMinQty ?? '—')} – ${esc(route.providerMaxQty ?? '—')}</td><td>${refillState}</td><td>${dripState}</td><td>${route.providerCancel ? pill('Yes','ok') : pill('No')}</td><td>${appState}</td><td><a class="iconbtn ${raw?'green':'purple'}" href="/admin/v3/social/provider-services?provider=${route.providerId}&route=${route.id}${q.q?`&q=${encodeURIComponent(q.q)}`:(!q.q && activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:'')}" title="${raw?'Add this service to VELIXEO':'Edit VELIXEO service'}">${raw?icon('plus'):icon('edit')}</a></td></tr>`;
+      ? pill(dripDetected ? l('دریپ‌فید · خودکار','Drip-feed · Auto') : l('دریپ‌فید · دستی','Drip-feed · Manual'),'ok')
+      : pill(dripDetected ? l('دریپ‌فید غیرفعال','Drip-feed disabled') : l('بدون دریپ‌فید','No drip-feed'));
+    const actionTitle = raw ? l('افزودن این سرویس به VELIXEO','Add this service to VELIXEO') : l('ویرایش سرویس VELIXEO','Edit VELIXEO service');
+    return `<tr data-route-id="${route.id}"><td class="mono">${esc(route.providerServiceCode)}</td><td class="service-name"><b>${esc(route.providerName || route.service.titleEn)}</b><br><span class="tiny">${esc(route.providerType || 'Default')}</span></td><td><b>${esc(route.providerRate?.toString() || '—')}</b> ${esc(route.providerCurrency || '')}</td><td class="money">${sale == null ? '—' : money(sale)}</td><td>${esc(route.providerMinQty ?? '—')} – ${esc(route.providerMaxQty ?? '—')}</td><td>${refillState}</td><td>${dripState}</td><td>${route.providerCancel ? pill(l('بله','Yes'),'ok') : pill(l('خیر','No'))}</td><td class="route-app-state">${appState}</td><td><a data-route-action class="iconbtn ${raw?'green':'purple'}" href="/admin/v3/social/provider-services?provider=${route.providerId}&route=${route.id}${q.q?`&q=${encodeURIComponent(q.q)}`:(!q.q && activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:'')}" title="${actionTitle}" aria-label="${actionTitle}">${raw?icon('plus'):icon('edit')}</a></td></tr>`;
   }).join('');
 
   const brandOptions = brands
     .filter(item => item.enabled)
-    .map(item => `<option value="${esc(item.key)}" ${normalizeBrandKey(item.key)===selectedBrand?'selected':''}>${esc(item.titleEn)} · ${esc(item.titleFa)}</option>`)
+    .map(item => `<option value="${esc(item.key)}" ${normalizeBrandKey(item.key)===selectedBrand?'selected':''}>${esc(fa ? item.titleFa : item.titleEn)}</option>`)
     .join('');
   const categoryOptions = categories
     .filter(item => item.enabled)
-    .map(item => `<option value="${esc(item.slug)}" data-platform="${esc(normalizeBrandKey(item.platform))}" ${selectedCategorySlug===item.slug?'selected':''}>${esc(item.titleEn)} · ${esc(item.titleFa)}</option>`)
+    .map(item => `<option value="${esc(item.slug)}" data-platform="${esc(normalizeBrandKey(item.platform))}" ${selectedCategorySlug===item.slug?'selected':''}>${esc(fa ? item.titleFa : item.titleEn)}</option>`)
     .join('');
   const currentMode = selected?.service.basePriceAfn != null ? 'FIXED' : 'AUTO_MARKUP';
 
-  const config = selected ? `<div class="card"><div class="cardhead"><div><h2>${isPublished?'Edit VELIXEO Service':'Add Service to VELIXEO'}</h2><span class="muted">Provider #${esc(selected.providerServiceCode)} · ${esc(selected.provider.name)}</span></div><a class="btn ghost" href="/admin/v3/social/provider-services?provider=${selected.providerId}${activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:''}">Close</a></div>
-  <div class="notice"><b>Original provider name:</b> ${esc(selected.providerName || selected.service.titleEn)}<br><b>Provider cost:</b> ${esc(selected.providerRate?.toString() || '—')} ${esc(selected.providerCurrency || '')} · Min ${esc(selected.providerMinQty ?? '—')} · Max ${esc(selected.providerMaxQty ?? '—')}</div>
-  <form method="post" action="/admin/v3/social/provider-services/publish">
+  const config = selected ? `<div id="service-config-panel" data-service-config class="card service-config-panel"><div class="cardhead"><div><h2>${isPublished?l('ویرایش سرویس VELIXEO','Edit VELIXEO Service'):l('افزودن سرویس به VELIXEO','Add Service to VELIXEO')}</h2><span class="muted">${l('ارائه‌دهنده','Provider')} #${esc(selected.providerServiceCode)} · ${esc(selected.provider.name)}</span></div><a class="btn ghost" href="/admin/v3/social/provider-services?provider=${selected.providerId}${activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:''}">${l('بستن','Close')}</a></div>
+  <div class="notice"><b>${l('نام اصلی ارائه‌دهنده:','Original provider name:')}</b> ${esc(selected.providerName || selected.service.titleEn)}<br><b>${l('هزینه ارائه‌دهنده:','Provider cost:')}</b> ${esc(selected.providerRate?.toString() || '—')} ${esc(selected.providerCurrency || '')} · ${l('حداقل','Min')} ${esc(selected.providerMinQty ?? '—')} · ${l('حداکثر','Max')} ${esc(selected.providerMaxQty ?? '—')}</div>
+  <div id="service-config-feedback" class="service-config-feedback"></div>
+  <form id="service-publish-form" method="post" action="/admin/v3/social/provider-services/publish">
     <input type="hidden" name="routeId" value="${selected.id}">
     <input type="hidden" name="providerId" value="${selected.providerId}">
     <input type="hidden" name="sourceCategory" value="${esc(activeSourceCategory)}">
     <div class="forms">
-      <div class="field"><label>Brand / Network</label><select id="socialBrandSelect" name="brandKey" required><option value="">Choose brand</option>${brandOptions}</select></div>
-      <div class="field"><label>VELIXEO Category</label><select id="socialCategorySelect" name="categorySlug" required><option value="">Choose category</option>${categoryOptions}</select></div>
-      <div class="field"><label>Provider Service Type</label><input value="${esc(selected.providerType || 'Default')}" readonly></div>
-      <div class="field"><label>Original Provider Price</label><input value="${esc(selected.providerRate?.toString() || '—')} ${esc(selected.providerCurrency || '')}" readonly></div>
+      <div class="field"><label>${l('برند / شبکه اجتماعی','Brand / Network')}</label><select id="socialBrandSelect" name="brandKey" required><option value="">${l('انتخاب برند','Choose brand')}</option>${brandOptions}</select></div>
+      <div class="field"><label>${l('دسته‌بندی VELIXEO','VELIXEO Category')}</label><select id="socialCategorySelect" name="categorySlug" required><option value="">${l('انتخاب دسته‌بندی','Choose category')}</option>${categoryOptions}</select></div>
+      <div class="field"><label>${l('نوع سرویس ارائه‌دهنده','Provider Service Type')}</label><input value="${esc(selected.providerType || 'Default')}" readonly></div>
+      <div class="field"><label>${l('قیمت اصلی ارائه‌دهنده','Original Provider Price')}</label><input value="${esc(selected.providerRate?.toString() || '—')} ${esc(selected.providerCurrency || '')}" readonly></div>
     </div>
-    <div class="field"><label>Customer-facing English Name</label><input name="titleEn" value="${esc(isPublished ? selected.service.titleEn : (selected.providerName || selected.service.titleEn))}" required></div>
-    <div class="field"><label>Customer-facing Persian Name</label><input name="titleFa" value="${esc(isPublished ? selected.service.titleFa : '')}" placeholder="نام فارسی سرویس"></div>
+    <div class="field"><label>${l('نام انگلیسی برای مشتری','Customer-facing English Name')}</label><input name="titleEn" value="${esc(isPublished ? selected.service.titleEn : (selected.providerName || selected.service.titleEn))}" required></div>
+    <div class="field"><label>${l('نام فارسی برای مشتری','Customer-facing Persian Name')}</label><input name="titleFa" value="${esc(isPublished ? selected.service.titleFa : '')}" placeholder="${l('نام فارسی سرویس','Persian service name')}"></div>
     <div class="forms">
-      <div class="field"><label>English Description</label><textarea name="descriptionEn">${esc(selected.service.descriptionEn || '')}</textarea></div>
-      <div class="field"><label>Persian Description</label><textarea name="descriptionFa">${esc(selected.service.descriptionFa || '')}</textarea></div>
+      <div class="field"><label>${l('توضیحات انگلیسی','English Description')}</label><textarea name="descriptionEn">${esc(selected.service.descriptionEn || '')}</textarea></div>
+      <div class="field"><label>${l('توضیحات فارسی','Persian Description')}</label><textarea name="descriptionFa">${esc(selected.service.descriptionFa || '')}</textarea></div>
     </div>
     <div class="forms">
-      <div class="field"><label>Pricing Mode</label><select name="pricingMode"><option value="AUTO_MARKUP" ${currentMode==='AUTO_MARKUP'?'selected':''}>Auto Markup — follows provider price</option><option value="FIXED" ${currentMode==='FIXED'?'selected':''}>Fixed Sale Price</option></select></div>
-      <div class="field"><label>Profit / Markup %</label><input name="markup" value="${esc(selected.markupPercent?.toString() ?? selected.provider.defaultMarkupPercent.toString())}" placeholder="30"></div>
-      <div class="field"><label>Fixed Sale Price</label><input name="fixedPrice" value="${selected.service.basePriceAfn == null ? '' : esc(selected.service.basePriceAfn.toString())}" placeholder="Only for Fixed mode"></div>
-      <div class="field"><label>Fixed Price Currency</label><select name="fixedCurrency"><option>AFN</option><option>USD</option><option>TOMAN</option></select></div>
-      <div class="field"><label>Minimum Quantity</label><input type="number" name="minQty" value="${esc(selected.service.minQty ?? selected.providerMinQty ?? '')}"></div>
-      <div class="field"><label>Maximum Quantity</label><input type="number" name="maxQty" value="${esc(selected.service.maxQty ?? selected.providerMaxQty ?? '')}"></div>
-      <div class="field"><label>Sort Order</label><input type="number" name="sortOrder" value="${esc(selected.service.sortOrder)}"></div>
-      <div class="field"><label>Refill / Guarantee Days</label><input type="number" name="refillDays" min="0" value="${esc(selected.service.refillDays ?? '')}" placeholder="30"></div>
+      <div class="field"><label>${l('روش قیمت‌گذاری','Pricing Mode')}</label><select name="pricingMode"><option value="AUTO_MARKUP" ${currentMode==='AUTO_MARKUP'?'selected':''}>${l('سود خودکار — مطابق قیمت ارائه‌دهنده','Auto Markup — follows provider price')}</option><option value="FIXED" ${currentMode==='FIXED'?'selected':''}>${l('قیمت فروش ثابت','Fixed Sale Price')}</option></select></div>
+      <div class="field"><label>${l('درصد سود','Profit / Markup %')}</label><input name="markup" value="${esc(selected.markupPercent?.toString() ?? selected.provider.defaultMarkupPercent.toString())}" placeholder="30"></div>
+      <div class="field"><label>${l('قیمت فروش ثابت','Fixed Sale Price')}</label><input name="fixedPrice" value="${selected.service.basePriceAfn == null ? '' : esc(selected.service.basePriceAfn.toString())}" placeholder="${l('فقط برای حالت قیمت ثابت','Only for Fixed mode')}"></div>
+      <div class="field"><label>${l('واحد قیمت ثابت','Fixed Price Currency')}</label><select name="fixedCurrency"><option>AFN</option><option>USD</option><option>TOMAN</option></select></div>
+      <div class="field"><label>${l('حداقل تعداد','Minimum Quantity')}</label><input type="number" name="minQty" value="${esc(selected.service.minQty ?? selected.providerMinQty ?? '')}"></div>
+      <div class="field"><label>${l('حداکثر تعداد','Maximum Quantity')}</label><input type="number" name="maxQty" value="${esc(selected.service.maxQty ?? selected.providerMaxQty ?? '')}"></div>
+      <div class="field"><label>${l('ترتیب نمایش','Sort Order')}</label><input type="number" name="sortOrder" value="${esc(selected.service.sortOrder)}"></div>
+      <div class="field"><label>${l('روزهای جبران / ضمانت','Refill / Guarantee Days')}</label><input type="number" name="refillDays" min="0" value="${esc(selected.service.refillDays ?? '')}" placeholder="30"></div>
     </div>
     <div class="refill-control">
-      <div><b>Refill / Drop Guarantee</b><div class="meta">Provider API detected: <strong>${detectedRefill ? 'Available' : 'Not available'}</strong>. The switch starts with the provider value, but you can manually enable or disable it for this VELIXEO service.</div></div>
-      <label class="toggle"><input type="checkbox" name="refillEnabled" ${selected.providerRefill?'checked':''}> <span>Enabled</span></label>
+      <div><b>${l('جبران ریزش / ضمانت','Refill / Drop Guarantee')}</b><div class="meta">${l('تشخیص API ارائه‌دهنده:','Provider API detected:')} <strong>${detectedRefill ? l('موجود','Available') : l('موجود نیست','Not available')}</strong>. ${l('کلید ابتدا از مقدار ارائه‌دهنده پیروی می‌کند، اما برای این سرویس می‌توانید آن را دستی فعال یا غیرفعال کنید.','The switch starts with the provider value, but you can manually enable or disable it for this VELIXEO service.')}</div></div>
+      <label class="toggle"><input type="checkbox" name="refillEnabled" ${selected.providerRefill?'checked':''}> <span>${l('فعال','Enabled')}</span></label>
     </div>
     <div class="refill-control">
-      <div><b>Drip-feed</b><div class="meta">Provider API detected: <strong>${detectedDripFeed ? 'Available' : 'Not available'}</strong>. It is enabled automatically when supported, and you can override it for this service.</div></div>
-      <label class="toggle"><input type="checkbox" name="dripFeedEnabled" ${dripFeedEnabled?'checked':''}> <span>Enabled</span></label>
+      <div><b>${l('ارسال زمان‌بندی‌شده','Drip-feed')}</b><div class="meta">${l('تشخیص API ارائه‌دهنده:','Provider API detected:')} <strong>${detectedDripFeed ? l('موجود','Available') : l('موجود نیست','Not available')}</strong>. ${l('اگر ارائه‌دهنده پشتیبانی کند خودکار فعال می‌شود و می‌توانید برای این سرویس آن را تغییر دهید.','It is enabled automatically when supported, and you can override it for this service.')}</div></div>
+      <label class="toggle"><input type="checkbox" name="dripFeedEnabled" ${dripFeedEnabled?'checked':''}> <span>${l('فعال','Enabled')}</span></label>
     </div>
-    <div class="provider-capability">${detectedRefill?pill('Provider supports refill','ok'):pill('Provider reports no refill')}${detectedDripFeed?pill('Provider supports drip-feed','ok'):pill('Provider reports no drip-feed')}${selected.providerCancel?pill('Provider supports cancel','ok'):pill('No cancel')}</div>
-    <label class="check"><input type="checkbox" name="featured" ${selected.service.featured?'checked':''}> Featured service</label>
-    <label class="check"><input type="checkbox" name="enabled" ${selected.service.enabled?'checked':''}> Visible to users immediately</label>
-    <div class="notice">Save as draft by leaving “Visible to users” off. Only services you add here appear under Services and in the customer app.</div>
-    <button class="btn">${isPublished?'Save Changes':'Add to VELIXEO'}</button>
-  </form></div>` : `<div class="card empty">Choose a provider service and press + to select its brand, category, pricing and refill settings.</div>`;
+    <div class="provider-capability">${detectedRefill?pill(l('ارائه‌دهنده جبران ریزش دارد','Provider supports refill'),'ok'):pill(l('ارائه‌دهنده جبران ریزش ندارد','Provider reports no refill'))}${detectedDripFeed?pill(l('ارائه‌دهنده دریپ‌فید دارد','Provider supports drip-feed'),'ok'):pill(l('ارائه‌دهنده دریپ‌فید ندارد','Provider reports no drip-feed'))}${selected.providerCancel?pill(l('ارائه‌دهنده قابلیت لغو دارد','Provider supports cancel'),'ok'):pill(l('قابلیت لغو ندارد','No cancel'))}</div>
+    <label class="check"><input type="checkbox" name="featured" ${selected.service.featured?'checked':''}> ${l('سرویس ویژه','Featured service')}</label>
+    <label class="check"><input type="checkbox" name="enabled" ${selected.service.enabled?'checked':''}> ${l('فوراً برای کاربران نمایش داده شود','Visible to users immediately')}</label>
+    <div class="notice">${l('اگر نمایش برای کاربران خاموش باشد، سرویس به‌صورت پیش‌نویس ذخیره می‌شود. فقط سرویس‌هایی که اینجا اضافه می‌کنید در بخش سرویس‌ها و اپ مشتری نمایش داده می‌شوند.','Save as draft by leaving “Visible to users” off. Only services you add here appear under Services and in the customer app.')}</div>
+    <button class="btn">${isPublished?l('ذخیره تغییرات','Save Changes'):l('افزودن به VELIXEO','Add to VELIXEO')}</button>
+  </form></div>` : `<div class="card empty">${l('یک سرویس ارائه‌دهنده را انتخاب و روی + بزنید تا برند، دسته‌بندی، قیمت و تنظیمات جبران را مشخص کنید.','Choose a provider service and press + to select its brand, category, pricing and refill settings.')}</div>`;
 
   const providerPicker = `<div class="card"><form method="get" action="/admin/v3/social/provider-services" class="provider-picker">
-    <div class="field" style="margin:0"><label>Provider</label><select name="provider">${providers.map(item=>`<option value="${item.id}" ${item.id===providerId?'selected':''}>${esc(item.name)}</option>`).join('')}</select></div>
-    <div class="field" style="margin:0"><label>Search provider services</label><input name="q" value="${esc(q.q)}" placeholder="Service ID, name or provider category"></div>
-    <button class="btn">Show Services</button>
+    <div class="field" style="margin:0"><label>${l('ارائه‌دهنده','Provider')}</label><select name="provider">${providers.map(item=>`<option value="${item.id}" ${item.id===providerId?'selected':''}>${esc(item.name)}</option>`).join('')}</select></div>
+    <div class="field" style="margin:0"><label>${l('جستجوی سرویس‌های ارائه‌دهنده','Search provider services')}</label><input name="q" value="${esc(q.q)}" placeholder="${l('شناسه سرویس، نام یا دسته‌بندی ارائه‌دهنده','Service ID, name or provider category')}"></div>
+    <button class="btn">${l('نمایش سرویس‌ها','Show Services')}</button>
   </form>
-  ${provider ? `<div class="actions" style="margin-top:12px"><a class="btn ghost" href="/admin/v3/social/providers">Providers</a><form method="post" action="/admin/v3/social/provider-services/sync"><input type="hidden" name="providerId" value="${provider.id}"><button class="btn">${icon('sync')} Get / Refresh All Services</button></form></div>` : ''}
-  <div class="notice" style="margin-top:12px">This area shows the provider catalog only. Nothing is added to VELIXEO until you press + and save the service configuration.</div>
-  ${sourceCategories.length ? `<div class="source-categories">${sourceCategories.map(item => `<a class="source-category ${!q.q && item.name===activeSourceCategory?'active':''}" href="/admin/v3/social/provider-services?provider=${encodeURIComponent(providerId)}&sourceCategory=${encodeURIComponent(item.name)}"><span>${esc(item.name)}</span><span class="count">${item.count.toLocaleString('en-US')}</span></a>`).join('')}</div>` : ''}
+  ${provider ? `<div class="actions" style="margin-top:12px"><a class="btn ghost" href="/admin/v3/social/providers">${l('ارائه‌دهندگان','Providers')}</a><form method="post" action="/admin/v3/social/provider-services/sync"><input type="hidden" name="providerId" value="${provider.id}"><button class="btn">${icon('sync')} ${l('دریافت / بروزرسانی همه سرویس‌ها','Get / Refresh All Services')}</button></form></div>` : ''}
+  <div class="notice" style="margin-top:12px">${l('این بخش فقط کاتالوگ ارائه‌دهنده را نشان می‌دهد. تا زمانی که روی + نزنید و تنظیمات را ذخیره نکنید، سرویسی به VELIXEO اضافه نمی‌شود.','This area shows the provider catalog only. Nothing is added to VELIXEO until you press + and save the service configuration.')}</div>
+  ${sourceCategories.length ? `<div class="source-categories">${sourceCategories.map(item => `<a class="source-category ${!q.q && item.name===activeSourceCategory?'active':''}" href="/admin/v3/social/provider-services?provider=${encodeURIComponent(providerId)}&sourceCategory=${encodeURIComponent(item.name)}"><span>${esc(item.name)}</span><span class="count">${n(item.count)}</span></a>`).join('')}</div>` : ''}
   </div>`;
 
   const script = selected ? `
 (() => {
   const brand = document.getElementById('socialBrandSelect');
   const category = document.getElementById('socialCategorySelect');
+  const form = document.getElementById('service-publish-form');
+  const feedback = document.getElementById('service-config-feedback');
+  const panel = document.getElementById('service-config-panel');
   if (!brand || !category) return;
   const sync = () => {
     const value = String(brand.value || '').toUpperCase();
@@ -612,6 +720,53 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
   };
   brand.addEventListener('change', sync);
   sync();
+
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const submit = form.querySelector('button[type="submit"],button:not([type])');
+    const oldLabel = submit?.textContent || '';
+    if (submit) { submit.disabled = true; submit.textContent = ${JSON.stringify(l('در حال ذخیره…','Saving…'))}; }
+    if (feedback) { feedback.className = 'service-config-feedback'; feedback.textContent = ''; }
+    try {
+      const response = await fetch(form.action, {
+        method: 'POST',
+        body: new FormData(form),
+        headers: { Accept: 'application/json' },
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || ${JSON.stringify(l('ذخیره سرویس انجام نشد.','Could not save the service.'))});
+      const row = document.querySelector('[data-route-id="' + payload.routeId + '"]');
+      const state = row?.querySelector('.route-app-state');
+      if (state) {
+        state.innerHTML = payload.enabled
+          ? '<span class="pill ok">${l('فعال','Live')}</span>'
+          : '<span class="pill warn">${l('پیش‌نویس','Draft')}</span>';
+      }
+      const action = row?.querySelector('[data-route-action]');
+      if (action) {
+        action.classList.remove('green');
+        action.classList.add('purple');
+        action.setAttribute('title', ${JSON.stringify(l('ویرایش سرویس VELIXEO','Edit VELIXEO service'))});
+        action.setAttribute('aria-label', ${JSON.stringify(l('ویرایش سرویس VELIXEO','Edit VELIXEO service'))});
+      }
+      if (feedback) {
+        feedback.className = 'service-config-feedback ok';
+        feedback.textContent = payload.message || ${JSON.stringify(l('سرویس ذخیره شد.','Service saved.'))};
+      }
+      history.replaceState({}, '', payload.returnUrl || location.pathname + location.search);
+      setTimeout(() => {
+        panel?.remove();
+        row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 650);
+    } catch (error) {
+      if (feedback) {
+        feedback.className = 'service-config-feedback bad';
+        feedback.textContent = error instanceof Error ? error.message : ${JSON.stringify(l('ذخیره سرویس انجام نشد.','Could not save the service.'))};
+      }
+    } finally {
+      if (submit) { submit.disabled = false; submit.textContent = oldLabel; }
+    }
+  });
 })();` : undefined;
 
   return shell({
@@ -626,8 +781,8 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
     error: q.error,
     script,
     body: providers.length
-      ? `${providerPicker}<div class="grid"><div class="card"><div class="cardhead"><div class="catalog-title"><h2>${q.q ? 'Search Results' : esc(activeSourceCategory || provider?.name || 'Provider Catalog')}</h2>${!q.q && activeSourceCategory ? pill(sourceCategoryMap.get(activeSourceCategory)?.count?.toLocaleString('en-US') + ' services','info') : ''}</div><span class="muted">${q.q ? priced.length.toLocaleString('en-US') + ' matching services' : sourceIndexRows.length.toLocaleString('en-US') + ' total synced services · ' + sourceCategories.length.toLocaleString('en-US') + ' categories'}</span></div><div class="tablewrap"><table class="table"><thead><tr><th>ID</th><th>Original Service Name</th><th>Provider Cost</th><th>VELIXEO Sale</th><th>Min / Max</th><th>Refill</th><th>Drip-feed</th><th>Cancel</th><th>App Status</th><th>Add</th></tr></thead><tbody>${rows || `<tr><td colspan="10" class="empty">${provider ? 'No services found. Sync the provider or choose another provider category.' : 'Choose a provider first.'}</td></tr>`}</tbody></table></div></div>${config}</div>`
-      : '<div class="card empty">No Social Media provider exists yet. Add a provider first, then sync its services.</div>',
+      ? `${selected ? config : ''}${providerPicker}${selected ? '' : config}<div class="card provider-catalog-card"><div class="cardhead"><div class="catalog-title"><h2>${q.q ? l('نتایج جستجو','Search Results') : esc(activeSourceCategory || provider?.name || l('کاتالوگ ارائه‌دهنده','Provider Catalog'))}</h2>${!q.q && activeSourceCategory ? pill(n(sourceCategoryMap.get(activeSourceCategory)?.count ?? 0) + ' ' + l('سرویس','services'),'info') : ''}</div><span class="muted">${q.q ? n(priced.length) + ' ' + l('سرویس مطابق','matching services') : n(sourceIndexRows.length) + ' ' + l('سرویس همگام‌شده','total synced services') + ' · ' + n(sourceCategories.length) + ' ' + l('دسته‌بندی','categories')}</span></div><div class="tablewrap"><table class="table"><thead><tr><th>ID</th><th>${l('نام اصلی سرویس','Original Service Name')}</th><th>${l('هزینه ارائه‌دهنده','Provider Cost')}</th><th>${l('قیمت فروش VELIXEO','VELIXEO Sale')}</th><th>${l('حداقل / حداکثر','Min / Max')}</th><th>${l('جبران','Refill')}</th><th>${l('دریپ‌فید','Drip-feed')}</th><th>${l('لغو','Cancel')}</th><th>${l('وضعیت در اپ','App Status')}</th><th>${l('افزودن','Add')}</th></tr></thead><tbody>${rows || `<tr><td colspan="10" class="empty">${provider ? l('سرویسی پیدا نشد. ارائه‌دهنده را همگام کنید یا دسته‌بندی دیگری را انتخاب کنید.','No services found. Sync the provider or choose another provider category.') : l('ابتدا ارائه‌دهنده را انتخاب کنید.','Choose a provider first.')}</td></tr>`}</tbody></table></div></div>`
+      : `<div class="card empty">${l('هنوز ارائه‌دهنده شبکه اجتماعی اضافه نشده است. ابتدا ارائه‌دهنده را اضافه و سپس سرویس‌های آن را همگام کنید.','No Social Media provider exists yet. Add a provider first, then sync its services.')}</div>`,
   });
 }
 
@@ -711,6 +866,9 @@ async function categoriesPage(prisma: PrismaClient, admin: AdminIdentity, reques
 
 async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, request: FastifyRequest) {
   const q = query(request);
+  const fa = adminLangFromRequest(request) === 'fa';
+  const l = (faText: string, enText: string) => fa ? faText : enText;
+  const n = (value: number) => value.toLocaleString(fa ? 'fa-AF' : 'en-US');
   const all = await prisma.service.findMany({
     where: {
       category: ServiceCategory.SOCIAL,
@@ -743,13 +901,40 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
       : false;
     const refill = primary
       ? (primary.providerRefill
-          ? pill(detected ? 'Enabled · Provider' : 'Enabled · Manual','ok')
-          : pill(detected ? 'Disabled manually' : 'No refill'))
-      : pill('No route');
+          ? pill(detected ? l('فعال · ارائه‌دهنده','Enabled · Provider') : l('فعال · دستی','Enabled · Manual'),'ok')
+          : pill(detected ? l('دستی غیرفعال شده','Disabled manually') : l('بدون جبران','No refill')))
+      : pill(l('بدون مسیر','No route'));
+    const toggleTitle = primary?.providerRefill
+      ? l('غیرفعال کردن جبران ریزش','Disable refill')
+      : l('فعال کردن جبران ریزش','Enable refill');
     const refillToggle = primary
-      ? `<form method="post" action="/admin/v3/social/my-services/refill-toggle"><input type="hidden" name="routeId" value="${primary.id}"><button class="iconbtn ${primary.providerRefill?'orange':'green'}" title="${primary.providerRefill?'Disable refill':'Enable refill'}">${icon('sync')}</button></form>`
+      ? `<form method="post" action="/admin/v3/social/my-services/refill-toggle"><input type="hidden" name="routeId" value="${primary.id}"><button class="iconbtn ${primary.providerRefill?'orange':'green'}" title="${toggleTitle}" aria-label="${toggleTitle}">${icon('sync')}</button></form>`
       : '';
-    return `<tr><td><b>${esc(service.titleFa || service.titleEn)}</b><br><span class="muted">${esc(service.titleEn)}</span><br><span class="mono tiny">${esc(service.slug)}</span></td><td>${esc(service.socialPlatform || 'OTHER')} → ${esc(service.socialGroup || '—')}</td><td>${primary ? esc(primary.provider.name) : '—'}${service.routes.length > 1 ? ` +${service.routes.length - 1}` : ''}</td><td>${service.basePriceAfn != null ? `<span class="price-fixed">Fixed · ${money(service.basePriceAfn)}</span>` : '<span class="price-auto">Auto Markup</span>'}</td><td>${service.minQty ?? '—'} – ${service.maxQty ?? '—'}</td><td><div class="actions">${refill}${refillToggle}</div>${service.refillDays ? `<span class="tiny">${service.refillDays} guarantee days</span>` : ''}</td><td>${service.featured?pill('Featured','info'):''} ${service.enabled?pill('Live','ok'):pill('Draft / Hidden','warn')}</td><td><div class="actions">${primary ? `<a class="iconbtn" href="/admin/v3/social/provider-services?provider=${primary.providerId}&route=${primary.id}" title="Edit service">${icon('edit')}</a>` : ''}<form method="post" action="/admin/v3/social/my-services/toggle"><input type="hidden" name="id" value="${service.id}"><button class="iconbtn ${service.enabled?'orange':'green'}" title="${service.enabled?'Hide from customer app':'Publish to customer app'}">${icon('eye')}</button></form></div></td></tr>`;
+    const displayTitle = fa
+      ? (service.titleFa || service.titleEn)
+      : service.titleEn;
+    const fixedLabel = fa ? 'ثابت' : 'Fixed';
+    const autoLabel = fa ? 'سود خودکار' : 'Auto Markup';
+    const guarantee = service.refillDays
+      ? `<span class="tiny">${n(service.refillDays)} ${l('روز ضمانت','guarantee days')}</span>`
+      : '';
+    const editTitle = l('ویرایش سرویس','Edit service');
+    const visibilityTitle = service.enabled
+      ? l('پنهان کردن از اپ مشتری','Hide from customer app')
+      : l('انتشار در اپ مشتری','Publish to customer app');
+    return `<tr>
+      <td><b>${esc(displayTitle)}</b><br><span class="mono tiny">${esc(service.slug)}</span></td>
+      <td>${esc(service.socialPlatform || 'OTHER')} → ${esc(service.socialGroup || '—')}</td>
+      <td>${primary ? esc(primary.provider.name) : '—'}${service.routes.length > 1 ? ` +${n(service.routes.length - 1)}` : ''}</td>
+      <td>${service.basePriceAfn != null ? `<span class="price-fixed">${fixedLabel} · ${money(service.basePriceAfn)}</span>` : `<span class="price-auto">${autoLabel}</span>`}</td>
+      <td>${service.minQty ?? '—'} – ${service.maxQty ?? '—'}</td>
+      <td><div class="actions">${refill}${refillToggle}</div>${guarantee}</td>
+      <td>${service.featured?pill(l('ویژه','Featured'),'info'):''} ${service.enabled?pill(l('فعال','Live'),'ok'):pill(l('پیش‌نویس / مخفی','Draft / Hidden'),'warn')}</td>
+      <td><div class="actions">
+        ${primary ? `<a class="iconbtn" href="/admin/v3/social/provider-services?provider=${primary.providerId}&route=${primary.id}" title="${editTitle}" aria-label="${editTitle}">${icon('edit')}</a>` : ''}
+        <form method="post" action="/admin/v3/social/my-services/toggle"><input type="hidden" name="id" value="${service.id}"><button class="iconbtn ${service.enabled?'orange':'green'}" title="${visibilityTitle}" aria-label="${visibilityTitle}">${icon('eye')}</button></form>
+      </div></td>
+    </tr>`;
   }).join('');
   return shell({
     request,
@@ -759,12 +944,14 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
     active: 'services',
     message: q.msg,
     error: q.error,
-    body: `<div class="card"><div class="cardhead"><form method="get" action="/admin/v3/social/my-services" class="searchbar"><input name="q" value="${esc(q.q)}" placeholder="Search service, slug or category"><button class="btn ghost">Search</button></form><a class="btn" href="/admin/v3/social/provider-services">${icon('plus')} Add from Provider Services</a></div><div class="notice">This list contains only VELIXEO services that you explicitly added from a provider. Use the refill switch here for a quick manual override.</div><div class="tablewrap"><table class="table"><thead><tr><th>VELIXEO Service</th><th>Brand / Category</th><th>Provider</th><th>Pricing</th><th>Min / Max</th><th>Refill</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="8" class="empty">No VELIXEO social services yet. Open Provider Services and press + to add one.</td></tr>'}</tbody></table></div></div>`,
+    body: `<div class="card"><div class="cardhead"><form method="get" action="/admin/v3/social/my-services" class="searchbar"><input name="q" value="${esc(q.q)}" placeholder="${l('جستجو بر اساس سرویس، شناسه یا دسته‌بندی','Search service, slug or category')}"><button class="btn ghost">${l('جستجو','Search')}</button></form><a class="btn" href="/admin/v3/social/provider-services">${icon('plus')} ${l('افزودن از سرویس‌های ارائه‌دهنده','Add from Provider Services')}</a></div><div class="notice">${l('این فهرست فقط سرویس‌هایی را نشان می‌دهد که خودتان به VELIXEO اضافه کرده‌اید. سرویس‌های خام ارائه‌دهنده در «سرویس‌های ارائه‌دهنده» باقی می‌مانند.','This list contains only VELIXEO services that you explicitly added from a provider. Provider catalog items stay in Provider Services.')}</div><div class="tablewrap"><table class="table"><thead><tr><th>${l('سرویس VELIXEO','VELIXEO Service')}</th><th>${l('برند / دسته‌بندی','Brand / Category')}</th><th>${l('ارائه‌دهنده','Provider')}</th><th>${l('قیمت‌گذاری','Pricing')}</th><th>${l('حداقل / حداکثر','Min / Max')}</th><th>${l('جبران','Refill')}</th><th>${l('وضعیت','Status')}</th><th>${l('عملیات','Actions')}</th></tr></thead><tbody>${rows || `<tr><td colspan="8" class="empty">${l('هنوز سرویس شبکه اجتماعی به VELIXEO اضافه نشده است. از «سرویس‌های ارائه‌دهنده» با + یک سرویس اضافه کنید.','No VELIXEO social services yet. Open Provider Services and press + to add one.')}</td></tr>`}</tbody></table></div></div>`,
   });
 }
 
 async function orderSettingsPage(prisma: PrismaClient, admin: AdminIdentity, request: FastifyRequest) {
   const q = query(request);
+  const fa = adminLangFromRequest(request) === 'fa';
+  const l = (faText: string, enText: string) => fa ? faText : enText;
   const settings = await getSocialOrderSettings(prisma);
   return shell({
     request,
@@ -776,25 +963,25 @@ async function orderSettingsPage(prisma: PrismaClient, admin: AdminIdentity, req
     error: q.error,
     body: `<div class="grid eq">
       <div class="card">
-        <div class="cardhead"><div><h2>Customer Order ID</h2><span class="muted">Choose what customers see as their Order ID.</span></div></div>
+        <div class="cardhead"><div><h2>${l('شناسه سفارش مشتری','Customer Order ID')}</h2><span class="muted">${l('مشخص کنید مشتری چه شناسه‌ای را به‌عنوان شماره سفارش ببیند.','Choose what customers see as their Order ID.')}</span></div></div>
         <form method="post" action="/admin/v3/social/order-settings/save">
-          <div class="field"><label>Order ID Mode</label><select name="orderIdMode">
-            <option value="PROVIDER" ${settings.orderIdMode==='PROVIDER'?'selected':''}>Provider/API Order ID</option>
-            <option value="SEQUENTIAL" ${settings.orderIdMode==='SEQUENTIAL'?'selected':''}>VELIXEO Sequential Order ID</option>
+          <div class="field"><label>${l('روش شناسه سفارش','Order ID Mode')}</label><select name="orderIdMode">
+            <option value="PROVIDER" ${settings.orderIdMode==='PROVIDER'?'selected':''}>${l('شناسه سفارش ارائه‌دهنده / API','Provider/API Order ID')}</option>
+            <option value="SEQUENTIAL" ${settings.orderIdMode==='SEQUENTIAL'?'selected':''}>${l('شناسه ترتیبی سفارش VELIXEO','VELIXEO Sequential Order ID')}</option>
           </select></div>
-          <div class="field"><label>Sequential Start Number</label><input type="number" min="1" name="startNumber" value="${esc(settings.startNumber)}"><span class="tiny">Example: 100063. Existing assigned numbers are never changed.</span></div>
-          <div class="field"><label>Refill Window After Completion (hours)</label><input type="number" min="1" max="720" name="refillWindowHours" value="${esc(settings.refillWindowHours)}"><span class="tiny">Refill capability itself always comes from the provider API. This only controls how long the button remains available after completion.</span></div>
-          <div class="field"><label>English Terms & Conditions</label><textarea name="termsEn" required>${esc(settings.termsEn)}</textarea></div>
-          <div class="field"><label>Persian Terms & Conditions</label><textarea name="termsFa" required>${esc(settings.termsFa)}</textarea></div>
-          <button class="btn">Save Order Settings</button>
+          <div class="field"><label>${l('شماره شروع ترتیبی','Sequential Start Number')}</label><input type="number" min="1" name="startNumber" value="${esc(settings.startNumber)}"><span class="tiny">${l('نمونه: 100063. شماره‌های قبلی هرگز تغییر نمی‌کنند.','Example: 100063. Existing assigned numbers are never changed.')}</span></div>
+          <div class="field"><label>${l('بازه جبران پس از تکمیل (ساعت)','Refill Window After Completion (hours)')}</label><input type="number" min="1" max="720" name="refillWindowHours" value="${esc(settings.refillWindowHours)}"><span class="tiny">${l('قابلیت جبران از API ارائه‌دهنده می‌آید؛ این مقدار فقط مشخص می‌کند دکمه جبران بعد از تکمیل تا چه مدت در دسترس باشد.','Refill capability itself always comes from the provider API. This only controls how long the button remains available after completion.')}</span></div>
+          <div class="field"><label>${l('شرایط و قوانین انگلیسی','English Terms & Conditions')}</label><textarea name="termsEn" required>${esc(settings.termsEn)}</textarea></div>
+          <div class="field"><label>${l('شرایط و قوانین فارسی','Persian Terms & Conditions')}</label><textarea name="termsFa" required>${esc(settings.termsFa)}</textarea></div>
+          <button class="btn">${l('ذخیره تنظیمات سفارش','Save Order Settings')}</button>
         </form>
       </div>
       <div class="card">
-        <div class="cardhead"><h2>How it works</h2>${pill('Server enforced','ok')}</div>
-        <div class="notice"><b>Provider/API ID:</b> customers see the order number returned by the SMM provider, but it is labeled only as “Order ID”.</div>
-        <div class="notice"><b>VELIXEO Sequential ID:</b> customers see a VELIXEO number starting from your chosen value, such as 100063, 100064, 100065… Provider IDs remain private for status, refill and cancellation.</div>
-        <div class="notice"><b>Refill:</b> Sync reads the provider API <span class="mono">refill</span> flag automatically when a service is added. You can then manually enable or disable refill per VELIXEO service; that override is preserved on future provider syncs.</div>
-        <div class="notice"><b>Cancel:</b> the provider API <span class="mono">cancel</span> flag is also synchronized automatically and the button is hidden for terminal/partial orders.</div>
+        <div class="cardhead"><h2>${l('نحوه کار','How it works')}</h2>${pill(l('اعمال‌شده در سرور','Server enforced'),'ok')}</div>
+        <div class="notice"><b>${l('شناسه ارائه‌دهنده / API:','Provider/API ID:')}</b> ${l('مشتری شماره سفارش برگشتی از ارائه‌دهنده SMM را می‌بیند، اما فقط با عنوان «شناسه سفارش» نمایش داده می‌شود.','Customers see the order number returned by the SMM provider, but it is labeled only as “Order ID”.')}</div>
+        <div class="notice"><b>${l('شناسه ترتیبی VELIXEO:','VELIXEO Sequential ID:')}</b> ${l('مشتری شماره VELIXEO را از مقدار انتخابی شما مثل 100063، 100064 و 100065 می‌بیند. شناسه ارائه‌دهنده برای وضعیت، جبران و لغو خصوصی باقی می‌ماند.','Customers see a VELIXEO number starting from your chosen value, such as 100063, 100064, 100065. Provider IDs remain private for status, refill and cancellation.')}</div>
+        <div class="notice"><b>${l('جبران:','Refill:')}</b> ${l('هنگام همگام‌سازی، قابلیت جبران از API ارائه‌دهنده خوانده می‌شود و بعد می‌توانید برای هر سرویس آن را دستی فعال یا غیرفعال کنید. تنظیم دستی در همگام‌سازی‌های بعدی حفظ می‌شود.','Sync reads the provider refill capability automatically. You can then manually enable or disable refill per VELIXEO service, and that override is preserved on future syncs.')}</div>
+        <div class="notice"><b>${l('لغو:','Cancel:')}</b> ${l('قابلیت لغو نیز از API ارائه‌دهنده همگام می‌شود و برای سفارش‌های نهایی یا جزئی دکمه آن مخفی می‌شود.','The provider cancel capability is synchronized automatically and the button is hidden for terminal or partial orders.')}</div>
       </div>
     </div>`,
   });
@@ -1098,9 +1285,28 @@ export function registerAdminSocialProviderManager(
         refillEnabled,
         dripFeedEnabled,
       });
-      return reply.code(303).redirect(`/admin/v3/social/provider-services?provider=${providerId}${sourceCategoryQuery}&msg=${encodeURIComponent(checked(body,'enabled') ? 'Service saved and published to the app.' : 'Service saved as a draft.')}`);
+      const wantsJson = String(request.headers.accept ?? '').includes('application/json');
+      const savedMessage = checked(body, 'enabled')
+        ? 'Service saved and published to the app.'
+        : 'Service saved as a draft.';
+      const returnUrl = `/admin/v3/social/provider-services?provider=${providerId}${sourceCategoryQuery}`;
+      if (wantsJson) {
+        return reply.header('Cache-Control', 'no-store').send({
+          ok: true,
+          routeId: route.id,
+          serviceId: route.serviceId,
+          enabled: checked(body, 'enabled'),
+          message: savedMessage,
+          returnUrl,
+        });
+      }
+      return reply.code(303).redirect(`${returnUrl}&msg=${encodeURIComponent(savedMessage)}`);
     } catch (error) {
-      return reply.code(303).redirect(`/admin/v3/social/provider-services?provider=${providerId}${sourceCategoryQuery}&route=${routeId}&error=1&msg=${encodeURIComponent(error instanceof Error ? error.message : 'publish_failed')}`);
+      const message = error instanceof Error ? error.message : 'publish_failed';
+      if (String(request.headers.accept ?? '').includes('application/json')) {
+        return reply.code(400).send({ ok: false, error: message });
+      }
+      return reply.code(303).redirect(`/admin/v3/social/provider-services?provider=${providerId}${sourceCategoryQuery}&route=${routeId}&error=1&msg=${encodeURIComponent(message)}`);
     }
   });
 

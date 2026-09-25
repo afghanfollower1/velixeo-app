@@ -209,7 +209,7 @@ function orderFields(providerType: string, dripFeedSupported = true): OrderField
         {
           key: 'comments', type: 'multiline', required: true,
           labelFa: 'کامنت‌ها', labelEn: 'Comments',
-          hintFa: 'هر کامنت در یک خط', hintEn: 'One comment per line',
+          hintFa: 'هر کامنت را در یک خط جدا بنویسید؛ تعداد سفارش از تعداد خطوط محاسبه می‌شود', hintEn: 'Enter one comment per line; quantity is calculated from the number of lines',
         },
       ];
     case 'mentions with hashtags':
@@ -273,7 +273,7 @@ function orderFields(providerType: string, dripFeedSupported = true): OrderField
         {
           key: 'comments', type: 'multiline', required: true,
           labelFa: 'پاسخ‌ها', labelEn: 'Replies',
-          hintFa: 'هر پاسخ در یک خط', hintEn: 'One reply per line',
+          hintFa: 'هر پاسخ را در یک خط جدا بنویسید؛ تعداد سفارش از تعداد خطوط محاسبه می‌شود', hintEn: 'Enter one reply per line; quantity is calculated from the number of lines',
         },
       ];
     case 'invites from groups':
