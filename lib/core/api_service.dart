@@ -9,6 +9,7 @@ import '../support/support_models.dart';
 import '../virtual_numbers/virtual_number_models.dart';
 import '../premium/premium_models.dart';
 import '../referrals/referral_models.dart';
+import '../admin/admin_models.dart';
 
 class ApiException implements Exception {
   const ApiException(this.code, {this.statusCode, this.details});
@@ -373,6 +374,34 @@ class ApiService {
     final user = AppUser.fromJson(Map<String, dynamic>.from(json['user'] as Map));
     final wallet = Map<String, dynamic>.from(json['wallet'] as Map);
     return (user, int.tryParse('${wallet['balanceAfn']}') ?? 0);
+  }
+
+  Future<AdminMobileOverview> adminMobileOverview() async {
+    final response = await _send(
+      'GET',
+      '/api/v1/admin/mobile/overview',
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+    return AdminMobileOverview.fromJson(_decodeObject(response));
+  }
+
+  Future<String> adminMobileSessionPath(String path, {required bool fa}) async {
+    final response = await _send(
+      'POST',
+      '/api/v1/admin/mobile/session',
+      body: {
+        'path': path,
+        'lang': fa ? 'fa' : 'en',
+      },
+      auth: true,
+    );
+    if (response.statusCode != 200) _throwResponse(response);
+    final entryPath = _decodeObject(response)['entryPath'] as String?;
+    if (entryPath == null || entryPath.isEmpty) {
+      throw const ApiException('admin_session_missing');
+    }
+    return entryPath;
   }
 
   Future<int> walletBalance() async {
