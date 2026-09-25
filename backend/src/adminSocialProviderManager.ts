@@ -1253,9 +1253,28 @@ export function registerAdminSocialProviderManager(
         refillEnabled,
         dripFeedEnabled,
       });
-      return reply.code(303).redirect(`/admin/v3/social/provider-services?provider=${providerId}${sourceCategoryQuery}&msg=${encodeURIComponent(checked(body,'enabled') ? 'Service saved and published to the app.' : 'Service saved as a draft.')}`);
+      const wantsJson = String(request.headers.accept ?? '').includes('application/json');
+      const savedMessage = checked(body, 'enabled')
+        ? 'Service saved and published to the app.'
+        : 'Service saved as a draft.';
+      const returnUrl = `/admin/v3/social/provider-services?provider=${providerId}${sourceCategoryQuery}`;
+      if (wantsJson) {
+        return reply.header('Cache-Control', 'no-store').send({
+          ok: true,
+          routeId: route.id,
+          serviceId: route.serviceId,
+          enabled: checked(body, 'enabled'),
+          message: savedMessage,
+          returnUrl,
+        });
+      }
+      return reply.code(303).redirect(`${returnUrl}&msg=${encodeURIComponent(savedMessage)}`);
     } catch (error) {
-      return reply.code(303).redirect(`/admin/v3/social/provider-services?provider=${providerId}${sourceCategoryQuery}&route=${routeId}&error=1&msg=${encodeURIComponent(error instanceof Error ? error.message : 'publish_failed')}`);
+      const message = error instanceof Error ? error.message : 'publish_failed';
+      if (String(request.headers.accept ?? '').includes('application/json')) {
+        return reply.code(400).send({ ok: false, error: message });
+      }
+      return reply.code(303).redirect(`/admin/v3/social/provider-services?provider=${providerId}${sourceCategoryQuery}&route=${routeId}&error=1&msg=${encodeURIComponent(message)}`);
     }
   });
 
