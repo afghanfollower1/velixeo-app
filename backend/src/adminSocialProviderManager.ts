@@ -645,57 +645,57 @@ async function providerServicesPage(prisma: PrismaClient, admin: AdminIdentity, 
     .join('');
   const currentMode = selected?.service.basePriceAfn != null ? 'FIXED' : 'AUTO_MARKUP';
 
-  const config = selected ? `<div id="service-config-panel" data-service-config class="card service-config-panel"><div class="cardhead"><div><h2>${isPublished?'Edit VELIXEO Service':'Add Service to VELIXEO'}</h2><span class="muted">Provider #${esc(selected.providerServiceCode)} · ${esc(selected.provider.name)}</span></div><a class="btn ghost" href="/admin/v3/social/provider-services?provider=${selected.providerId}${activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:''}">Close</a></div>
-  <div class="notice"><b>Original provider name:</b> ${esc(selected.providerName || selected.service.titleEn)}<br><b>Provider cost:</b> ${esc(selected.providerRate?.toString() || '—')} ${esc(selected.providerCurrency || '')} · Min ${esc(selected.providerMinQty ?? '—')} · Max ${esc(selected.providerMaxQty ?? '—')}</div>
+  const config = selected ? `<div id="service-config-panel" data-service-config class="card service-config-panel"><div class="cardhead"><div><h2>${isPublished?l('ویرایش سرویس VELIXEO','Edit VELIXEO Service'):l('افزودن سرویس به VELIXEO','Add Service to VELIXEO')}</h2><span class="muted">${l('ارائه‌دهنده','Provider')} #${esc(selected.providerServiceCode)} · ${esc(selected.provider.name)}</span></div><a class="btn ghost" href="/admin/v3/social/provider-services?provider=${selected.providerId}${activeSourceCategory?`&sourceCategory=${encodeURIComponent(activeSourceCategory)}`:''}">${l('بستن','Close')}</a></div>
+  <div class="notice"><b>${l('نام اصلی ارائه‌دهنده:','Original provider name:')}</b> ${esc(selected.providerName || selected.service.titleEn)}<br><b>${l('هزینه ارائه‌دهنده:','Provider cost:')}</b> ${esc(selected.providerRate?.toString() || '—')} ${esc(selected.providerCurrency || '')} · ${l('حداقل','Min')} ${esc(selected.providerMinQty ?? '—')} · ${l('حداکثر','Max')} ${esc(selected.providerMaxQty ?? '—')}</div>
   <div id="service-config-feedback" class="service-config-feedback"></div>
   <form id="service-publish-form" method="post" action="/admin/v3/social/provider-services/publish">
     <input type="hidden" name="routeId" value="${selected.id}">
     <input type="hidden" name="providerId" value="${selected.providerId}">
     <input type="hidden" name="sourceCategory" value="${esc(activeSourceCategory)}">
     <div class="forms">
-      <div class="field"><label>Brand / Network</label><select id="socialBrandSelect" name="brandKey" required><option value="">Choose brand</option>${brandOptions}</select></div>
-      <div class="field"><label>VELIXEO Category</label><select id="socialCategorySelect" name="categorySlug" required><option value="">Choose category</option>${categoryOptions}</select></div>
-      <div class="field"><label>Provider Service Type</label><input value="${esc(selected.providerType || 'Default')}" readonly></div>
-      <div class="field"><label>Original Provider Price</label><input value="${esc(selected.providerRate?.toString() || '—')} ${esc(selected.providerCurrency || '')}" readonly></div>
+      <div class="field"><label>${l('برند / شبکه اجتماعی','Brand / Network')}</label><select id="socialBrandSelect" name="brandKey" required><option value="">${l('انتخاب برند','Choose brand')}</option>${brandOptions}</select></div>
+      <div class="field"><label>${l('دسته‌بندی VELIXEO','VELIXEO Category')}</label><select id="socialCategorySelect" name="categorySlug" required><option value="">${l('انتخاب دسته‌بندی','Choose category')}</option>${categoryOptions}</select></div>
+      <div class="field"><label>${l('نوع سرویس ارائه‌دهنده','Provider Service Type')}</label><input value="${esc(selected.providerType || 'Default')}" readonly></div>
+      <div class="field"><label>${l('قیمت اصلی ارائه‌دهنده','Original Provider Price')}</label><input value="${esc(selected.providerRate?.toString() || '—')} ${esc(selected.providerCurrency || '')}" readonly></div>
     </div>
-    <div class="field"><label>Customer-facing English Name</label><input name="titleEn" value="${esc(isPublished ? selected.service.titleEn : (selected.providerName || selected.service.titleEn))}" required></div>
-    <div class="field"><label>Customer-facing Persian Name</label><input name="titleFa" value="${esc(isPublished ? selected.service.titleFa : '')}" placeholder="نام فارسی سرویس"></div>
+    <div class="field"><label>${l('نام انگلیسی برای مشتری','Customer-facing English Name')}</label><input name="titleEn" value="${esc(isPublished ? selected.service.titleEn : (selected.providerName || selected.service.titleEn))}" required></div>
+    <div class="field"><label>${l('نام فارسی برای مشتری','Customer-facing Persian Name')}</label><input name="titleFa" value="${esc(isPublished ? selected.service.titleFa : '')}" placeholder="${l('نام فارسی سرویس','Persian service name')}"></div>
     <div class="forms">
-      <div class="field"><label>English Description</label><textarea name="descriptionEn">${esc(selected.service.descriptionEn || '')}</textarea></div>
-      <div class="field"><label>Persian Description</label><textarea name="descriptionFa">${esc(selected.service.descriptionFa || '')}</textarea></div>
+      <div class="field"><label>${l('توضیحات انگلیسی','English Description')}</label><textarea name="descriptionEn">${esc(selected.service.descriptionEn || '')}</textarea></div>
+      <div class="field"><label>${l('توضیحات فارسی','Persian Description')}</label><textarea name="descriptionFa">${esc(selected.service.descriptionFa || '')}</textarea></div>
     </div>
     <div class="forms">
-      <div class="field"><label>Pricing Mode</label><select name="pricingMode"><option value="AUTO_MARKUP" ${currentMode==='AUTO_MARKUP'?'selected':''}>Auto Markup — follows provider price</option><option value="FIXED" ${currentMode==='FIXED'?'selected':''}>Fixed Sale Price</option></select></div>
-      <div class="field"><label>Profit / Markup %</label><input name="markup" value="${esc(selected.markupPercent?.toString() ?? selected.provider.defaultMarkupPercent.toString())}" placeholder="30"></div>
-      <div class="field"><label>Fixed Sale Price</label><input name="fixedPrice" value="${selected.service.basePriceAfn == null ? '' : esc(selected.service.basePriceAfn.toString())}" placeholder="Only for Fixed mode"></div>
-      <div class="field"><label>Fixed Price Currency</label><select name="fixedCurrency"><option>AFN</option><option>USD</option><option>TOMAN</option></select></div>
-      <div class="field"><label>Minimum Quantity</label><input type="number" name="minQty" value="${esc(selected.service.minQty ?? selected.providerMinQty ?? '')}"></div>
-      <div class="field"><label>Maximum Quantity</label><input type="number" name="maxQty" value="${esc(selected.service.maxQty ?? selected.providerMaxQty ?? '')}"></div>
-      <div class="field"><label>Sort Order</label><input type="number" name="sortOrder" value="${esc(selected.service.sortOrder)}"></div>
-      <div class="field"><label>Refill / Guarantee Days</label><input type="number" name="refillDays" min="0" value="${esc(selected.service.refillDays ?? '')}" placeholder="30"></div>
+      <div class="field"><label>${l('روش قیمت‌گذاری','Pricing Mode')}</label><select name="pricingMode"><option value="AUTO_MARKUP" ${currentMode==='AUTO_MARKUP'?'selected':''}>${l('سود خودکار — مطابق قیمت ارائه‌دهنده','Auto Markup — follows provider price')}</option><option value="FIXED" ${currentMode==='FIXED'?'selected':''}>${l('قیمت فروش ثابت','Fixed Sale Price')}</option></select></div>
+      <div class="field"><label>${l('درصد سود','Profit / Markup %')}</label><input name="markup" value="${esc(selected.markupPercent?.toString() ?? selected.provider.defaultMarkupPercent.toString())}" placeholder="30"></div>
+      <div class="field"><label>${l('قیمت فروش ثابت','Fixed Sale Price')}</label><input name="fixedPrice" value="${selected.service.basePriceAfn == null ? '' : esc(selected.service.basePriceAfn.toString())}" placeholder="${l('فقط برای حالت قیمت ثابت','Only for Fixed mode')}"></div>
+      <div class="field"><label>${l('واحد قیمت ثابت','Fixed Price Currency')}</label><select name="fixedCurrency"><option>AFN</option><option>USD</option><option>TOMAN</option></select></div>
+      <div class="field"><label>${l('حداقل تعداد','Minimum Quantity')}</label><input type="number" name="minQty" value="${esc(selected.service.minQty ?? selected.providerMinQty ?? '')}"></div>
+      <div class="field"><label>${l('حداکثر تعداد','Maximum Quantity')}</label><input type="number" name="maxQty" value="${esc(selected.service.maxQty ?? selected.providerMaxQty ?? '')}"></div>
+      <div class="field"><label>${l('ترتیب نمایش','Sort Order')}</label><input type="number" name="sortOrder" value="${esc(selected.service.sortOrder)}"></div>
+      <div class="field"><label>${l('روزهای جبران / ضمانت','Refill / Guarantee Days')}</label><input type="number" name="refillDays" min="0" value="${esc(selected.service.refillDays ?? '')}" placeholder="30"></div>
     </div>
     <div class="refill-control">
-      <div><b>Refill / Drop Guarantee</b><div class="meta">Provider API detected: <strong>${detectedRefill ? 'Available' : 'Not available'}</strong>. The switch starts with the provider value, but you can manually enable or disable it for this VELIXEO service.</div></div>
-      <label class="toggle"><input type="checkbox" name="refillEnabled" ${selected.providerRefill?'checked':''}> <span>Enabled</span></label>
+      <div><b>${l('جبران ریزش / ضمانت','Refill / Drop Guarantee')}</b><div class="meta">${l('تشخیص API ارائه‌دهنده:','Provider API detected:')} <strong>${detectedRefill ? l('موجود','Available') : l('موجود نیست','Not available')}</strong>. ${l('کلید ابتدا از مقدار ارائه‌دهنده پیروی می‌کند، اما برای این سرویس می‌توانید آن را دستی فعال یا غیرفعال کنید.','The switch starts with the provider value, but you can manually enable or disable it for this VELIXEO service.')}</div></div>
+      <label class="toggle"><input type="checkbox" name="refillEnabled" ${selected.providerRefill?'checked':''}> <span>${l('فعال','Enabled')}</span></label>
     </div>
     <div class="refill-control">
-      <div><b>Drip-feed</b><div class="meta">Provider API detected: <strong>${detectedDripFeed ? 'Available' : 'Not available'}</strong>. It is enabled automatically when supported, and you can override it for this service.</div></div>
-      <label class="toggle"><input type="checkbox" name="dripFeedEnabled" ${dripFeedEnabled?'checked':''}> <span>Enabled</span></label>
+      <div><b>${l('ارسال زمان‌بندی‌شده','Drip-feed')}</b><div class="meta">${l('تشخیص API ارائه‌دهنده:','Provider API detected:')} <strong>${detectedDripFeed ? l('موجود','Available') : l('موجود نیست','Not available')}</strong>. ${l('اگر ارائه‌دهنده پشتیبانی کند خودکار فعال می‌شود و می‌توانید برای این سرویس آن را تغییر دهید.','It is enabled automatically when supported, and you can override it for this service.')}</div></div>
+      <label class="toggle"><input type="checkbox" name="dripFeedEnabled" ${dripFeedEnabled?'checked':''}> <span>${l('فعال','Enabled')}</span></label>
     </div>
-    <div class="provider-capability">${detectedRefill?pill('Provider supports refill','ok'):pill('Provider reports no refill')}${detectedDripFeed?pill('Provider supports drip-feed','ok'):pill('Provider reports no drip-feed')}${selected.providerCancel?pill('Provider supports cancel','ok'):pill('No cancel')}</div>
-    <label class="check"><input type="checkbox" name="featured" ${selected.service.featured?'checked':''}> Featured service</label>
-    <label class="check"><input type="checkbox" name="enabled" ${selected.service.enabled?'checked':''}> Visible to users immediately</label>
-    <div class="notice">Save as draft by leaving “Visible to users” off. Only services you add here appear under Services and in the customer app.</div>
-    <button class="btn">${isPublished?'Save Changes':'Add to VELIXEO'}</button>
-  </form></div>` : `<div class="card empty">Choose a provider service and press + to select its brand, category, pricing and refill settings.</div>`;
+    <div class="provider-capability">${detectedRefill?pill(l('ارائه‌دهنده جبران ریزش دارد','Provider supports refill'),'ok'):pill(l('ارائه‌دهنده جبران ریزش ندارد','Provider reports no refill'))}${detectedDripFeed?pill(l('ارائه‌دهنده دریپ‌فید دارد','Provider supports drip-feed'),'ok'):pill(l('ارائه‌دهنده دریپ‌فید ندارد','Provider reports no drip-feed'))}${selected.providerCancel?pill(l('ارائه‌دهنده قابلیت لغو دارد','Provider supports cancel'),'ok'):pill(l('قابلیت لغو ندارد','No cancel'))}</div>
+    <label class="check"><input type="checkbox" name="featured" ${selected.service.featured?'checked':''}> ${l('سرویس ویژه','Featured service')}</label>
+    <label class="check"><input type="checkbox" name="enabled" ${selected.service.enabled?'checked':''}> ${l('فوراً برای کاربران نمایش داده شود','Visible to users immediately')}</label>
+    <div class="notice">${l('اگر نمایش برای کاربران خاموش باشد، سرویس به‌صورت پیش‌نویس ذخیره می‌شود. فقط سرویس‌هایی که اینجا اضافه می‌کنید در بخش سرویس‌ها و اپ مشتری نمایش داده می‌شوند.','Save as draft by leaving “Visible to users” off. Only services you add here appear under Services and in the customer app.')}</div>
+    <button class="btn">${isPublished?l('ذخیره تغییرات','Save Changes'):l('افزودن به VELIXEO','Add to VELIXEO')}</button>
+  </form></div>` : `<div class="card empty">${l('یک سرویس ارائه‌دهنده را انتخاب و روی + بزنید تا برند، دسته‌بندی، قیمت و تنظیمات جبران را مشخص کنید.','Choose a provider service and press + to select its brand, category, pricing and refill settings.')}</div>`;
 
   const providerPicker = `<div class="card"><form method="get" action="/admin/v3/social/provider-services" class="provider-picker">
-    <div class="field" style="margin:0"><label>Provider</label><select name="provider">${providers.map(item=>`<option value="${item.id}" ${item.id===providerId?'selected':''}>${esc(item.name)}</option>`).join('')}</select></div>
-    <div class="field" style="margin:0"><label>Search provider services</label><input name="q" value="${esc(q.q)}" placeholder="Service ID, name or provider category"></div>
-    <button class="btn">Show Services</button>
+    <div class="field" style="margin:0"><label>${l('ارائه‌دهنده','Provider')}</label><select name="provider">${providers.map(item=>`<option value="${item.id}" ${item.id===providerId?'selected':''}>${esc(item.name)}</option>`).join('')}</select></div>
+    <div class="field" style="margin:0"><label>${l('جستجوی سرویس‌های ارائه‌دهنده','Search provider services')}</label><input name="q" value="${esc(q.q)}" placeholder="${l('شناسه سرویس، نام یا دسته‌بندی ارائه‌دهنده','Service ID, name or provider category')}"></div>
+    <button class="btn">${l('نمایش سرویس‌ها','Show Services')}</button>
   </form>
-  ${provider ? `<div class="actions" style="margin-top:12px"><a class="btn ghost" href="/admin/v3/social/providers">Providers</a><form method="post" action="/admin/v3/social/provider-services/sync"><input type="hidden" name="providerId" value="${provider.id}"><button class="btn">${icon('sync')} Get / Refresh All Services</button></form></div>` : ''}
-  <div class="notice" style="margin-top:12px">This area shows the provider catalog only. Nothing is added to VELIXEO until you press + and save the service configuration.</div>
+  ${provider ? `<div class="actions" style="margin-top:12px"><a class="btn ghost" href="/admin/v3/social/providers">${l('ارائه‌دهندگان','Providers')}</a><form method="post" action="/admin/v3/social/provider-services/sync"><input type="hidden" name="providerId" value="${provider.id}"><button class="btn">${icon('sync')} ${l('دریافت / بروزرسانی همه سرویس‌ها','Get / Refresh All Services')}</button></form></div>` : ''}
+  <div class="notice" style="margin-top:12px">${l('این بخش فقط کاتالوگ ارائه‌دهنده را نشان می‌دهد. تا زمانی که روی + نزنید و تنظیمات را ذخیره نکنید، سرویسی به VELIXEO اضافه نمی‌شود.','This area shows the provider catalog only. Nothing is added to VELIXEO until you press + and save the service configuration.')}</div>
   ${sourceCategories.length ? `<div class="source-categories">${sourceCategories.map(item => `<a class="source-category ${!q.q && item.name===activeSourceCategory?'active':''}" href="/admin/v3/social/provider-services?provider=${encodeURIComponent(providerId)}&sourceCategory=${encodeURIComponent(item.name)}"><span>${esc(item.name)}</span><span class="count">${n(item.count)}</span></a>`).join('')}</div>` : ''}
   </div>`;
 
