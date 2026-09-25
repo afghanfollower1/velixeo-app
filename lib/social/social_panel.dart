@@ -16,6 +16,7 @@ abstract class SocialPanelHost {
   int get balanceAfn;
   List<AppBanner> get banners;
   String money(int amountAfn, {bool showBase});
+  String serviceMoney(int amountAfn);
   Future<void> refreshAccount();
 }
 
@@ -1126,7 +1127,7 @@ Widget buildEnglishNewOrder() {
             decoration: BoxDecoration(color: const Color(0xFFF4FAFF), borderRadius: BorderRadius.circular(16)),
             child: Column(
               children: [
-                _InfoRow(label: t('قیمت', 'Price'), value: host.money(service.priceRateAfn)),
+                _InfoRow(label: t('قیمت سرویس', 'Service price'), value: host.serviceMoney(service.priceRateAfn)),
                 const SizedBox(height: 8),
                 _InfoRow(
                   label: t('مبنای قیمت', 'Price unit'),
@@ -1323,7 +1324,7 @@ Widget buildEnglishOrderForm(SocialService service) {
             decoration: BoxDecoration(color: const Color(0xFFF4FAFF), borderRadius: BorderRadius.circular(16)),
             child: Column(
               children: [
-                _InfoRow(label: t('قیمت', 'Price'), value: host.money(service.priceRateAfn)),
+                _InfoRow(label: t('قیمت سرویس', 'Service price'), value: host.serviceMoney(service.priceRateAfn)),
                 const SizedBox(height: 8),
                 _InfoRow(
                   label: t('مبنای قیمت', 'Price unit'),
@@ -2606,12 +2607,14 @@ class _ServiceCard extends StatelessWidget {
                 runSpacing: 6,
                 children: [
                   _MiniBadge(
-                    text: fa ? 'قیمت: ${host.money(service.priceRateAfn)}' : 'Price: ${host.money(service.priceRateAfn)}',
+                    text: fa ? 'قیمت: ${host.serviceMoney(service.priceRateAfn)}' : 'Price: ${host.serviceMoney(service.priceRateAfn)}',
                     icon: Icons.payments_outlined,
                   ),
                   _MiniBadge(
-                    text: fa ? 'برای: ${_formatSocialCount(service.priceUnit)}' : 'Per: ${_formatSocialCount(service.priceUnit)}',
-                    icon: Icons.numbers_rounded,
+                    text: fa
+                        ? 'برای هر ${_formatSocialCount(service.priceUnit)}'
+                        : 'Per ${_formatSocialCount(service.priceUnit)}',
+                    icon: Icons.format_list_numbered_rounded,
                   ),
                   _MiniBadge(text: eta(), icon: Icons.schedule_rounded),
                   if (service.refillSupported)
