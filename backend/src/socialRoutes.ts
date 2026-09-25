@@ -988,12 +988,13 @@ export function registerSocialRoutes(
         orderFields: orderFields(providerType, routeDripFeedSupported(route)),
       });
     }
-    const [categorySettings, allBrands] = await Promise.all([
+    const [categorySettings, allBrands, catalogSortSetting] = await Promise.all([
       prisma.systemSetting.findMany({
         where: { category: 'social-category' },
         orderBy: { key: 'asc' },
       }),
       loadSocialBrands(prisma),
+      prisma.systemSetting.findUnique({ where: { key: 'social.catalog.sort_mode' } }),
     ]);
     const brands = allBrands
       .filter((brand) => brand.enabled)
@@ -1039,7 +1040,22 @@ export function registerSocialRoutes(
       activeBrandKeys.has(normalizeBrandKey(service.platform))
       && (!configuredCategorySlugs.has(service.group) || activeCategorySlugs.has(service.group)),
     );
-    return { baseCurrency: 'AFN', brands, categories, services: visibleRows };
+    const sortValue = catalogSortSetting?.value && typeof catalogSortSetting.value === 'object' && !Array.isArray(catalogSortSetting.value)
+      ? catalogSortSetting.value as Record<string, unknown>
+      : {};
+    const rawSortMode = String(sortValue.mode || 'PRICE_ASC').toUpperCase();
+    const sortMode = rawSortMode === 'PRICE_DESC' || rawSortMode === 'MANUAL' ? rawSortMode : 'PRICE_ASC';
+    const sortedRows = sortMode === 'MANUAL'
+      ? visibleRows
+      : [...visibleRows].sort((a, b) => {
+          if (a.platform !== b.platform || a.group !== b.group) return 0;
+          const ap = Number(a.priceRateAfn);
+          const bp = Number(b.priceRateAfn);
+          const priceCompare = Number.isFinite(ap) && Number.isFinite(bp) ? ap - bp : 0;
+          if (priceCompare !== 0) return sortMode === 'PRICE_DESC' ? -priceCompare : priceCompare;
+          return a.sortOrder - b.sortOrder || a.titleFa.localeCompare(b.titleFa);
+        });
+    return { baseCurrency: 'AFN', sortMode, brands, categories, services: sortedRows };
   });
 
   app.post('/api/v1/social/quote', { preHandler: authenticate }, async (request, reply) => {
