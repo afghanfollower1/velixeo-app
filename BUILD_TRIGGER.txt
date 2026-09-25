@@ -20,3 +20,5 @@ VELIXEO 0.14.0+34: mobile Admin App, role-gated management, secure Admin V3 mobi
 Release trigger: signed VELIXEO v0.14.0 Admin App production APK.
 
 VELIXEO 0.14.1+35: responsive Social Admin, localized splash, no-refresh service editor, custom comments UX.
+
+VELIXEO 0.14.2+36: ChatGPT description tools and provider start-time ETA in Social ordering.
