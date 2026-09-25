@@ -558,7 +558,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
           _InfoRow(label: t('موجودی فعلی', 'Current balance'), value: host.money(host.balanceAfn, showBase: true), strong: true),
           if (order.providerEta?.trim().isNotEmpty == true) ...[
             const SizedBox(height: 8),
-            _InfoRow(label: t('زمان تقریبی', 'Estimated completion'), value: order.providerEta!),
+            _InfoRow(label: t('زمان تقریبی شروع سفارش', 'Estimated start time'), value: order.providerEta!),
           ],
           const SizedBox(height: 8),
           _InfoRow(label: t('وضعیت', 'Status'), value: statusLabel(order.status)),
@@ -1016,7 +1016,7 @@ Widget buildEnglishNewOrder() {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '${t('زمان تقریبی تکمیل', 'Estimated completion')}: ${service.providerEta!}',
+                      '${t('زمان تقریبی شروع سفارش', 'Estimated start time')}: ${service.providerEta!}',
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                     ),
                   ),
@@ -1209,7 +1209,7 @@ Widget buildEnglishOrderForm(SocialService service) {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '${t('زمان تقریبی تکمیل', 'Estimated completion')}: ${service.providerEta!}',
+                      '${t('زمان تقریبی شروع سفارش', 'Estimated start time')}: ${service.providerEta!}',
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                     ),
                   ),
@@ -2485,7 +2485,7 @@ class _ServiceCard extends StatelessWidget {
     if (service.providerEta?.trim().isNotEmpty == true) return service.providerEta!.trim();
     final min = service.estimatedMinMinutes;
     final max = service.estimatedMaxMinutes;
-    if (min == null && max == null) return fa ? 'زمان تقریبی ثبت نشده' : 'ETA not set';
+    if (min == null && max == null) return fa ? 'زمان شروع ثبت نشده' : 'Start time not set';
     String fmt(int value) {
       if (value >= 1440) return fa ? '${(value / 1440).ceil()} روز' : '${(value / 1440).ceil()}d';
       if (value >= 60) return fa ? '${(value / 60).ceil()} ساعت' : '${(value / 60).ceil()}h';
@@ -2728,7 +2728,7 @@ class _OrderCard extends StatelessWidget {
             ],
             if (order.providerEta?.trim().isNotEmpty == true) ...[
               const SizedBox(height: 6),
-              Text('${fa ? 'زمان تقریبی' : 'ETA'}: ${order.providerEta}', style: const TextStyle(fontSize: 11, color: VelixeoBrand.muted)),
+              Text('${fa ? 'زمان تقریبی شروع' : 'Estimated start'}: ${order.providerEta}', style: const TextStyle(fontSize: 11, color: VelixeoBrand.muted)),
             ],
             if (order.failureReason?.isNotEmpty == true) ...[
               const SizedBox(height: 8),
