@@ -609,7 +609,7 @@ function providerText(row: Record<string, unknown>, ...keys: string[]) {
 function providerDescriptionFromMetadata(value: Prisma.JsonValue | null | undefined) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
-  return providerText(
+  const raw = providerText(
     row,
     'description',
     'desc',
@@ -619,6 +619,22 @@ function providerDescriptionFromMetadata(value: Prisma.JsonValue | null | undefi
     'note',
     'notes',
   );
+  if (!raw) return null;
+  const plain = raw
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p\s*>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;|&#34;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return plain || null;
 }
 
 function defaultSocialCategoryGuide(slug: string, titleFa: string, titleEn: string) {
