@@ -38,6 +38,9 @@ export type SocialSyncResult = {
   currency: string;
   balance: string;
   syncedAt: string;
+  providerWebAverageStatus: 'not_configured' | 'ok' | 'error';
+  providerWebAverageCount: number;
+  providerWebAverageError: string | null;
 };
 
 type RouteForPrice = Pick<
@@ -241,12 +244,17 @@ export async function syncSocialProviderCatalog(
     const client = smmClientForProvider(provider);
     const [services, balance] = await Promise.all([client.services(), client.balance()]);
     let providerWebAverages: Awaited<ReturnType<typeof fetchProviderWebAverageTimes>> = null;
+    let providerWebAverageStatus: SocialSyncResult['providerWebAverageStatus'] = 'not_configured';
+    let providerWebAverageError: string | null = null;
     try {
       providerWebAverages = await fetchProviderWebAverageTimes(provider);
-    } catch {
-      // Website average time is an enhancement. API catalog/order sync must keep
-      // working if the provider login changes, requires captcha, or is unavailable.
+      providerWebAverageStatus = providerWebAverages ? 'ok' : 'not_configured';
+    } catch (error) {
+      // Website Average Time is an enhancement. Keep the normal API catalog/order
+      // sync alive, but report the exact reason to Admin so credentials can be fixed.
       providerWebAverages = null;
+      providerWebAverageStatus = 'error';
+      providerWebAverageError = error instanceof Error ? error.message.slice(0, 240) : 'provider_web_average_failed';
     }
     const routes = await prisma.serviceProviderRoute.findMany({
       where: { providerId: provider.id },
@@ -394,6 +402,9 @@ export async function syncSocialProviderCatalog(
       currency,
       balance: balance.balance,
       syncedAt: syncedAt.toISOString(),
+      providerWebAverageStatus,
+      providerWebAverageCount: providerWebAverages?.size ?? 0,
+      providerWebAverageError,
     };
 
     await saveSocialProviderSyncConfig(prisma, provider.id, {
