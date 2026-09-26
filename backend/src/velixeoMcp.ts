@@ -345,7 +345,7 @@ async function updateBrand(p:PrismaClient,a:AdminIdentity,args:J){
   }
  });
  await audit(p,a,'CHATGPT_SOCIAL_BRAND_UPDATE','SocialBrand',newKey,'ChatGPT updated social brand only as explicitly requested',{oldKey,newKey,categoryCount:affected.length} as unknown as Prisma.InputJsonValue);
- return {oldKey,key:newKey,renamed:newKey!==oldKey,...value,affectedCategories:affected.length};
+ return {oldKey,renamed:newKey!==oldKey,...value,affectedCategories:affected.length};
 }
 async function returnServicesToProviderCatalog(p:PrismaClient,serviceIds:string[],reason:string){
  let changed=0;
