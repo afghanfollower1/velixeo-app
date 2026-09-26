@@ -7,6 +7,7 @@ import {
   type Provider,
 } from '@prisma/client';
 import {
+  decryptProviderSecret,
   encryptProviderSecret,
   providerSecretEncryptionConfigured,
 } from './providerSecrets.js';
@@ -148,6 +149,47 @@ async function saveProviderMeta(prisma: PrismaClient, providerId: string, value:
       category: 'social-provider-meta',
       value: value as unknown as Prisma.InputJsonValue,
     },
+  });
+}
+
+type ProviderSecretParts = {
+  apiKey: string;
+  panelUsername: string;
+  panelPassword: string;
+};
+
+function providerSecretParts(provider: Provider | null | undefined): ProviderSecretParts {
+  const empty = { apiKey: '', panelUsername: '', panelPassword: '' };
+  if (!provider?.secretCiphertext) return empty;
+  let raw = '';
+  try {
+    raw = decryptProviderSecret(provider) ?? '';
+  } catch {
+    return empty;
+  }
+  if (!raw.trim()) return empty;
+  try {
+    const row = JSON.parse(raw) as Record<string, unknown>;
+    return {
+      apiKey: String(row.apiKey ?? row.api_key ?? row.key ?? row.token ?? '').trim(),
+      panelUsername: String(
+        row.panelUsername ?? row.panel_username ?? row.webUsername ?? row.web_username ?? row.username ?? '',
+      ).trim(),
+      panelPassword: String(
+        row.panelPassword ?? row.panel_password ?? row.webPassword ?? row.web_password ?? row.password ?? '',
+      ),
+    };
+  } catch {
+    return { ...empty, apiKey: raw.trim() };
+  }
+}
+
+function packedProviderSecret(parts: ProviderSecretParts) {
+  if (!parts.panelUsername || !parts.panelPassword) return parts.apiKey;
+  return JSON.stringify({
+    apiKey: parts.apiKey,
+    panelUsername: parts.panelUsername,
+    panelPassword: parts.panelPassword,
   });
 }
 
@@ -348,6 +390,7 @@ function providerForm(
   meta: ProviderMeta,
   sync: Awaited<ReturnType<typeof getSocialProviderSyncConfig>>,
   currencies: string[],
+  webLoginConfigured = false,
 ) {
   const selectedCurrency = provider?.currencyCode || meta.defaultCurrency || 'USD';
   const common = ['AUTO','AFN','USD','TOMAN'];
@@ -355,7 +398,7 @@ function providerForm(
   const currencyOptions = currencyValues.map(code =>
     `<option value="${esc(code)}" ${selectedCurrency.toUpperCase()===code?'selected':''}>${esc(code === 'AUTO' ? 'AUTO / Provider API' : code)}</option>`
   ).join('');
-  return `<form method="post" action="/admin/v3/social/providers/save"><input type="hidden" name="id" value="${esc(provider?.id || '')}"><div class="forms"><div class="field"><label>Provider Name</label><input name="name" value="${esc(provider?.name || '')}" placeholder="JustAnotherPanel" required></div><div class="field"><label>Slug (optional)</label><input class="mono" name="slug" value="${esc(provider?.slug || '')}" placeholder="auto-generated-from-name"><span class="tiny">Leave blank and VELIXEO creates a unique slug automatically.</span></div><div class="field"><label>Website URL</label><input class="mono" name="websiteUrl" value="${esc(meta.websiteUrl)}" placeholder="https://provider.com"></div><div class="field"><label>API Endpoint / Base URL</label><input class="mono" name="baseUrl" value="${esc(provider?.baseUrl || '')}" placeholder="https://provider.com/api/v2" required></div><div class="field"><label>Default Provider Currency</label><select name="currency">${currencyOptions}</select><span class="tiny">All provider prices are converted to AFN. Add extra currencies and AFN rates in Settings → Exchange Rates.</span></div><div class="field"><label>Default Profit / Markup %</label><input name="markup" inputmode="decimal" value="${esc(provider?.defaultMarkupPercent?.toString() || '0')}" placeholder="30"></div><div class="field"><label>Priority</label><input type="number" name="priority" value="${esc(provider?.priority ?? 20)}"><span class="tiny">Lower number is preferred first.</span></div><div class="field"><label>Timeout (seconds)</label><input type="number" min="5" max="120" name="timeout" value="${esc(provider?.timeoutSeconds ?? 30)}"></div><div class="field"><label>Auto Service Sync</label><select name="autoSync"><option value="1" ${sync.autoSync?'selected':''}>Enabled</option><option value="0" ${!sync.autoSync?'selected':''}>Disabled</option></select></div><div class="field"><label>Service Sync Interval (minutes)</label><input type="number" min="1" max="1440" name="syncMinutes" value="${esc(sync.syncMinutes)}"></div></div><div class="field"><label>API Key / Secret ${provider ? '(leave blank to keep current key)' : '(optional — can be added later)'}</label><textarea class="mono" name="secret" placeholder="Paste the provider API key here"></textarea><span class="tiny">You can save the provider first and add the API key later. Sync and ordering will stay disabled until a valid key is configured. Secrets are encrypted before storage.</span></div><div class="field"><label>Description / Internal Notes</label><textarea name="description" placeholder="Internal notes about this provider">${esc(meta.description || provider?.notes || '')}</textarea></div><label class="check"><input type="checkbox" name="enabled" ${provider?.enabled===false?'':'checked'}> Provider enabled</label><div class="actions"><button class="btn">${provider ? 'Save Provider' : 'Add Provider'}</button><a class="btn ghost" href="/admin/v3/social/providers">Cancel</a></div></form>`;
+  return `<form method="post" action="/admin/v3/social/providers/save"><input type="hidden" name="id" value="${esc(provider?.id || '')}"><div class="forms"><div class="field"><label>Provider Name</label><input name="name" value="${esc(provider?.name || '')}" placeholder="JustAnotherPanel" required></div><div class="field"><label>Slug (optional)</label><input class="mono" name="slug" value="${esc(provider?.slug || '')}" placeholder="auto-generated-from-name"><span class="tiny">Leave blank and VELIXEO creates a unique slug automatically.</span></div><div class="field"><label>Website URL</label><input class="mono" name="websiteUrl" value="${esc(meta.websiteUrl)}" placeholder="https://provider.com"></div><div class="field"><label>API Endpoint / Base URL</label><input class="mono" name="baseUrl" value="${esc(provider?.baseUrl || '')}" placeholder="https://provider.com/api/v2" required></div><div class="field"><label>Default Provider Currency</label><select name="currency">${currencyOptions}</select><span class="tiny">All provider prices are converted to AFN. Add extra currencies and AFN rates in Settings → Exchange Rates.</span></div><div class="field"><label>Default Profit / Markup %</label><input name="markup" inputmode="decimal" value="${esc(provider?.defaultMarkupPercent?.toString() || '0')}" placeholder="30"></div><div class="field"><label>Priority</label><input type="number" name="priority" value="${esc(provider?.priority ?? 20)}"><span class="tiny">Lower number is preferred first.</span></div><div class="field"><label>Timeout (seconds)</label><input type="number" min="5" max="120" name="timeout" value="${esc(provider?.timeoutSeconds ?? 30)}"></div><div class="field"><label>Auto Service Sync</label><select name="autoSync"><option value="1" ${sync.autoSync?'selected':''}>Enabled</option><option value="0" ${!sync.autoSync?'selected':''}>Disabled</option></select></div><div class="field"><label>Service Sync Interval (minutes)</label><input type="number" min="1" max="1440" name="syncMinutes" value="${esc(sync.syncMinutes)}"></div></div><div class="field"><label>API Key / Secret ${provider ? '(leave blank to keep current key)' : '(optional — can be added later)'}</label><textarea class="mono" name="secret" placeholder="Paste the provider API key here"></textarea><span class="tiny">You can save the provider first and add the API key later. Sync and ordering will stay disabled until a valid key is configured. Secrets are encrypted before storage.</span></div><div class="card" style="margin:14px 0;padding:14px;border-style:dashed"><div class="split-title"><b>Exact Provider Average Time</b>${webLoginConfigured ? pill('Website login configured','ok') : pill('Website login not configured','warn')}</div><div class="tiny" style="margin-top:6px">JustAnotherPanel does not expose Average Time in the normal API service list. Add the provider website login once so VELIXEO can securely read the exact Average Time shown on the authenticated Services page. Leave both fields blank to keep the current saved website login.</div><div class="forms" style="margin-top:10px"><div class="field"><label>Provider Website Username</label><input class="mono" name="panelUsername" autocomplete="off" placeholder="${webLoginConfigured ? 'Configured — leave blank to keep' : 'JustAnotherPanel username'}"></div><div class="field"><label>Provider Website Password</label><input class="mono" name="panelPassword" type="password" autocomplete="new-password" placeholder="${webLoginConfigured ? 'Configured — leave blank to keep' : 'JustAnotherPanel password'}"></div></div><span class="tiny">The website username/password are encrypted with the same server-side provider-secret encryption used for the API key. They are never returned to the app.</span></div><div class="field"><label>Description / Internal Notes</label><textarea name="description" placeholder="Internal notes about this provider">${esc(meta.description || provider?.notes || '')}</textarea></div><label class="check"><input type="checkbox" name="enabled" ${provider?.enabled===false?'':'checked'}> Provider enabled</label><div class="actions"><button class="btn">${provider ? 'Save Provider' : 'Add Provider'}</button><a class="btn ghost" href="/admin/v3/social/providers">Cancel</a></div></form>`;
 }
 
 async function providerStatus(provider: Provider) {
@@ -422,7 +465,7 @@ async function providersPage(prisma: PrismaClient, admin: AdminIdentity, request
       active: 'providers',
       message: q.msg,
       error: q.error,
-      body: `<div class="card" style="max-width:920px;margin:0 auto"><div class="cardhead"><div class="split-title">${icon('provider')}<div><h2>${selected ? esc(selected.name) : l('جزئیات ارائه‌دهنده','Provider Details')}</h2><span class="muted">${l('اطلاعات اتصال و قوانین سرویس','Connection credentials and business rules')}</span></div></div><a class="btn ghost" href="/admin/v3/social/providers">${icon('back')} ${l('بازگشت به ارائه‌دهندگان','Back to Providers')}</a></div>${providerForm(selected, meta, sync, currencies)}</div>`,
+      body: `<div class="card" style="max-width:920px;margin:0 auto"><div class="cardhead"><div class="split-title">${icon('provider')}<div><h2>${selected ? esc(selected.name) : l('جزئیات ارائه‌دهنده','Provider Details')}</h2><span class="muted">${l('اطلاعات اتصال و قوانین سرویس','Connection credentials and business rules')}</span></div></div><a class="btn ghost" href="/admin/v3/social/providers">${icon('back')} ${l('بازگشت به ارائه‌دهندگان','Back to Providers')}</a></div>${providerForm(selected, meta, sync, currencies, Boolean(providerSecretParts(selected).panelUsername && providerSecretParts(selected).panelPassword))}</div>`,
     });
   }
 
@@ -1099,8 +1142,23 @@ export function registerAdminSocialProviderManager(
       }
       const baseUrl = text(body, 'baseUrl');
       if (!baseUrl) throw new Error('API endpoint is required.');
+      const existingProvider = id
+        ? await prisma.provider.findFirst({ where: { id, kind: ProviderKind.SOCIAL } })
+        : null;
+      const existingSecret = providerSecretParts(existingProvider);
       const secret = text(body, 'secret');
-      if (secret && !providerSecretEncryptionConfigured()) {
+      const panelUsernameInput = text(body, 'panelUsername');
+      const panelPasswordInput = String(body.panelPassword ?? '');
+      if ((panelUsernameInput && !panelPasswordInput) || (!panelUsernameInput && panelPasswordInput)) {
+        throw new Error('Enter both provider website username and password, or leave both blank to keep the current login.');
+      }
+      const nextSecret: ProviderSecretParts = {
+        apiKey: secret || existingSecret.apiKey,
+        panelUsername: panelUsernameInput || existingSecret.panelUsername,
+        panelPassword: panelPasswordInput || existingSecret.panelPassword,
+      };
+      const secretChanged = Boolean(secret || panelUsernameInput || panelPasswordInput);
+      if (secretChanged && !providerSecretEncryptionConfigured()) {
         throw new Error('Provider secret encryption is not configured on the server.');
       }
       const currencyCode = normalizeCurrencyCode(text(body, 'currency'), null);
@@ -1119,10 +1177,13 @@ export function registerAdminSocialProviderManager(
       let provider = id
         ? await prisma.provider.update({ where: { id }, data })
         : await prisma.provider.create({ data });
-      if (secret) {
+      if (secretChanged) {
+        if (!nextSecret.apiKey) {
+          throw new Error('An API key is required before website Average Time sync can be enabled.');
+        }
         provider = await prisma.provider.update({
           where: { id: provider.id },
-          data: encryptProviderSecret(secret),
+          data: encryptProviderSecret(packedProviderSecret(nextSecret)),
         });
       }
       await saveProviderMeta(prisma, provider.id, {
