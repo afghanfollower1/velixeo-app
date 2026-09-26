@@ -211,14 +211,7 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
   Future<void> load() async {
     if (mounted) setState(() { loading = true; error = null; });
     try {
-      final results = await Future.wait([
-        host.api.socialCatalog(),
-        host.api.socialOrders(),
-        host.api.socialOrderConfig(),
-      ]);
-      catalog = results[0] as SocialCatalog;
-      orders = results[1] as List<SocialOrder>;
-      orderConfig = results[2] as SocialOrderConfig;
+      catalog = await host.api.socialCatalog();
       final brands = availableBrands;
       final brandKeys = brands.map((brand) => brand.key).toList(growable: false);
       selectedPlatform ??= brandKeys.isEmpty ? null : brandKeys.first;
@@ -227,12 +220,25 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
       }
       final groups = availableGroups;
       if (selectedGroup != null && !groups.contains(selectedGroup)) selectedGroup = null;
+      if (mounted) setState(() => loading = false);
+
+      try {
+        final results = await Future.wait([
+          host.api.socialOrders(),
+          host.api.socialOrderConfig(),
+        ]);
+        orders = results[0] as List<SocialOrder>;
+        orderConfig = results[1] as SocialOrderConfig;
+        if (mounted) setState(() {});
+      } catch (_) {
+        // The catalog remains usable even if order history/settings need a retry.
+      }
     } on ApiException catch (e) {
       error = e.code;
     } catch (_) {
       error = 'network_error';
     } finally {
-      if (mounted) setState(() => loading = false);
+      if (mounted && loading) setState(() => loading = false);
     }
   }
 
