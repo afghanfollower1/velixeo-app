@@ -942,7 +942,44 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
   const fa = adminLangFromRequest(request) === 'fa';
   const l = (faText: string, enText: string) => fa ? faText : enText;
   const n = (value: number) => value.toLocaleString(fa ? 'fa-AF' : 'en-US');
-  const categories = await loadCategories(prisma);
+  const [categories, exchangeRates] = await Promise.all([
+    loadCategories(prisma),
+    prisma.exchangeRate.findMany({ select: { code: true, afnPerUnit: true } }),
+  ]);
+  const fxAfn = new Map<string, Prisma.Decimal>([['AFN', new Prisma.Decimal(1)]]);
+  for (const rate of exchangeRates) {
+    fxAfn.set(rate.code.toUpperCase(), new Prisma.Decimal(rate.afnPerUnit));
+  }
+  const providerRateAfn = (route: typeof all[number]['routes'][number] | undefined) => {
+    if (!route?.providerRate) return null;
+    const currency = normalizeCurrencyCode(route.providerCurrency || route.provider.currencyCode || 'USD') || 'USD';
+    const fx = fxAfn.get(currency);
+    if (!fx) return null;
+    return new Prisma.Decimal(route.providerRate).mul(fx);
+  };
+  const saleRateAfn = (
+    service: typeof all[number],
+    route: typeof all[number]['routes'][number] | undefined,
+    rawProviderAfn: Prisma.Decimal | null,
+  ) => {
+    if (service.basePriceAfn != null) return new Prisma.Decimal(service.basePriceAfn.toString());
+    if (!route || rawProviderAfn == null) return null;
+    const roundedProvider = rawProviderAfn.ceil();
+    const markup = new Prisma.Decimal(route.markupPercent ?? route.provider.defaultMarkupPercent);
+    return roundedProvider.mul(new Prisma.Decimal(100).plus(markup)).div(100).ceil();
+  };
+  const formatAfn = (value: Prisma.Decimal | bigint | number | null) => {
+    if (value == null) return '—';
+    const decimal = value instanceof Prisma.Decimal
+      ? value
+      : new Prisma.Decimal(value.toString());
+    const amount = Number(decimal.toFixed(2));
+    const formatted = amount.toLocaleString(fa ? 'fa-AF' : 'en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    });
+    return `${formatted} ${fa ? 'افغانی' : 'AFN'}`;
+  };
   const all = await prisma.service.findMany({
     where: {
       category: ServiceCategory.SOCIAL,
@@ -970,6 +1007,14 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
     .join('');
   const rows = services.map(service => {
     const primary = service.routes[0];
+    const providerAfn = providerRateAfn(primary);
+    const saleAfn = saleRateAfn(service, primary, providerAfn);
+    const configuredMarkup = primary
+      ? new Prisma.Decimal(primary.markupPercent ?? primary.provider.defaultMarkupPercent)
+      : null;
+    const profitAfn = providerAfn != null && saleAfn != null
+      ? saleAfn.minus(providerAfn)
+      : null;
     const refillMeta = primary ? jsonObject(primary.metadata) : {};
     const detected = primary
       ? (typeof refillMeta._providerRefillDetected === 'boolean'
@@ -992,6 +1037,14 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
       : service.titleEn;
     const fixedLabel = fa ? 'ثابت' : 'Fixed';
     const autoLabel = fa ? 'سود خودکار' : 'Auto Markup';
+    const unitLabel = service.priceUnit > 1
+      ? `${l('برای هر','per')} ${n(service.priceUnit)}`
+      : l('برای هر واحد','per unit');
+    const markupLabel = service.basePriceAfn != null
+      ? `<span class="profit-fixed">${fixedLabel}</span>`
+      : configuredMarkup != null
+        ? `<span class="profit-positive">${autoLabel}: +${esc(configuredMarkup.toString())}%</span>`
+        : `<span class="muted">${autoLabel}</span>`;
     const guarantee = service.refillDays
       ? `<span class="tiny">${n(service.refillDays)} ${l('روز ضمانت','guarantee days')}</span>`
       : '';
@@ -1000,14 +1053,16 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
       ? l('پنهان کردن از اپ مشتری','Hide from customer app')
       : l('انتشار در اپ مشتری','Publish to customer app');
     return `<tr>
-      <td><b>${esc(displayTitle)}</b><br><span class="mono tiny">${esc(service.slug)}</span></td>
-      <td>${esc(service.socialPlatform || 'OTHER')} → ${esc(service.socialGroup || '—')}</td>
-      <td>${primary ? esc(primary.provider.name) : '—'}${service.routes.length > 1 ? ` +${n(service.routes.length - 1)}` : ''}</td>
-      <td>${service.basePriceAfn != null ? `<span class="price-fixed">${fixedLabel} · ${money(service.basePriceAfn)}</span>` : `<span class="price-auto">${autoLabel}</span>`}</td>
-      <td>${service.minQty ?? '—'} – ${service.maxQty ?? '—'}</td>
-      <td><div class="actions">${refill}${refillToggle}</div>${guarantee}</td>
-      <td>${service.featured?pill(l('ویژه','Featured'),'info'):''} ${service.enabled?pill(l('فعال','Live'),'ok'):pill(l('پیش‌نویس / مخفی','Draft / Hidden'),'warn')}</td>
-      <td><div class="actions">
+      <td class="service-main-cell"><b>${esc(displayTitle)}</b><br><span class="mono tiny">${esc(service.slug)}</span></td>
+      <td class="category-cell">${esc(service.socialPlatform || 'OTHER')} → ${esc(service.socialGroup || '—')}</td>
+      <td class="provider-cell">${primary ? esc(primary.provider.name) : '—'}${service.routes.length > 1 ? ` +${n(service.routes.length - 1)}` : ''}</td>
+      <td class="price-cell"><div class="price-stack"><strong>${formatAfn(providerAfn)}</strong><small>${unitLabel}</small></div></td>
+      <td class="price-cell"><div class="price-stack"><strong>${formatAfn(saleAfn)}</strong><small>${unitLabel}</small></div></td>
+      <td class="price-cell"><div class="price-stack">${markupLabel}${profitAfn != null ? `<small>${l('سود تقریبی','Approx. profit')}: +${formatAfn(profitAfn)}</small>` : ''}</div></td>
+      <td class="range-cell">${service.minQty ?? '—'} – ${service.maxQty ?? '—'}</td>
+      <td class="refill-cell"><div class="actions">${refill}${refillToggle}</div>${guarantee}</td>
+      <td class="status-cell">${service.featured?pill(l('ویژه','Featured'),'info'):''} ${service.enabled?pill(l('فعال','Live'),'ok'):pill(l('پیش‌نویس / مخفی','Draft / Hidden'),'warn')}</td>
+      <td class="service-actions-cell"><div class="actions">
         ${primary ? `<a class="iconbtn" href="/admin/v3/social/provider-services?provider=${primary.providerId}&route=${primary.id}" title="${editTitle}" aria-label="${editTitle}">${icon('edit')}</a>` : ''}
         <form method="post" action="/admin/v3/social/my-services/toggle"><input type="hidden" name="id" value="${service.id}"><button class="iconbtn ${service.enabled?'orange':'green'}" title="${visibilityTitle}" aria-label="${visibilityTitle}">${icon('eye')}</button></form>
         <form method="post" action="/admin/v3/social/my-services/move" class="actions"><input type="hidden" name="id" value="${service.id}"><select name="categorySlug" aria-label="${l('انتقال به دسته‌بندی','Move to category')}" style="height:36px;max-width:190px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:0 8px">${categoryOptionsFor(service)}</select><button class="iconbtn purple" title="${l('انتقال سرویس','Move service')}" aria-label="${l('انتقال سرویس','Move service')}">${icon('category')}</button></form>
@@ -1023,7 +1078,7 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
     active: 'services',
     message: q.msg,
     error: q.error,
-    body: `<div class="card"><div class="cardhead"><form method="get" action="/admin/v3/social/my-services" class="searchbar"><input name="q" value="${esc(q.q)}" placeholder="${l('جستجو بر اساس سرویس، شناسه یا دسته‌بندی','Search service, slug or category')}"><button class="btn ghost">${l('جستجو','Search')}</button></form><a class="btn" href="/admin/v3/social/provider-services">${icon('plus')} ${l('افزودن از سرویس‌های ارائه‌دهنده','Add from Provider Services')}</a></div><div class="notice">${l('این فهرست فقط سرویس‌هایی را نشان می‌دهد که خودتان به VELIXEO اضافه کرده‌اید. سرویس‌های خام ارائه‌دهنده در «سرویس‌های ارائه‌دهنده» باقی می‌مانند.','This list contains only VELIXEO services that you explicitly added from a provider. Provider catalog items stay in Provider Services.')}</div><div class="tablewrap"><table class="table"><thead><tr><th>${l('سرویس VELIXEO','VELIXEO Service')}</th><th>${l('برند / دسته‌بندی','Brand / Category')}</th><th>${l('ارائه‌دهنده','Provider')}</th><th>${l('قیمت‌گذاری','Pricing')}</th><th>${l('حداقل / حداکثر','Min / Max')}</th><th>${l('جبران','Refill')}</th><th>${l('وضعیت','Status')}</th><th>${l('عملیات','Actions')}</th></tr></thead><tbody>${rows || `<tr><td colspan="8" class="empty">${l('هنوز سرویس شبکه اجتماعی به VELIXEO اضافه نشده است. از «سرویس‌های ارائه‌دهنده» با + یک سرویس اضافه کنید.','No VELIXEO social services yet. Open Provider Services and press + to add one.')}</td></tr>`}</tbody></table></div></div>`,
+    body: `<div class="card"><div class="cardhead"><form method="get" action="/admin/v3/social/my-services" class="searchbar"><input name="q" value="${esc(q.q)}" placeholder="${l('جستجو بر اساس سرویس، شناسه یا دسته‌بندی','Search service, slug or category')}"><button class="btn ghost">${l('جستجو','Search')}</button></form><a class="btn" href="/admin/v3/social/provider-services">${icon('plus')} ${l('افزودن از سرویس‌های ارائه‌دهنده','Add from Provider Services')}</a></div><div class="notice">${l('این فهرست فقط سرویس‌هایی را نشان می‌دهد که خودتان به VELIXEO اضافه کرده‌اید. سرویس‌های خام ارائه‌دهنده در «سرویس‌های ارائه‌دهنده» باقی می‌مانند.','This list contains only VELIXEO services that you explicitly added from a provider. Provider catalog items stay in Provider Services.')}</div><div class="tablewrap"><table class="table service-admin-table"><thead><tr><th>${l('سرویس VELIXEO','VELIXEO Service')}</th><th>${l('برند / دسته‌بندی','Brand / Category')}</th><th>${l('ارائه‌دهنده','Provider')}</th><th>${l('قیمت اصلی ارائه‌دهنده','Provider Price')}</th><th>${l('قیمت فروش VELIXEO','VELIXEO Sale Price')}</th><th>${l('سود / روش قیمت‌گذاری','Profit / Pricing')}</th><th>${l('حداقل / حداکثر','Min / Max')}</th><th>${l('جبران','Refill')}</th><th>${l('وضعیت','Status')}</th><th>${l('عملیات','Actions')}</th></tr></thead><tbody>${rows || `<tr><td colspan="10" class="empty">${l('هنوز سرویس شبکه اجتماعی به VELIXEO اضافه نشده است. از «سرویس‌های ارائه‌دهنده» با + یک سرویس اضافه کنید.','No VELIXEO social services yet. Open Provider Services and press + to add one.')}</td></tr>`}</tbody></table></div></div>`,
   });
 }
 
