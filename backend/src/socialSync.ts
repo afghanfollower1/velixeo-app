@@ -10,6 +10,7 @@ import {
 import { smmClientForProvider } from './smmPanelAdapter.js';
 import { normalizeCurrencyCode } from './currency.js';
 import { providerAverageEtaFromMetadata, providerStartEtaFromMetadata } from './socialEta.js';
+import { fetchProviderWebAverageTimes } from './socialProviderWebAverage.js';
 
 const SCALE = 1_000_000n;
 const DEFAULT_SYNC_MINUTES = 10;
@@ -239,6 +240,14 @@ export async function syncSocialProviderCatalog(
   try {
     const client = smmClientForProvider(provider);
     const [services, balance] = await Promise.all([client.services(), client.balance()]);
+    let providerWebAverages: Awaited<ReturnType<typeof fetchProviderWebAverageTimes>> = null;
+    try {
+      providerWebAverages = await fetchProviderWebAverageTimes(provider);
+    } catch {
+      // Website average time is an enhancement. API catalog/order sync must keep
+      // working if the provider login changes, requires captcha, or is unavailable.
+      providerWebAverages = null;
+    }
     const routes = await prisma.serviceProviderRoute.findMany({
       where: { providerId: provider.id },
       include: { service: true },
@@ -260,7 +269,10 @@ export async function syncSocialProviderCatalog(
         ? currentRouteMeta._velixeoDripFeedOverride
         : null;
       const startEta = providerStartEtaFromMetadata(row.raw as Prisma.JsonValue, row.name);
-      const averageEta = providerAverageEtaFromMetadata(row.raw as Prisma.JsonValue);
+      const apiAverageEta = providerAverageEtaFromMetadata(row.raw as Prisma.JsonValue);
+      const webAverageEta = providerWebAverages?.get(row.service) ?? null;
+      const averageEta = webAverageEta ?? apiAverageEta;
+      const averageSource = webAverageEta ? 'PROVIDER_WEB' : apiAverageEta ? 'PROVIDER_API' : null;
       const providerRate = new Prisma.Decimal(row.rate || '0');
       const providerRateScaled = decimalToScaled(providerRate);
       const costAfn = fx == null
@@ -292,7 +304,7 @@ export async function syncSocialProviderCatalog(
             _providerAverageTimeText: averageEta.text,
             _providerAverageMinMinutes: averageEta.minMinutes,
             _providerAverageMaxMinutes: averageEta.maxMinutes,
-            _providerAverageSource: 'PROVIDER_API',
+            _providerAverageSource: averageSource,
           } : {}),
           ...(refillOverride == null ? {} : { _velixeoRefillOverride: refillOverride }),
           ...(dripFeedOverride == null ? {} : { _velixeoDripFeedOverride: dripFeedOverride }),
