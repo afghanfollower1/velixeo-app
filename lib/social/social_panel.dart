@@ -62,34 +62,25 @@ String _serviceAverageTimeLabel(SocialService service, bool fa) {
     return fa ? 'میانگین واقعی: $value' : 'Live average: $value';
   }
 
-  final advertised = (service.advertisedStartTime?.trim().isNotEmpty == true
-          ? service.advertisedStartTime!.trim()
-          : service.providerEta?.trim()) ??
-      '';
-  if (advertised.isNotEmpty) {
-    final shown = _localizedProviderTime(advertised, fa);
-    return fa ? 'زمان شروع اعلامی: $shown' : 'Advertised start: $shown';
-  }
-  return fa ? 'زمان شروع: در حال پایش' : 'Start time: monitoring';
+  // Never turn the provider service title (for example "[Start Time: 0-2 Hrs]")
+  // into a fake "average" value. Until we have a real API average or completed
+  // order records, tell the customer that real data is still being collected.
+  return fa ? 'میانگین واقعی: در حال جمع‌آوری داده' : 'Live average: collecting data';
 }
 
 String? _orderAverageTimeLabel(SocialOrder order, bool fa) {
+  final source = order.providerAverageTimeSource.toUpperCase();
   final minutes = order.providerAverageTimeMinutes;
-  if (minutes != null) {
+  if (minutes != null && (source == 'PROVIDER_API' || source == 'VELIXEO_ORDERS')) {
     final value = _formatSocialDuration(minutes, fa);
     return fa ? 'میانگین واقعی: $value' : 'Live average: $value';
   }
   final text = order.providerAverageTimeText?.trim();
-  if (text?.isNotEmpty == true) {
+  if (text?.isNotEmpty == true && source == 'PROVIDER_API') {
     final value = _localizedProviderTime(text!, fa);
     return fa ? 'میانگین واقعی: $value' : 'Live average: $value';
   }
-  final advertised = order.providerEta?.trim();
-  if (advertised?.isNotEmpty == true) {
-    final value = _localizedProviderTime(advertised!, fa);
-    return fa ? 'زمان شروع اعلامی: $value' : 'Advertised start: $value';
-  }
-  return null;
+  return fa ? 'میانگین واقعی: در حال جمع‌آوری داده' : 'Live average: collecting data';
 }
 
 class SocialPanelPage extends StatefulWidget {
