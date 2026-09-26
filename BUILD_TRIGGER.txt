@@ -38,3 +38,6 @@ Release trigger: signed VELIXEO v0.14.6 production APK.
 
 VELIXEO 0.14.7+41: add bilingual category-level ordering guides across Social services, show provider-supplied service descriptions when available, and display service-specific notes only after a service is selected to keep the catalog clean.
 Release trigger: signed VELIXEO v0.14.7 production APK.
+
+VELIXEO 0.14.8+42: show Social category guides only once in the active app language, replace wrapped category chips with one compact horizontal scroll row, and keep Show all services in the same ordered selector.
+Release trigger: signed VELIXEO v0.14.8 production APK.
