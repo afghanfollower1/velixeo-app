@@ -44,3 +44,6 @@ Release trigger: signed VELIXEO v0.14.8 production APK.
 
 VELIXEO 0.14.9+43: real Social service average time now comes from observed completed VELIXEO orders for the exact service/provider route (latest up to 30 samples within 180 days), with genuine provider API average fields only as fallback. Advertised [Start Time] text is never used as Average Time; services without real samples show a collecting-data state.
 Release trigger: signed VELIXEO v0.14.9 production APK.
+
+VELIXEO 0.14.10+44: read exact Social Average Time from the authenticated provider Services page by provider service ID when website login is configured; provider website values override API/local averages, advertised [Start Time] is never used as Average Time, and the app preserves the provider's exact text such as "1 hour 1 minute". Provider website credentials are stored encrypted in Admin → Social Providers.
+Release trigger: signed VELIXEO v0.14.10 production APK.
