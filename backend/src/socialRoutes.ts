@@ -606,6 +606,152 @@ function providerText(row: Record<string, unknown>, ...keys: string[]) {
   return null;
 }
 
+function providerDescriptionFromMetadata(value: Prisma.JsonValue | null | undefined) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  return providerText(
+    row,
+    'description',
+    'desc',
+    'service_description',
+    'serviceDescription',
+    'details',
+    'note',
+    'notes',
+  );
+}
+
+function defaultSocialCategoryGuide(slug: string, titleFa: string, titleEn: string) {
+  const key = `${slug} ${titleFa} ${titleEn}`.toLowerCase();
+  const guide = (fa: string, en: string) => ({ fa, en });
+
+  if (key.includes('mentions') || key.includes('منشن')) {
+    return guide(
+      'این بخش برای منشن‌کردن حساب‌ها در اینستاگرام است. در سرویس‌های «فهرست دلخواه»، لینک پست یا محتوای هدف را وارد کنید و نام‌های کاربری را هرکدام در یک خط جدا بنویسید. در سرویس‌های هشتگ، هشتگ یا هشتگ‌های خواسته‌شده را دقیقاً در فیلد مربوط وارد کنید.',
+      'Use this section for Instagram mentions. For custom-list services, enter the target post/content link and put each username on a separate line. For hashtag-based services, enter the requested hashtag(s) in the dedicated field.',
+    );
+  }
+  if (key.includes('channel-members') || key.includes('اعضای کانال')) {
+    return guide(
+      'برای افزایش اعضای کانال، لینک مستقیم کانال یا لینک مورد درخواست فرم را وارد کنید و تعداد را داخل محدوده سرویس انتخاب کنید. قبل از ثبت سفارش مطمئن شوید کانال و لینک در دسترس است و سرویس برای کشور یا نوع مخاطب موردنظر شما مناسب است.',
+      'Use this section to add channel members. Enter the direct channel link (or the link requested by the form) and choose a quantity within the service limits. Make sure the channel/link is accessible and the selected targeting matches your needs.',
+    );
+  }
+  if (key.includes('channel-comments') || key.includes('کامنت کانال')) {
+    return guide(
+      'این بخش برای کامنت روی محتوای کانال است. لینک محتوای هدف را دقیق وارد کنید و اگر فرم متن یا نام کاربری خواست، همان اطلاعات را مطابق فیلدهای سرویس تکمیل کنید.',
+      'Use this section for channel comments. Enter the exact target content link and complete any requested comment or username fields shown by the service form.',
+    );
+  }
+  if (key.includes('story-actions') || key.includes('استوری')) {
+    return guide(
+      'این بخش شامل تعاملات استوری مثل بازدید پروفایل، کلیک لینک، لمس تگ و موارد مشابه است. لینک استوری یا محتوای هدف را وارد کنید؛ نوع نتیجه‌ای که می‌خواهید باید دقیقاً با نام سرویس انتخاب‌شده یکی باشد.',
+      'This section covers story actions such as profile visits, link clicks, tag taps and similar interactions. Enter the target story/content link and choose the service that exactly matches the action you need.',
+    );
+  }
+  if (key.includes('growth-packages') || key.includes('پکیج') && key.includes('رشد')) {
+    return guide(
+      'پکیج‌های رشد چند نوع تعامل را به‌صورت یک بسته ارائه می‌کنند. لینک پروفایل یا صفحه هدف را وارد کنید و قبل از سفارش کشور، مدت و سطح پکیج را از نام سرویس بررسی کنید.',
+      'Growth packages bundle multiple engagement actions. Enter the target profile/page link and check the country, duration and package level in the service name before ordering.',
+    );
+  }
+  if (key.includes('engagement-packages') || key.includes('تعامل')) {
+    return guide(
+      'پکیج‌های تعامل چند نوع فعالیت را به‌صورت ترکیبی اجرا می‌کنند. لینک هدف را دقیق وارد کنید و سطح پکیج و کشور را از نام سرویس انتخاب کنید. اگر سرویس نوشته «توضیحات را بخوانید»، توضیح اختصاصی همان سرویس را قبل از سفارش بررسی کنید.',
+      'Engagement packages combine multiple actions. Enter the exact target link and choose the country and package tier from the service name. If a service says “Read Description,” review its service-specific note before ordering.',
+    );
+  }
+  if (key.includes('backlink') || key.includes('بک‌لینک')) {
+    return guide(
+      'برای بک‌لینک، آدرس مقصد را دقیق وارد کنید. اگر فرم «کلمات کلیدی» نمایش می‌دهد، هر کلمه یا عبارت را در یک خط جدا بنویسید. مدت و سطح سرویس را از نام آن بررسی کنید.',
+      'For backlinks, enter the exact destination URL. If the form shows a Keywords field, enter one keyword or phrase per line. Check the duration and service level in the service name.',
+    );
+  }
+  if ((key.includes('followers') || key.includes('فالوور')) && (key.includes('guaranteed') || key.includes('refill') || key.includes('ضمانت') || key.includes('جبران'))) {
+    return guide(
+      'این بخش مربوط به فالوور دارای جبران ریزش است. لینک پروفایل هدف را دقیق وارد کنید و تعداد را داخل حداقل و حداکثر سرویس انتخاب کنید. اگر پس از تکمیل سفارش ریزش رخ داد، در بازه جبران همان سرویس می‌توانید درخواست جبران ثبت کنید.',
+      'These follower services include refill support. Enter the exact target profile link and choose a quantity within the service limits. If drops occur after completion, you can request a refill during that service’s refill window.',
+    );
+  }
+  if ((key.includes('followers') || key.includes('فالوور')) && (key.includes('not guaranteed') || key.includes('no_refill') || key.includes('بدون ضمانت') || key.includes('بدون جبران'))) {
+    return guide(
+      'این بخش فالوور بدون جبران ریزش است. لینک پروفایل را دقیق وارد کنید و تعداد را داخل محدوده سرویس انتخاب کنید. در این گروه، ریزش احتمالی شامل جبران رایگان نیست.',
+      'These follower services do not include refill support. Enter the exact target profile link and choose a quantity within the service limits. Possible drops are not covered by a free refill.',
+    );
+  }
+  if (key.includes('followers') || key.includes('فالوور')) {
+    return guide(
+      'لینک پروفایل هدف را دقیق وارد کنید و تعداد را داخل محدوده سرویس انتخاب کنید. وضعیت جبران، زمان شروع و سرعت هر سرویس را از مشخصات همان سرویس بررسی کنید.',
+      'Enter the exact target profile link and choose a quantity within the service limits. Check each service for refill status, start time and delivery speed.',
+    );
+  }
+  if (key.includes('custom-comments') || key.includes('custom_comments') || key.includes('کامنت دلخواه')) {
+    return guide(
+      'در کامنت دلخواه، لینک پست را وارد کنید و متن هر کامنت را در یک خط جدا بنویسید. تعداد سفارش معمولاً از تعداد خطوط کامنت‌ها محاسبه می‌شود؛ متن‌ها را قبل از ثبت نهایی بررسی کنید.',
+      'For custom comments, enter the post link and put each comment on a separate line. Quantity is normally calculated from the number of comment lines, so review the text before submitting.',
+    );
+  }
+  if (key.includes('comments') || key.includes('کامنت')) {
+    return guide(
+      'لینک پست یا محتوای هدف را دقیق وارد کنید. اگر سرویس کامنت آماده است فقط تعداد را انتخاب کنید؛ اگر فرم متن کامنت نشان می‌دهد، متن‌ها را مطابق همان فیلد وارد کنید.',
+      'Enter the exact target post/content link. For preset-comment services, choose the quantity; if the form asks for comment text, enter it in the provided field.',
+    );
+  }
+  if (key.includes('likes') || key.includes('لایک')) {
+    return guide(
+      'لینک پست، ریلز یا محتوای هدف را وارد کنید و تعداد لایک را داخل محدوده سرویس انتخاب کنید. اگر سرویس هدف‌گیری کشور یا نوع خاصی دارد، همان گزینه مناسب را انتخاب کنید.',
+      'Enter the target post, reel or content link and choose a like quantity within the service limits. If the service has country or audience targeting, select the matching option.',
+    );
+  }
+  if (key.includes('views') || key.includes('بازدید')) {
+    return guide(
+      'لینک محتوای هدف را وارد کنید و تعداد بازدید را انتخاب کنید. قبل از سفارش بررسی کنید سرویس مخصوص پست، ریلز، استوری یا لایو است تا لینک درست را وارد کنید.',
+      'Enter the target content link and choose the number of views. Check whether the service is for posts, reels, stories or live content so you submit the correct link.',
+    );
+  }
+  if (key.includes('reach') || key.includes('ریچ') || key.includes('impression') || key.includes('ایمپرشن')) {
+    return guide(
+      'این سرویس‌ها برای افزایش ریچ و ایمپرشن محتوا هستند. لینک پست یا محتوای هدف را وارد کنید و نوع سرویس را با نتیجه‌ای که می‌خواهید تطبیق دهید.',
+      'These services increase reach and impressions. Enter the target post/content link and choose the service that matches the metric you want.',
+    );
+  }
+  if (key.includes('shares') || key.includes('اشتراک')) {
+    return guide(
+      'لینک محتوای هدف را وارد کنید و تعداد اشتراک‌گذاری یا بازنشر را انتخاب کنید. اگر سرویس برای کشور خاصی است، کشور موردنظر را از نام سرویس بررسی کنید.',
+      'Enter the target content link and choose the number of shares/reposts. For country-targeted services, verify the target country in the service name.',
+    );
+  }
+  if (key.includes('saves') || key.includes('ذخیره')) {
+    return guide(
+      'لینک پست یا ریلز هدف را وارد کنید و تعداد ذخیره را انتخاب کنید. لینک باید مستقیم و در دسترس باشد.',
+      'Enter the target post or reel link and choose the number of saves. The link must be direct and accessible.',
+    );
+  }
+  if (key.includes('poll') || key.includes('نظرسنجی') || key.includes('رأی')) {
+    return guide(
+      'لینک نظرسنجی یا استوری را وارد کنید، تعداد رأی را انتخاب کنید و اگر فرم «شماره پاسخ» دارد، شماره گزینه‌ای را وارد کنید که باید رأی بگیرد.',
+      'Enter the poll/story link, choose the vote quantity, and if the form asks for an answer number, enter the option number that should receive the votes.',
+    );
+  }
+  if (key.includes('traffic') || key.includes('ترافیک')) {
+    return guide(
+      'آدرس صفحه مقصد را وارد کنید و تعداد بازدید را انتخاب کنید. بسته به سرویس ممکن است کشور، نوع دستگاه، کلمه کلیدی گوگل یا آدرس ارجاع‌دهنده نیز لازم باشد؛ همه فیلدهای نمایش‌داده‌شده را دقیق تکمیل کنید.',
+      'Enter the destination URL and choose the visit quantity. Depending on the service, country, device, Google keyword or referrer URL may also be required; complete every field shown by the form.',
+    );
+  }
+  if (key.includes('reaction') || key.includes('واکنش')) {
+    return guide(
+      'لینک پست یا محتوای کانال را وارد کنید و نوع واکنش موردنظر را از نام سرویس انتخاب کنید. برای واکنش تصادفی، نوع واکنش توسط سرویس بین گزینه‌های اعلام‌شده توزیع می‌شود.',
+      'Enter the channel post/content link and choose the reaction type from the service name. Random-reaction services distribute reactions among the listed options.',
+    );
+  }
+
+  return guide(
+    'سرویس مناسب را انتخاب کنید و ورودی‌های فرم را دقیق مطابق برچسب‌های همان سرویس تکمیل کنید. لینک باید مستقیم و قابل دسترس باشد و تعداد سفارش باید داخل حداقل و حداکثر سرویس قرار بگیرد.',
+    'Choose the appropriate service and complete the fields exactly as shown in its order form. Use a direct, accessible link and keep the quantity within the service limits.',
+  );
+}
+
 function routeDripFeedSupported(route: { metadata?: Prisma.JsonValue | null; providerType?: string | null }) {
   const metadata = route.metadata && typeof route.metadata === 'object' && !Array.isArray(route.metadata)
     ? route.metadata as Record<string, unknown>
@@ -1083,7 +1229,7 @@ export function registerSocialRoutes(
         titleFa: service.titleFa,
         titleEn: service.titleEn,
         descriptionFa: service.descriptionFa,
-        descriptionEn: service.descriptionEn,
+        descriptionEn: service.descriptionEn?.trim() || providerDescriptionFromMetadata(route.metadata),
         platform: service.socialPlatform || 'OTHER',
         group: service.socialGroup || 'OTHER',
         featured: service.featured,
@@ -1136,13 +1282,22 @@ export function registerSocialRoutes(
         : setting.key.replace(/^social\.category\./, '');
       const platform = normalizeBrandKey(typeof item.platform === 'string' ? item.platform : 'OTHER');
       if (!slug || item.enabled === false || !activeBrandKeys.has(platform)) return [];
+      const titleFa = typeof item.titleFa === 'string' ? item.titleFa : slug;
+      const titleEn = typeof item.titleEn === 'string' ? item.titleEn : slug;
+      const guide = defaultSocialCategoryGuide(slug, titleFa, titleEn);
+      const descriptionFa = typeof item.descriptionFa === 'string' && item.descriptionFa.trim()
+        ? item.descriptionFa.trim()
+        : guide.fa;
+      const descriptionEn = typeof item.descriptionEn === 'string' && item.descriptionEn.trim()
+        ? item.descriptionEn.trim()
+        : guide.en;
       return [{
         slug,
-        titleFa: typeof item.titleFa === 'string' ? item.titleFa : slug,
-        titleEn: typeof item.titleEn === 'string' ? item.titleEn : slug,
+        titleFa,
+        titleEn,
         platform,
-        descriptionFa: typeof item.descriptionFa === 'string' ? item.descriptionFa : null,
-        descriptionEn: typeof item.descriptionEn === 'string' ? item.descriptionEn : null,
+        descriptionFa,
+        descriptionEn,
         sortOrder: Number.isFinite(Number(item.sortOrder)) ? Number(item.sortOrder) : 100,
       }];
     }).sort((a, b) => a.sortOrder - b.sortOrder);
