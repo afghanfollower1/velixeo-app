@@ -11,7 +11,7 @@ export type ProviderAverageEta = {
   text: string;
   minMinutes: number | null;
   maxMinutes: number | null;
-  source: 'provider';
+  source: 'provider_web' | 'provider_api';
 };
 
 function jsonObject(value: Prisma.JsonValue | null | undefined): Record<string, unknown> {
@@ -115,7 +115,12 @@ export function providerAverageEtaFromMetadata(
   const text = averageCandidateFromFields(row);
   if (!text) return null;
   const parsed = parseEtaMinutes(text);
-  return { text, ...parsed, source: 'provider' };
+  const explicitSource = String(row._providerAverageSource ?? '').trim().toUpperCase();
+  return {
+    text,
+    ...parsed,
+    source: explicitSource === 'PROVIDER_WEB' ? 'provider_web' : 'provider_api',
+  };
 }
 
 export function providerStartEtaFromMetadata(
