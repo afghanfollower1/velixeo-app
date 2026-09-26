@@ -868,6 +868,7 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
   const fa = adminLangFromRequest(request) === 'fa';
   const l = (faText: string, enText: string) => fa ? faText : enText;
   const n = (value: number) => value.toLocaleString(fa ? 'fa-AF' : 'en-US');
+  const categories = await loadCategories(prisma);
   const all = await prisma.service.findMany({
     where: {
       category: ServiceCategory.SOCIAL,
@@ -890,6 +891,9 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
       || typeof meta.publishedAt === 'string'
       || typeof meta.publishedFromProviderId === 'string';
   });
+  const categoryOptionsFor = (service: typeof services[number]) => categories
+    .map(category => `<option value="${esc(category.slug)}" ${category.slug===service.socialGroup?'selected':''}>${esc((fa ? category.titleFa : category.titleEn) || category.slug)} · ${esc(category.platform)}</option>`)
+    .join('');
   const rows = services.map(service => {
     const primary = service.routes[0];
     const refillMeta = primary ? jsonObject(primary.metadata) : {};
@@ -932,6 +936,8 @@ async function myServicesPage(prisma: PrismaClient, admin: AdminIdentity, reques
       <td><div class="actions">
         ${primary ? `<a class="iconbtn" href="/admin/v3/social/provider-services?provider=${primary.providerId}&route=${primary.id}" title="${editTitle}" aria-label="${editTitle}">${icon('edit')}</a>` : ''}
         <form method="post" action="/admin/v3/social/my-services/toggle"><input type="hidden" name="id" value="${service.id}"><button class="iconbtn ${service.enabled?'orange':'green'}" title="${visibilityTitle}" aria-label="${visibilityTitle}">${icon('eye')}</button></form>
+        <form method="post" action="/admin/v3/social/my-services/move" class="actions"><input type="hidden" name="id" value="${service.id}"><select name="categorySlug" aria-label="${l('انتقال به دسته‌بندی','Move to category')}" style="height:36px;max-width:190px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:0 8px">${categoryOptionsFor(service)}</select><button class="iconbtn purple" title="${l('انتقال سرویس','Move service')}" aria-label="${l('انتقال سرویس','Move service')}">${icon('category')}</button></form>
+        <form method="post" action="/admin/v3/social/my-services/delete" onsubmit="return confirm('${l('این سرویس از VELIXEO حذف شود؟ سرویس خام ارائه‌دهنده باقی می‌ماند.','Remove this service from VELIXEO? The provider catalog item will remain.')}');"><input type="hidden" name="id" value="${service.id}"><button class="iconbtn red" title="${l('حذف از VELIXEO','Remove from VELIXEO')}" aria-label="${l('حذف از VELIXEO','Remove from VELIXEO')}">${icon('trash')}</button></form>
       </div></td>
     </tr>`;
   }).join('');
