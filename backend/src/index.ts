@@ -41,7 +41,6 @@ import {
 } from './accountControl.js';
 import { registerAdminV3 } from './adminV3.js';
 import { startNotificationPushScheduler } from './pushNotifications.js';
-import { runInstagramCleanup20260926 } from './instagramCleanup20260926.js';
 import {
   sendAdminRegistrationAlert,
   sendAdminWalletAdjustmentAlert,
@@ -70,7 +69,6 @@ const env = z
   .parse(process.env);
 
 const prisma = new PrismaClient();
-await runInstagramCleanup20260926(prisma);
 const googleOAuth = new OAuth2Client();
 const app = Fastify({
   logger: true,
