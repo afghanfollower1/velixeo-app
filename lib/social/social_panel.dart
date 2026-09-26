@@ -316,6 +316,44 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
     return value.isEmpty ? null : value;
   }
 
+  Widget serviceTypeSelector() {
+    final groups = availableGroups;
+    return SizedBox(
+      height: 48,
+      child: Directionality(
+        textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: groups.length + 1,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              return ChoiceChip(
+                label: Text(t('نمایش همه سرویس‌ها', 'Show all services')),
+                selected: selectedGroup == null,
+                onSelected: (_) => setState(() {
+                  selectedGroup = null;
+                  selectedService = null;
+                  quote = null;
+                }),
+              );
+            }
+            final group = groups[index - 1];
+            return ChoiceChip(
+              label: Text(groupLabel(group)),
+              selected: group == selectedGroup,
+              onSelected: (_) => setState(() {
+                selectedGroup = group;
+                selectedService = null;
+                quote = null;
+              }),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   Widget socialHelpCard({
     required String title,
     required String body,
@@ -950,30 +988,7 @@ Widget _englishSocialTabBody() {
         const SizedBox(height: 18),
         Text(t('نوع سرویس', 'Service type'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
         const SizedBox(height: 9),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            ChoiceChip(
-              label: Text(t('همه', 'All')),
-              selected: selectedGroup == null,
-              onSelected: (_) => setState(() { selectedGroup = null; selectedService = null; quote = null; }),
-            ),
-            ...availableGroups.map((group) => ChoiceChip(
-                  label: Text(groupLabel(group)),
-                  selected: group == selectedGroup,
-                  onSelected: (_) => setState(() { selectedGroup = group; selectedService = null; quote = null; }),
-                )),
-          ],
-        ),
-        if (selectedGroup != null && selectedCategoryDescription != null) ...[
-          const SizedBox(height: 12),
-          socialHelpCard(
-            title: t('راهنمای این بخش', 'Category guide'),
-            body: selectedCategoryDescription!,
-            icon: Icons.lightbulb_outline_rounded,
-          ),
-        ],
+        serviceTypeSelector(),
         if (selectedGroup != null && selectedCategoryDescription != null) ...[
           const SizedBox(height: 12),
           socialHelpCard(
@@ -1083,22 +1098,15 @@ Widget buildEnglishNewOrder() {
         const SizedBox(height: 18),
         Text(t('نوع سرویس', 'Service type'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
         const SizedBox(height: 9),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            ChoiceChip(
-              label: Text(t('همه', 'All')),
-              selected: selectedGroup == null,
-              onSelected: (_) => setState(() { selectedGroup = null; selectedService = null; quote = null; }),
-            ),
-            ...availableGroups.map((group) => ChoiceChip(
-                  label: Text(groupLabel(group)),
-                  selected: group == selectedGroup,
-                  onSelected: (_) => setState(() { selectedGroup = group; selectedService = null; quote = null; }),
-                )),
-          ],
-        ),
+        serviceTypeSelector(),
+        if (selectedGroup != null && selectedCategoryDescription != null) ...[
+          const SizedBox(height: 12),
+          socialHelpCard(
+            title: t('راهنمای این بخش', 'Category guide'),
+            body: selectedCategoryDescription!,
+            icon: Icons.lightbulb_outline_rounded,
+          ),
+        ],
         const SizedBox(height: 18),
         ...visibleServices.map((service) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
