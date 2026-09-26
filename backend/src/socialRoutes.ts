@@ -1239,7 +1239,7 @@ export function registerSocialRoutes(
       const providerAverageSource = providerAverage
         ? providerAverage.source === 'provider_web' ? 'PROVIDER_WEB' : 'PROVIDER_API'
         : null;
-      const averageTimeMinutes = providerAverageMinutes ?? measured?.minutes ?? null;
+      const averageTimeMinutes = providerAverage ? providerAverageMinutes : measured?.minutes ?? null;
       const averageTimeSource = providerAverageSource
         ?? (measured ? 'VELIXEO_ORDERS' : 'NONE');
       rows.push({
@@ -1586,7 +1586,7 @@ export function registerSocialRoutes(
         const providerAverageSource = providerAverage
           ? providerAverage.source === 'provider_web' ? 'PROVIDER_WEB' : 'PROVIDER_API'
           : null;
-        const orderAverageMinutes = providerAverageMinutes ?? measuredAverage?.minutes ?? null;
+        const orderAverageMinutes = providerAverage ? providerAverageMinutes : measuredAverage?.minutes ?? null;
         const orderAverageSource = providerAverageSource
           ?? (measuredAverage ? 'VELIXEO_ORDERS' : 'NONE');
         order = await prisma.order.update({
