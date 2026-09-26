@@ -32,3 +32,6 @@ Final VELIXEO 0.14.4 rebuild: include accurate Provider API vs VELIXEO measured 
 
 VELIXEO 0.14.5+39: rolling real Social average from completed VELIXEO orders (up to 30 latest samples, 180-day bootstrap), immediate refresh after completion, provider advertised Start Time fallback instead of unavailable labels, compact service-card TOMAN prices, exact wallet/order totals, and localized AFN/USD/TOMAN labels.
 Release trigger: signed VELIXEO v0.14.5 production APK.
+
+VELIXEO 0.14.6+40: fix Social catalog performance by removing per-service FX queries, prevent catalog cache stampedes, load the customer Social catalog before secondary order data, keep Social Admin provider/services views as compact row tables, allow moving/removing VELIXEO services, and allow brand/category deletion by safely returning affected services to Provider Services.
+Release trigger: signed VELIXEO v0.14.6 production APK.
