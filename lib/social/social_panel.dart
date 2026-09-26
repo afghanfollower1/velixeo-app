@@ -52,32 +52,35 @@ String _serviceAverageTimeLabel(SocialService service, bool fa) {
   final source = service.averageTimeSource.toUpperCase();
   final minutes = service.averageTimeMinutes;
   final text = service.averageTimeText?.trim();
-  String? value;
-  if (minutes != null) {
-    value = _formatSocialDuration(minutes, fa);
-  } else if (text?.isNotEmpty == true) {
-    value = _localizedProviderTime(text!, fa);
+
+  // For an upstream provider value preserve the exact text shown by the panel
+  // ("1 hour 1 minute", etc.) instead of rounding it back from minutes.
+  if ((source == 'PROVIDER_WEB' || source == 'PROVIDER_API') && text?.isNotEmpty == true) {
+    final value = _localizedProviderTime(text!, fa);
+    return fa ? 'میانگین واقعی: $value' : 'Live average: $value';
   }
-  if ((source == 'PROVIDER_WEB' || source == 'PROVIDER_API' || source == 'VELIXEO_ORDERS') && value != null) {
+  if (source == 'VELIXEO_ORDERS' && minutes != null) {
+    final value = _formatSocialDuration(minutes, fa);
+    return fa ? 'میانگین واقعی: $value' : 'Live average: $value';
+  }
+  if ((source == 'PROVIDER_WEB' || source == 'PROVIDER_API') && minutes != null) {
+    final value = _formatSocialDuration(minutes, fa);
     return fa ? 'میانگین واقعی: $value' : 'Live average: $value';
   }
 
-  // Never turn the provider service title (for example "[Start Time: 0-2 Hrs]")
-  // into a fake "average" value. Until we have a real API average or completed
-  // order records, tell the customer that real data is still being collected.
   return fa ? 'میانگین واقعی: در حال جمع‌آوری داده' : 'Live average: collecting data';
 }
 
 String? _orderAverageTimeLabel(SocialOrder order, bool fa) {
   final source = order.providerAverageTimeSource.toUpperCase();
+  final text = order.providerAverageTimeText?.trim();
+  if ((source == 'PROVIDER_WEB' || source == 'PROVIDER_API') && text?.isNotEmpty == true) {
+    final value = _localizedProviderTime(text!, fa);
+    return fa ? 'میانگین واقعی: $value' : 'Live average: $value';
+  }
   final minutes = order.providerAverageTimeMinutes;
   if (minutes != null && (source == 'PROVIDER_WEB' || source == 'PROVIDER_API' || source == 'VELIXEO_ORDERS')) {
     final value = _formatSocialDuration(minutes, fa);
-    return fa ? 'میانگین واقعی: $value' : 'Live average: $value';
-  }
-  final text = order.providerAverageTimeText?.trim();
-  if (text?.isNotEmpty == true && (source == 'PROVIDER_WEB' || source == 'PROVIDER_API')) {
-    final value = _localizedProviderTime(text!, fa);
     return fa ? 'میانگین واقعی: $value' : 'Live average: $value';
   }
   return fa ? 'میانگین واقعی: در حال جمع‌آوری داده' : 'Live average: collecting data';
