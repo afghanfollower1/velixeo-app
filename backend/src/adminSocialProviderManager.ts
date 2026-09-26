@@ -67,6 +67,16 @@ const jsonObject = (value: Prisma.JsonValue | null | undefined): Record<string, 
   value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {};
+function unpublishedServiceMetadata(value: Prisma.JsonValue | null | undefined) {
+  const row = { ...jsonObject(value) };
+  delete row.addedToVelixeo;
+  delete row.publishedAt;
+  delete row.publishedFromProviderId;
+  delete row.categorySlug;
+  delete row.pricingMode;
+  delete row.managedByChatGPT;
+  return { ...row, rawCatalog: true } as Prisma.InputJsonValue;
+}
 const money = (value: bigint | number | string | null | undefined) =>
   `${Number(value ?? 0).toLocaleString('en-US')} AFN`;
 const dateText = (value: Date | string | null | undefined, fa = false) => {
