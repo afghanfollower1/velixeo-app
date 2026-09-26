@@ -242,21 +242,8 @@ html.vx-admin-fa #route-content .provider-name,html.vx-admin-fa #route-content .
 html.vx-admin-en #route-content .provider-name,html.vx-admin-en #route-content .split-title,html.vx-admin-en #route-content .searchbar{direction:ltr}
 html.vx-admin-fa #route-content .source-categories{direction:rtl}
 html.vx-admin-en #route-content .source-categories{direction:ltr}
-@media(max-width:1500px){
-  #route-content table.responsive-admin-table,#route-content table.responsive-admin-table tbody{display:block;width:100%}
-  #route-content table.responsive-admin-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
-  #route-content table.responsive-admin-table tbody{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-  #route-content table.responsive-admin-table tbody tr{display:block;min-width:0;border:1px solid var(--line);border-radius:16px;padding:8px 13px;background:#fff}
-  #route-content table.responsive-admin-table tbody td{display:grid;grid-template-columns:minmax(105px,.75fr) minmax(0,1.25fr);gap:10px;width:100%;padding:9px 0;border:0;border-bottom:1px solid #edf2f5;text-align:start}
-  #route-content table.responsive-admin-table tbody td::before{content:attr(data-label);font-size:10px;color:#91a3ae;font-weight:650}
-  #route-content table.responsive-admin-table tbody td:first-child{display:block;padding:10px 0 12px}
-  #route-content table.responsive-admin-table tbody td:first-child::before{display:none}
-  #route-content table.responsive-admin-table tbody td:last-child{border-bottom:0}
-  #route-content table.responsive-admin-table tbody td[colspan]{display:block;text-align:center}
-  #route-content table.responsive-admin-table tbody td[colspan]::before{display:none}
-}
+#route-content .table{min-width:920px}
 @media(max-width:900px){
-  #route-content table.responsive-admin-table tbody{grid-template-columns:1fr}
   .provider-picker{grid-template-columns:1fr}
   .provider-picker .btn{width:100%}
   .refill-control{align-items:flex-start;flex-direction:column}
@@ -264,7 +251,6 @@ html.vx-admin-en #route-content .source-categories{direction:ltr}
 @media(max-width:680px){
   .searchbar{align-items:stretch}.searchbar form{width:100%}.searchbar input,.searchbar select{width:100%}
   #route-content .card{padding:14px}
-  #route-content table.responsive-admin-table tbody td{grid-template-columns:minmax(90px,.7fr) minmax(0,1.3fr)}
 }
 </style>`;
 
