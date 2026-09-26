@@ -42,6 +42,9 @@ String _formatSocialDuration(int value, bool fa) {
 String _localizedProviderTime(String value, bool fa) {
   if (!fa) return value;
   return value
+      .replaceAll(RegExp(r'\bnot enough data\b', caseSensitive: false), 'داده کافی نیست')
+      .replaceAll(RegExp(r'\bunknown\b', caseSensitive: false), 'نامشخص')
+      .replaceAll(RegExp(r'\bn/?a\b', caseSensitive: false), 'در دسترس نیست')
       .replaceAll(RegExp(r'\bhours?\b|\bhrs?\b', caseSensitive: false), 'ساعت')
       .replaceAll(RegExp(r'\bminutes?\b|\bmins?\b', caseSensitive: false), 'دقیقه')
       .replaceAll(RegExp(r'\bdays?\b', caseSensitive: false), 'روز')
