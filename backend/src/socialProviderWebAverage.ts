@@ -202,7 +202,10 @@ function parseServicesAverageTable(html: string) {
     if (cells.length < 6) continue;
 
     const averageText = (cells[5] ?? '').trim();
-    if (!averageText || /not enough data|n\/a|unknown|^[-—]$/i.test(averageText)) continue;
+    // Preserve the provider's own "Not enough data" / N/A state too. When the
+    // authenticated website is available it is authoritative, so VELIXEO must not
+    // replace that state with a locally calculated value from a different history.
+    if (!averageText) continue;
     const parsed = parseEtaMinutes(averageText);
     map.set(serviceId, {
       text: averageText,
