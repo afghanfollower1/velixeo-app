@@ -292,6 +292,66 @@ class _SocialPanelPageState extends State<SocialPanelPage> {
         return true;
       }).toList(growable: false);
 
+  SocialCategory? get selectedCategoryConfig {
+    final group = selectedGroup;
+    if (group == null) return null;
+    for (final category in catalog.categories) {
+      if (category.slug == group &&
+          (selectedPlatform == null || category.platform == selectedPlatform)) {
+        return category;
+      }
+    }
+    return null;
+  }
+
+  String? get selectedCategoryDescription {
+    final category = selectedCategoryConfig;
+    if (category == null) return null;
+    final value = (fa ? category.descriptionFa : category.descriptionEn)?.trim() ?? '';
+    return value.isEmpty ? null : value;
+  }
+
+  String? localizedServiceDescription(SocialService service) {
+    final value = (fa ? service.descriptionFa : service.descriptionEn)?.trim() ?? '';
+    return value.isEmpty ? null : value;
+  }
+
+  Widget socialHelpCard({
+    required String title,
+    required String body,
+    IconData icon = Icons.info_outline_rounded,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4FAFF),
+        border: Border.all(color: const Color(0xFFCFEAFB)),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 19, color: VelixeoBrand.sky),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                const SizedBox(height: 4),
+                Text(
+                  body,
+                  style: const TextStyle(fontSize: 12, height: 1.55, color: Color(0xFF586F82)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   List<SocialBrand> get displayedBrands {
     final rows = availableBrands;
     if (showAllBrands || rows.length <= 6) return rows;
@@ -906,6 +966,22 @@ Widget _englishSocialTabBody() {
                 )),
           ],
         ),
+        if (selectedGroup != null && selectedCategoryDescription != null) ...[
+          const SizedBox(height: 12),
+          socialHelpCard(
+            title: t('راهنمای این بخش', 'Category guide'),
+            body: selectedCategoryDescription!,
+            icon: Icons.lightbulb_outline_rounded,
+          ),
+        ],
+        if (selectedGroup != null && selectedCategoryDescription != null) ...[
+          const SizedBox(height: 12),
+          socialHelpCard(
+            title: t('راهنمای این بخش', 'Category guide'),
+            body: selectedCategoryDescription!,
+            icon: Icons.lightbulb_outline_rounded,
+          ),
+        ],
         const SizedBox(height: 18),
         ...visibleServices.map((service) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -1058,6 +1134,14 @@ Widget buildEnglishNewOrder() {
           ),
           const SizedBox(height: 6),
           Text(fa ? service.titleFa : service.titleEn, style: const TextStyle(color: VelixeoBrand.muted)),
+          if (localizedServiceDescription(service) != null) ...[
+            const SizedBox(height: 10),
+            socialHelpCard(
+              title: t('توضیح این سرویس', 'Service description'),
+              body: localizedServiceDescription(service)!,
+              icon: Icons.description_outlined,
+            ),
+          ],
           const SizedBox(height: 16),
           ...service.orderFields
               .where((field) => field.key != 'runs' && field.key != 'interval')
@@ -1255,6 +1339,14 @@ Widget buildEnglishOrderForm(SocialService service) {
           ),
           const SizedBox(height: 6),
           Text(fa ? service.titleFa : service.titleEn, style: const TextStyle(color: VelixeoBrand.muted)),
+          if (localizedServiceDescription(service) != null) ...[
+            const SizedBox(height: 10),
+            socialHelpCard(
+              title: t('توضیح این سرویس', 'Service description'),
+              body: localizedServiceDescription(service)!,
+              icon: Icons.description_outlined,
+            ),
+          ],
           const SizedBox(height: 16),
           ...service.orderFields
               .where((field) => field.key != 'runs' && field.key != 'interval')
