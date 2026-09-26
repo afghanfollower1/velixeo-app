@@ -279,8 +279,18 @@ export async function syncSocialProviderCatalog(
       const startEta = providerStartEtaFromMetadata(row.raw as Prisma.JsonValue, row.name);
       const apiAverageEta = providerAverageEtaFromMetadata(row.raw as Prisma.JsonValue);
       const webAverageEta = providerWebAverages?.get(row.service) ?? null;
-      const averageEta = webAverageEta ?? apiAverageEta;
-      const averageSource = webAverageEta ? 'PROVIDER_WEB' : apiAverageEta ? 'PROVIDER_API' : null;
+      const cachedWebAverageEta = providerWebAverageStatus !== 'ok'
+        && String(currentRouteMeta._providerAverageSource ?? '').toUpperCase() === 'PROVIDER_WEB'
+        ? providerAverageEtaFromMetadata(current?.metadata)
+        : null;
+      // If the provider website is temporarily unreachable, retain the last exact
+      // website average instead of dropping every service back to "collecting data".
+      const averageEta = webAverageEta ?? cachedWebAverageEta ?? apiAverageEta;
+      const averageSource = webAverageEta || cachedWebAverageEta
+        ? 'PROVIDER_WEB'
+        : apiAverageEta
+          ? 'PROVIDER_API'
+          : null;
       const providerRate = new Prisma.Decimal(row.rate || '0');
       const providerRateScaled = decimalToScaled(providerRate);
       const costAfn = fx == null
