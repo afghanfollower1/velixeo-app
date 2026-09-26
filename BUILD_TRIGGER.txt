@@ -35,3 +35,6 @@ Release trigger: signed VELIXEO v0.14.5 production APK.
 
 VELIXEO 0.14.6+40: fix Social catalog performance by removing per-service FX queries, prevent catalog cache stampedes, load the customer Social catalog before secondary order data, keep Social Admin provider/services views as compact row tables, allow moving/removing VELIXEO services, and allow brand/category deletion by safely returning affected services to Provider Services.
 Release trigger: signed VELIXEO v0.14.6 production APK.
+
+VELIXEO 0.14.7+41: add bilingual category-level ordering guides across Social services, show provider-supplied service descriptions when available, and display service-specific notes only after a service is selected to keep the catalog clean.
+Release trigger: signed VELIXEO v0.14.7 production APK.
