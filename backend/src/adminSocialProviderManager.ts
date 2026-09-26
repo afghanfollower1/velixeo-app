@@ -1387,13 +1387,49 @@ export function registerAdminSocialProviderManager(
     const admin = await requireAdmin(request, reply, resolveAdmin);
     if (!admin) return;
     const key = normalizeBrandKey(text(request.body as Body, 'key'));
-    const categories = await loadCategories(prisma);
-    const categoryCount = categories.filter(item => normalizeBrandKey(item.platform) === key).length;
-    const serviceCount = await prisma.service.count({ where: { category: ServiceCategory.SOCIAL, socialPlatform: key } });
-    if (categoryCount || serviceCount) return reply.code(303).redirect('/admin/v3/social/brands?error=1&msg=' + encodeURIComponent('Move or delete this brand’s categories/services first.'));
-    await prisma.systemSetting.deleteMany({ where: { key: brandSettingKey(key) } });
-    await audit(prisma, admin.id, 'SOCIAL_BRAND_DELETE', 'SocialBrand', key, key);
-    return reply.code(303).redirect('/admin/v3/social/brands?msg=Brand%20deleted.');
+    try {
+      if (!key) throw new Error('Brand key is required.');
+      const categories = await loadCategories(prisma);
+      const categoryRows = categories.filter(item => normalizeBrandKey(item.platform) === key);
+      const categorySlugs = categoryRows.map(item => item.slug);
+      const services = await prisma.service.findMany({
+        where: {
+          category: ServiceCategory.SOCIAL,
+          OR: [
+            { socialPlatform: key },
+            ...(categorySlugs.length ? [{ socialGroup: { in: categorySlugs } }] : []),
+          ],
+        },
+        select: { id: true, metadata: true },
+      });
+      await prisma.$transaction([
+        ...services.map(service => prisma.service.update({
+          where: { id: service.id },
+          data: {
+            enabled: false,
+            featured: false,
+            basePriceAfn: null,
+            socialPlatform: null,
+            socialGroup: null,
+            metadata: unpublishedServiceMetadata(service.metadata),
+          },
+        })),
+        ...(categoryRows.length ? [prisma.systemSetting.deleteMany({ where: { key: { in: categoryRows.map(item => categoryKey(item.slug)) } } })] : []),
+        prisma.systemSetting.deleteMany({ where: { key: brandSettingKey(key) } }),
+      ]);
+      await audit(
+        prisma,
+        admin.id,
+        'SOCIAL_BRAND_DELETE',
+        'SocialBrand',
+        key,
+        `${key}: deleted brand, ${categoryRows.length} categories, unpublished ${services.length} services`,
+        { categoryCount: categoryRows.length, unpublishedServiceCount: services.length } as unknown as Prisma.InputJsonValue,
+      );
+      return reply.code(303).redirect('/admin/v3/social/brands?msg=' + encodeURIComponent(`Brand deleted. ${categoryRows.length} categories removed and ${services.length} services returned to Provider Services.`));
+    } catch (error) {
+      return reply.code(303).redirect('/admin/v3/social/brands?error=1&msg=' + encodeURIComponent(error instanceof Error ? error.message : 'brand_delete_failed'));
+    }
   });
   app.get('/admin/v3/social/categories', async (request, reply) => {
     const admin = await requireAdmin(request, reply, resolveAdmin);
@@ -1483,15 +1519,38 @@ export function registerAdminSocialProviderManager(
     const admin = await requireAdmin(request, reply, resolveAdmin);
     if (!admin) return;
     const slug = text(request.body as Body, 'slug');
-    const count = await prisma.service.count({
-      where: { category: ServiceCategory.SOCIAL, socialGroup: slug },
-    });
-    if (count > 0) {
-      return reply.code(303).redirect(`/admin/v3/social/categories?error=1&msg=${encodeURIComponent(`This category still contains ${count} service(s). Hide it or move the services before deleting.`)}`);
+    try {
+      const services = await prisma.service.findMany({
+        where: { category: ServiceCategory.SOCIAL, socialGroup: slug },
+        select: { id: true, metadata: true },
+      });
+      await prisma.$transaction([
+        ...services.map(service => prisma.service.update({
+          where: { id: service.id },
+          data: {
+            enabled: false,
+            featured: false,
+            basePriceAfn: null,
+            socialPlatform: null,
+            socialGroup: null,
+            metadata: unpublishedServiceMetadata(service.metadata),
+          },
+        })),
+        prisma.systemSetting.deleteMany({ where: { key: categoryKey(slug) } }),
+      ]);
+      await audit(
+        prisma,
+        admin.id,
+        'SOCIAL_CATEGORY_DELETE',
+        'SocialCategory',
+        slug,
+        `${slug}: deleted category and unpublished ${services.length} services`,
+        { unpublishedServiceCount: services.length } as unknown as Prisma.InputJsonValue,
+      );
+      return reply.code(303).redirect('/admin/v3/social/categories?msg=' + encodeURIComponent(`Category deleted. ${services.length} services returned to Provider Services.`));
+    } catch (error) {
+      return reply.code(303).redirect('/admin/v3/social/categories?error=1&msg=' + encodeURIComponent(error instanceof Error ? error.message : 'category_delete_failed'));
     }
-    await prisma.systemSetting.deleteMany({ where: { key: categoryKey(slug) } });
-    await audit(prisma, admin.id, 'SOCIAL_CATEGORY_DELETE', 'SocialCategory', slug, slug);
-    return reply.code(303).redirect('/admin/v3/social/categories?msg=Category%20deleted.');
   });
 
   app.get('/admin/v3/social/my-services', async (request, reply) => {
@@ -1513,6 +1572,68 @@ export function registerAdminSocialProviderManager(
     const updated = await prisma.service.update({ where: { id }, data: { enabled: !service.enabled } });
     await audit(prisma, admin.id, 'SOCIAL_SERVICE_VISIBILITY', 'Service', id, `${updated.titleEn}: ${updated.enabled ? 'live' : 'hidden'}`);
     return reply.code(303).redirect(`/admin/v3/social/my-services?msg=${encodeURIComponent(updated.enabled ? 'Service is now live in the app.' : 'Service hidden from the app.')}`);
+  });
+
+  app.post('/admin/v3/social/my-services/move', async (request, reply) => {
+    const admin = await requireAdmin(request, reply, resolveAdmin);
+    if (!admin) return;
+    const body = request.body as Body;
+    const id = text(body, 'id');
+    const categorySlug = text(body, 'categorySlug');
+    try {
+      const [service, categories] = await Promise.all([
+        prisma.service.findFirst({ where: { id, category: ServiceCategory.SOCIAL } }),
+        loadCategories(prisma),
+      ]);
+      if (!service || jsonObject(service.metadata).rawCatalog === true) throw new Error('Service not found.');
+      const category = categories.find(item => item.slug === categorySlug);
+      if (!category) throw new Error('Choose a valid destination category.');
+      const metadata = jsonObject(service.metadata);
+      await prisma.service.update({
+        where: { id },
+        data: {
+          socialPlatform: normalizeBrandKey(category.platform),
+          socialGroup: category.slug,
+          metadata: {
+            ...metadata,
+            rawCatalog: false,
+            addedToVelixeo: true,
+            categorySlug: category.slug,
+          } as Prisma.InputJsonValue,
+        },
+      });
+      await audit(prisma, admin.id, 'SOCIAL_SERVICE_MOVE', 'Service', id, `${service.titleEn} → ${category.platform}/${category.slug}`);
+      return reply.code(303).redirect('/admin/v3/social/my-services?msg=' + encodeURIComponent('Service moved to the selected category.'));
+    } catch (error) {
+      return reply.code(303).redirect('/admin/v3/social/my-services?error=1&msg=' + encodeURIComponent(error instanceof Error ? error.message : 'service_move_failed'));
+    }
+  });
+
+  app.post('/admin/v3/social/my-services/delete', async (request, reply) => {
+    const admin = await requireAdmin(request, reply, resolveAdmin);
+    if (!admin) return;
+    const id = text(request.body as Body, 'id');
+    try {
+      const service = await prisma.service.findFirst({
+        where: { id, category: ServiceCategory.SOCIAL },
+      });
+      if (!service || jsonObject(service.metadata).rawCatalog === true) throw new Error('Service not found.');
+      await prisma.service.update({
+        where: { id },
+        data: {
+          enabled: false,
+          featured: false,
+          basePriceAfn: null,
+          socialPlatform: null,
+          socialGroup: null,
+          metadata: unpublishedServiceMetadata(service.metadata),
+        },
+      });
+      await audit(prisma, admin.id, 'SOCIAL_SERVICE_REMOVE', 'Service', id, `${service.titleEn}: removed from VELIXEO; provider route retained`);
+      return reply.code(303).redirect('/admin/v3/social/my-services?msg=' + encodeURIComponent('Service removed from VELIXEO and returned to Provider Services.'));
+    } catch (error) {
+      return reply.code(303).redirect('/admin/v3/social/my-services?error=1&msg=' + encodeURIComponent(error instanceof Error ? error.message : 'service_remove_failed'));
+    }
   });
 
   app.post('/admin/v3/social/my-services/refill-toggle', async (request, reply) => {
