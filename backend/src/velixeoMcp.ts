@@ -14,7 +14,7 @@ type J=Record<string,unknown>;
 type McpRequest={jsonrpc?:string;id?:string|number|null;method?:string;params?:J};
 type CategoryRow={slug:string;titleEn:string;titleFa:string;descriptionEn:string;descriptionFa:string;platform:string;sortOrder:number;enabled:boolean;candidateKey:string};
 
-const VERSION='1.2.1';
+const VERSION='1.3.0';
 const TOKEN_KEY='chatgpt.mcp.token_hash';
 const APPROVAL='I_CONFIRM';
 const PROTOCOLS=['2026-07-28','2025-11-25','2025-06-18','2025-03-26'];
@@ -186,7 +186,7 @@ async function saveCategories(p:PrismaClient,a:AdminIdentity,args:J){
 async function listCandidateServices(p:PrismaClient,args:J){
  const providerId=String(args.provider_id||''),brandKey=normalizeBrandKey(String(args.brand_key||'')),candidateKey=normCat(String(args.candidate_key||'')),offset=Math.max(0,Math.floor(Number(args.offset||0))),limit=Math.max(1,Math.min(100,Math.floor(Number(args.limit||50))));
  const routes=(await providerRoutes(p,providerId)).filter(r=>platformOf(r)===brandKey&&candidateOf(r)===candidateKey),page=routes.slice(offset,offset+limit);
- return {providerId,brandKey,candidateKey,total:routes.length,offset,limit,hasMore:offset+page.length<routes.length,services:page.map(r=>{const eta=providerStartEtaFromMetadata(r.metadata,r.providerName),avg=providerAverageEtaFromMetadata(r.metadata);return {routeId:r.id,serviceId:r.serviceId,providerServiceId:r.providerServiceCode,providerName:r.providerName||r.service.titleEn,providerCategory:r.providerCategory,providerType:r.providerType,providerRate:r.providerRate?.toString()||null,providerCurrency:r.providerCurrency,min:r.providerMinQty,max:r.providerMaxQty,refill:r.providerRefill,cancel:r.providerCancel,providerStartTime:eta?.text||null,providerStartMinMinutes:eta?.minMinutes??null,providerStartMaxMinutes:eta?.maxMinutes??null,providerAverageTime:avg?.text||null,providerAverageMinMinutes:avg?.minMinutes??null,providerAverageMaxMinutes:avg?.maxMinutes??null,lastSyncedAt:r.lastSyncedAt?.toISOString()||null,markupPercent:r.markupPercent?.toString()??r.provider.defaultMarkupPercent.toString(),alreadyAdded:obj(r.service.metadata).rawCatalog!==true,existingTitleEn:r.service.titleEn,existingTitleFa:r.service.titleFa,existingDescriptionEn:r.service.descriptionEn,existingDescriptionFa:r.service.descriptionFa};})};
+ return {providerId,brandKey,candidateKey,total:routes.length,offset,limit,hasMore:offset+page.length<routes.length,services:page.map(r=>{const eta=providerStartEtaFromMetadata(r.metadata,r.providerName),avg=providerAverageEtaFromMetadata(r.metadata);return {routeId:r.id,serviceId:r.serviceId,providerServiceId:r.providerServiceCode,providerName:r.providerName||r.service.titleEn,providerCategory:r.providerCategory,providerType:r.providerType,providerRate:r.providerRate?.toString()||null,providerCurrency:r.providerCurrency,min:r.providerMinQty,max:r.providerMaxQty,refill:r.providerRefill,cancel:r.providerCancel,providerStartTime:eta?.text||null,providerStartMinMinutes:eta?.minMinutes??null,providerStartMaxMinutes:eta?.maxMinutes??null,providerAverageTime:avg?.text||null,providerAverageMinMinutes:avg?.minMinutes??null,providerAverageMaxMinutes:avg?.maxMinutes??null,lastSyncedAt:r.lastSyncedAt?.toISOString()||null,markupPercent:r.markupPercent?.toString()??r.provider.defaultMarkupPercent.toString(),alreadyAdded:obj(r.service.metadata).rawCatalog!==true,existingTitleEn:r.service.titleEn,existingTitleFa:r.service.titleFa,existingDescriptionEn:r.service.descriptionEn,existingDescriptionFa:r.service.descriptionFa,providerDescription:(()=>{const m=obj(r.metadata);for(const k of ['description','desc','service_description','serviceDescription','details','note','notes']){const v=m[k];if(v!=null&&String(v).trim())return String(v).trim();}return null;})()};})};
 }
 async function publishServices(p:PrismaClient,a:AdminIdentity,args:J){
  needApproval(args);
@@ -263,13 +263,11 @@ async function deleteCategory(p:PrismaClient,a:AdminIdentity,args:J){
  needApproval(args);
  const slug=safeSlug(String(args.category_slug||''));if(!slug)throw new Error('CATEGORY_SLUG_REQUIRED');
  const key=catKey(slug),row=await p.systemSetting.findUnique({where:{key}});if(!row)throw new Error('CATEGORY_NOT_FOUND');
- const disabledServiceCount=await p.$transaction(async tx=>{
-  const disabled=await tx.service.updateMany({where:{category:ServiceCategory.SOCIAL,socialGroup:slug},data:{enabled:false}});
-  await tx.systemSetting.delete({where:{key}});
-  return disabled.count;
- });
- await audit(p,a,'CHATGPT_SOCIAL_CATEGORY_DELETE','SocialCategory',slug,'ChatGPT deleted category and disabled '+disabledServiceCount+' services',{slug,disabledServiceCount} as unknown as Prisma.InputJsonValue);
- return {deleted:true,slug,disabledServiceCount};
+ const services=await p.service.findMany({where:{category:ServiceCategory.SOCIAL,socialGroup:slug},select:{id:true}});
+ const returnedServiceCount=await returnServicesToProviderCatalog(p,services.map(s=>s.id),'CATEGORY_DELETED');
+ await p.systemSetting.delete({where:{key}});
+ await audit(p,a,'CHATGPT_SOCIAL_CATEGORY_DELETE','SocialCategory',slug,'ChatGPT deleted the explicitly requested category and returned its services to Provider Services',{slug,returnedServiceCount} as unknown as Prisma.InputJsonValue);
+ return {deleted:true,slug,returnedServiceCount};
 }
 async function updateServiceContent(p:PrismaClient,a:AdminIdentity,args:J){
  needApproval(args);
@@ -287,7 +285,240 @@ async function updateServiceContent(p:PrismaClient,a:AdminIdentity,args:J){
 async function listVelixeoServices(p:PrismaClient,args:J){
  const brandKey=normalizeBrandKey(String(args.brand_key||'')),categorySlug=safeSlug(String(args.category_slug||'')),q=String(args.q||'').trim(),limit=Math.max(1,Math.min(200,Math.floor(Number(args.limit||100))));
  const rows=await p.service.findMany({where:{category:ServiceCategory.SOCIAL,...(brandKey?{socialPlatform:brandKey}:{}),...(categorySlug?{socialGroup:categorySlug}:{}),...(q?{OR:[{titleEn:{contains:q,mode:'insensitive'}},{titleFa:{contains:q,mode:'insensitive'}},{slug:{contains:q,mode:'insensitive'}}]}:{})},include:{routes:{include:{provider:{select:{id:true,name:true}}},orderBy:{priority:'asc'}}},orderBy:[{enabled:'desc'},{sortOrder:'asc'},{titleEn:'asc'}],take:limit});
- return {count:rows.length,services:rows.map(service=>({id:service.id,slug:service.slug,titleEn:service.titleEn,titleFa:service.titleFa,descriptionEn:service.descriptionEn,descriptionFa:service.descriptionFa,enabled:service.enabled,platform:service.socialPlatform,categorySlug:service.socialGroup,estimatedMinMinutes:service.estimatedMinMinutes,estimatedMaxMinutes:service.estimatedMaxMinutes,routes:service.routes.map(r=>{const eta=providerStartEtaFromMetadata(r.metadata,r.providerName);return {routeId:r.id,providerId:r.providerId,providerName:r.provider.name,providerServiceId:r.providerServiceCode,markupPercent:r.markupPercent?.toString()||null,refill:r.providerRefill,cancel:r.providerCancel,providerStartTime:eta?.text||null};})}))};
+ return {count:rows.length,services:rows.map(service=>({id:service.id,slug:service.slug,titleEn:service.titleEn,titleFa:service.titleFa,descriptionEn:service.descriptionEn,descriptionFa:service.descriptionFa,enabled:service.enabled,featured:service.featured,platform:service.socialPlatform,categorySlug:service.socialGroup,basePriceAfn:service.basePriceAfn?.toString()||null,priceUnit:service.priceUnit,minQty:service.minQty,maxQty:service.maxQty,estimatedMinMinutes:service.estimatedMinMinutes,estimatedMaxMinutes:service.estimatedMaxMinutes,refillDays:service.refillDays,sortOrder:service.sortOrder,pricingMode:String(obj(service.metadata).pricingMode||'AUTO_MARKUP'),routes:service.routes.map(r=>{const eta=providerStartEtaFromMetadata(r.metadata,r.providerName),m=obj(r.metadata);let providerDescription:null|string=null;for(const k of ['description','desc','service_description','serviceDescription','details','note','notes']){const v=m[k];if(v!=null&&String(v).trim()){providerDescription=String(v).trim();break;}}return {routeId:r.id,providerId:r.providerId,providerName:r.provider.name,providerServiceId:r.providerServiceCode,priority:r.priority,routeEnabled:r.enabled,markupPercent:r.markupPercent?.toString()||null,refill:r.providerRefill,cancel:r.providerCancel,providerStartTime:eta?.text||null,providerDescription};})}))};
+}
+
+
+function validateConnectorBrandIcon(type:string,value:string,key:string){
+ const t=type.toUpperCase();
+ if(t==='DEFAULT'){
+  const icon=(value||key.toLowerCase()).trim().toLowerCase();
+  return {type:'DEFAULT' as const,value:(defaultBrandIcons as readonly string[]).includes(icon)?icon:'generic'};
+ }
+ if(t==='URL'){
+  const url=new URL(value);
+  if(!['https:','http:'].includes(url.protocol))throw new Error('BRAND_ICON_URL_INVALID');
+  return {type:'URL' as const,value:url.toString()};
+ }
+ if(t==='UPLOAD'){
+  if(!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value))throw new Error('BRAND_ICON_UPLOAD_INVALID');
+  if(value.length>550000)throw new Error('BRAND_ICON_UPLOAD_TOO_LARGE');
+  return {type:'UPLOAD' as const,value};
+ }
+ throw new Error('BRAND_ICON_TYPE_INVALID');
+}
+async function updateBrand(p:PrismaClient,a:AdminIdentity,args:J){
+ needApproval(args);
+ const oldKey=normalizeBrandKey(String(args.brand_key||''));if(!oldKey)throw new Error('BRAND_KEY_REQUIRED');
+ const brands=await loadSocialBrands(p),current=brands.find(b=>b.key===oldKey);if(!current)throw new Error('SOCIAL_BRAND_NOT_FOUND');
+ const newKey=args.new_key!==undefined?normalizeBrandKey(String(args.new_key||'')):oldKey;if(!newKey)throw new Error('NEW_BRAND_KEY_INVALID');
+ if(newKey!==oldKey&&brands.some(b=>b.key===newKey))throw new Error('BRAND_KEY_ALREADY_EXISTS');
+ const requestedIconType=args.icon_type!==undefined?String(args.icon_type||'').toUpperCase():current.iconType;
+ const requestedIconValue=args.icon_value!==undefined?String(args.icon_value||'').trim():current.iconValue;
+ const icon=validateConnectorBrandIcon(requestedIconType,requestedIconValue,newKey);
+ const value={
+  key:newKey,
+  titleEn:args.title_en!==undefined?String(args.title_en||'').trim():current.titleEn,
+  titleFa:args.title_fa!==undefined?String(args.title_fa||'').trim():current.titleFa,
+  iconType:icon.type,
+  iconValue:icon.value,
+  sortOrder:args.sort_order!==undefined?Math.floor(Number(args.sort_order)):current.sortOrder,
+  enabled:args.enabled!==undefined?Boolean(args.enabled):current.enabled
+ };
+ if(!value.titleEn||!value.titleFa)throw new Error('BILINGUAL_BRAND_TITLES_REQUIRED');
+ if(!Number.isFinite(value.sortOrder))throw new Error('BRAND_SORT_ORDER_INVALID');
+ const categoryRows=await p.systemSetting.findMany({where:{category:'social-category'}});
+ const affected=categoryRows.filter(row=>normalizeBrandKey(String(obj(row.value).platform||''))===oldKey);
+ await p.$transaction(async tx=>{
+  await tx.systemSetting.upsert({
+   where:{key:brandSettingKey(newKey)},
+   create:{key:brandSettingKey(newKey),category:'social-brand',description:'Social Media customer-facing brand.',value:value as unknown as Prisma.InputJsonValue},
+   update:{category:'social-brand',value:value as unknown as Prisma.InputJsonValue}
+  });
+  if(newKey!==oldKey){
+   for(const row of affected){
+    const next={...obj(row.value),platform:newKey};
+    await tx.systemSetting.update({where:{key:row.key},data:{value:next as Prisma.InputJsonValue}});
+   }
+   await tx.service.updateMany({where:{category:ServiceCategory.SOCIAL,socialPlatform:oldKey},data:{socialPlatform:newKey}});
+   await tx.systemSetting.deleteMany({where:{key:brandSettingKey(oldKey)}});
+  }
+ });
+ await audit(p,a,'CHATGPT_SOCIAL_BRAND_UPDATE','SocialBrand',newKey,'ChatGPT updated social brand only as explicitly requested',{oldKey,newKey,categoryCount:affected.length} as unknown as Prisma.InputJsonValue);
+ return {oldKey,key:newKey,renamed:newKey!==oldKey,...value,affectedCategories:affected.length};
+}
+async function returnServicesToProviderCatalog(p:PrismaClient,serviceIds:string[],reason:string){
+ let changed=0;
+ for(const id of serviceIds){
+  const service=await p.service.findUnique({where:{id},select:{id:true,metadata:true}});
+  if(!service)continue;
+  const meta=obj(service.metadata);
+  await p.service.update({where:{id},data:{
+   enabled:false,
+   basePriceAfn:null,
+   socialPlatform:null,
+   socialGroup:null,
+   metadata:{...meta,rawCatalog:true,addedToVelixeo:false,pricingMode:'AUTO_MARKUP',categorySlug:null,removedFromVelixeoAt:new Date().toISOString(),removedFromVelixeoReason:reason,managedByChatGPT:true} as Prisma.InputJsonValue
+  }});
+  changed++;
+ }
+ return changed;
+}
+async function deleteBrand(p:PrismaClient,a:AdminIdentity,args:J){
+ needApproval(args);
+ const brandKey=normalizeBrandKey(String(args.brand_key||''));if(!brandKey)throw new Error('BRAND_KEY_REQUIRED');
+ const brands=await loadSocialBrands(p);if(!brands.some(b=>b.key===brandKey))throw new Error('SOCIAL_BRAND_NOT_FOUND');
+ const cats=(await categories(p)).filter(cat=>cat.platform===brandKey),slugs=cats.map(cat=>cat.slug);
+ const services=await p.service.findMany({where:{category:ServiceCategory.SOCIAL,OR:[
+  {socialPlatform:brandKey},
+  ...(slugs.length?[{socialGroup:{in:slugs}}]:[])
+ ]},select:{id:true}});
+ const ids=[...new Set(services.map(s=>s.id))];
+ const unpublished=await returnServicesToProviderCatalog(p,ids,'BRAND_DELETED');
+ await p.$transaction([
+  ...(slugs.length?[p.systemSetting.deleteMany({where:{key:{in:slugs.map(catKey)}}})]:[]),
+  p.systemSetting.deleteMany({where:{key:brandSettingKey(brandKey)}})
+ ]);
+ await audit(p,a,'CHATGPT_SOCIAL_BRAND_DELETE','SocialBrand',brandKey,'ChatGPT deleted the explicitly requested social brand and returned its services to Provider Services',{brandKey,categoryCount:cats.length,unpublishedServices:unpublished} as unknown as Prisma.InputJsonValue);
+ return {deleted:true,brandKey,deletedCategories:cats.length,returnedServices:unpublished};
+}
+async function updateService(p:PrismaClient,a:AdminIdentity,args:J){
+ needApproval(args);
+ const serviceId=String(args.service_id||'').trim();if(!serviceId)throw new Error('SERVICE_ID_REQUIRED');
+ const service=await p.service.findFirst({where:{id:serviceId,category:ServiceCategory.SOCIAL}});if(!service)throw new Error('SOCIAL_SERVICE_NOT_FOUND');
+ if(obj(service.metadata).rawCatalog===true)throw new Error('SERVICE_NOT_PUBLISHED_TO_VELIXEO');
+ const data:Prisma.ServiceUpdateInput={};
+ let targetCategory:{slug:string;platform:string}|null=null;
+ if(args.category_slug!==undefined){
+  const slug=safeSlug(String(args.category_slug||''));if(!slug)throw new Error('CATEGORY_SLUG_REQUIRED');
+  const cat=(await categories(p)).find(x=>x.slug===slug);if(!cat)throw new Error('CATEGORY_NOT_FOUND');
+  targetCategory={slug:cat.slug,platform:cat.platform};
+  data.socialGroup=cat.slug;data.socialPlatform=cat.platform;
+ }
+ if(args.title_en!==undefined){const v=String(args.title_en||'').trim();if(!v)throw new Error('TITLE_EN_REQUIRED');data.titleEn=v;}
+ if(args.title_fa!==undefined){const v=String(args.title_fa||'').trim();if(!v)throw new Error('TITLE_FA_REQUIRED');data.titleFa=v;}
+ if(args.description_en!==undefined)data.descriptionEn=String(args.description_en||'').trim()||null;
+ if(args.description_fa!==undefined)data.descriptionFa=String(args.description_fa||'').trim()||null;
+ const numeric=(name:string,min:number|null=0)=>{
+  if(args[name]===undefined)return undefined;
+  const n=Number(args[name]);if(!Number.isFinite(n)||!Number.isInteger(n)||(min!==null&&n<min))throw new Error(name.toUpperCase()+'_INVALID');
+  return n;
+ };
+ const minQty=numeric('min_qty',1),maxQty=numeric('max_qty',1),minEta=numeric('estimated_min_minutes',0),maxEta=numeric('estimated_max_minutes',0),refillDays=numeric('refill_days',0),sortOrder=numeric('sort_order',null),priceUnit=numeric('price_unit',1);
+ if(args.clear_min_qty===true)data.minQty=null;else if(minQty!==undefined)data.minQty=minQty;
+ if(args.clear_max_qty===true)data.maxQty=null;else if(maxQty!==undefined)data.maxQty=maxQty;
+ const nextMin=args.clear_min_qty===true?null:(minQty??service.minQty),nextMax=args.clear_max_qty===true?null:(maxQty??service.maxQty);
+ if(nextMin!=null&&nextMax!=null&&nextMin>nextMax)throw new Error('MIN_MAX_INVALID');
+ if(args.clear_estimated_min_minutes===true)data.estimatedMinMinutes=null;else if(minEta!==undefined)data.estimatedMinMinutes=minEta;
+ if(args.clear_estimated_max_minutes===true)data.estimatedMaxMinutes=null;else if(maxEta!==undefined)data.estimatedMaxMinutes=maxEta;
+ const nextMinEta=args.clear_estimated_min_minutes===true?null:(minEta??service.estimatedMinMinutes),nextMaxEta=args.clear_estimated_max_minutes===true?null:(maxEta??service.estimatedMaxMinutes);
+ if(nextMinEta!=null&&nextMaxEta!=null&&nextMinEta>nextMaxEta)throw new Error('ETA_INVALID');
+ if(args.clear_refill_days===true)data.refillDays=null;else if(refillDays!==undefined)data.refillDays=refillDays;
+ if(sortOrder!==undefined)data.sortOrder=sortOrder;
+ if(priceUnit!==undefined)data.priceUnit=priceUnit;
+ if(args.enabled!==undefined)data.enabled=Boolean(args.enabled);
+ if(args.featured!==undefined)data.featured=Boolean(args.featured);
+ if(targetCategory){
+  data.metadata={...obj(service.metadata),rawCatalog:false,addedToVelixeo:true,categorySlug:targetCategory.slug,managedByChatGPT:true} as Prisma.InputJsonValue;
+ }
+ const saved=await p.service.update({where:{id:serviceId},data});
+ await audit(p,a,'CHATGPT_SOCIAL_SERVICE_UPDATE','Service',serviceId,'ChatGPT updated only the explicitly requested service fields',{serviceId,categorySlug:targetCategory?.slug||null,changedFields:Object.keys(data)} as unknown as Prisma.InputJsonValue);
+ return {serviceId,titleEn:saved.titleEn,titleFa:saved.titleFa,descriptionEn:saved.descriptionEn,descriptionFa:saved.descriptionFa,platform:saved.socialPlatform,categorySlug:saved.socialGroup,enabled:saved.enabled,featured:saved.featured,minQty:saved.minQty,maxQty:saved.maxQty,estimatedMinMinutes:saved.estimatedMinMinutes,estimatedMaxMinutes:saved.estimatedMaxMinutes,refillDays:saved.refillDays,sortOrder:saved.sortOrder,priceUnit:saved.priceUnit};
+}
+async function fixedPriceAfn(p:PrismaClient,amountRaw:unknown,currencyRaw:unknown){
+ const amount=new Prisma.Decimal(String(amountRaw??''));
+ if(!amount.isFinite()||amount.lte(0))throw new Error('FIXED_PRICE_INVALID');
+ const currency=String(currencyRaw||'').trim().toUpperCase();if(!currency)throw new Error('FIXED_CURRENCY_REQUIRED');
+ if(currency==='AFN')return {afn:BigInt(amount.ceil().toFixed(0)),currency,amount:amount.toString()};
+ const rate=await p.exchangeRate.findUnique({where:{code:currency}});if(!rate)throw new Error('EXCHANGE_RATE_NOT_FOUND:'+currency);
+ const afn=amount.mul(rate.afnPerUnit);
+ return {afn:BigInt(afn.ceil().toFixed(0)),currency,amount:amount.toString()};
+}
+async function setServicePricing(p:PrismaClient,a:AdminIdentity,args:J){
+ needApproval(args);
+ const serviceId=String(args.service_id||'').trim(),mode=String(args.pricing_mode||'').trim().toUpperCase();
+ if(!serviceId)throw new Error('SERVICE_ID_REQUIRED');
+ const service=await p.service.findFirst({where:{id:serviceId,category:ServiceCategory.SOCIAL},include:{routes:true}});if(!service)throw new Error('SOCIAL_SERVICE_NOT_FOUND');
+ if(obj(service.metadata).rawCatalog===true)throw new Error('SERVICE_NOT_PUBLISHED_TO_VELIXEO');
+ if(mode!=='AUTO_MARKUP'&&mode!=='FIXED')throw new Error('PRICING_MODE_REQUIRED');
+ let basePriceAfn:bigint|null=null,markupPercent:number|null=null,fixedOriginal:J|null=null;
+ if(mode==='AUTO_MARKUP'){
+  const markup=Number(args.markup_percent);if(!Number.isFinite(markup)||markup<0||markup>1000)throw new Error('MARKUP_PERCENT_REQUIRED_EXACT');
+  markupPercent=markup;
+  await p.serviceProviderRoute.updateMany({where:{serviceId},data:{markupPercent:new Prisma.Decimal(markup)}});
+ }else{
+  const fixed=await fixedPriceAfn(p,args.fixed_price,args.fixed_currency);basePriceAfn=fixed.afn;fixedOriginal={amount:fixed.amount,currency:fixed.currency};
+  await p.serviceProviderRoute.updateMany({where:{serviceId},data:{markupPercent:null}});
+ }
+ const meta={...obj(service.metadata),pricingMode:mode,managedByChatGPT:true,...(fixedOriginal?{fixedPriceOriginal:fixedOriginal}:{fixedPriceOriginal:null})};
+ const priceUnit=args.price_unit!==undefined?Number(args.price_unit):service.priceUnit;
+ if(!Number.isFinite(priceUnit)||!Number.isInteger(priceUnit)||priceUnit<1)throw new Error('PRICE_UNIT_INVALID');
+ const saved=await p.service.update({where:{id:serviceId},data:{basePriceAfn,priceUnit,metadata:meta as Prisma.InputJsonValue}});
+ await audit(p,a,'CHATGPT_SOCIAL_SERVICE_PRICING','Service',serviceId,'ChatGPT applied only the exact administrator-specified pricing',{serviceId,mode,markupPercent,fixedOriginal,basePriceAfn:basePriceAfn?.toString()||null,priceUnit} as unknown as Prisma.InputJsonValue);
+ return {serviceId,pricingMode:mode,markupPercent,fixedPriceAfn:saved.basePriceAfn?.toString()||null,fixedOriginal,priceUnit:saved.priceUnit,affectedRoutes:service.routes.length};
+}
+async function updateRoute(p:PrismaClient,a:AdminIdentity,args:J){
+ needApproval(args);
+ const routeId=String(args.route_id||'').trim();if(!routeId)throw new Error('ROUTE_ID_REQUIRED');
+ const route=await p.serviceProviderRoute.findUnique({where:{id:routeId}});if(!route)throw new Error('SOCIAL_ROUTE_NOT_FOUND');
+ const data:Prisma.ServiceProviderRouteUpdateInput={};
+ if(args.priority!==undefined){const n=Number(args.priority);if(!Number.isFinite(n)||!Number.isInteger(n))throw new Error('ROUTE_PRIORITY_INVALID');data.priority=n;}
+ if(args.enabled!==undefined)data.enabled=Boolean(args.enabled);
+ if(args.use_provider_default_markup===true&&args.markup_percent!==undefined)throw new Error('CHOOSE_EXACT_MARKUP_OR_PROVIDER_DEFAULT');
+ if(args.use_provider_default_markup===true)data.markupPercent=null;
+ else if(args.markup_percent!==undefined){
+  const n=Number(args.markup_percent);if(!Number.isFinite(n)||n<0||n>1000)throw new Error('MARKUP_PERCENT_OUT_OF_RANGE');
+  data.markupPercent=new Prisma.Decimal(n);
+ }
+ if(!Object.keys(data).length)throw new Error('NO_ROUTE_CHANGES_REQUESTED');
+ const saved=await p.serviceProviderRoute.update({where:{id:routeId},data});
+ await audit(p,a,'CHATGPT_SOCIAL_ROUTE_UPDATE','ServiceProviderRoute',routeId,'ChatGPT updated only the explicitly requested route fields',{routeId,changedFields:Object.keys(data)} as unknown as Prisma.InputJsonValue);
+ return {routeId,serviceId:saved.serviceId,providerId:saved.providerId,priority:saved.priority,enabled:saved.enabled,markupPercent:saved.markupPercent?.toString()||null};
+}
+async function removeService(p:PrismaClient,a:AdminIdentity,args:J){
+ needApproval(args);
+ const serviceId=String(args.service_id||'').trim();if(!serviceId)throw new Error('SERVICE_ID_REQUIRED');
+ const service=await p.service.findFirst({where:{id:serviceId,category:ServiceCategory.SOCIAL}});if(!service)throw new Error('SOCIAL_SERVICE_NOT_FOUND');
+ if(obj(service.metadata).rawCatalog===true)throw new Error('SERVICE_ALREADY_IN_PROVIDER_CATALOG');
+ const count=await returnServicesToProviderCatalog(p,[serviceId],'SERVICE_REMOVED');
+ await audit(p,a,'CHATGPT_SOCIAL_SERVICE_REMOVE','Service',serviceId,'ChatGPT removed the explicitly requested service from VELIXEO and kept the provider route',{serviceId} as unknown as Prisma.InputJsonValue);
+ return {removed:count===1,serviceId,returnedToProviderServices:true};
+}
+async function bulkUpdateContent(p:PrismaClient,a:AdminIdentity,args:J){
+ needApproval(args);
+ const categoryRows=Array.isArray(args.categories)?args.categories:[],serviceRows=Array.isArray(args.services)?args.services:[];
+ if(!categoryRows.length&&!serviceRows.length)throw new Error('CONTENT_ITEMS_REQUIRED');
+ if(categoryRows.length>200||serviceRows.length>500)throw new Error('CONTENT_BATCH_TOO_LARGE');
+ const categoriesSaved=[] as J[],servicesSaved=[] as J[];
+ for(const item of categoryRows){
+  if(!item||typeof item!=='object'||Array.isArray(item))continue;
+  const row=item as J,slug=safeSlug(String(row.category_slug||''));if(!slug)throw new Error('CATEGORY_SLUG_REQUIRED');
+  const key=catKey(slug),setting=await p.systemSetting.findUnique({where:{key}});if(!setting)throw new Error('CATEGORY_NOT_FOUND:'+slug);
+  const value=obj(setting.value),next={...value,
+   ...(row.title_en!==undefined?{titleEn:String(row.title_en||'').trim()}:{ }),
+   ...(row.title_fa!==undefined?{titleFa:String(row.title_fa||'').trim()}:{ }),
+   ...(row.description_en!==undefined?{descriptionEn:String(row.description_en||'').trim()}:{ }),
+   ...(row.description_fa!==undefined?{descriptionFa:String(row.description_fa||'').trim()}:{ })
+  };
+  if(!String(next.titleEn||'').trim()||!String(next.titleFa||'').trim())throw new Error('BILINGUAL_CATEGORY_TITLES_REQUIRED:'+slug);
+  await p.systemSetting.update({where:{key},data:{value:next as Prisma.InputJsonValue}});
+  categoriesSaved.push({categorySlug:slug,titleEn:next.titleEn,titleFa:next.titleFa,descriptionEn:next.descriptionEn||'',descriptionFa:next.descriptionFa||''});
+ }
+ for(const item of serviceRows){
+  if(!item||typeof item!=='object'||Array.isArray(item))continue;
+  const row=item as J,serviceId=String(row.service_id||'').trim();if(!serviceId)throw new Error('SERVICE_ID_REQUIRED');
+  const service=await p.service.findFirst({where:{id:serviceId,category:ServiceCategory.SOCIAL}});if(!service)throw new Error('SOCIAL_SERVICE_NOT_FOUND:'+serviceId);
+  const data:Prisma.ServiceUpdateInput={};
+  if(row.title_en!==undefined){const v=String(row.title_en||'').trim();if(!v)throw new Error('TITLE_EN_REQUIRED:'+serviceId);data.titleEn=v;}
+  if(row.title_fa!==undefined){const v=String(row.title_fa||'').trim();if(!v)throw new Error('TITLE_FA_REQUIRED:'+serviceId);data.titleFa=v;}
+  if(row.description_en!==undefined)data.descriptionEn=String(row.description_en||'').trim()||null;
+  if(row.description_fa!==undefined)data.descriptionFa=String(row.description_fa||'').trim()||null;
+  if(!Object.keys(data).length)throw new Error('NO_CONTENT_CHANGES:'+serviceId);
+  const saved=await p.service.update({where:{id:serviceId},data});
+  servicesSaved.push({serviceId,titleEn:saved.titleEn,titleFa:saved.titleFa,descriptionEn:saved.descriptionEn,descriptionFa:saved.descriptionFa});
+ }
+ await audit(p,a,'CHATGPT_SOCIAL_BULK_CONTENT_UPDATE','SocialContent',null,'ChatGPT applied the explicitly approved bilingual content batch',{categoryCount:categoriesSaved.length,serviceCount:servicesSaved.length} as unknown as Prisma.InputJsonValue);
+ return {categoryCount:categoriesSaved.length,serviceCount:servicesSaved.length,categories:categoriesSaved,services:servicesSaved};
 }
 
 async function setMarkup(p:PrismaClient,a:AdminIdentity,args:J){
@@ -325,6 +556,13 @@ const tools=[
  {name:'delete_social_category',description:'Delete a Social Media category and disable all VELIXEO services currently assigned to it so they cannot become uncategorized customer-visible services. Requires explicit approval.',inputSchema:{type:'object',properties:{category_slug:{type:'string'},approval:{type:'string',enum:[APPROVAL]}},required:['category_slug','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:true}},
  {name:'update_social_service_content',description:'Update Persian/English title and description fields for an existing VELIXEO Social Media service. Requires explicit approval.',inputSchema:{type:'object',properties:{service_id:{type:'string'},title_en:{type:'string'},title_fa:{type:'string'},description_en:{type:'string'},description_fa:{type:'string'},approval:{type:'string',enum:[APPROVAL]}},required:['service_id','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false}},
  {name:'list_velixeo_social_services',description:'List already-added VELIXEO Social Media services with bilingual descriptions, provider routing, markup and estimated provider start time. Read-only.',inputSchema:{type:'object',properties:{brand_key:{type:'string'},category_slug:{type:'string'},q:{type:'string'},limit:{type:'integer',minimum:1,maximum:200}},additionalProperties:false},annotations:{readOnlyHint:true,destructiveHint:false}},
+ {name:'update_social_brand',description:'Edit an existing Social Media brand: key, bilingual names, icon, display order or visibility. Change only fields explicitly provided by the administrator. Requires explicit approval.',inputSchema:{type:'object',properties:{brand_key:{type:'string'},new_key:{type:'string'},title_en:{type:'string'},title_fa:{type:'string'},icon_type:{type:'string',enum:['DEFAULT','URL','UPLOAD']},icon_value:{type:'string'},sort_order:{type:'integer'},enabled:{type:'boolean'},approval:{type:'string',enum:[APPROVAL]}},required:['brand_key','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false}},
+ {name:'delete_social_brand',description:'Delete exactly the requested Social Media brand, delete its categories, and safely return its published services to Provider Services. Requires explicit approval.',inputSchema:{type:'object',properties:{brand_key:{type:'string'},approval:{type:'string',enum:[APPROVAL]}},required:['brand_key','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:true}},
+ {name:'update_social_service',description:'Edit exactly the requested existing VELIXEO Social Media service: move category, bilingual title/description, min/max, ETA, refill days, price unit, display order, enabled or featured. Does not change pricing markup unless set_social_service_pricing is called. Requires explicit approval.',inputSchema:{type:'object',properties:{service_id:{type:'string'},category_slug:{type:'string'},title_en:{type:'string'},title_fa:{type:'string'},description_en:{type:'string'},description_fa:{type:'string'},min_qty:{type:'integer',minimum:1},max_qty:{type:'integer',minimum:1},clear_min_qty:{type:'boolean'},clear_max_qty:{type:'boolean'},estimated_min_minutes:{type:'integer',minimum:0},estimated_max_minutes:{type:'integer',minimum:0},clear_estimated_min_minutes:{type:'boolean'},clear_estimated_max_minutes:{type:'boolean'},refill_days:{type:'integer',minimum:0},clear_refill_days:{type:'boolean'},price_unit:{type:'integer',minimum:1},sort_order:{type:'integer'},enabled:{type:'boolean'},featured:{type:'boolean'},approval:{type:'string',enum:[APPROVAL]}},required:['service_id','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false}},
+ {name:'set_social_service_pricing',description:'Set exact pricing for one existing VELIXEO Social Media service. AUTO_MARKUP requires an exact markup_percent supplied by the administrator. FIXED requires exact fixed_price and fixed_currency. Never infer pricing. Requires explicit approval.',inputSchema:{type:'object',properties:{service_id:{type:'string'},pricing_mode:{type:'string',enum:['AUTO_MARKUP','FIXED']},markup_percent:{type:'number',minimum:0,maximum:1000},fixed_price:{type:'number',exclusiveMinimum:0},fixed_currency:{type:'string'},price_unit:{type:'integer',minimum:1},approval:{type:'string',enum:[APPROVAL]}},required:['service_id','pricing_mode','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false}},
+ {name:'update_social_route',description:'Edit exactly one provider route: priority, enabled state, or exact markup. To inherit provider default markup set use_provider_default_markup=true. Requires explicit approval.',inputSchema:{type:'object',properties:{route_id:{type:'string'},priority:{type:'integer'},enabled:{type:'boolean'},markup_percent:{type:'number',minimum:0,maximum:1000},use_provider_default_markup:{type:'boolean'},approval:{type:'string',enum:[APPROVAL]}},required:['route_id','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false}},
+ {name:'remove_social_service',description:'Remove exactly one published Social Media service from VELIXEO and return it to Provider Services while retaining its provider route. Requires explicit approval.',inputSchema:{type:'object',properties:{service_id:{type:'string'},approval:{type:'string',enum:[APPROVAL]}},required:['service_id','approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:true}},
+ {name:'bulk_update_social_content',description:'Apply an explicitly approved batch of bilingual titles/descriptions to existing Social Media categories/services. Changes only content fields supplied in the request. Requires explicit approval.',inputSchema:{type:'object',properties:{categories:{type:'array',maxItems:200,items:{type:'object',properties:{category_slug:{type:'string'},title_en:{type:'string'},title_fa:{type:'string'},description_en:{type:'string'},description_fa:{type:'string'}},required:['category_slug'],additionalProperties:false}},services:{type:'array',maxItems:500,items:{type:'object',properties:{service_id:{type:'string'},title_en:{type:'string'},title_fa:{type:'string'},description_en:{type:'string'},description_fa:{type:'string'}},required:['service_id'],additionalProperties:false}},approval:{type:'string',enum:[APPROVAL]}},required:['approval'],additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false}},
  {name:'show_social_structure',description:'Show current VELIXEO Social Media brands and categories. Read-only.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,destructiveHint:false}}
 ] as const;
 
@@ -352,6 +590,13 @@ async function execute(p:PrismaClient,a:AdminIdentity,name:string,args:J){
  if(name==='delete_social_category')return deleteCategory(p,a,args);
  if(name==='update_social_service_content')return updateServiceContent(p,a,args);
  if(name==='list_velixeo_social_services')return listVelixeoServices(p,args);
+ if(name==='update_social_brand')return updateBrand(p,a,args);
+ if(name==='delete_social_brand')return deleteBrand(p,a,args);
+ if(name==='update_social_service')return updateService(p,a,args);
+ if(name==='set_social_service_pricing')return setServicePricing(p,a,args);
+ if(name==='update_social_route')return updateRoute(p,a,args);
+ if(name==='remove_social_service')return removeService(p,a,args);
+ if(name==='bulk_update_social_content')return bulkUpdateContent(p,a,args);
  if(name==='show_social_structure')return structure(p);
  throw new Error('UNKNOWN_TOOL:'+name);
 }
@@ -365,7 +610,7 @@ async function handleMcp(p:PrismaClient,req:FastifyRequest,rep:FastifyReply){
  if(body.method.startsWith('notifications/'))return rep.code(204).send();
  if(body.method==='initialize'){
   const requested=String((body.params||{}).protocolVersion||''),protocolVersion=PROTOCOLS.includes(requested)?requested:PROTOCOLS[0];
-  return rep.send(rpcResult(body.id,{protocolVersion,capabilities:{tools:{listChanged:false}},serverInfo:{name:'VELIXEO AI Agent',version:VERSION},instructions:'Inspect first. Every write requires approval=I_CONFIRM. Never invent a markup percentage; use only the exact percentage supplied by the administrator.'}));
+  return rep.send(rpcResult(body.id,{protocolVersion,capabilities:{tools:{listChanged:true}},serverInfo:{name:'VELIXEO AI Agent',version:VERSION},instructions:'Inspect first. NEVER make any write, cleanup, migration, pricing, move, delete, create, rename, enable/disable, or content change unless the administrator explicitly requested that exact action and supplied approval=I_CONFIRM. Do not infer adjacent changes or improve anything on your own. Execute only the requested scope. Never invent a markup, fixed price, currency, destination category, title, description, or deletion target. Read-only inspection may be used to identify exact IDs and current state before asking for approval.'}));
  }
  if(body.method==='ping')return rep.send(rpcResult(body.id,{}));
  if(body.method==='tools/list')return rep.send(rpcResult(body.id,{tools}));
@@ -381,7 +626,7 @@ function connectorHtml(admin:AdminIdentity,lang:'fa'|'en',baseUrl:string,isConfi
  const fa=lang==='fa',endpoint=baseUrl.replace(/\/$/,'')+'/mcp',privateUrl=token?endpoint+'?token='+encodeURIComponent(token):'';
  const body=[
  '<div class="grid eq"><div class="card"><div class="cardhead"><div><h2>',fa?'اتصال VELIXEO به ChatGPT':'Connect VELIXEO to ChatGPT','</h2><span class="muted">',fa?'مدیریت مستقیم VELIXEO از داخل گفتگو':'Manage VELIXEO directly from ChatGPT','</span></div><span class="pill ',isConfigured?'ok':'warn','">',isConfigured?(fa?'فعال':'Ready'):(fa?'تنظیم نشده':'Not configured'),'</span></div>',
- '<div class="notice">',fa?'این بخش مدل AI جدا داخل پنل اجرا نمی‌کند. ChatGPT مستقیماً ابزارهای VELIXEO را صدا می‌زند. عملیات نوشتنی همگی نیاز به تأیید I_CONFIRM دارند.':'This does not run another AI model inside Admin. ChatGPT calls VELIXEO tools directly. Every write requires I_CONFIRM.','</div>',
+ '<div class="notice">',fa?'این بخش مدل AI جدا داخل پنل اجرا نمی‌کند. ChatGPT مستقیماً ابزارهای VELIXEO را صدا می‌زند. ابزار می‌تواند برند، دسته، سرویس، انتقال، قیمت، سود، وضعیت و توضیحات را مدیریت کند؛ اما هیچ تغییری بدون دستور صریح شما و I_CONFIRM انجام نمی‌دهد.':'This does not run another AI model inside Admin. ChatGPT can manage brands, categories, services, moves, pricing, markup, status and descriptions, but it must not make any change without your explicit instruction and I_CONFIRM.','</div>',
  token?'<div class="field"><label>'+(fa?'لینک خصوصی اتصال — فقط همین‌بار نمایش داده می‌شود':'Private connection URL — shown only this time')+'</label><textarea class="mono" readonly style="min-height:105px">'+privateUrl+'</textarea></div>':'',
  token?'<div class="notice"><b>'+(fa?'مهم:':'Important:')+'</b> '+(fa?'این لینک را مانند رمز عبور نگهداری کن و برای شخص دیگری نفرست.':'Treat this URL like a password and do not share it.')+'</div>':'',
  '<form method="post" action="/admin/v3/chatgpt-connector/generate"><button class="btn">',isConfigured?(fa?'ساخت لینک جدید و باطل‌کردن قبلی':'Rotate private connection'):(fa?'ساخت لینک اتصال ChatGPT':'Generate ChatGPT connection'),'</button></form></div>',
