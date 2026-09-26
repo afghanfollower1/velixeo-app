@@ -449,15 +449,56 @@ async function customerRateAfn(
 ) {
   return service.basePriceAfn ?? providerRateAfn(prisma, route);
 }
+type SocialFxRates = Map<string, bigint>;
+
+async function loadSocialFxRates(prisma: PrismaClient): Promise<SocialFxRates> {
+  const rows = await prisma.exchangeRate.findMany({ select: { code: true, afnPerUnit: true } });
+  const rates = new Map<string, bigint>();
+  rates.set('AFN', 1_000_000n);
+  for (const row of rows) {
+    rates.set(row.code.toUpperCase(), decimalToScaled(row.afnPerUnit));
+  }
+  return rates;
+}
+
+function providerRateAfnFromRates(
+  route: Parameters<typeof providerRateAfn>[1],
+  rates: SocialFxRates,
+) {
+  if (!route.providerRate) return null;
+  const currency = normalizeCurrencyCode(route.providerCurrency || 'USD') || 'USD';
+  const afnPerCurrencyScaled = rates.get(currency);
+  if (afnPerCurrencyScaled == null) return null;
+  const rateScaled = decimalToScaled(route.providerRate);
+  const rawAfnScaled = ceilDiv(rateScaled * afnPerCurrencyScaled, 1_000_000n);
+  const markup = route.markupPercent ?? route.provider.defaultMarkupPercent;
+  const markupScaled = decimalToScaled(markup);
+  const withMarkupScaled = ceilDiv(
+    rawAfnScaled * (100_000_000n + markupScaled),
+    100_000_000n,
+  );
+  return ceilDiv(withMarkupScaled, 1_000_000n);
+}
+
+function customerRateAfnFromRates(
+  service: { basePriceAfn: bigint | null },
+  route: Parameters<typeof providerRateAfn>[1],
+  rates: SocialFxRates,
+) {
+  return service.basePriceAfn ?? providerRateAfnFromRates(route, rates);
+}
 
 type SocialAverageSnapshot = { minutes: number; samples: number };
 let socialAverageCache: { expiresAt: number; values: Map<string, SocialAverageSnapshot> } = {
   expiresAt: 0,
   values: new Map(),
 };
+let socialAverageInFlight: Promise<Map<string, SocialAverageSnapshot>> | null = null;
 
 async function recentSocialAverageMap(prisma: PrismaClient) {
   if (Date.now() < socialAverageCache.expiresAt) return socialAverageCache.values;
+  if (socialAverageInFlight) return socialAverageInFlight;
+  socialAverageInFlight = (async () => {
   const recentCompleted = await prisma.order.findMany({
     where: {
       category: ServiceCategory.SOCIAL,
@@ -492,8 +533,14 @@ async function recentSocialAverageMap(prisma: PrismaClient) {
     const minutes = Math.round(samples.reduce((sum, value) => sum + value, 0) / samples.length);
     values.set(key, { minutes, samples: samples.length });
   }
-  socialAverageCache = { expiresAt: Date.now() + 60_000, values };
+  socialAverageCache = { expiresAt: Date.now() + 10 * 60_000, values };
   return values;
+  })();
+  try {
+    return await socialAverageInFlight;
+  } finally {
+    socialAverageInFlight = null;
+  }
 }
 
 async function providerCostAfn(
@@ -998,7 +1045,10 @@ export function registerSocialRoutes(
       orderBy: [{ socialPlatform: 'asc' }, { socialGroup: 'asc' }, { featured: 'desc' }, { sortOrder: 'asc' }],
     });
 
-    const measuredAverage = await recentSocialAverageMap(prisma);
+    const [measuredAverage, fxRates] = await Promise.all([
+      recentSocialAverageMap(prisma),
+      loadSocialFxRates(prisma),
+    ]);
 
     const rows = [];
     for (const service of services) {
@@ -1011,7 +1061,7 @@ export function registerSocialRoutes(
       if (!addedToVelixeo) continue;
       const route = service.routes[0];
       if (!route) continue;
-      const rateAfn = await customerRateAfn(prisma, service, route);
+      const rateAfn = customerRateAfnFromRates(service, route, fxRates);
       if (rateAfn == null) continue;
       const providerType = route.providerType || 'Default';
       const providerAverage = providerAverageEtaFromMetadata(route.metadata);
