@@ -1233,16 +1233,15 @@ export function registerSocialRoutes(
           ? Math.round((providerAverage.minMinutes + providerAverage.maxMinutes) / 2)
           : providerAverage.minMinutes ?? providerAverage.maxMinutes
         : null;
-      // Match the KandoPanel-style "Average time" concept: prefer our observed
-      // completion records for this exact VELIXEO service/provider route. Only fall
-      // back to a genuine provider API average field. Never derive an average from
-      // "[Start Time: ...]" text in the service title.
-      const averageTimeMinutes = measured?.minutes ?? providerAverageMinutes ?? null;
-      const averageTimeSource = measured
-        ? 'VELIXEO_ORDERS'
-        : providerAverage
-          ? 'PROVIDER_API'
-          : 'NONE';
+      // Exact upstream Average Time wins whenever it is available from the
+      // authenticated provider Services page. A genuine API average is next, and
+      // VELIXEO's own observed order history is only the final fallback.
+      const providerAverageSource = providerAverage
+        ? providerAverage.source === 'provider_web' ? 'PROVIDER_WEB' : 'PROVIDER_API'
+        : null;
+      const averageTimeMinutes = providerAverageMinutes ?? measured?.minutes ?? null;
+      const averageTimeSource = providerAverageSource
+        ?? (measured ? 'VELIXEO_ORDERS' : 'NONE');
       rows.push({
         id: service.id,
         slug: service.slug,
@@ -1261,7 +1260,7 @@ export function registerSocialRoutes(
         estimatedMinMinutes: service.estimatedMinMinutes,
         estimatedMaxMinutes: service.estimatedMaxMinutes,
         advertisedStartTime: providerEtaFromMetadata(route.metadata, route.providerName),
-        averageTimeText: averageTimeSource === 'PROVIDER_API' ? providerAverage?.text ?? null : null,
+        averageTimeText: providerAverageSource ? providerAverage?.text ?? null : null,
         averageTimeMinutes,
         averageTimeSource,
         averageTimeSamples: averageTimeSource === 'VELIXEO_ORDERS' ? measured?.samples ?? 0 : null,
@@ -1584,12 +1583,12 @@ export function registerSocialRoutes(
             ? Math.round((providerAverage.minMinutes + providerAverage.maxMinutes) / 2)
             : providerAverage.minMinutes ?? providerAverage.maxMinutes
           : null;
-        const orderAverageMinutes = measuredAverage?.minutes ?? providerAverageMinutes ?? null;
-        const orderAverageSource = measuredAverage
-          ? 'VELIXEO_ORDERS'
-          : providerAverage
-            ? 'PROVIDER_API'
-            : 'NONE';
+        const providerAverageSource = providerAverage
+          ? providerAverage.source === 'provider_web' ? 'PROVIDER_WEB' : 'PROVIDER_API'
+          : null;
+        const orderAverageMinutes = providerAverageMinutes ?? measuredAverage?.minutes ?? null;
+        const orderAverageSource = providerAverageSource
+          ?? (measuredAverage ? 'VELIXEO_ORDERS' : 'NONE');
         order = await prisma.order.update({
           where: { id: order.id },
           data: {
@@ -1603,7 +1602,7 @@ export function registerSocialRoutes(
               refillSupported: route.providerRefill,
               cancelSupported: route.providerCancel,
               providerEta: providerEtaFromMetadata(route.metadata, route.providerName),
-              providerAverageTimeText: orderAverageSource === 'PROVIDER_API' ? providerAverage?.text ?? null : null,
+              providerAverageTimeText: providerAverageSource ? providerAverage?.text ?? null : null,
               providerAverageTimeMinutes: orderAverageMinutes,
               providerAverageTimeSource: orderAverageSource,
               providerAverageTimeSamples: orderAverageSource === 'VELIXEO_ORDERS'
@@ -1654,7 +1653,11 @@ export function registerSocialRoutes(
                     }
                     return avg.minMinutes ?? avg.maxMinutes;
                   })(),
-                  providerAverageTimeSource: providerAverageEtaFromMetadata(route.metadata) ? 'PROVIDER_API' : 'NONE',
+                  providerAverageTimeSource: (() => {
+                    const avg = providerAverageEtaFromMetadata(route.metadata);
+                    if (!avg) return 'NONE';
+                    return avg.source === 'provider_web' ? 'PROVIDER_WEB' : 'PROVIDER_API';
+                  })(),
                   refillWindowHours: orderSettings.refillWindowHours,
                   displayOrderId: order.publicOrderNumber?.toString() ?? order.id.slice(0, 8),
                   providerType: candidateType,
