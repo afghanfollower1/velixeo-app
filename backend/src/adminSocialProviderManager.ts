@@ -1196,7 +1196,22 @@ export function registerAdminSocialProviderManager(
         syncMinutes: intValue(body.syncMinutes, 10),
       });
       await audit(prisma, admin.id, id ? 'SOCIAL_PROVIDER_UPDATE' : 'SOCIAL_PROVIDER_CREATE', 'Provider', provider.id, `${provider.name} (${provider.slug})`);
-      return reply.code(303).redirect(`/admin/v3/social/providers?msg=${encodeURIComponent(id ? 'Provider updated.' : 'Provider added successfully.')}`);
+      let saveMessage = id ? 'Provider updated.' : 'Provider added successfully.';
+      if (panelUsernameInput && panelPasswordInput) {
+        try {
+          const syncResult = await syncSocialProviderCatalog(prisma, provider.id);
+          if (syncResult.providerWebAverageStatus === 'ok') {
+            saveMessage += ` Exact provider Average Time synced for ${syncResult.providerWebAverageCount} services.`;
+          } else if (syncResult.providerWebAverageStatus === 'error') {
+            saveMessage += ` Website login saved, but exact Average Time test failed: ${syncResult.providerWebAverageError || 'provider website unavailable'}.`;
+          } else {
+            saveMessage += ' Website login saved; exact Average Time sync is not configured.';
+          }
+        } catch (error) {
+          saveMessage += ` Website login saved, but provider sync failed: ${error instanceof Error ? error.message : 'sync_failed'}.`;
+        }
+      }
+      return reply.code(303).redirect(`/admin/v3/social/providers?msg=${encodeURIComponent(saveMessage)}`);
     } catch (error) {
       const id = text(body, 'id');
       const target = id ? `?edit=${encodeURIComponent(id)}&` : '?mode=new&';
@@ -1261,7 +1276,12 @@ export function registerAdminSocialProviderManager(
     try {
       const result = await syncSocialProviderCatalog(prisma, providerId);
       await audit(prisma, admin.id, 'SOCIAL_PROVIDER_SYNC', 'Provider', providerId, `Synced ${result.total} services`, result as unknown as Prisma.InputJsonValue);
-      return reply.code(303).redirect(`/admin/v3/social/provider-services?provider=${providerId}&msg=${encodeURIComponent(`Received ${result.total} services. ${result.created} new, ${result.updated} updated.`)}`);
+      const averageNote = result.providerWebAverageStatus === 'ok'
+        ? ` Exact provider Average Time: ${result.providerWebAverageCount} services.`
+        : result.providerWebAverageStatus === 'error'
+          ? ` Exact Average Time website sync failed: ${result.providerWebAverageError || 'provider website unavailable'}.`
+          : ' Exact Average Time website login is not configured.';
+      return reply.code(303).redirect(`/admin/v3/social/provider-services?provider=${providerId}&msg=${encodeURIComponent(`Received ${result.total} services. ${result.created} new, ${result.updated} updated.${averageNote}`)}`);
     } catch (error) {
       return reply.code(303).redirect(`/admin/v3/social/provider-services?provider=${providerId}&error=1&msg=${encodeURIComponent(error instanceof Error ? error.message : 'sync_failed')}`);
     }
