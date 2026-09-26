@@ -72,7 +72,7 @@ export async function loadSocialBrands(prisma: PrismaClient): Promise<SocialBran
   const configuredKeys = new Set(configured.map(item => item.key));
   const [categories, services] = await Promise.all([
     prisma.systemSetting.findMany({ where: { category: 'social-category' }, select: { value: true } }),
-    prisma.service.findMany({ where: { category: ServiceCategory.SOCIAL }, select: { socialPlatform: true } }),
+    prisma.service.findMany({ where: { category: ServiceCategory.SOCIAL }, select: { socialPlatform: true, metadata: true } }),
   ]);
   const inferred = new Set<string>();
   for (const setting of categories) {
@@ -81,6 +81,13 @@ export async function loadSocialBrands(prisma: PrismaClient): Promise<SocialBran
     if (key) inferred.add(key);
   }
   for (const service of services) {
+    const meta = jsonObject(service.metadata);
+    const published = meta.rawCatalog !== true && (
+      meta.addedToVelixeo === true
+      || typeof meta.publishedAt === 'string'
+      || typeof meta.publishedFromProviderId === 'string'
+    );
+    if (!published) continue;
     const key = normalizeBrandKey(service.socialPlatform || '');
     if (key) inferred.add(key);
   }
