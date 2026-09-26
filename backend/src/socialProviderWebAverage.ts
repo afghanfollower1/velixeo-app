@@ -111,10 +111,21 @@ function cookieHeader(cookies: Map<string, string>) {
 }
 
 function loginForm(html: string, baseUrl: URL) {
-  const forms = [...html.matchAll(/<form\b([^>]*)>([\s\S]*?)<\/form>/gi)];
-  for (const match of forms) {
+  const candidates: Array<{
+    score: number;
+    action: URL;
+    fields: URLSearchParams;
+    usernameField: string;
+    passwordField: string;
+  }> = [];
+
+  for (const match of html.matchAll(/<form\b([^>]*)>([\s\S]*?)<\/form>/gi)) {
     const body = match[2] ?? '';
-    if (!/<input\b[^>]*type\s*=\s*["']?password/i.test(body)) continue;
+    const passwordInputs = [...body.matchAll(/<input\b([^>]*)>/gi)]
+      .map(input => attrs(input[1] ?? ''))
+      .filter(input => (input.get('type') || 'text').toLowerCase() === 'password');
+    if (!passwordInputs.length) continue;
+
     const formAttrs = attrs(match[1] ?? '');
     const actionRaw = formAttrs.get('action') || baseUrl.pathname || '/';
     const action = new URL(actionRaw, baseUrl);
@@ -145,9 +156,18 @@ function loginForm(html: string, baseUrl: URL) {
     }
 
     if (!usernameField || !passwordField) continue;
-    return { action, fields, usernameField, passwordField };
+    const plain = textOnly(body).toLowerCase();
+    let score = 0;
+    if (/login|sign[ -]?in|auth/i.test(action.pathname)) score += 5;
+    if (/remember|forgot password/.test(plain)) score += 4;
+    if (passwordInputs.length === 1) score += 3;
+    if (/confirm password|first name|last name|sign[ -]?up|register/.test(plain)) score -= 10;
+    if (/signup|register/.test(action.pathname)) score -= 10;
+    candidates.push({ score, action, fields, usernameField, passwordField });
   }
-  return null;
+
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0] ?? null;
 }
 
 async function fetchWithCookies(
