@@ -271,11 +271,27 @@ const socialManagerCss = `
 .refill-control .toggle{display:inline-flex;align-items:center;gap:9px;font-size:12px;font-weight:650}
 .refill-control .toggle input{width:19px;height:19px;accent-color:#38bdf8}
 .provider-capability{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px}
-#route-content .table{width:100%;min-width:0;table-layout:auto}
+#route-content .table{width:100%;min-width:980px;table-layout:auto}
 #route-content .table th,#route-content .table td{white-space:normal;overflow-wrap:anywhere;vertical-align:middle}
-#route-content .tablewrap{max-width:100%;overflow:auto;scrollbar-gutter:stable;overscroll-behavior-inline:contain}
-#route-content .actions{flex-wrap:wrap}
-#route-content .card{margin-bottom:18px}
+#route-content .tablewrap{width:100%;max-width:100%;overflow-x:auto;overflow-y:visible;scrollbar-gutter:stable;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch}
+#route-content .actions{flex-wrap:wrap;min-width:0}
+#route-content .actions form{display:flex;align-items:center;gap:6px;min-width:0}
+#route-content .actions select{max-width:220px}
+#route-content .card{margin-bottom:18px;min-width:0}
+#route-content .service-admin-table{min-width:1480px}
+#route-content .service-admin-table .service-main-cell{min-width:280px;max-width:380px}
+#route-content .service-admin-table .category-cell{min-width:170px}
+#route-content .service-admin-table .provider-cell{min-width:135px}
+#route-content .service-admin-table .price-cell{min-width:135px;white-space:nowrap}
+#route-content .service-admin-table .range-cell{min-width:105px;white-space:nowrap}
+#route-content .service-admin-table .refill-cell{min-width:150px}
+#route-content .service-admin-table .status-cell{min-width:120px}
+#route-content .service-admin-table .service-actions-cell{min-width:290px}
+.price-stack{display:flex;flex-direction:column;gap:3px}
+.price-stack strong{font-size:12px;white-space:nowrap}
+.price-stack small{font-size:9px;color:var(--muted);white-space:nowrap}
+.profit-positive{color:#158365;font-weight:700}
+.profit-fixed{color:#7661c9;font-weight:700}
 .service-config-panel{scroll-margin-top:18px;border-color:#cfe9f6!important;box-shadow:0 16px 40px rgba(54,143,181,.08)}
 .service-config-feedback{display:none;margin:0 0 12px;padding:10px 12px;border-radius:12px;font-size:11px;font-weight:650}
 .service-config-feedback.ok{display:block;background:#eaf8f2;color:#147956}
@@ -284,15 +300,28 @@ html.vx-admin-fa #route-content .provider-name,html.vx-admin-fa #route-content .
 html.vx-admin-en #route-content .provider-name,html.vx-admin-en #route-content .split-title,html.vx-admin-en #route-content .searchbar{direction:ltr}
 html.vx-admin-fa #route-content .source-categories{direction:rtl}
 html.vx-admin-en #route-content .source-categories{direction:ltr}
-#route-content .table{min-width:920px}
+@media(max-width:1180px){
+  #route-content .table{min-width:1100px}
+  #route-content .service-admin-table{min-width:1480px}
+  .provider-picker{grid-template-columns:minmax(180px,260px) minmax(220px,1fr) auto}
+}
 @media(max-width:900px){
   .provider-picker{grid-template-columns:1fr}
   .provider-picker .btn{width:100%}
   .refill-control{align-items:flex-start;flex-direction:column}
+  .searchbar{width:100%;align-items:stretch}
+  .searchbar input,.searchbar select{flex:1 1 220px}
+  #route-content .actions select{max-width:190px}
 }
 @media(max-width:680px){
-  .searchbar{align-items:stretch}.searchbar form{width:100%}.searchbar input,.searchbar select{width:100%}
-  #route-content .card{padding:14px}
+  .searchbar{align-items:stretch}
+  .searchbar form{width:100%}
+  .searchbar input,.searchbar select{width:100%;min-width:0}
+  #route-content .card{padding:12px}
+  #route-content .table{min-width:980px}
+  #route-content .service-admin-table{min-width:1440px}
+  #route-content .actions{gap:5px}
+  #route-content .iconbtn{width:34px;height:34px}
 }
 </style>`;
 
